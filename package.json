@@ -1,0 +1,48 @@
+{
+  "name": "astrbot-live2d-desktop",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "cross-env NODE_ENV=development electron electron/main.cjs",
+    "start": "concurrently -k \"npm run dev\" \"wait-on http://localhost:1420 && npm run electron\"",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "bash scripts/clean.sh",
+    "clean:deep": "bash scripts/clean.sh --deep"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0",
+    "electron-store": "^8.2.0",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.27",
+    "marked": "^17.0.1",
+    "pinia": "^2.3.0",
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^6.5.10",
+    "uiohook-napi": "^1.5.4",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitest/ui": "^2.1.8",
+    "@vue/test-utils": "^2.4.6",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^39.2.7",
+    "happy-dom": "^15.11.7",
+    "jsdom": "^25.0.1",
+    "path-browserify": "^1.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8",
+    "wait-on": "^8.0.1"
+  }
+}

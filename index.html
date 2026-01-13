@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>AstrBot Live2D 桌面</title>
+    <!-- Live2D Cubism Core: required by pixi-live2d-display -->
+    <script src="/lib/live2dcubismcore.min.js"></script>
+    <script>
+      // 创建完整的 Cubism 2 兼容层
+      if (!window.Live2D && window.Live2DCubismCore) {
+        console.log('[AstrBot-L2D] 创建 Cubism 2 完整兼容层')
+
+        // 基础 Live2D 对象
+        window.Live2D = {
+          __compatibility_layer: true,
+          VERSION_MAJOR: 2,
+          VERSION_MINOR: 1,
+          VERSION_PATCH: 0
+        }
+
+        // 模拟 Cubism 2 的主要类
+        window.Live2DModelWebGL = class Live2DModelWebGL {}
+        window.Live2DMotion = class Live2DMotion {}
+        window.MotionQueueManager = class MotionQueueManager {}
+
+        // PhysicsHair 类及其常量
+        window.PhysicsHair = class PhysicsHair {
+          constructor() {
+            this.Src = PhysicsHair.Src
+          }
+        }
+        // 添加静态 Src 对象和常量
+        window.PhysicsHair.Src = {
+          SRC_TO_X: 'SRC_TO_X',
+          SRC_TO_Y: 'SRC_TO_Y',
+          SRC_TO_G_ANGLE: 'SRC_TO_G_ANGLE'
+        }
+
+        window.AMotion = class AMotion {}
+        window.PartsDataID = class PartsDataID {}
+        window.DrawDataID = class DrawDataID {}
+        window.BaseDataID = class BaseDataID {}
+        window.Live2DFramework = {
+          setPlatformManager: function() {}
+        }
+        window.PlatformManager = class PlatformManager {}
+
+        console.log('[AstrBot-L2D] Cubism 2 兼容层创建完成')
+      }
+
+      // 验证 SDK 加载（用于调试）
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('[AstrBot-L2D] Live2D:', window.Live2D ? '✓' : '✗')
+        console.log('[AstrBot-L2D] Live2DMotion:', window.Live2DMotion ? '✓' : '✗')
+        console.log('[AstrBot-L2D] PhysicsHair.Src.SRC_TO_X:', window.PhysicsHair?.Src?.SRC_TO_X)
+        console.log('[AstrBot-L2D] Live2DCubismCore:', window.Live2DCubismCore ? '✓' : '✗')
+        if (window.Live2DCubismCore) {
+          console.log('[AstrBot-L2D] SDK 版本:', window.Live2DCubismCore.Version?.csmGetVersion?.())
+        }
+      })
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

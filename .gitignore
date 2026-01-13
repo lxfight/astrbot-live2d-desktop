@@ -1,0 +1,30 @@
+# 依赖和构建产物
+node_modules/
+dist/
+.vite/
+
+# 本地缓存和下载资源
+.cache/
+public/models/default/
+public/vendor/
+
+# 操作系统和IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 日志文件
+*.log
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# 临时文件
+tmpclaude-*
+*.tmp
+*.temp
+.env.development
+CLAUDE.md
