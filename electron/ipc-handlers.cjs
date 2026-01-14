@@ -1,4 +1,4 @@
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, BrowserWindow, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createLogger } = require('./logger.cjs');
@@ -34,6 +34,12 @@ function registerIPCHandlers(
         mainWindow.setAlwaysOnTop(settings.alwaysOnTop);
       }
     }
+
+    BrowserWindow.getAllWindows().forEach((win) => {
+      if (!win.isDestroyed() && win.webContents) {
+        win.webContents.send('settings-changed', settings);
+      }
+    });
 
     if (settings.recordHotkey !== undefined) {
       const success = registerGlobalShortcuts();
@@ -83,7 +89,8 @@ function registerIPCHandlers(
 
     try {
       if (ignore) {
-        mainWindow.setIgnoreMouseEvents(true, { forward: true });
+        const forward = !!options?.forward;
+        mainWindow.setIgnoreMouseEvents(true, forward ? { forward: true } : undefined);
       } else {
         mainWindow.setIgnoreMouseEvents(false);
       }
@@ -114,6 +121,10 @@ function registerIPCHandlers(
     return { x: bounds.x, y: bounds.y };
   });
 
+  ipcMain.handle('get-cursor-position', () => {
+    return screen.getCursorScreenPoint();
+  });
+
   ipcMain.handle('set-window-position', (event, x, y) => {
     const mainWindow = getMainWindow();
     if (!mainWindow) return { success: false };
@@ -128,6 +139,26 @@ function registerIPCHandlers(
       return { success: true };
     } catch (error) {
       logger.error('设置窗口位置失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('set-window-size', (event, width, height) => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow) return { success: false };
+
+    try {
+      const nextWidth = Math.max(1, Math.round(width));
+      const nextHeight = Math.max(1, Math.round(height));
+      mainWindow.setSize(nextWidth, nextHeight);
+
+      const settings = store.get('settings', {});
+      settings.windowSize = { width: nextWidth, height: nextHeight };
+      store.set('settings', settings);
+
+      return { success: true };
+    } catch (error) {
+      logger.error('设置窗口大小失败:', error);
       return { success: false, error: error.message };
     }
   });

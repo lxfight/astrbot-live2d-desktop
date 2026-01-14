@@ -40,51 +40,46 @@
       <main class="settings-main">
         <div class="settings-content">
           <!-- 使用子组件 -->
-          <SettingsBasic
-            v-show="activeTab === 'basic'"
-            :settings="settings"
-            @save="saveSettings"
-          />
+          <div v-show="activeTab === 'basic'">
+            <SettingsBasic
+              :settings="settings"
+              @save="saveSettings"
+            />
+          </div>
 
-          <SettingsPassthrough
-            v-show="activeTab === 'passthrough'"
-            :settings="settings"
-            @save="saveSettings"
-          />
+          <div v-show="activeTab === 'websocket'">
+            <SettingsWebSocket
+              :settings="settings"
+              @save="saveSettings"
+            />
+          </div>
 
-          <SettingsInteraction
-            v-show="activeTab === 'interaction'"
-            :settings="settings"
-            @save="saveSettings"
-          />
-
-          <SettingsWebSocket
-            v-show="activeTab === 'websocket'"
-            :settings="settings"
-            @save="saveSettings"
-          />
-
-          <!-- 模型管理 - 暂时保留原实现或创建简化版 -->
-          <section v-show="activeTab === 'model'" class="settings-section">
-            <h2>模型管理</h2>
-            <p class="placeholder-text">模型管理功能待迁移...</p>
-          </section>
+          <div v-show="activeTab === 'model'">
+            <SettingsModel
+              :settings="settings"
+              :default-settings="defaultSettings"
+              @save="saveSettings"
+            />
+          </div>
 
           <!-- 对话历史 - 使用现有组件 -->
-          <ConversationHistory v-show="activeTab === 'history'" />
+          <ConversationHistory v-if="activeTab === 'history'" />
 
           <!-- 数据统计 - 使用现有组件 -->
-          <StatisticsView v-show="activeTab === 'statistics'" />
+          <StatisticsView v-if="activeTab === 'statistics'" />
 
-          <SettingsSystem
-            v-show="activeTab === 'system'"
-            :settings="settings"
-            :hotkey-conflict="hotkeyConflict"
-            @save="saveSettings"
-            @update:hotkeyConflict="hotkeyConflict = $event"
-          />
+          <div v-show="activeTab === 'system'">
+            <SettingsSystem
+              :settings="settings"
+              :hotkey-conflict="hotkeyConflict"
+              @save="saveSettings"
+              @update:hotkeyConflict="hotkeyConflict = $event"
+            />
+          </div>
 
-          <SettingsAbout v-show="activeTab === 'about'" />
+          <div v-show="activeTab === 'about'">
+            <SettingsAbout />
+          </div>
         </div>
 
         <div class="settings-footer">
@@ -109,9 +104,8 @@ import { ref, onMounted } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import SettingsAbout from './settings/SettingsAbout.vue'
 import SettingsBasic from './settings/SettingsBasic.vue'
-import SettingsPassthrough from './settings/SettingsPassthrough.vue'
+import SettingsModel from './settings/SettingsModel.vue'
 import SettingsWebSocket from './settings/SettingsWebSocket.vue'
-import SettingsInteraction from './settings/SettingsInteraction.vue'
 import SettingsSystem from './settings/SettingsSystem.vue'
 import ConversationHistory from './ConversationHistory.vue'
 import StatisticsView from './StatisticsView.vue'
@@ -119,10 +113,8 @@ import StatisticsView from './StatisticsView.vue'
 // 标签页定义
 const tabs = [
   { key: 'basic', label: '基础设置' },
-  { key: 'passthrough', label: '鼠标穿透' },
-  { key: 'interaction', label: '交互设置' },
+  { key: 'model', label: '模型设置' },
   { key: 'websocket', label: 'WebSocket' },
-  { key: 'model', label: '模型管理' },
   { key: 'history', label: '对话历史' },
   { key: 'statistics', label: '数据统计' },
   { key: 'system', label: '系统设置' },
@@ -138,7 +130,8 @@ const {
   hotkeyConflict,
   loadSettings,
   saveSettings,
-  resetSettings
+  resetSettings,
+  defaultSettings
 } = useSettings()
 
 onMounted(async () => {
@@ -146,9 +139,7 @@ onMounted(async () => {
 })
 
 const closeSettings = () => {
-  if (window.electronAPI?.hideWindow) {
-    window.electronAPI.hideWindow()
-  }
+  window.close()
 }
 </script>
 
@@ -284,24 +275,6 @@ const closeSettings = () => {
   flex: 1;
   padding: 32px;
   overflow-y: auto;
-}
-
-.settings-section {
-  max-width: 800px;
-}
-
-.settings-section h2 {
-  margin: 0 0 24px 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.placeholder-text {
-  padding: 32px;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
 }
 
 .settings-footer {

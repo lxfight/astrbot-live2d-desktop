@@ -8,6 +8,22 @@ const ipcHandlers = require('./ipc-handlers.cjs');
 
 const store = new Store();
 
+const DEVTOOLS_AUTOFILL_MESSAGES = [
+  'Autofill.enable',
+  'Autofill.setAddresses'
+];
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('console-message', (event, _level, message, _line, sourceId) => {
+    if (!sourceId || !sourceId.startsWith('devtools://')) {
+      return;
+    }
+    if (DEVTOOLS_AUTOFILL_MESSAGES.some((keyword) => String(message).includes(keyword))) {
+      event.preventDefault();
+    }
+  });
+});
+
 // 默认设置
 const defaultSettings = {
   wsUrl: 'ws://localhost:8765/ws',

@@ -69,6 +69,7 @@ import BubbleDialog from './components/BubbleDialog.vue'
 import RecordingIndicator from './components/RecordingIndicator.vue'
 import { useConnectionStore } from './stores/connection'
 import { logger } from './utils/logger'
+import type { SaveMessageParams } from './types/history'
 
 const renderer = ref()
 const connectionStore = useConnectionStore()
@@ -82,9 +83,11 @@ const inputEl = ref<HTMLInputElement | null>(null)
 const bubblePos = ref({ x: window.innerWidth / 2, y: 20 })
 const imageInput = ref<HTMLInputElement>()
 const attachedImage = ref<string | null>(null)
+const attachedImageFile = ref<File | null>(null)
 const isRecording = ref(false)
 const mediaRecorder = ref<MediaRecorder | null>(null)
 const audioChunks = ref<Blob[]>([])
+const currentConversationId = ref<number | null>(null)
 
 // 气泡增强功能
 const BUBBLE_DURATION = 5000  // 延长显示时间至 5 秒
@@ -138,8 +141,10 @@ const imageContentStyle = computed(() => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   logger.info('应用已启动')
+
+  await initializeConversation()
 
   // 从 Electron 加载设置
   if (window.electronAPI?.getSettings) {
@@ -161,48 +166,7 @@ onMounted(() => {
   }
 
   connectionStore.onPerform((sequence) => {
-    const firstText = sequence?.find?.((x: any) => x?.type === 'text')
-    if (firstText?.content) {
-      currentText.value = String(firstText.content)
-      currentFullMessage.value = sequence  // 保存完整消息内容
-
-      // 显示气泡期间，持续跟随模型头部
-      startBubbleTracking()
-
-      // 立即锁定拦截模式，使气泡可点击和滚动
-      renderer.value?.setUiInteracting?.(true)
-
-      // 清除之前的定时器
-      if (bubbleTimer) {
-        window.clearTimeout(bubbleTimer)
-      }
-
-      // 设置新的定时器
-      bubbleTimer = window.setTimeout(() => {
-        if (!bubbleHovered.value) {  // 只有未悬停时才消失
-          currentText.value = ''
-          currentFullMessage.value = null
-          stopBubbleTracking()
-          bubbleTimer = null
-          // 解锁穿透状态，恢复自动检测
-          renderer.value?.setUiInteracting?.(false)
-        }
-      }, firstText.duration || BUBBLE_DURATION)
-    }
-
-    const firstImage = sequence?.find?.((x: any) => x?.type === 'image')
-    if (firstImage?.url) {
-      currentImage.value = {
-        url: firstImage.url,
-        duration: firstImage.duration || 5000,
-        position: firstImage.position || 'center',
-        size: firstImage.size
-      }
-
-      window.setTimeout(() => {
-        currentImage.value = null
-      }, firstImage.duration || 5000)
-    }
+    void handlePerformSequence(sequence)
   })
 
   // 监听来自设置窗口的播放指令
@@ -235,6 +199,71 @@ onMounted(() => {
     })
   }
 })
+
+const handlePerformSequence = async (sequence: any[]) => {
+  const firstText = sequence?.find?.((x: any) => x?.type === 'text')
+  const textContent = firstText?.content ?? firstText?.text
+  if (textContent) {
+    currentText.value = String(textContent)
+    currentFullMessage.value = sequence  // 保存完整消息内容
+
+    // 显示气泡期间，持续跟随模型头部
+    startBubbleTracking()
+
+    // 立即锁定拦截模式，使气泡可点击和滚动
+    renderer.value?.setUiInteracting?.(true)
+
+    // 清除之前的定时器
+    if (bubbleTimer) {
+      window.clearTimeout(bubbleTimer)
+    }
+
+    // 设置新的定时器
+    bubbleTimer = window.setTimeout(() => {
+      if (!bubbleHovered.value) {  // 只有未悬停时才消失
+        currentText.value = ''
+        currentFullMessage.value = null
+        stopBubbleTracking()
+        bubbleTimer = null
+        // 解锁穿透状态，恢复自动检测
+        renderer.value?.setUiInteracting?.(false)
+      }
+    }, firstText.duration || BUBBLE_DURATION)
+  }
+
+  const firstImage = sequence?.find?.((x: any) => x?.type === 'image')
+  if (firstImage) {
+    resolveResourceUrl(firstImage).then((url) => {
+      if (!url) return
+      currentImage.value = {
+        url,
+        duration: firstImage.duration || 5000,
+        position: firstImage.position || 'center',
+        size: firstImage.size
+      }
+
+      window.setTimeout(() => {
+        currentImage.value = null
+      }, firstImage.duration || 5000)
+    })
+  }
+
+  for (const item of sequence ?? []) {
+    if (item.type === 'motion') {
+      renderer.value?.playMotion(item.group, item.index)
+    }
+    if (item.type === 'expression') {
+      const expressionId = item.id || item.expressionId
+      if (expressionId) {
+        renderer.value?.setExpression(expressionId)
+      }
+    }
+    if (item.type === 'tts') {
+      playTTS(item)
+    }
+    await recordPerformItem(item)
+  }
+}
 
 onUnmounted(() => {
   // 清理气泡跟踪动画
@@ -360,7 +389,7 @@ const onInputBlur = (e: FocusEvent) => {
   closeInput()
 }
 
-const send = () => {
+const send = async () => {
   const text = inputText.value.trim()
   const hasAttachment = !!attachedImage.value
 
@@ -373,14 +402,26 @@ const send = () => {
     content.push({ type: 'text', text })
   }
 
-  if (hasAttachment) {
-    content.push({ type: 'image', data: attachedImage.value })
+  const attachmentFile = attachedImageFile.value
+  if (hasAttachment && attachedImageFile.value) {
+    content.push({ type: 'image', file: attachedImageFile.value })
   }
 
-  connectionStore.sendMessage(content)
+  await connectionStore.sendMessage(content)
+  if (text) {
+    await saveUserMessage('text', text, { text })
+  }
+  if (hasAttachment && attachmentFile) {
+    await saveUserMessage('image', attachmentFile.name || 'image', {
+      name: attachmentFile.name,
+      size: attachmentFile.size,
+      type: attachmentFile.type
+    })
+  }
 
   inputText.value = ''
   attachedImage.value = null
+  attachedImageFile.value = null
   closeInput()
 }
 
@@ -413,6 +454,7 @@ const handleImageSelect = async (event: Event) => {
     const reader = new FileReader()
     reader.onload = () => {
       attachedImage.value = reader.result as string
+      attachedImageFile.value = file
       logger.debug('已添加图片附件')
     }
 
@@ -442,6 +484,7 @@ const handlePaste = async (event: ClipboardEvent) => {
       const reader = new FileReader()
       reader.onload = () => {
         attachedImage.value = reader.result as string
+        attachedImageFile.value = file
         logger.debug('已粘贴图片附件')
       }
       reader.readAsDataURL(file)
@@ -453,6 +496,7 @@ const handlePaste = async (event: ClipboardEvent) => {
 // 移除附件
 const removeAttachment = () => {
   attachedImage.value = null
+  attachedImageFile.value = null
 }
 
 // 检测浏览器支持的最佳音频格式
@@ -531,28 +575,184 @@ const stopRecording = () => {
 // 发送语音消息
 const sendVoiceMessage = async (audioBlob: Blob) => {
   try {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const base64Data = reader.result as string
+    await connectionStore.sendMessage([
+      {
+        type: 'voice',
+        file: audioBlob,
+        sttMode: 'remote'
+      }
+    ])
 
-      connectionStore.sendMessage([
-        {
-          type: 'voice',
-          data: base64Data,
-          sttMode: 'remote'
-        }
-      ])
+    await saveUserMessage('voice', '语音消息', {
+      size: audioBlob.size,
+      type: audioBlob.type
+    })
 
-      logger.info('已发送语音消息')
-    }
-
-    reader.onerror = () => {
-      logger.error('读取音频失败')
-    }
-
-    reader.readAsDataURL(audioBlob)
+    logger.info('已发送语音消息')
   } catch (error) {
     logger.error('发送语音消息失败:', error)
+  }
+}
+
+const initializeConversation = async () => {
+  if (!window.electronAPI) return
+
+  try {
+    const activeConv = await window.electronAPI.dbGetActiveConversation()
+    if (activeConv?.id) {
+      currentConversationId.value = activeConv.id
+      logger.info(`加载激活对话: ${activeConv.id}`)
+    } else {
+      const convId = await window.electronAPI.dbCreateConversation('默认对话')
+      currentConversationId.value = convId
+      logger.info(`创建默认对话: ${convId}`)
+    }
+  } catch (error) {
+    logger.error('初始化对话失败:', error)
+  }
+}
+
+const getCurrentConversationId = async (): Promise<number> => {
+  if (currentConversationId.value !== null) {
+    return currentConversationId.value
+  }
+
+  if (!window.electronAPI) {
+    throw new Error('electronAPI 未初始化')
+  }
+
+  const convId = await window.electronAPI.dbCreateConversation('新对话')
+  currentConversationId.value = convId
+  logger.info(`创建新对话: ${convId}`)
+  return convId
+}
+
+const buildStatisticsUpdate = (sender: 'user' | 'ai', messageType: string) => {
+  const updates: Record<string, number> = {
+    total_messages: 1
+  }
+
+  if (sender === 'user') {
+    updates.user_messages = 1
+  } else {
+    updates.ai_messages = 1
+  }
+
+  if (messageType === 'text') {
+    updates.text_messages = 1
+  }
+  if (messageType === 'image') {
+    updates.image_messages = 1
+  }
+  if (messageType === 'voice') {
+    updates.voice_messages = 1
+  }
+
+  return updates
+}
+
+const updateDailyStatistics = async (updates: Record<string, number>) => {
+  if (!window.electronAPI) return
+
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    await window.electronAPI.dbUpdateStatistics({
+      stat_date: today,
+      ...updates
+    })
+  } catch (error) {
+    logger.error('更新统计失败:', error)
+  }
+}
+
+const saveMessage = async (
+  sender: 'user' | 'ai',
+  messageType: string,
+  content: string,
+  rawData: Record<string, any>
+) => {
+  if (!window.electronAPI) {
+    return
+  }
+
+  try {
+    const convId = await getCurrentConversationId()
+    const params: SaveMessageParams = {
+      conversation_id: convId,
+      sender,
+      message_type: messageType as SaveMessageParams['message_type'],
+      content,
+      raw_data: JSON.stringify(rawData ?? {}),
+      timestamp: Date.now()
+    }
+
+    await window.electronAPI.dbSaveMessage(params)
+    await updateDailyStatistics(buildStatisticsUpdate(sender, messageType))
+  } catch (error) {
+    logger.error('保存消息失败:', error)
+  }
+}
+
+const saveUserMessage = async (messageType: string, content: string, rawData: Record<string, any>) => {
+  await saveMessage('user', messageType, content, rawData)
+}
+
+const saveAIMessage = async (messageType: string, content: string, rawData: Record<string, any>) => {
+  await saveMessage('ai', messageType, content, rawData)
+}
+
+const recordPerformItem = async (item: any) => {
+  if (!item?.type) return
+
+  if (item.type === 'text') {
+    const textContent = item.content ?? item.text ?? ''
+    await saveAIMessage('text', String(textContent || ''), item)
+  } else if (item.type === 'image') {
+    const imageUrl = await resolveResourceUrl(item)
+    await saveAIMessage('image', imageUrl || '', item)
+  } else if (item.type === 'motion') {
+    const payload = `${item.group ?? ''}:${item.index ?? ''}`
+    await saveAIMessage('motion', payload, item)
+  } else if (item.type === 'expression') {
+    const expressionId = item.id || item.expressionId || ''
+    await saveAIMessage('expression', expressionId, item)
+  } else if (item.type === 'tts') {
+    const ttsContent = item.text || item.url || item.inline || item.rid || ''
+    await saveAIMessage('tts', ttsContent, item)
+  }
+}
+
+const resolveResourceUrl = async (item: any) => {
+  if (item.url) return item.url
+  if (item.inline) return item.inline
+  if (item.rid) {
+    const resource = await connectionStore.getResource(item.rid)
+    return resource?.url || resource?.inline || ''
+  }
+  return ''
+}
+
+const playTTS = async (item: any) => {
+  const ttsMode = item.ttsMode || 'remote'
+  if (ttsMode === 'remote') {
+    const audioUrl = item.url || item.inline || (await resolveResourceUrl(item))
+    if (!audioUrl) return
+    const audio = new Audio(audioUrl)
+    audio.volume = item.volume || 1.0
+    audio.playbackRate = item.speed || 1.0
+    audio.play().catch((e) => {
+      logger.error('TTS 播放失败', e)
+    })
+  } else if (ttsMode === 'local' && item.text) {
+    if (!('speechSynthesis' in window)) {
+      logger.error('浏览器不支持Web Speech API')
+      return
+    }
+    const utterance = new SpeechSynthesisUtterance(item.text)
+    utterance.voice = item.voice || null
+    utterance.volume = item.volume || 1.0
+    utterance.rate = item.speed || 1.0
+    window.speechSynthesis.speak(utterance)
   }
 }
 

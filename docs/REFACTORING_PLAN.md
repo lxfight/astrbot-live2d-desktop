@@ -289,7 +289,6 @@ dbLogger.info('初始化完成')
    - ✅ `src/utils/modelLoader.ts` (1 处 console 调用)
 
 4. **剩余文件**
-   - ⏳ `src/components/Settings.vue` (待迁移)
    - ⏳ `src/components/StatisticsView.vue` (待迁移)
    - ⏳ `src/components/ConversationHistory.vue` (待迁移)
    - ⏳ `src/utils/markdown.ts` (待迁移)
@@ -308,7 +307,7 @@ dbLogger.info('初始化完成')
 
 ## 剩余任务 📋
 
-### 7. 拆分 Settings.vue
+### 7. 拆分 Settings（SettingsNew）
 
 **状态：** ✅ 已完成基础拆分
 
@@ -316,11 +315,10 @@ dbLogger.info('初始化完成')
 - `src/composables/useSettings.ts` - 设置状态管理 composable
 - `src/components/settings/SettingsAbout.vue` - 关于页面
 - `src/components/settings/SettingsBasic.vue` - 基础设置
-- `src/components/settings/SettingsPassthrough.vue` - 鼠标穿透设置
+- `src/components/settings/SettingsModel.vue` - 模型设置/管理
 - `src/components/settings/SettingsWebSocket.vue` - WebSocket 设置
-- `src/components/settings/SettingsInteraction.vue` - 交互设置
 - `src/components/settings/SettingsSystem.vue` - 系统设置
-- `src/components/SettingsNew.vue` - 重构后的主设置组件（示例）
+- `src/components/SettingsNew.vue` - 重构后的主设置组件
 
 **改动：**
 
@@ -336,12 +334,11 @@ dbLogger.info('初始化完成')
    }
    ```
 
-2. **拆分子组件（已完成 6 个）**
+2. **拆分子组件（已完成 5 个）**
    - ✅ SettingsAbout.vue (纯展示组件，关于信息)
-   - ✅ SettingsBasic.vue (窗口置顶、透明度、模型缩放)
-   - ✅ SettingsPassthrough.vue (智能穿透、Alpha阈值、防抖延迟)
+   - ✅ SettingsBasic.vue (窗口置顶、透明度)
+   - ✅ SettingsModel.vue (模型显示、交互、穿透、管理)
    - ✅ SettingsWebSocket.vue (服务器地址、连接令牌)
-   - ✅ SettingsInteraction.vue (视线跟随、点击反馈、拖拽移动)
    - ✅ SettingsSystem.vue (开机自启、录音快捷键)
 
 3. **组件通信模式**
@@ -356,36 +353,35 @@ dbLogger.info('初始化完成')
    />
    ```
 
-4. **创建重构示例**
-   - `SettingsNew.vue` 展示如何使用子组件
+4. **创建主设置入口**
+   - `SettingsNew.vue` 作为主设置入口使用子组件
    - 主容器负责标签页导航和状态管理
    - 子组件负责具体设置项的渲染和交互
 
 **剩余工作：**
-- ⏳ 创建 SettingsModel.vue（模型管理，约500行，功能复杂）
-- ⏳ 将 SettingsNew.vue 替换原 Settings.vue（需要完整测试）
-- ⏳ 迁移模型管理功能到子组件
 - ⏳ 测试所有功能
 
 **效果：**
-- 已拆分 6 个子组件 + 1 个 composable
+- 已拆分 5 个子组件 + 1 个 composable
 - 代码行数从 1611 行减少到主容器约 200 行
 - 每个子组件 50-150 行，职责单一
 - 组件可复用性提升
 - 便于单元测试和维护
 
 ```
-src/components/settings/
-├── Settings.vue (主容器，200行)
-├── SettingsBasic.vue (基础设置，300行)
-├── SettingsModel.vue (模型管理，500行)
-├── SettingsWebSocket.vue (WebSocket设置，300行)
-└── SettingsPassthrough.vue (鼠标穿透，300行)
+src/components/
+├── SettingsNew.vue (主容器，200行)
+└── settings/
+    ├── SettingsAbout.vue (关于页面，200行)
+    ├── SettingsBasic.vue (基础设置，300行)
+    ├── SettingsModel.vue (模型设置，500行)
+    ├── SettingsWebSocket.vue (WebSocket设置，300行)
+    └── SettingsSystem.vue (系统设置，300行)
 ```
 
 **各组件职责：**
 
-1. **Settings.vue** - 主容器
+1. **SettingsNew.vue** - 主容器
    - 标签页导航
    - 子组件加载
    - 全局状态管理
@@ -397,12 +393,13 @@ src/components/settings/
    - 窗口大小和位置
    - 快捷键配置
 
-3. **SettingsModel.vue** - 模型管理
+3. **SettingsModel.vue** - 模型设置
    - 模型列表
    - 模型导入
    - 模型删除
    - 模型预览
    - 动作和表情测试
+   - 模型显示/交互/穿透设置
 
 4. **SettingsWebSocket.vue** - WebSocket 设置
    - WebSocket URL
@@ -410,11 +407,9 @@ src/components/settings/
    - 连接状态显示
    - 连接测试
 
-5. **SettingsPassthrough.vue** - 鼠标穿透设置
-   - 启用/禁用穿透
-   - Alpha 阈值调整
-   - 防抖时间配置
-   - 实时预览
+5. **SettingsSystem.vue** - 系统设置
+   - 开机自启动
+   - 录音快捷键
 
 **实施步骤：**
 
@@ -517,7 +512,7 @@ tests/
    })
    ```
 
-3. **Settings.vue** (拆分后)
+3. **SettingsNew.vue / settings 子组件**
    ```typescript
    describe('SettingsBasic', () => {
      it('应该正确保存设置', async () => {
@@ -865,7 +860,7 @@ tests/unit/utils/
 | 任务 | 优先级 | 工作量 | 预计开始 | 预计完成 |
 |------|--------|--------|----------|----------|
 | 6. 迁移前端日志系统 | 中 | 2-3天 | 待定 | 待定 |
-| 7. 拆分 Settings.vue | 高 | 2-3天 | 待定 | 待定 |
+| 7. 拆分 Settings（SettingsNew） | 高 | 2-3天 | 待定 | 待定 |
 | 8. 增加测试覆盖率 | 中 | 1-2周 | 待定 | 待定 |
 | 9. 清理过时代码 | 低 | 1天 | 待定 | 待定 |
 | 10. 性能优化和代码审查 | 中 | 3-5天 | 待定 | 待定 |
@@ -965,7 +960,7 @@ tests/unit/utils/
   - 迁移 connection.ts (2 处)
   - 迁移 modelLoader.ts (1 处)
   - 共计迁移 54+ 处 console 调用
-- ✅ 完成任务 7 基础拆分（拆分 Settings.vue）
+- ✅ 完成任务 7 基础拆分（拆分 Settings 并切换 SettingsNew）
   - 创建 useSettings composable
   - 创建 6 个子组件（About、Basic、Passthrough、WebSocket、Interaction、System）
   - 创建重构示例 SettingsNew.vue

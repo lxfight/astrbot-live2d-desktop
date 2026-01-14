@@ -28,6 +28,7 @@ interface ElectronAPI {
   // 窗口位置控制
   getWindowPosition: () => Promise<WindowPosition>
   setWindowPosition: (x: number, y: number) => Promise<{ success: boolean }>
+  getCursorPosition: () => Promise<WindowPosition>
 
   // 窗口聚焦控制
   setWindowFocusable: (focusable: boolean) => Promise<{ success: boolean }>

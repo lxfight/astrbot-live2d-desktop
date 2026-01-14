@@ -14,7 +14,7 @@
 | 指标 | 重构前 | 重构后 | 改善 |
 |------|--------|--------|------|
 | Electron 主进程代码行数 | 929 行 | 105 行 + 7 个模块 | ↓ 88.7% |
-| Settings.vue 代码行数 | 1611 行 | 200 行 + 6 个子组件 | ↓ 87.6% |
+| Settings.vue 代码行数 | 1611 行 | 200 行 + 5 个子组件 | ↓ 87.6% |
 | console.* 调用数量 | 133 处 | 54+ 处已迁移 | ↓ 40%+ |
 | any 类型使用 | 29 处 | 持续减少中 | 改善中 |
 | 模块化程度 | 低 | 高 | 显著提升 |
@@ -149,11 +149,10 @@ src/
     ├── settings/
     │   ├── SettingsAbout.vue       # 关于页面
     │   ├── SettingsBasic.vue       # 基础设置
-    │   ├── SettingsPassthrough.vue # 鼠标穿透
+    │   ├── SettingsModel.vue       # 模型设置/管理
     │   ├── SettingsWebSocket.vue   # WebSocket
-    │   ├── SettingsInteraction.vue # 交互设置
     │   └── SettingsSystem.vue      # 系统设置
-    └── SettingsNew.vue             # 主容器示例 (200行)
+    └── SettingsNew.vue             # 主容器 (200行)
 ```
 
 **效果**:
@@ -163,7 +162,6 @@ src/
 - 组件可复用
 
 **剩余工作**:
-- 创建 SettingsModel.vue（模型管理）
 - 完整功能测试
 
 ---
@@ -333,9 +331,8 @@ logger.info('组件已加载')
 ### 待解决
 
 1. ⏳ 测试覆盖率不足（< 20%）
-2. ⏳ 模型管理组件未拆分
-3. ⏳ 性能优化未完成
-4. ⏳ 代码审查未完成
+2. ⏳ 性能优化未完成
+3. ⏳ 代码审查未完成
 
 ---
 
@@ -344,9 +341,8 @@ logger.info('组件已加载')
 ### 短期（1-2 周）
 
 1. **完成 Settings.vue 拆分**
-   - 创建 SettingsModel.vue
-   - 完整功能测试
-   - 替换原 Settings.vue
+   - ✅ 已替换 SettingsNew.vue 为主设置入口
+   - ⏳ 完整功能测试（暂缓）
 
 2. **增加测试覆盖率**
    - 编写组件测试
@@ -396,7 +392,7 @@ logger.info('组件已加载')
 
 - **代码行数**: 核心文件减少 85%+
 - **模块数量**: Electron 主进程从 1 个文件拆分为 7 个模块
-- **组件数量**: Settings.vue 拆分为 6 个子组件
+- **组件数量**: Settings.vue 拆分为 5 个子组件
 - **日志迁移**: 54+ 处 console 调用已迁移
 - **类型安全**: 持续改进中
 

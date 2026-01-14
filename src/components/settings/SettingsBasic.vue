@@ -22,19 +22,6 @@
       />
       <span class="hint">需要重启应用生效</span>
     </div>
-
-    <div class="setting-item">
-      <label>模型缩放</label>
-      <input
-        type="range"
-        v-model.number="settings.modelScale"
-        @change="emit('save')"
-        min="0.5"
-        max="2.0"
-        step="0.1"
-      />
-      <span class="value">{{ settings.modelScale.toFixed(1) }}x</span>
-    </div>
   </div>
 </template>
 
@@ -68,19 +55,6 @@ const emit = defineEmits<{
   width: 18px;
   height: 18px;
   cursor: pointer;
-}
-
-.setting-item input[type="range"] {
-  flex: 1;
-  margin: 0 16px;
-  max-width: 300px;
-}
-
-.setting-item .value {
-  min-width: 50px;
-  text-align: right;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
 }
 
 .setting-item .hint {

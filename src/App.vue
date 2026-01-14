@@ -219,17 +219,20 @@ const updateDailyStatistics = async (updates: Record<string, number>) => {
 const executePerformSequence = async (sequence: any[]) => {
   for (const item of sequence) {
     if (item.type === 'text') {
-      currentText.value = item.content
+      const textContent = item.content ?? item.text
+      currentText.value = textContent
       // 保存文本消息
-      await saveAIMessage('text', item.content || '', item)
+      await saveAIMessage('text', textContent || '', item)
       await delay(item.duration || 3000)
       currentText.value = ''
     }
 
     if (item.type === 'image') {
-      currentImageUrl.value = item.url
+      const imageUrl = await resolveResourceUrl(item)
+      if (!imageUrl) continue
+      currentImageUrl.value = imageUrl
       // 保存图片消息
-      await saveAIMessage('image', item.url || '', item)
+      await saveAIMessage('image', imageUrl || '', item)
       await delay(item.duration || 5000)
       currentImageUrl.value = ''
     }
@@ -241,15 +244,22 @@ const executePerformSequence = async (sequence: any[]) => {
     }
 
     if (item.type === 'expression') {
-      renderer.value?.setExpression(item.id)
+      const expressionId = item.id || item.expressionId
+      if (expressionId) {
+        renderer.value?.setExpression(expressionId)
+      }
       // 保存表情消息
-      await saveAIMessage('expression', item.id || '', item)
+      await saveAIMessage('expression', expressionId || '', item)
     }
 
     if (item.type === 'tts') {
       await playTTS(item)
       // 保存TTS消息
-      await saveAIMessage('tts', item.text || item.url || '', item)
+      await saveAIMessage('tts', item.text || item.url || item.inline || item.rid || '', item)
+    }
+
+    if (item.type === 'wait') {
+      await delay(item.duration || 0)
     }
   }
 }
@@ -261,10 +271,15 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const playTTS = async (item: any) => {
   const ttsMode = item.ttsMode || 'remote'
 
-  if (ttsMode === 'remote' && item.url) {
+  if (ttsMode === 'remote') {
+    const audioUrl = item.url || item.inline || (await resolveResourceUrl(item))
+    if (!audioUrl) {
+      console.warn('[TTS] 无可用音频资源')
+      return
+    }
     // 远程TTS模式:播放音频URL
     return new Promise<void>((resolve, reject) => {
-      const audio = new Audio(item.url)
+      const audio = new Audio(audioUrl)
       audio.volume = item.volume || 1.0
       audio.playbackRate = item.speed || 1.0
 
@@ -306,6 +321,16 @@ const playTTS = async (item: any) => {
   }
 }
 
+const resolveResourceUrl = async (item: any) => {
+  if (item.url) return item.url
+  if (item.inline) return item.inline
+  if (item.rid) {
+    const resource = await connectionStore.getResource(item.rid)
+    return resource?.url || resource?.inline || ''
+  }
+  return ''
+}
+
 // 触发图片选择
 const triggerImageSelect = () => {
   if (!connectionStore.connected) {
@@ -323,29 +348,22 @@ const handleImageSelect = async (event: Event) => {
   if (!file) return
 
   try {
-    // 读取图片并转换为Base64
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64Data = reader.result as string
-      const messageData = {
-        type: 'image',
-        data: base64Data
-      }
-
-      // 发送图片消息
-      connectionStore.sendMessage([messageData])
-
-      // 保存用户消息
-      await saveUserMessage('image', base64Data.substring(0, 100) + '...', messageData)
-
-      console.log('[图片] 已发送图片')
+    const messageData = {
+      type: 'image',
+      file
     }
 
-    reader.onerror = () => {
-      console.error('[图片] 读取图片失败')
-    }
+    // 发送图片消息
+    await connectionStore.sendMessage([messageData])
 
-    reader.readAsDataURL(file)
+    // 保存用户消息
+    await saveUserMessage('image', file.name || 'image', {
+      type: 'image',
+      name: file.name,
+      size: file.size
+    })
+
+    console.log('[图片] 已发送图片')
   } catch (error) {
     console.error('[图片] 处理图片失败:', error)
   } finally {
@@ -402,30 +420,22 @@ const stopRecording = () => {
 // 发送语音消息
 const sendVoiceMessage = async (audioBlob: Blob) => {
   try {
-    // 转换为Base64
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64Data = reader.result as string
-      const messageData = {
-        type: 'voice',
-        data: base64Data,
-        sttMode: 'remote'
-      }
-
-      // 发送语音消息
-      connectionStore.sendMessage([messageData])
-
-      // 保存用户消息
-      await saveUserMessage('voice', `语音消息 (${audioBlob.size} bytes)`, messageData)
-
-      console.log('[录音] 已发送语音消息')
+    const messageData = {
+      type: 'voice',
+      file: audioBlob,
+      sttMode: 'remote'
     }
 
-    reader.onerror = () => {
-      console.error('[录音] 读取音频失败')
-    }
+    // 发送语音消息
+    await connectionStore.sendMessage([messageData])
 
-    reader.readAsDataURL(audioBlob)
+    // 保存用户消息
+    await saveUserMessage('voice', `语音消息 (${audioBlob.size} bytes)`, {
+      type: 'voice',
+      size: audioBlob.size
+    })
+
+    console.log('[录音] 已发送语音消息')
   } catch (error) {
     console.error('[录音] 发送语音消息失败:', error)
   }

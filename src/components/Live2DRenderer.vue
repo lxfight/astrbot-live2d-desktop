@@ -35,12 +35,27 @@ const debugCanvas = ref<HTMLCanvasElement>()
 let app: Application | null = null
 let model: any = null
 let passthroughManager: MousePassthroughManager | null = null
+let modelBaseBounds: { width: number; height: number } | null = null
 
 const loading = ref(true)
 const error = ref('')
 const currentModelPath = ref('/models/default/model3.json')
+const currentModelName = ref('default')
 const currentModelInfo = ref<ParsedModelInfo | null>(null)
 const debugMode = ref(import.meta.env.DEV) // 仅开发环境启用调试模式
+const modelSettings = ref({
+  modelScale: 1.0,
+  modelX: 0,
+  modelY: 0,
+  eyeTracking: true,
+  clickFeedback: true,
+  dragEnabled: true,
+  passthroughEnabled: true,
+  alphaThreshold: 10,
+  debounceMs: 50
+})
+let mouseMoveListenerAttached = false
+let settingsCleanup: (() => void) | null = null
 
 onMounted(async () => {
   if (!canvas.value || !canvasContainer.value) return
@@ -51,7 +66,9 @@ onMounted(async () => {
       const settings = await window.electronAPI.getSettings()
       if (settings.currentModel) {
         currentModelPath.value = `/models/${settings.currentModel}/model3.json`
+        currentModelName.value = settings.currentModel
       }
+      applySettings(settings)
     }
 
     // 动态导入 Live2DModel（确保在 Cubism SDK 加载后）
@@ -86,6 +103,7 @@ onMounted(async () => {
     logger.info('开始加载 Live2D 模型:', currentModelPath.value)
     model = await Live2DModel.from(currentModelPath.value)
     logger.info('Live2D 模型加载成功')
+    modelBaseBounds = model.getLocalBounds()
 
     // 加载模型详细信息
     try {
@@ -118,6 +136,12 @@ onMounted(async () => {
       }
     }
 
+    if (window.electronAPI?.onSettingsChanged) {
+      settingsCleanup = window.electronAPI.onSettingsChanged((nextSettings) => {
+        applySettings(nextSettings)
+      })
+    }
+
     loading.value = false
   } catch (err) {
     logger.error('加载 Live2D 模型失败:', err)
@@ -135,6 +159,11 @@ onUnmounted(() => {
     passthroughManager = null
   }
 
+  if (settingsCleanup) {
+    settingsCleanup()
+    settingsCleanup = null
+  }
+
   if (app) {
     app.destroy(true)
     app = null
@@ -142,24 +171,72 @@ onUnmounted(() => {
   model = null
 })
 
+const applySettings = async (settings?: any) => {
+  if (!settings) return
+
+  const passthroughEnabled =
+    settings.passthroughEnabled ??
+    settings.mousePassthrough?.enabled ??
+    modelSettings.value.passthroughEnabled
+  const alphaThreshold =
+    settings.alphaThreshold ??
+    settings.mousePassthrough?.alphaThreshold ??
+    modelSettings.value.alphaThreshold
+  const debounceMs = settings.debounceMs ?? modelSettings.value.debounceMs
+
+  modelSettings.value = {
+    ...modelSettings.value,
+    modelScale: Number.isFinite(settings.modelScale) ? settings.modelScale : modelSettings.value.modelScale,
+    modelX: Number.isFinite(settings.modelX) ? settings.modelX : modelSettings.value.modelX,
+    modelY: Number.isFinite(settings.modelY) ? settings.modelY : modelSettings.value.modelY,
+    eyeTracking: settings.eyeTracking ?? modelSettings.value.eyeTracking,
+    clickFeedback: settings.clickFeedback ?? modelSettings.value.clickFeedback,
+    dragEnabled: settings.dragEnabled ?? modelSettings.value.dragEnabled,
+    passthroughEnabled,
+    alphaThreshold: Number.isFinite(alphaThreshold) ? alphaThreshold : modelSettings.value.alphaThreshold,
+    debounceMs: Number.isFinite(debounceMs) ? debounceMs : modelSettings.value.debounceMs
+  }
+
+  if (settings.currentModel && settings.currentModel !== currentModelName.value) {
+    await reloadModel(settings.currentModel)
+  }
+
+  if (model) {
+    setupModel()
+    updateMousePassthrough()
+    adjustWindowSizeToModel()
+  }
+}
+
 // 设置智能鼠标穿透
 const setupMousePassthrough = () => {
   if (!app || !model) return
 
   // 创建穿透管理器
+  if (passthroughManager) {
+    passthroughManager.destroy()
+  }
   passthroughManager = new MousePassthroughManager({
-    enabled: true,
-    alphaThreshold: 10,
-    debounceMs: 20
+    enabled: modelSettings.value.passthroughEnabled,
+    alphaThreshold: modelSettings.value.alphaThreshold,
+    debounceMs: modelSettings.value.debounceMs
   })
 
   // 设置上下文
   passthroughManager.setContext(app, model)
 
   // 监听鼠标移动
-  window.addEventListener('mousemove', handleMouseMove)
+  if (!mouseMoveListenerAttached) {
+    window.addEventListener('mousemove', handleMouseMove)
+    mouseMoveListenerAttached = true
+  }
 
   logger.info('智能鼠标穿透已启用')
+}
+
+const updateMousePassthrough = () => {
+  if (!app || !model) return
+  setupMousePassthrough()
 }
 
 // 暴露给父组件的接口：设置 UI 交互状态
@@ -174,7 +251,7 @@ const handleMouseMove = (event: MouseEvent) => {
     passthroughManager.handleMouseMove(event)
   }
 
-  if (model && typeof model.focus === 'function') {
+  if (modelSettings.value.eyeTracking && model && typeof model.focus === 'function') {
     model.focus(event.clientX, event.clientY)
   }
 
@@ -247,12 +324,15 @@ const setupModel = () => {
 
   const windowWidth = window.innerWidth
   const windowHeight = window.innerHeight
+  const baseBounds = modelBaseBounds ?? model.getLocalBounds()
+  const baseHeight = Math.max(baseBounds.height || 0, 1)
 
   // 计算缩放比例
   // 在全屏模式下，我们不希望模型铺满整个屏幕，而是保持一个合理的大小
   // 比如高度占屏幕的 50% 或者固定像素高度
   const targetHeight = windowHeight * 0.5 // 占用屏幕高度的 50%
-  const scale = targetHeight / model.height
+  const baseScale = targetHeight / baseHeight
+  const scale = baseScale * (modelSettings.value.modelScale || 1)
 
   model.scale.set(scale)
 
@@ -267,8 +347,9 @@ const setupModel = () => {
   }
 
   // 小窗模式：模型固定在窗口内（底部居中）
-  model.x = windowWidth * 0.5
-  model.y = windowHeight - (model.height * 0.5)
+  const scaledHeight = baseHeight * scale
+  model.x = windowWidth * 0.5 + (modelSettings.value.modelX || 0)
+  model.y = windowHeight - (scaledHeight * 0.5) + (modelSettings.value.modelY || 0)
 }
 
 // 根据模型边界调整窗口大小
@@ -277,22 +358,29 @@ const adjustWindowSizeToModel = async () => {
 
   try {
     // 获取模型的本地边界（相对于模型自身的坐标系）
-    const bounds = model.getLocalBounds()
+    const bounds = modelBaseBounds ?? model.getLocalBounds()
 
     // 计算实际显示大小（考虑缩放）
     const scale = model.scale.x
-    const actualWidth = bounds.width * scale
-    const actualHeight = bounds.height * scale
+    const actualWidth = Math.max(bounds.width, 1) * scale
+    const actualHeight = Math.max(bounds.height, 1) * scale
 
     // 计算窗口大小（添加一些边距）
     const padding = 40
     const windowWidth = Math.ceil(actualWidth + padding * 2)
     const windowHeight = Math.ceil(actualHeight + padding * 2)
 
-    // 调整窗口大小
-    await window.electronAPI.setWindowSize(windowWidth, windowHeight)
+    const currentWidth = window.innerWidth
+    const currentHeight = window.innerHeight
+    const nextWidth = Math.max(currentWidth, windowWidth)
+    const nextHeight = Math.max(currentHeight, windowHeight)
 
-    logger.debug(`根据模型边界调整窗口大小: ${windowWidth}x${windowHeight} (模型边界: ${bounds.width}x${bounds.height}, 缩放: ${scale})`)
+    // 只在需要放大时调整窗口大小，避免反复缩小
+    if (nextWidth !== currentWidth || nextHeight !== currentHeight) {
+      await window.electronAPI.setWindowSize(nextWidth, nextHeight)
+    }
+
+    logger.debug(`根据模型边界调整窗口大小: ${nextWidth}x${nextHeight} (模型边界: ${bounds.width}x${bounds.height}, 缩放: ${scale})`)
   } catch (error) {
     logger.error('调整窗口大小失败:', error)
   }
@@ -320,6 +408,7 @@ const setupClickInteraction = () => {
   if (!model || !canvasContainer.value) return
 
   let isDragging = false
+  let passthroughLocked = false
   let dragStartX = 0
   let dragStartY = 0
   let dragStartScreenX = 0
@@ -332,6 +421,16 @@ const setupClickInteraction = () => {
   let downY = 0
   let windowStartX = 0
   let windowStartY = 0
+
+  const isUiTarget = (target: EventTarget | null) => {
+    const element = target as HTMLElement | null
+    if (!element?.closest) return false
+    return Boolean(
+      element.closest(
+        '.input-popup, .bubble-dialog, .attachment-preview, .image-display'
+      )
+    )
+  }
 
   // 鼠标按下
   window.addEventListener('mousedown', (event) => {
@@ -351,6 +450,14 @@ const setupClickInteraction = () => {
     }
     
     const isInModel = hitAreas && hitAreas.length > 0
+
+    if (!isInModel) {
+      if (passthroughManager && !isUiTarget(event.target)) {
+        passthroughLocked = true
+        passthroughManager.lock('passthrough')
+      }
+      return
+    }
 
     if (isInModel) {
       logger.debug('命中区域:', hitAreas)
@@ -384,7 +491,7 @@ const setupClickInteraction = () => {
 
   // 鼠标移动
   window.addEventListener('mousemove', (event) => {
-    if (!isDragging && clickTime > 0) {
+    if (!isDragging && clickTime > 0 && modelSettings.value.dragEnabled) {
       const moveDistance = Math.sqrt(
         Math.pow(event.screenX - dragStartScreenX, 2) +
         Math.pow(event.screenY - dragStartScreenY, 2)
@@ -397,7 +504,7 @@ const setupClickInteraction = () => {
       }
     }
 
-    if (isDragging && model) {
+    if (isDragging && model && modelSettings.value.dragEnabled) {
       const deltaX = event.screenX - dragStartScreenX
       const deltaY = event.screenY - dragStartScreenY
 
@@ -415,11 +522,20 @@ const setupClickInteraction = () => {
   // 鼠标松开
   window.addEventListener('mouseup', (event) => {
     if (event.button !== 0) return
+
+    if (passthroughLocked) {
+      passthroughLocked = false
+      passthroughManager?.unlock(event)
+      return
+    }
+
+    passthroughManager?.unlock(event)
+
     if (clickTime > 0) {
       const now = Date.now()
       let openedInput = false
       // 如果不是拖拽，且时间很短，则视为点击
-      if (!isDragging && (now - clickTime < 300)) {
+      if (!isDragging && (now - clickTime < 300) && modelSettings.value.clickFeedback) {
         // 初期联调：只要点击命中模型任意部位，就弹出输入框
         openedInput = true
         emit('model-input', { x: downX, y: downY, hitAreas: downHitAreas })
@@ -509,6 +625,7 @@ const reloadModel = async (modelName: string) => {
     // 加载新模型
     model = await Live2DModel.from(newModelPath)
     logger.info('新模型加载成功')
+    modelBaseBounds = model.getLocalBounds()
 
     // 加载模型详细信息
     try {
@@ -522,9 +639,12 @@ const reloadModel = async (modelName: string) => {
 
     // 重新设置模型位置和缩放
     setupModel()
+    updateMousePassthrough()
+    adjustWindowSizeToModel()
 
     // 更新当前路径
     currentModelPath.value = newModelPath
+    currentModelName.value = modelName
 
     loading.value = false
     return { success: true }

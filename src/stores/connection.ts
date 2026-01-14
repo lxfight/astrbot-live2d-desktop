@@ -8,6 +8,7 @@ export const useConnectionStore = defineStore('connection', () => {
   const ws = ref<WebSocketClient | null>(null)
   const connected = ref(false)
   const performCallbacks = ref<Array<(sequence: PerformItem[]) => void>>([])
+  const serverConfig = ref<Record<string, any> | null>(null)
 
   const connect = (url: string, token: string) => {
     ws.value = new WebSocketClient(url, token)
@@ -24,9 +25,13 @@ export const useConnectionStore = defineStore('connection', () => {
 
     ws.value.on('message', (packet: WebSocketMessage) => {
       // 处理表演消息（Live2D-Bridge Protocol v1.0）
-      if (packet.op === 'perform.show') {
+      if (packet.op === 'perform.show' || packet.op === 'cmd.perform') {
         performCallbacks.value.forEach(cb => cb(packet.payload.sequence))
       }
+    })
+
+    ws.value.on('ready', (payload) => {
+      serverConfig.value = payload?.config || null
     })
 
     ws.value.connect()
@@ -50,25 +55,34 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
-  const sendText = (text: string) => {
+  const sendText = async (text: string) => {
     if (ws.value && connected.value) {
-      ws.value.sendText(text)
+      await ws.value.sendText(text)
     }
   }
 
-  const sendMessage = (content: Array<{ type: string; [key: string]: unknown }>) => {
+  const sendMessage = async (content: Array<{ type: string; [key: string]: unknown }>) => {
     if (ws.value && connected.value) {
-      ws.value.sendMessage(content)
+      await ws.value.sendMessage(content)
     }
+  }
+
+  const getResource = async (rid: string) => {
+    if (ws.value && connected.value) {
+      return await ws.value.getResource(rid)
+    }
+    return null
   }
 
   return {
     connected,
+    serverConfig,
     connect,
     disconnect,
     onPerform,
     sendTouch,
     sendText,
-    sendMessage
+    sendMessage,
+    getResource
   }
 })

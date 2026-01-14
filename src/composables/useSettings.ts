@@ -3,7 +3,7 @@
  * 提供设置的加载、保存和状态管理
  */
 
-import { ref, type Ref } from 'vue'
+import { ref, toRaw, type Ref } from 'vue'
 import { logger } from '../utils/logger'
 
 export interface AppSettings {
@@ -67,7 +67,8 @@ export function useSettings() {
   const saveSettings = async () => {
     if (window.electronAPI?.setSettings) {
       try {
-        const result = await window.electronAPI.setSettings(settings.value)
+        const payload = { ...toRaw(settings.value) }
+        const result = await window.electronAPI.setSettings(payload)
 
         if (result.conflict) {
           hotkeyConflict.value = true

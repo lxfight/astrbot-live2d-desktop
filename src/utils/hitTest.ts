@@ -17,6 +17,7 @@ export class HitTester {
   private options: Required<HitTestOptions>
   private debounceTimer: number | null = null
   private lastResult: boolean = false
+  private hasResult: boolean = false
 
   constructor(options: HitTestOptions = {}) {
     this.options = {
@@ -31,6 +32,7 @@ export class HitTester {
   setContext(app: Application, model: Live2DModel) {
     this.app = app
     this.model = model
+    this.hasResult = false
   }
 
   /**
@@ -173,9 +175,10 @@ export class HitTester {
         }
       }
 
-      // 只在结果变化时触发回调
-      if (isHit !== this.lastResult) {
+      // 首次结果也要触发，确保穿透状态能初始化
+      if (!this.hasResult || isHit !== this.lastResult) {
         this.lastResult = isHit
+        this.hasResult = true
         console.log(`[HitTest] 状态变化: ${isHit ? '命中' : '未命中'} (Bounds) at (${x}, ${y})`)
         callback?.(isHit)
       }

@@ -17,7 +17,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import './style.css'
 import AppDesktop from './App.desktop.vue'
-import Settings from './components/Settings.vue'
+import Settings from './components/SettingsNew.vue'
 import MessageDetail from './components/MessageDetail.vue'
 
 // 等待 Cubism SDK 加载完成后再初始化应用

@@ -33,7 +33,8 @@ astrbot-live2d-desktop/
 ├── src/                      # Vue 前端源码
 │   ├── components/
 │   │   ├── Live2DRenderer.vue   # Live2D 渲染组件
-│   │   ├── Settings.vue         # 设置界面
+│   │   ├── SettingsNew.vue      # 设置界面入口
+│   │   ├── settings/            # 设置子组件
 │   │   └── BubbleDialog.vue     # 气泡对话框
 │   ├── utils/
 │   │   ├── hitTest.ts           # 模型区域识别
@@ -99,10 +100,9 @@ pnpm run build
    - 区分点击和拖拽（5像素阈值）
    - 窗口位置自动保存
 
-4. **设置界面** (src/components/Settings.vue)
-   - 基础设置：窗口置顶、透明、模型缩放
-   - 鼠标穿透设置：启用/禁用、Alpha阈值、防抖延迟
-   - 交互设置：视线跟随、点击反馈、拖拽移动
+4. **设置界面** (src/components/SettingsNew.vue)
+   - 基础设置：窗口置顶、透明
+   - 模型设置/管理：显示、交互、穿透、导入/删除/切换
    - WebSocket 配置
    - 系统设置：开机自启（待实现）
 

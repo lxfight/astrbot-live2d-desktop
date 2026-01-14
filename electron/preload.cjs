@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 窗口位置控制
   getWindowPosition: () => ipcRenderer.invoke('get-window-position'),
   setWindowPosition: (x, y) => ipcRenderer.invoke('set-window-position', x, y),
+  getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
 
   // 窗口大小控制
   setWindowSize: (width, height) => ipcRenderer.invoke('set-window-size', width, height),

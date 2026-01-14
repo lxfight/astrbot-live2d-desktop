@@ -267,22 +267,29 @@ const formatTime = (timestamp: number): string => {
 <style scoped>
 .conversation-history {
   display: flex;
+  gap: 16px;
   height: 100%;
-  gap: 1px;
-  background: #e0e0e0;
+  min-height: 560px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* 左侧对话列表 */
 .conversation-list {
-  width: 300px;
-  background: #fff;
+  width: 280px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .list-header {
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -290,24 +297,26 @@ const formatTime = (timestamp: number): string => {
 
 .list-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .btn-new {
   width: 32px;
   height: 32px;
   border: none;
-  background: #4CAF50;
-  color: white;
-  border-radius: 4px;
+  background: #4a9eff;
+  color: #fff;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-new:hover {
-  background: #45a049;
+  background: #3a8eef;
+  transform: translateY(-1px);
 }
 
 .conversations {
@@ -317,21 +326,22 @@ const formatTime = (timestamp: number): string => {
 
 .conversation-item {
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: background 0.2s;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .conversation-item:hover {
-  background: #f5f5f5;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .conversation-item.active {
-  background: #e3f2fd;
-  border-left: 3px solid #2196F3;
+  background: rgba(74, 158, 255, 0.18);
+  border-left: 3px solid #4a9eff;
 }
 
 .conv-info {
@@ -340,17 +350,18 @@ const formatTime = (timestamp: number): string => {
 }
 
 .conv-title {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .conv-meta {
   font-size: 12px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .btn-delete {
@@ -362,6 +373,7 @@ const formatTime = (timestamp: number): string => {
   font-size: 14px;
   opacity: 0.6;
   transition: opacity 0.2s;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .btn-delete:hover {
@@ -371,14 +383,17 @@ const formatTime = (timestamp: number): string => {
 /* 右侧消息详情 */
 .message-detail {
   flex: 1;
-  background: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .messages-header {
   padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -386,13 +401,14 @@ const formatTime = (timestamp: number): string => {
 
 .messages-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .message-count {
-  font-size: 14px;
-  color: #666;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .messages-container {
@@ -410,47 +426,51 @@ const formatTime = (timestamp: number): string => {
 .message-item {
   margin-bottom: 16px;
   padding: 12px;
-  border-radius: 8px;
-  background: #f5f5f5;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .message-item.message-user {
-  background: #e3f2fd;
+  background: rgba(74, 158, 255, 0.12);
+  border-color: rgba(74, 158, 255, 0.3);
 }
 
 .message-item.message-ai {
-  background: #f5f5f5;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .message-sender {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .message-time {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 8px;
 }
 
 .message-content {
   font-size: 14px;
   line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .message-text :deep(pre) {
-  background: #1e1e1e;
+  background: rgba(0, 0, 0, 0.6);
   color: #f8f8f2;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow-x: auto;
 }
 
 .message-text :deep(code) {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
@@ -465,28 +485,29 @@ const formatTime = (timestamp: number): string => {
 .message-expression,
 .message-tts,
 .message-other {
-  color: #666;
+  color: rgba(255, 255, 255, 0.65);
   font-style: italic;
 }
 
 .load-more {
   padding: 16px;
   text-align: center;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .load-more button {
   padding: 8px 24px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .load-more button:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #2196F3;
+  background: rgba(74, 158, 255, 0.2);
+  border-color: rgba(74, 158, 255, 0.5);
 }
 
 .load-more button:disabled {
@@ -499,7 +520,7 @@ const formatTime = (timestamp: number): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999;
+  color: rgba(255, 255, 255, 0.55);
   font-size: 14px;
 }
 </style>

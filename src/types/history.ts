@@ -46,6 +46,7 @@ export interface SaveMessageParams {
 // 更新统计的参数类型
 export interface UpdateStatisticsParams {
   stat_date: string
+  total_messages?: number
   user_messages?: number
   ai_messages?: number
   text_messages?: number
