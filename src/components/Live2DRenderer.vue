@@ -243,6 +243,7 @@ const updateMousePassthrough = () => {
 const setUiInteracting = (interacting: boolean) => {
   // if (!passthroughManager) return
   // 不需要锁定逻辑，纯 Bounds 检测
+  void interacting
 }
 
 // 处理鼠标移动

@@ -16,6 +16,7 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
 import { marked } from 'marked'
+import type { Tokens } from 'marked'
 import katex from 'katex'
 import hljs from 'highlight.js/lib/core'
 import javascript from 'highlight.js/lib/languages/javascript'
@@ -50,13 +51,18 @@ const emit = defineEmits<{
 }>()
 
 // 配置 marked 支持代码高亮
+const renderer = new marked.Renderer()
+renderer.code = ({ text, lang }: Tokens.Code) => {
+  const language = lang && hljs.getLanguage(lang) ? lang : undefined
+  const highlighted = language
+    ? hljs.highlight(text, { language }).value
+    : hljs.highlightAuto(text).value
+  const className = language ? `hljs language-${language}` : 'hljs'
+  return `<pre><code class="${className}">${highlighted}</code></pre>`
+}
+
 marked.setOptions({
-  highlight: (code, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value
-    }
-    return hljs.highlightAuto(code).value
-  },
+  renderer,
   breaks: true,
   gfm: true
 })
@@ -104,7 +110,7 @@ watchEffect(() => {
   }
 })
 
-const onImageError = (e: Event) => {
+const onImageError = () => {
   console.error('[气泡] 图片加载失败:', props.imageUrl)
 }
 

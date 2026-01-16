@@ -4,9 +4,10 @@ import * as PIXI from 'pixi.js'
 ;(window as any).PIXI = PIXI
 
 // 添加缺失的 BLEND_MODES 常量（pixi-live2d-display 需要）
-if (!PIXI.BLEND_MODES.SRC_TO_X) {
+const blendModes = PIXI.BLEND_MODES as unknown as Record<string, number>
+if (blendModes.SRC_TO_X === undefined) {
   console.log('[AstrBot-L2D] 添加 BLEND_MODES.SRC_TO_X')
-  ;(PIXI.BLEND_MODES as any).SRC_TO_X = PIXI.BLEND_MODES.SRC_OVER
+  blendModes.SRC_TO_X = blendModes.SRC_OVER
 }
 
 console.log('[AstrBot-L2D] PixiJS 版本:', PIXI.VERSION)

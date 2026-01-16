@@ -6,6 +6,8 @@ import { logger } from './logger'
 import type {
   BasePacket,
   HandshakeAckMessage,
+  HandshakeAckPayload,
+  MessageOperation,
   ResourcePayload,
   ResourcePreparePayload,
   ResourcePrepareResponse
@@ -28,7 +30,7 @@ export class WebSocketClient {
   private reconnectTimer: number | null = null
   private eventCallbacks: Map<string, EventCallback[]> = new Map()
   private pendingRequests: Map<string, PendingRequest> = new Map()
-  private serverConfig: HandshakeAckMessage['payload']['config'] | null = null
+  private serverConfig: HandshakeAckPayload['config'] | null = null
   private serverCapabilities: Set<string> = new Set()
 
   constructor(url: string, token: string) {
@@ -49,7 +51,7 @@ export class WebSocketClient {
     return Date.now()
   }
 
-  private createPacket(op: string, payload?: any, id?: string): BasePacket {
+  private createPacket(op: MessageOperation, payload?: any, id?: string): BasePacket {
     return {
       op,
       id: id || this.generateId(),
@@ -255,7 +257,7 @@ export class WebSocketClient {
     return this.serverCapabilities.has(capability)
   }
 
-  private async sendRequest(op: string, payload?: any, timeoutMs: number = 10000) {
+  private async sendRequest(op: MessageOperation, payload?: any, timeoutMs: number = 10000) {
     const packet = this.createPacket(op, payload)
     return new Promise<BasePacket>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {

@@ -15,7 +15,6 @@
     </header>
 
     <div class="stats-content">
-      <!-- 总体统计卡片 -->
       <section class="stats-cards">
         <div class="stat-card">
           <div class="card-icon">
@@ -104,7 +103,6 @@
         </div>
       </section>
 
-      <!-- 每日趋势图表 -->
       <section class="stats-chart">
         <h3>每日消息趋势</h3>
         <div v-if="dailyStats.length > 0" class="chart-container">
@@ -145,7 +143,6 @@
         </div>
       </section>
 
-      <!-- 消息类型分布 -->
       <section class="stats-distribution">
         <h3>消息类型分布</h3>
         <div class="distribution-bars">
@@ -208,15 +205,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import type { DailyStatistics } from '../types/history'
+import type { DailyStatistics } from '@/types/history'
 
 const dateRanges = [
   { key: 'week', label: '最近7天' },
   { key: 'month', label: '最近30天' },
   { key: 'all', label: '全部时间' }
-]
+] as const
 
-const selectedRange = ref<'week' | 'month' | 'all'>('week')
+type DateRangeKey = (typeof dateRanges)[number]['key']
+
+const selectedRange = ref<DateRangeKey>('week')
 const dailyStats = ref<DailyStatistics[]>([])
 const totalStats = ref<Omit<DailyStatistics, 'id' | 'stat_date'>>({
   total_messages: 0,
@@ -238,7 +237,7 @@ onMounted(async () => {
   await loadStatistics()
 })
 
-const selectDateRange = async (range: 'week' | 'month' | 'all') => {
+const selectDateRange = async (range: DateRangeKey) => {
   selectedRange.value = range
   await loadStatistics()
 }
@@ -290,13 +289,13 @@ const formatDate = (dateStr: string): string => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: transparent;
+  color: var(--text);
 }
 
 .stats-header {
   padding: 24px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-soft);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -315,24 +314,23 @@ const formatDate = (dateStr: string): string => {
 
 .filter-btn {
   padding: 8px 16px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  color: #e0e0e0;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 14px;
 }
 
 .filter-btn:hover {
-  background: #333;
-  border-color: #555;
+  filter: brightness(1.02);
 }
 
 .filter-btn.active {
-  background: #4a9eff;
-  border-color: #4a9eff;
-  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 
 .stats-content {
@@ -349,8 +347,8 @@ const formatDate = (dateStr: string): string => {
 }
 
 .stat-card {
-  background: #2a2a2a;
-  border: 1px solid #333;
+  background: var(--glass);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -360,8 +358,8 @@ const formatDate = (dateStr: string): string => {
 }
 
 .stat-card:hover {
-  border-color: #4a9eff;
   transform: translateY(-2px);
+  filter: brightness(1.02);
 }
 
 .card-icon {
@@ -371,33 +369,33 @@ const formatDate = (dateStr: string): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(74, 158, 255, 0.1);
-  color: #4a9eff;
+  background: rgba(255, 123, 182, 0.12);
+  color: var(--accent);
 }
 
 .card-icon.user {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
+  background: rgba(103, 183, 255, 0.14);
+  color: var(--accent-2);
 }
 
 .card-icon.ai {
-  background: rgba(156, 39, 176, 0.1);
-  color: #9c27b0;
+  background: rgba(188, 130, 255, 0.14);
+  color: rgba(188, 130, 255, 0.95);
 }
 
 .card-icon.text {
-  background: rgba(255, 152, 0, 0.1);
-  color: #ff9800;
+  background: rgba(255, 123, 182, 0.12);
+  color: var(--accent);
 }
 
 .card-icon.image {
-  background: rgba(233, 30, 99, 0.1);
-  color: #e91e63;
+  background: rgba(255, 110, 199, 0.14);
+  color: rgba(255, 110, 199, 0.95);
 }
 
 .card-icon.voice {
-  background: rgba(0, 188, 212, 0.1);
-  color: #00bcd4;
+  background: rgba(103, 183, 255, 0.14);
+  color: var(--accent-2);
 }
 
 .card-content {
@@ -406,19 +404,19 @@ const formatDate = (dateStr: string): string => {
 
 .card-label {
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .card-value {
   font-size: 28px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text);
 }
 
 .stats-chart {
-  background: #2a2a2a;
-  border: 1px solid #333;
+  background: var(--glass);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 32px;
@@ -469,11 +467,11 @@ const formatDate = (dateStr: string): string => {
 }
 
 .bar.user-bar {
-  background: linear-gradient(to top, #4caf50, #66bb6a);
+  background: linear-gradient(to top, rgba(255, 110, 199, 0.9), rgba(255, 123, 182, 0.7));
 }
 
 .bar.ai-bar {
-  background: linear-gradient(to top, #9c27b0, #ba68c8);
+  background: linear-gradient(to top, rgba(103, 183, 255, 0.9), rgba(188, 130, 255, 0.7));
 }
 
 .bar:hover {
@@ -482,7 +480,7 @@ const formatDate = (dateStr: string): string => {
 
 .bar-label {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
   text-align: center;
 }
 
@@ -491,7 +489,7 @@ const formatDate = (dateStr: string): string => {
   justify-content: center;
   gap: 24px;
   padding-top: 16px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border-soft);
 }
 
 .legend-item {
@@ -508,11 +506,11 @@ const formatDate = (dateStr: string): string => {
 }
 
 .legend-color.user {
-  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  background: linear-gradient(135deg, rgba(255, 110, 199, 0.9), rgba(255, 123, 182, 0.7));
 }
 
 .legend-color.ai {
-  background: linear-gradient(135deg, #9c27b0, #ba68c8);
+  background: linear-gradient(135deg, rgba(103, 183, 255, 0.9), rgba(188, 130, 255, 0.7));
 }
 
 .empty-chart {
@@ -520,12 +518,12 @@ const formatDate = (dateStr: string): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .stats-distribution {
-  background: #2a2a2a;
-  border: 1px solid #333;
+  background: var(--glass);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
 }
@@ -554,13 +552,14 @@ const formatDate = (dateStr: string): string => {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .dist-bar-container {
   flex: 1;
   height: 24px;
-  background: #1a1a1a;
+  background: var(--input-bg);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -572,15 +571,15 @@ const formatDate = (dateStr: string): string => {
 }
 
 .dist-bar.text {
-  background: linear-gradient(90deg, #ff9800, #ffb74d);
+  background: linear-gradient(90deg, rgba(255, 123, 182, 0.9), rgba(255, 210, 230, 0.95));
 }
 
 .dist-bar.image {
-  background: linear-gradient(90deg, #e91e63, #f06292);
+  background: linear-gradient(90deg, rgba(255, 110, 199, 0.9), rgba(188, 130, 255, 0.8));
 }
 
 .dist-bar.voice {
-  background: linear-gradient(90deg, #00bcd4, #4dd0e1);
+  background: linear-gradient(90deg, rgba(103, 183, 255, 0.9), rgba(198, 220, 255, 0.95));
 }
 
 .dist-value {
@@ -588,6 +587,6 @@ const formatDate = (dateStr: string): string => {
   text-align: right;
   font-size: 14px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text);
 }
 </style>

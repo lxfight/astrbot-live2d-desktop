@@ -2,10 +2,10 @@
  * PixiJS 和 Live2D 相关类型定义
  */
 
-import type { Application, Renderer } from 'pixi.js'
+import type { Application } from 'pixi.js'
 
 // PixiJS Application 类型
-export type PixiApplication = Application<Renderer>
+export type PixiApplication = Application
 
 // Live2D 模型信息
 export interface Live2DModelInfo {

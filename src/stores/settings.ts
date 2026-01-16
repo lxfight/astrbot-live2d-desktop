@@ -15,6 +15,7 @@ export const useSettingsStore = defineStore('settings', () => {
     token: import.meta.env.VITE_WS_TOKEN || '',
     alwaysOnTop: import.meta.env.VITE_ALWAYS_ON_TOP === 'true',
     transparent: import.meta.env.VITE_TRANSPARENT !== 'false',
+    currentModel: 'default',
     modelScale: Number(import.meta.env.VITE_MODEL_SCALE) || 1.0,
     modelX: 0,
     modelY: 0,
@@ -23,8 +24,14 @@ export const useSettingsStore = defineStore('settings', () => {
       height: Number(import.meta.env.VITE_WINDOW_HEIGHT) || 600
     },
     windowPosition: null,
-    mousePassthrough: import.meta.env.VITE_MOUSE_PASSTHROUGH_ENABLED !== 'false',
+    eyeTracking: true,
+    clickFeedback: true,
+    dragEnabled: true,
+    passthroughEnabled: import.meta.env.VITE_MOUSE_PASSTHROUGH_ENABLED !== 'false',
     alphaThreshold: Number(import.meta.env.VITE_ALPHA_THRESHOLD) || 10,
+    debounceMs: 50,
+    autoLaunch: false,
+    recordHotkey: 'CommandOrControl+T',
     hotkeys: {}
   })
 
@@ -94,7 +101,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function setMousePassthrough(value: boolean) {
     await Promise.all([
-      updateSetting('mousePassthrough', value),
+      updateSetting('passthroughEnabled', value),
       settingsService.setMousePassthrough(value)
     ])
   }

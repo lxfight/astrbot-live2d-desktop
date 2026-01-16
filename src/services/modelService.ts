@@ -12,11 +12,12 @@ export interface ModelManifest {
 }
 
 export interface ModelInfo {
-  id: string
   name: string
   path: string
+  id?: string
   thumbnail?: string
   description?: string
+  isDeletable?: boolean
 }
 
 export class ModelService extends ElectronService {
@@ -47,6 +48,18 @@ export class ModelService extends ElectronService {
    * 获取所有可用模型
    */
   async getAvailableModels(): Promise<ModelInfo[]> {
+    if (this.isElectron && window.electronAPI?.getAvailableModels) {
+      const result = await this.callIPC(
+        'getAvailableModels',
+        () => window.electronAPI!.getAvailableModels(),
+        '获取模型列表失败'
+      )
+
+      if (result.success && result.models) {
+        return result.models
+      }
+    }
+
     const manifest = await this.getModelManifest()
     return manifest.models || []
   }
@@ -56,16 +69,19 @@ export class ModelService extends ElectronService {
    */
   async getModelById(id: string): Promise<ModelInfo | null> {
     const models = await this.getAvailableModels()
-    return models.find(m => m.id === id) || null
+    return models.find(m => m.id === id || m.name === id) || null
   }
 
   /**
    * 导入新模型（仅 Electron）
    */
-  async importModel(): Promise<string | null> {
+  async importModel(
+    sourcePath: string,
+    targetName: string
+  ): Promise<{ success: boolean; modelPath?: string; error?: string }> {
     return this.callIPC(
       'importModel',
-      () => window.electronAPI!.importModel(),
+      () => window.electronAPI!.importModel(sourcePath, targetName),
       '导入模型失败'
     )
   }
@@ -73,7 +89,7 @@ export class ModelService extends ElectronService {
   /**
    * 删除模型（仅 Electron）
    */
-  async deleteModel(modelId: string): Promise<void> {
+  async deleteModel(modelId: string): Promise<{ success: boolean; error?: string }> {
     return this.callIPC(
       'deleteModel',
       () => window.electronAPI!.deleteModel(modelId),
@@ -85,15 +101,7 @@ export class ModelService extends ElectronService {
    * 获取模型列表（仅 Electron）
    */
   async getModelList(): Promise<ModelInfo[]> {
-    if (!this.isElectron) {
-      // 浏览器模式下从 manifest 获取
-      return this.getAvailableModels()
-    }
-    return this.callIPC(
-      'getModelList',
-      () => window.electronAPI!.getModelList(),
-      '获取模型列表失败'
-    )
+    return this.getAvailableModels()
   }
 
   /**

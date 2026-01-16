@@ -26,14 +26,26 @@ export interface AppSettings {
   modelX: number
   modelY: number
 
+  // 模型交互配置
+  eyeTracking?: boolean
+  clickFeedback?: boolean
+  dragEnabled?: boolean
+
   // 鼠标穿透配置
+  passthroughEnabled?: boolean
+  alphaThreshold?: number
+  debounceMs?: number
   mousePassthrough?: {
     enabled: boolean
     alphaThreshold: number
   }
 
+  // 系统配置
+  autoLaunch?: boolean
+
   // 快捷键配置
   recordHotkey?: string
+  hotkeys?: Record<string, string>
 
   // 其他配置
   [key: string]: unknown

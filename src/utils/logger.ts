@@ -30,7 +30,7 @@ export class Logger {
     this.enableConsole = config.enableConsole ?? true
   }
 
-  private formatMessage(level: string, message: string, ...args: any[]): string {
+  private formatMessage(level: string, message: string): string {
     const timestamp = this.enableTimestamp ? new Date().toISOString() : ''
     const parts = [timestamp, `[${this.prefix}]`, `[${level}]`, message].filter(Boolean)
     return parts.join(' ')

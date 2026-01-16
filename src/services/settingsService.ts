@@ -4,21 +4,7 @@
  */
 
 import { ElectronService } from './base'
-
-export interface AppSettings {
-  wsUrl: string
-  token: string
-  alwaysOnTop: boolean
-  transparent: boolean
-  modelScale: number
-  modelX: number
-  modelY: number
-  windowSize: { width: number; height: number }
-  windowPosition: { x: number; y: number } | null
-  mousePassthrough?: boolean
-  alphaThreshold?: number
-  hotkeys?: Record<string, string>
-}
+import type { AppSettings, SettingsUpdate } from '@/types/settings'
 
 export class SettingsService extends ElectronService {
   /**
@@ -35,7 +21,7 @@ export class SettingsService extends ElectronService {
   /**
    * 保存应用设置
    */
-  async saveSettings(settings: Partial<AppSettings>): Promise<void> {
+  async saveSettings(settings: SettingsUpdate): Promise<{ success: boolean; conflict?: boolean }> {
     return this.callIPC(
       'setSettings',
       () => window.electronAPI!.setSettings(settings),
@@ -55,9 +41,9 @@ export class SettingsService extends ElectronService {
    * 设置窗口置顶
    */
   async setAlwaysOnTop(value: boolean): Promise<void> {
-    return this.callIPC(
-      'setAlwaysOnTop',
-      () => window.electronAPI!.setAlwaysOnTop(value),
+    await this.callIPC(
+      'setWindowFlag',
+      () => window.electronAPI!.setWindowFlag('alwaysOnTop', value),
       '设置窗口置顶失败'
     )
   }
@@ -66,7 +52,7 @@ export class SettingsService extends ElectronService {
    * 设置窗口位置
    */
   async setWindowPosition(x: number, y: number): Promise<void> {
-    return this.callIPC(
+    await this.callIPC(
       'setWindowPosition',
       () => window.electronAPI!.setWindowPosition(x, y),
       '设置窗口位置失败'
@@ -77,7 +63,7 @@ export class SettingsService extends ElectronService {
    * 设置窗口大小
    */
   async setWindowSize(width: number, height: number): Promise<void> {
-    return this.callIPC(
+    await this.callIPC(
       'setWindowSize',
       () => window.electronAPI!.setWindowSize(width, height),
       '设置窗口大小失败'
@@ -88,7 +74,7 @@ export class SettingsService extends ElectronService {
    * 设置鼠标穿透
    */
   async setMousePassthrough(value: boolean): Promise<void> {
-    return this.callIPC(
+    await this.callIPC(
       'setIgnoreMouseEvents',
       () => window.electronAPI!.setIgnoreMouseEvents(value),
       '设置鼠标穿透失败'

@@ -46,8 +46,9 @@ export class HitTester {
       const point = { x, y }
 
       // PixiJS v8: 使用 renderer.events.rootBoundary.hitTest
-      if (this.app.renderer.events?.rootBoundary?.hitTest) {
-        const hit = this.app.renderer.events.rootBoundary.hitTest(point.x, point.y)
+      const renderer = this.app.renderer as any
+      if (renderer?.events?.rootBoundary?.hitTest) {
+        const hit = renderer.events.rootBoundary.hitTest(point.x, point.y)
 
         // 检查命中的对象是否是模型或其子对象
         if (hit) {
