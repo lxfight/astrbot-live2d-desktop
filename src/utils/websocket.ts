@@ -32,6 +32,8 @@ export class WebSocketClient {
   private pendingRequests: Map<string, PendingRequest> = new Map()
   private serverConfig: HandshakeAckPayload['config'] | null = null
   private serverCapabilities: Set<string> = new Set()
+  private pingTimer: number | null = null
+  private readonly pingIntervalMs: number = 15000
 
   constructor(url: string, token: string) {
     this.url = url
@@ -68,7 +70,8 @@ export class WebSocketClient {
         logger.info('WebSocket 连接已建立')
         this.sendHandshake()
         this.emit('open', null)
-        
+        this.startPing()
+
         // 清除重连定时器
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
@@ -79,6 +82,7 @@ export class WebSocketClient {
       this.ws.onclose = () => {
         logger.info('WebSocket 连接已关闭')
         this.emit('close', null)
+        this.stopPing()
         this.scheduleReconnect()
       }
 
@@ -102,6 +106,7 @@ export class WebSocketClient {
   }
 
   disconnect() {
+    this.stopPing()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -146,7 +151,12 @@ export class WebSocketClient {
         'resource.prepare',
         'resource.commit',
         'resource.get',
-        'resource.release'
+        'resource.release',
+        'state.ready',
+        'state.playing',
+        'state.config',
+        'model.*',
+        'desktop.*'
       ]
     }
     this.sendRequest('sys.handshake', payload)
@@ -164,6 +174,11 @@ export class WebSocketClient {
 
   private handlePacket(packet: BasePacket) {
     logger.debug('收到消息:', packet.op)
+
+    if (packet.op === 'sys.ping') {
+      this.sendPacket('sys.pong', undefined, packet.id)
+      return
+    }
 
     const pending = this.pendingRequests.get(packet.id)
     if (pending) {
@@ -190,6 +205,21 @@ export class WebSocketClient {
     } else {
       logger.warn('WebSocket 未连接，无法发送消息')
     }
+  }
+
+  sendPacket(op: MessageOperation, payload?: any, id?: string) {
+    const packet = this.createPacket(op, payload, id)
+    this.send(packet)
+  }
+
+  sendError(code: number, message: string, id?: string) {
+    const packet: BasePacket = {
+      op: 'sys.error',
+      id: id || this.generateId(),
+      ts: this.getCurrentTimestamp(),
+      error: { code, message }
+    }
+    this.send(packet)
   }
 
   sendTouch(part: string, action: string, duration: number = 0) {
@@ -249,6 +279,22 @@ export class WebSocketClient {
     return (response.payload || null) as ResourcePayload | null
   }
 
+  async releaseResource(rid: string) {
+    await this.sendRequest('resource.release', { rid })
+  }
+
+  sendStateReady(clientId?: string) {
+    this.sendPacket('state.ready', { clientId })
+  }
+
+  sendStatePlaying(isPlaying: boolean) {
+    this.sendPacket('state.playing', { isPlaying })
+  }
+
+  sendStateConfig(payload: { modelId?: string; screen?: { w: number; h: number } }) {
+    this.sendPacket('state.config', payload)
+  }
+
   getServerConfig() {
     return this.serverConfig
   }
@@ -287,14 +333,35 @@ export class WebSocketClient {
   }
 
   private async prepareFileContent(type: 'image' | 'voice', file: Blob) {
+    const mime = file.type || (type === 'image' ? 'image/png' : 'audio/webm')
+    const resource = await this.prepareBinaryResource(
+      type === 'image' ? 'image' : 'audio',
+      file,
+      mime
+    )
+    if (resource.rid) {
+      return { type, rid: resource.rid }
+    }
+    if (resource.inline) {
+      return { type, data: resource.inline }
+    }
+    return { type }
+  }
+
+  async prepareBinaryResource(
+    kind: 'image' | 'audio' | 'video' | 'file',
+    file: Blob,
+    mimeOverride?: string
+  ) {
     const config = this.serverConfig
     const maxInline = config?.maxInlineBytes ?? 262144
     const supportsUpload = this.hasCapability('resource.prepare')
-    const mime = file.type || (type === 'image' ? 'image/png' : 'audio/webm')
+    const fallbackMime = kind === 'image' ? 'image/png' : 'application/octet-stream'
+    const mime = mimeOverride || file.type || fallbackMime
 
     if (supportsUpload && file.size > maxInline) {
       const payload: ResourcePreparePayload = {
-        kind: type === 'image' ? 'image' : 'audio',
+        kind,
         mime,
         size: file.size
       }
@@ -315,18 +382,12 @@ export class WebSocketClient {
           }
         })
         await this.commitResource(prepareResult.rid, file.size)
-        return {
-          type,
-          rid: prepareResult.rid
-        }
+        return { rid: prepareResult.rid, mime, size: file.size }
       }
     }
 
-    const data = await this.blobToDataUrl(file)
-    return {
-      type,
-      data
-    }
+    const inline = await this.blobToDataUrl(file)
+    return { inline, mime, size: file.size }
   }
 
   private async blobToDataUrl(blob: Blob): Promise<string> {
@@ -336,6 +397,20 @@ export class WebSocketClient {
       reader.onerror = () => reject(new Error('读取文件失败'))
       reader.readAsDataURL(blob)
     })
+  }
+
+  private startPing() {
+    if (this.pingTimer) return
+    this.pingTimer = window.setInterval(() => {
+      this.sendPacket('sys.ping')
+    }, this.pingIntervalMs)
+  }
+
+  private stopPing() {
+    if (this.pingTimer) {
+      window.clearInterval(this.pingTimer)
+      this.pingTimer = null
+    }
   }
 
   on(event: string, callback: EventCallback) {

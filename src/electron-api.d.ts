@@ -23,6 +23,7 @@ declare global {
 
     // 窗口控制
     showSettings: () => Promise<{ success: boolean }>
+    showWindow: () => Promise<{ success: boolean }>
     hideWindow: () => Promise<{ success: boolean }>
 
     // 窗口位置控制
@@ -33,6 +34,18 @@ declare global {
 
     // 窗口聚焦控制
     setWindowFocusable: (focusable: boolean) => Promise<{ success: boolean }>
+    setWindowOpacity: (opacity: number) => Promise<{ success: boolean }>
+    setWindowTopmost: (topmost: boolean) => Promise<{ success: boolean }>
+
+    // 桌面扩展能力
+    trayNotify: (title: string, message: string, icon?: string) => Promise<{ success: boolean }>
+    openExternal: (url: string) => Promise<{ success: boolean }>
+    captureScreenshot: (format?: 'png' | 'jpeg', quality?: number) => Promise<{
+      success: boolean
+      dataUrl?: string
+      mime?: string
+      size?: number
+    }>
 
     // 事件监听（返回清理函数）
     onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void

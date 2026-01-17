@@ -6,7 +6,7 @@
     @mouseleave="handleMouseLeave"
     @click="handleClick"
   >
-    <div class="bubble-content">
+    <div class="bubble-content" :style="contentStyle">
       <div v-if="text" class="bubble-text" v-html="renderedContent"></div>
       <img v-if="imageUrl" :src="imageUrl" class="bubble-image" @error="onImageError" />
     </div>
@@ -43,6 +43,7 @@ const props = defineProps<{
   y?: number
   duration?: number
   fullContent?: any
+  contentStyle?: Record<string, string | number>
 }>()
 
 const emit = defineEmits<{

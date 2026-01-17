@@ -16,11 +16,32 @@ export type MessageOperation =
   | 'resource.commit'
   | 'resource.get'
   | 'resource.release'
+  | 'resource.progress'
   | 'perform.show'
   | 'perform.interrupt'
   | 'input.message'
   | 'input.touch'
   | 'input.shortcut'
+  | 'model.list'
+  | 'model.load'
+  | 'model.unload'
+  | 'model.state'
+  | 'model.setExpression'
+  | 'model.playMotion'
+  | 'model.setParameter'
+  | 'model.lookAt'
+  | 'model.speak'
+  | 'model.stop'
+  | 'desktop.window.show'
+  | 'desktop.window.hide'
+  | 'desktop.window.move'
+  | 'desktop.window.resize'
+  | 'desktop.window.setOpacity'
+  | 'desktop.window.setTopmost'
+  | 'desktop.window.setClickThrough'
+  | 'desktop.tray.notify'
+  | 'desktop.openUrl'
+  | 'desktop.capture.screenshot'
   | 'cmd.perform' // 兼容旧协议
 
 export interface BasePacket<T = unknown> {
@@ -114,6 +135,22 @@ export interface InputMessagePayload {
   }
 }
 
+export interface StateReadyPayload {
+  clientId?: string
+}
+
+export interface StatePlayingPayload {
+  isPlaying: boolean
+}
+
+export interface StateConfigPayload {
+  modelId?: string
+  screen?: {
+    w: number
+    h: number
+  }
+}
+
 // 用户输入消息
 export interface InputMessage extends BasePacket<InputMessagePayload> {
   op: 'input.message'
@@ -148,6 +185,16 @@ export interface ResourcePayload {
   sha256?: string
   url?: string
   inline?: string
+  headers?: Record<string, string>
+  expiresAt?: number
+}
+
+export interface ResourceProgressPayload {
+  rid: string
+  current?: number
+  total?: number
+  percent?: number
+  status?: string
 }
 
 export interface ResourcePreparePayload {
@@ -240,6 +287,113 @@ export interface PerformMessage extends BasePacket {
   }
 }
 
+export interface PerformInterruptMessage extends BasePacket {
+  op: 'perform.interrupt'
+}
+
+export interface ModelListPayload {
+  models: Array<{
+    id?: string
+    name: string
+    path?: string
+    thumbnail?: string
+    description?: string
+  }>
+}
+
+export interface ModelLoadPayload {
+  modelId?: string
+  skinId?: string
+  modelName?: string
+}
+
+export interface ModelStatePayload {
+  modelId?: string
+  modelName?: string
+  position?: { x: number; y: number }
+  scale?: number
+  size?: { width: number; height: number }
+  motions?: string[]
+  expressions?: string[]
+  parameters?: Record<string, number>
+}
+
+export interface ModelSetExpressionPayload {
+  expressionId?: string
+  blend?: number
+  durationMs?: number
+}
+
+export interface ModelPlayMotionPayload {
+  motionId?: string
+  group?: string
+  index?: number
+  priority?: number
+  loop?: boolean
+}
+
+export interface ModelSetParameterPayload {
+  name: string
+  value: number
+  blend?: number
+}
+
+export interface ModelLookAtPayload {
+  x: number
+  y: number
+  smooth?: boolean
+}
+
+export interface ModelSpeakPayload {
+  text?: string
+  rid?: string
+  url?: string
+  inline?: string
+  lipSync?: boolean
+}
+
+export interface ModelStopPayload {
+  scope?: 'motion' | 'expression' | 'speech' | 'all'
+}
+
+export interface DesktopWindowMovePayload {
+  x: number
+  y: number
+}
+
+export interface DesktopWindowResizePayload {
+  w: number
+  h: number
+}
+
+export interface DesktopWindowOpacityPayload {
+  opacity: number
+}
+
+export interface DesktopWindowTopmostPayload {
+  topmost: boolean
+}
+
+export interface DesktopWindowClickThroughPayload {
+  enabled: boolean
+  forward?: boolean
+}
+
+export interface DesktopTrayNotifyPayload {
+  title: string
+  message: string
+  icon?: string
+}
+
+export interface DesktopOpenUrlPayload {
+  url: string
+}
+
+export interface DesktopCaptureScreenshotPayload {
+  format?: 'png' | 'jpeg'
+  quality?: number
+}
+
 // 所有消息类型联合
 export type WebSocketMessage =
   | HandshakeMessage
@@ -249,6 +403,7 @@ export type WebSocketMessage =
   | TouchMessage
   | ShortcutMessage
   | PerformMessage
+  | PerformInterruptMessage
 
 // WebSocket 客户端配置
 export interface WebSocketClientConfig {

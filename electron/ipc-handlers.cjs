@@ -1,4 +1,4 @@
-const { ipcMain, dialog, BrowserWindow, screen } = require('electron');
+const { ipcMain, dialog, BrowserWindow, screen, Notification, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createLogger } = require('./logger.cjs');
@@ -106,6 +106,15 @@ function registerIPCHandlers(
     return { success: true };
   });
 
+  ipcMain.handle('show-window', () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+    return { success: true };
+  });
+
   ipcMain.handle('hide-window', () => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
@@ -159,6 +168,92 @@ function registerIPCHandlers(
       return { success: true };
     } catch (error) {
       logger.error('设置窗口大小失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('set-window-opacity', (event, opacity) => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow) return { success: false };
+    try {
+      const nextOpacity = Math.min(1, Math.max(0, Number(opacity)));
+      if (Number.isFinite(nextOpacity)) {
+        mainWindow.setOpacity(nextOpacity);
+      }
+      return { success: true };
+    } catch (error) {
+      logger.error('设置窗口透明度失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('set-window-topmost', (event, topmost) => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow) return { success: false };
+    try {
+      mainWindow.setAlwaysOnTop(!!topmost);
+      return { success: true };
+    } catch (error) {
+      logger.error('设置窗口置顶失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tray-notify', (event, title, message, icon) => {
+    try {
+      if (!Notification.isSupported()) {
+        return { success: false, error: '系统不支持通知' };
+      }
+      const notification = new Notification({
+        title: String(title || '通知'),
+        body: String(message || ''),
+        icon: icon || undefined
+      });
+      notification.show();
+      return { success: true };
+    } catch (error) {
+      logger.error('发送通知失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('open-external', async (event, url) => {
+    try {
+      if (!url) return { success: false, error: '缺少 URL' };
+      await shell.openExternal(String(url));
+      return { success: true };
+    } catch (error) {
+      logger.error('打开外部链接失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('capture-screenshot', async (event, format, quality) => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow) return { success: false, error: '主窗口未初始化' };
+
+    try {
+      const image = await mainWindow.capturePage();
+      const fmt = format === 'jpeg' ? 'jpeg' : 'png';
+      if (fmt === 'jpeg') {
+        const q = Math.min(1, Math.max(0, Number(quality ?? 0.9)));
+        const buffer = image.toJPEG(Math.round(q * 100));
+        return {
+          success: true,
+          dataUrl: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+          mime: 'image/jpeg',
+          size: buffer.length
+        };
+      }
+      const buffer = image.toPNG();
+      return {
+        success: true,
+        dataUrl: `data:image/png;base64,${buffer.toString('base64')}`,
+        mime: 'image/png',
+        size: buffer.length
+      };
+    } catch (error) {
+      logger.error('截图失败:', error);
       return { success: false, error: error.message };
     }
   });

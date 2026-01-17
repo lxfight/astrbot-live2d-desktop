@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 窗口控制
   showSettings: () => ipcRenderer.invoke('show-settings'),
+  showWindow: () => ipcRenderer.invoke('show-window'),
   hideWindow: () => ipcRenderer.invoke('hide-window'),
 
   // 窗口位置控制
@@ -24,6 +25,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 窗口聚焦控制
   setWindowFocusable: (focusable) => ipcRenderer.invoke('set-window-focusable', focusable),
+  setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
+  setWindowTopmost: (topmost) => ipcRenderer.invoke('set-window-topmost', topmost),
+
+  // 桌面扩展能力
+  trayNotify: (title, message, icon) => ipcRenderer.invoke('tray-notify', title, message, icon),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  captureScreenshot: (format, quality) => ipcRenderer.invoke('capture-screenshot', format, quality),
 
   // 事件监听（返回清理函数）
   onSettingsChanged: (callback) => {

@@ -565,11 +565,11 @@ const setupClickInteraction = () => {
 
 
 // 播放动作
-const playMotion = (group: string, index?: number) => {
+const playMotion = (group: string, index?: number, priority?: number) => {
   if (model) {
     try {
-      model.motion(group, index)
-      logger.debug(`播放动作: ${group} ${index ?? 'random'}`)
+      model.motion(group, index, priority)
+      logger.debug(`播放动作: ${group} ${index ?? 'random'} (priority=${priority ?? '-'})`)
     } catch (err) {
       logger.error(`播放动作失败: ${group}`, err)
     }
@@ -588,6 +588,63 @@ const setExpression = (expressionId: string) => {
   }
 }
 
+// 停止所有动作
+const stopMotion = () => {
+  const manager = model?.internalModel?.motionManager
+  if (manager && typeof manager.stopAllMotions === 'function') {
+    manager.stopAllMotions()
+    return true
+  }
+  return false
+}
+
+// 重置表情（尽力恢复为默认状态）
+const resetExpression = () => {
+  if (!model) return false
+  try {
+    model.expression('')
+    return true
+  } catch (err) {
+    logger.error('重置表情失败:', err)
+    return false
+  }
+}
+
+// 设置模型参数
+const setParameter = (name: string, value: number, blend?: number) => {
+  if (!model?.internalModel?.coreModel?.setParameterValueById) return false
+  try {
+    const coreModel = model.internalModel.coreModel
+    let nextValue = value
+    if (typeof blend === 'number' && coreModel.getParameterValueById) {
+      const current = coreModel.getParameterValueById(name)
+      nextValue = current + (value - current) * blend
+    }
+    coreModel.setParameterValueById(name, nextValue)
+    logger.debug(`设置参数: ${name}=${nextValue}`)
+    return true
+  } catch (err) {
+    logger.error(`设置参数失败: ${name}`, err)
+    return false
+  }
+}
+
+// 模型注视控制
+const lookAt = (x: number, y: number, smooth: boolean = true) => {
+  if (!model || typeof model.focus !== 'function') return false
+  const normalizedX = Math.abs(x) <= 1 ? (x >= 0 ? x : (x + 1) / 2) : null
+  const normalizedY = Math.abs(y) <= 1 ? (y >= 0 ? y : (y + 1) / 2) : null
+  const targetX = normalizedX !== null ? normalizedX * window.innerWidth : x
+  const targetY = normalizedY !== null ? normalizedY * window.innerHeight : y
+  try {
+    model.focus(targetX, targetY, !smooth)
+    return true
+  } catch (err) {
+    logger.error('注视控制失败:', err)
+    return false
+  }
+}
+
 // 获取模型信息
 const getModelInfo = () => {
   if (!model) return null
@@ -598,6 +655,29 @@ const getModelInfo = () => {
     scale: model.scale.x,
     position: { x: model.x, y: model.y },
     modelInfo: currentModelInfo.value
+  }
+}
+
+// 卸载模型（仅清理当前实例）
+const unloadModel = async () => {
+  if (!app) {
+    return { success: false, error: 'PixiJS 应用未初始化' }
+  }
+  try {
+    if (model && app.stage) {
+      app.stage.removeChild(model)
+      model.destroy()
+    }
+    model = null
+    modelBaseBounds = null
+    currentModelInfo.value = null
+    currentModelName.value = ''
+    currentModelPath.value = ''
+    loading.value = false
+    return { success: true }
+  } catch (err) {
+    logger.error('卸载模型失败:', err)
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
 
@@ -662,9 +742,14 @@ const reloadModel = async (modelName: string) => {
 defineExpose({
   playMotion,
   setExpression,
+  stopMotion,
+  resetExpression,
+  setParameter,
+  lookAt,
   getModelInfo,
   setUiInteracting,
-  reloadModel
+  reloadModel,
+  unloadModel
 })
 </script>
 

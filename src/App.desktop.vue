@@ -12,6 +12,7 @@
       :y="bubblePos.y"
       :duration="BUBBLE_DURATION"
       :full-content="currentFullMessage"
+      :content-style="currentTextStyle"
       @hover="onBubbleHover"
       @click="onBubbleClick"
     />
@@ -70,12 +71,33 @@ import RecordingIndicator from './components/RecordingIndicator.vue'
 import { useConnectionStore } from './stores/connection'
 import { logger } from './utils/logger'
 import type { SaveMessageParams } from './types/history'
+import type {
+  BasePacket,
+  DesktopCaptureScreenshotPayload,
+  DesktopOpenUrlPayload,
+  DesktopTrayNotifyPayload,
+  DesktopWindowClickThroughPayload,
+  DesktopWindowMovePayload,
+  DesktopWindowOpacityPayload,
+  DesktopWindowResizePayload,
+  DesktopWindowTopmostPayload,
+  ModelLoadPayload,
+  ModelLookAtPayload,
+  ModelPlayMotionPayload,
+  ModelSetExpressionPayload,
+  ModelSetParameterPayload,
+  ModelSpeakPayload,
+  ModelStopPayload
+} from './types/websocket'
+import { modelService } from './services/modelService'
 
 const renderer = ref()
 const connectionStore = useConnectionStore()
 
 const inputText = ref('')
 const currentText = ref('')
+const currentTextStyle = ref<Record<string, string | number> | undefined>(undefined)
+const currentTextPosition = ref<'center' | 'top' | 'bottom'>('center')
 const currentImage = ref<{ url: string; duration: number; position: string; size?: { width: number; height: number } } | null>(null)
 const inputVisible = ref(false)
 const inputPos = ref({ x: 0, y: 0 })
@@ -95,6 +117,20 @@ const bubbleHovered = ref(false)
 const currentFullMessage = ref<any>(null)
 let bubbleRaf: number | null = null
 let bubbleTimer: number | null = null
+let autoClearText = false
+
+type PerformTask = {
+  sequence: any[]
+  interrupt?: boolean
+}
+
+const performQueue: PerformTask[] = []
+let performRunning = false
+let performAbort: AbortController | null = null
+let currentAudio: HTMLAudioElement | null = null
+let currentSpeech: SpeechSynthesisUtterance | null = null
+let currentAudioRid: string | null = null
+let isPlayingState = false
 
 // 事件监听器清理函数
 let cleanupPlayMotion: (() => void) | null = null
@@ -103,6 +139,10 @@ let cleanupStartRecording: (() => void) | null = null
 let cleanupStopRecording: (() => void) | null = null
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+const handleWindowResize = () => {
+  syncStateConfig()
+}
 
 const inputStyle = computed(() => ({
   left: `${inputPos.value.x}px`,
@@ -150,12 +190,12 @@ onMounted(async () => {
   if (window.electronAPI?.getSettings) {
     window.electronAPI.getSettings().then((settings) => {
       logger.info('已加载设置:', settings)
-      const wsUrl = settings?.wsUrl || 'ws://localhost:8765/ws'
+      const wsUrl = settings?.wsUrl || 'ws://localhost:9090/astrbot/live2d'
       const token = settings?.token || ''
       connectionStore.connect(wsUrl, token)
     })
   } else {
-    connectionStore.connect('ws://localhost:8765/ws', '')
+    connectionStore.connect('ws://localhost:9090/astrbot/live2d', '')
   }
 
   // 监听连接状态变化，通知主进程更新托盘菜单
@@ -165,8 +205,19 @@ onMounted(async () => {
     })
   }
 
-  connectionStore.onPerform((sequence) => {
-    void handlePerformSequence(sequence)
+  connectionStore.onPerform((sequence, interrupt) => {
+    enqueuePerformSequence(sequence, interrupt)
+  })
+  connectionStore.onPerformInterrupt(() => {
+    interruptPerform('remote')
+  })
+  connectionStore.onCommand((packet) => {
+    void handleCommandPacket(packet)
+  })
+  connectionStore.onState((packet) => {
+    if (packet.op === 'state.ready') {
+      syncStateConfig()
+    }
   })
 
   // 监听来自设置窗口的播放指令
@@ -198,74 +249,705 @@ onMounted(async () => {
       stopRecording()
     })
   }
+
+  window.addEventListener('resize', handleWindowResize)
+  window.setTimeout(() => {
+    syncStateConfig()
+  }, 800)
 })
 
-const handlePerformSequence = async (sequence: any[]) => {
-  const firstText = sequence?.find?.((x: any) => x?.type === 'text')
-  const textContent = firstText?.content ?? firstText?.text
-  if (textContent) {
-    currentText.value = String(textContent)
-    currentFullMessage.value = sequence  // 保存完整消息内容
+const enqueuePerformSequence = (sequence: any[], interrupt?: boolean) => {
+  const shouldInterrupt = interrupt !== false
+  if (shouldInterrupt) {
+    interruptPerform('perform.show')
+  }
+  performQueue.push({ sequence, interrupt: shouldInterrupt })
+  void runPerformQueue()
+}
 
-    // 显示气泡期间，持续跟随模型头部
-    startBubbleTracking()
+const runPerformQueue = async () => {
+  if (performRunning) return
+  performRunning = true
+  updatePlayingState(true)
 
-    // 立即锁定拦截模式，使气泡可点击和滚动
-    renderer.value?.setUiInteracting?.(true)
-
-    // 清除之前的定时器
-    if (bubbleTimer) {
-      window.clearTimeout(bubbleTimer)
+  while (performQueue.length > 0) {
+    const task = performQueue.shift()
+    if (!task) break
+    performAbort = new AbortController()
+    try {
+      currentFullMessage.value = task.sequence
+      await runPerformSequence(task.sequence, performAbort.signal)
+    } catch (error) {
+      if (!performAbort.signal.aborted) {
+        logger.error('执行表演序列失败:', error)
+      }
     }
-
-    // 设置新的定时器
-    bubbleTimer = window.setTimeout(() => {
-      if (!bubbleHovered.value) {  // 只有未悬停时才消失
-        currentText.value = ''
-        currentFullMessage.value = null
-        stopBubbleTracking()
-        bubbleTimer = null
-        // 解锁穿透状态，恢复自动检测
-        renderer.value?.setUiInteracting?.(false)
-      }
-    }, firstText.duration || BUBBLE_DURATION)
+    if (performAbort.signal.aborted) {
+      break
+    }
   }
 
-  const firstImage = sequence?.find?.((x: any) => x?.type === 'image')
-  if (firstImage) {
-    resolveResourceUrl(firstImage).then((url) => {
-      if (!url) return
-      currentImage.value = {
-        url,
-        duration: firstImage.duration || 5000,
-        position: firstImage.position || 'center',
-        size: firstImage.size
-      }
+  performAbort = null
+  performRunning = false
+  updatePlayingState(false)
+}
 
-      window.setTimeout(() => {
-        currentImage.value = null
-      }, firstImage.duration || 5000)
-    })
-  }
-
+const runPerformSequence = async (sequence: any[], signal: AbortSignal) => {
   for (const item of sequence ?? []) {
-    if (item.type === 'motion') {
-      renderer.value?.playMotion(item.group, item.index)
-    }
-    if (item.type === 'expression') {
-      const expressionId = item.id || item.expressionId
-      if (expressionId) {
-        renderer.value?.setExpression(expressionId)
-      }
-    }
-    if (item.type === 'tts') {
-      playTTS(item)
-    }
+    if (signal.aborted) return
+    await executePerformItem(item, signal)
     await recordPerformItem(item)
   }
 }
 
+const executePerformItem = async (item: any, signal: AbortSignal) => {
+  if (!item?.type || signal.aborted) return
+
+  if (item.type === 'text') {
+    await showTextItem(item, signal)
+    return
+  }
+
+  if (item.type === 'image') {
+    await showImageItem(item, signal)
+    return
+  }
+
+  if (item.type === 'motion') {
+    renderer.value?.playMotion(item.group, item.index, item.priority)
+    return
+  }
+
+  if (item.type === 'expression') {
+    const expressionId = item.id || item.expressionId
+    if (expressionId) {
+      renderer.value?.setExpression(expressionId)
+    }
+    return
+  }
+
+  if (item.type === 'tts') {
+    await playTTSItem(item, signal)
+    return
+  }
+
+  if (item.type === 'wait') {
+    const duration = Math.max(0, Number(item.duration) || 0)
+    await waitWithAbort(duration, signal)
+  }
+}
+
+const updatePlayingState = (playing: boolean) => {
+  if (isPlayingState === playing) return
+  isPlayingState = playing
+  connectionStore.sendStatePlaying(playing)
+}
+
+const interruptPerform = (source: string) => {
+  // 中断当前表演，清理队列与 UI 状态
+  logger.debug(`中断表演: ${source}`)
+  performQueue.length = 0
+  if (performAbort) {
+    performAbort.abort()
+  }
+  stopAllMedia()
+  clearText()
+  currentImage.value = null
+  updatePlayingState(false)
+}
+
+const waitWithAbort = (duration: number, signal: AbortSignal) => {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) return resolve()
+    const timer = window.setTimeout(() => {
+      cleanup()
+      resolve()
+    }, duration)
+    const cleanup = () => {
+      window.clearTimeout(timer)
+      signal.removeEventListener('abort', onAbort)
+    }
+    const onAbort = () => {
+      cleanup()
+      resolve()
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+const showTextItem = async (item: any, signal: AbortSignal) => {
+  const textContent = item.content ?? item.text ?? ''
+  currentText.value = String(textContent)
+  currentTextStyle.value = normalizeBubbleStyle(item.style)
+  currentTextPosition.value = item.position || 'center'
+
+  startBubbleTracking()
+  renderer.value?.setUiInteracting?.(true)
+
+  if (bubbleTimer) {
+    window.clearTimeout(bubbleTimer)
+    bubbleTimer = null
+  }
+
+  const hasDuration = item.duration !== undefined && item.duration !== null
+  const duration = hasDuration ? Math.max(0, Number(item.duration) || 0) : BUBBLE_DURATION
+  autoClearText = hasDuration ? duration > 0 : true
+  if (autoClearText) {
+    bubbleTimer = window.setTimeout(() => {
+      if (!bubbleHovered.value) {
+        clearText()
+      }
+    }, duration)
+    await waitWithAbort(duration, signal)
+  }
+}
+
+const showImageItem = async (item: any, signal: AbortSignal) => {
+  const resolved = await resolveResource(item)
+  if (!resolved?.url || signal.aborted) return
+
+  const duration = Math.max(0, Number(item.duration) || 5000)
+  currentImage.value = {
+    url: resolved.url,
+    duration,
+    position: item.position || 'center',
+    size: item.size
+  }
+
+  await waitWithAbort(duration, signal)
+  currentImage.value = null
+  if (resolved.rid) {
+    await releaseResourceSafely(resolved.rid)
+  }
+}
+
+const playTTSItem = async (item: any, signal: AbortSignal) => {
+  const ttsMode = item.ttsMode || 'remote'
+  if (ttsMode === 'remote') {
+    const resolved = await resolveResource(item)
+    if (!resolved?.url || signal.aborted) return
+    await playRemoteAudio(resolved.url, item, signal, resolved.rid)
+    return
+  }
+
+  if (ttsMode === 'local' && item.text) {
+    await playLocalSpeech(item.text, item, signal)
+  }
+}
+
+const playRemoteAudio = async (
+  url: string,
+  item: any,
+  signal: AbortSignal,
+  rid?: string
+) => {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) return resolve()
+    const audio = new Audio(url)
+    currentAudio = audio
+    currentAudioRid = rid || null
+    audio.volume = item.volume || 1.0
+    audio.playbackRate = item.speed || 1.0
+
+    const cleanup = async () => {
+      if (currentAudio === audio) {
+        currentAudio = null
+        currentAudioRid = null
+      }
+      signal.removeEventListener('abort', onAbort)
+      if (rid) {
+        await releaseResourceSafely(rid)
+      }
+      resolve()
+    }
+
+    const onAbort = () => {
+      audio.pause()
+      audio.currentTime = 0
+      cleanup()
+    }
+
+    audio.onended = () => {
+      cleanup()
+    }
+    audio.onerror = () => {
+      cleanup()
+    }
+
+    signal.addEventListener('abort', onAbort, { once: true })
+    audio.play().catch(() => cleanup())
+  })
+}
+
+const playLocalSpeech = async (text: string, item: any, signal: AbortSignal) => {
+  return new Promise<void>((resolve) => {
+    if (!('speechSynthesis' in window)) {
+      logger.error('浏览器不支持Web Speech API')
+      return resolve()
+    }
+    const utterance = new SpeechSynthesisUtterance(text)
+    currentSpeech = utterance
+    utterance.voice = item.voice || null
+    utterance.volume = item.volume || 1.0
+    utterance.rate = item.speed || 1.0
+
+    const cleanup = () => {
+      if (currentSpeech === utterance) {
+        currentSpeech = null
+      }
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }
+
+    const onAbort = () => {
+      window.speechSynthesis.cancel()
+      cleanup()
+    }
+
+    utterance.onend = () => cleanup()
+    utterance.onerror = () => cleanup()
+
+    signal.addEventListener('abort', onAbort, { once: true })
+    window.speechSynthesis.speak(utterance)
+  })
+}
+
+const stopAllMedia = () => {
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.currentTime = 0
+    currentAudio = null
+  }
+  if (currentSpeech) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    currentSpeech = null
+  }
+  if (currentAudioRid) {
+    void releaseResourceSafely(currentAudioRid)
+    currentAudioRid = null
+  }
+}
+
+const clearText = () => {
+  if (bubbleTimer) {
+    window.clearTimeout(bubbleTimer)
+    bubbleTimer = null
+  }
+  currentText.value = ''
+  currentTextStyle.value = undefined
+  currentFullMessage.value = null
+  autoClearText = false
+  stopBubbleTracking()
+  renderer.value?.setUiInteracting?.(false)
+}
+
+const normalizeBubbleStyle = (style: unknown) => {
+  if (!style || typeof style !== 'object') return undefined
+  const normalized: Record<string, string | number> = {}
+  for (const [key, value] of Object.entries(style as Record<string, unknown>)) {
+    if (typeof value === 'string' || typeof value === 'number') {
+      normalized[key] = value
+    }
+  }
+  return Object.keys(normalized).length ? normalized : undefined
+}
+
+const resolveResource = async (item: any) => {
+  if (item.url) return { url: item.url, rid: undefined }
+  if (item.inline) return { url: item.inline, rid: undefined }
+  if (item.rid) {
+    const resource = await connectionStore.getResource(item.rid)
+    return { url: resource?.url || resource?.inline || '', rid: item.rid }
+  }
+  return null
+}
+
+const releaseResourceSafely = async (rid: string) => {
+  if (!rid || !connectionStore.hasCapability('resource.release')) return
+  try {
+    await connectionStore.releaseResource(rid)
+  } catch (error) {
+    logger.debug('资源释放失败:', error)
+  }
+}
+
+const syncStateConfig = () => {
+  if (!connectionStore.connected) return
+  const info = renderer.value?.getModelInfo?.()
+  const modelId = info?.modelInfo?.name || info?.modelInfo?.id || info?.modelInfo?.modelId
+  connectionStore.sendStateConfig({
+    modelId,
+    screen: { w: window.innerWidth, h: window.innerHeight }
+  })
+}
+
+const handleCommandPacket = async (packet: BasePacket) => {
+  if (!packet?.op) return
+  if (packet.op.startsWith('model.')) {
+    await handleModelCommand(packet)
+    return
+  }
+  if (packet.op.startsWith('desktop.')) {
+    await handleDesktopCommand(packet)
+  }
+}
+
+const handleModelCommand = async (packet: BasePacket) => {
+  if (packet.op === 'model.list') {
+    try {
+      const models = await modelService.getAvailableModels()
+      connectionStore.sendPacket(packet.op, {
+        models: models.map((model) => ({
+          id: model.id || model.name,
+          name: model.name,
+          path: model.path,
+          thumbnail: model.thumbnail,
+          description: model.description
+        }))
+      }, packet.id)
+    } catch (error) {
+      connectionStore.sendError(packet.id, 5004, '模型列表获取失败')
+    }
+    return
+  }
+
+  if (packet.op === 'model.load') {
+    const payload = (packet.payload ?? {}) as ModelLoadPayload
+    const modelId = payload.modelId || payload.modelName
+    if (!modelId) {
+      connectionStore.sendError(packet.id, 4003, '缺少 modelId')
+      return
+    }
+    try {
+      const modelInfo = await modelService.getModelById(modelId)
+      const targetName = modelInfo?.name || modelId
+      const result = await renderer.value?.reloadModel?.(targetName)
+      if (!result?.success) {
+        connectionStore.sendError(packet.id, 5003, result?.error || '模型加载失败')
+        return
+      }
+      connectionStore.sendPacket(packet.op, { success: true, modelId: targetName }, packet.id)
+      syncStateConfig()
+    } catch (error) {
+      connectionStore.sendError(packet.id, 5003, '模型加载失败')
+    }
+    return
+  }
+
+  if (packet.op === 'model.unload') {
+    const result = await renderer.value?.unloadModel?.()
+    if (!result?.success) {
+      connectionStore.sendError(packet.id, 5003, result?.error || '模型卸载失败')
+      return
+    }
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.state') {
+    const info = renderer.value?.getModelInfo?.()
+    const modelInfo = info?.modelInfo
+    connectionStore.sendPacket(packet.op, {
+      modelId: modelInfo?.name,
+      modelName: modelInfo?.name,
+      position: info?.position,
+      scale: info?.scale,
+      size: info ? { width: info.width, height: info.height } : undefined,
+      motions: modelInfo?.motionGroups,
+      expressions: modelInfo?.expressions
+    }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.setExpression') {
+    const payload = (packet.payload ?? {}) as ModelSetExpressionPayload
+    const expressionId = payload.expressionId
+    if (!expressionId) {
+      connectionStore.sendError(packet.id, 4003, '缺少 expressionId')
+      return
+    }
+    renderer.value?.setExpression?.(expressionId)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.playMotion') {
+    const payload = (packet.payload ?? {}) as ModelPlayMotionPayload
+    const parsed = parseMotionPayload(payload)
+    if (!parsed.group) {
+      connectionStore.sendError(packet.id, 4003, '缺少 motionId 或 group')
+      return
+    }
+    renderer.value?.playMotion?.(parsed.group, parsed.index, parsed.priority)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.setParameter') {
+    const payload = (packet.payload ?? {}) as ModelSetParameterPayload
+    if (!payload.name || typeof payload.value !== 'number') {
+      connectionStore.sendError(packet.id, 4003, '参数不完整')
+      return
+    }
+    const ok = renderer.value?.setParameter?.(payload.name, payload.value, payload.blend)
+    if (!ok) {
+      connectionStore.sendError(packet.id, 5004, '参数设置不支持')
+      return
+    }
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.lookAt') {
+    const payload = (packet.payload ?? {}) as ModelLookAtPayload
+    if (typeof payload.x !== 'number' || typeof payload.y !== 'number') {
+      connectionStore.sendError(packet.id, 4003, '缺少 x/y')
+      return
+    }
+    const ok = renderer.value?.lookAt?.(payload.x, payload.y, payload.smooth)
+    if (!ok) {
+      connectionStore.sendError(packet.id, 5004, '注视控制不支持')
+      return
+    }
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.speak') {
+    const payload = (packet.payload ?? {}) as ModelSpeakPayload
+    if (!payload.text && !payload.rid && !payload.url && !payload.inline) {
+      connectionStore.sendError(packet.id, 4003, '缺少文本或音频资源')
+      return
+    }
+    const resolved = await resolveResource(payload)
+    const signal = new AbortController()
+    if (payload.text) {
+      await playLocalSpeech(payload.text, payload, signal.signal)
+    } else if (resolved?.url) {
+      await playRemoteAudio(resolved.url, payload, signal.signal, resolved.rid)
+    }
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'model.stop') {
+    const payload = (packet.payload ?? {}) as ModelStopPayload
+    const scope = payload.scope || 'all'
+    let supported = true
+    if (scope === 'speech' || scope === 'all') {
+      stopAllMedia()
+    }
+    if (scope === 'motion') {
+      supported = !!renderer.value?.stopMotion?.()
+    }
+    if (scope === 'expression') {
+      supported = !!renderer.value?.resetExpression?.()
+    }
+    if (scope === 'all') {
+      clearText()
+      currentImage.value = null
+      renderer.value?.stopMotion?.()
+      renderer.value?.resetExpression?.()
+    }
+    if (!supported) {
+      connectionStore.sendError(packet.id, 5004, '停止动作/表情不支持')
+      return
+    }
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op.startsWith('model.')) {
+    connectionStore.sendError(packet.id, 5004, '不支持的模型指令')
+  }
+}
+
+const parseMotionPayload = (payload: ModelPlayMotionPayload) => {
+  if (payload.motionId && typeof payload.motionId === 'string') {
+    const parts = payload.motionId.split(':')
+    return {
+      group: parts[0],
+      index: parts[1] ? Number(parts[1]) : undefined,
+      priority: payload.priority
+    }
+  }
+  return {
+    group: payload.group,
+    index: payload.index,
+    priority: payload.priority
+  }
+}
+
+const handleDesktopCommand = async (packet: BasePacket) => {
+  if (!window.electronAPI) {
+    connectionStore.sendError(packet.id, 5004, '桌面指令仅支持 Electron 环境')
+    return
+  }
+
+  if (packet.op === 'desktop.window.show') {
+    if (!window.electronAPI.showWindow) {
+      connectionStore.sendError(packet.id, 5004, '窗口显示能力不可用')
+      return
+    }
+    await window.electronAPI.showWindow()
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.hide') {
+    if (!window.electronAPI.hideWindow) {
+      connectionStore.sendError(packet.id, 5004, '窗口隐藏能力不可用')
+      return
+    }
+    await window.electronAPI.hideWindow()
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.move') {
+    const payload = (packet.payload ?? {}) as DesktopWindowMovePayload
+    if (typeof payload.x !== 'number' || typeof payload.y !== 'number') {
+      connectionStore.sendError(packet.id, 4003, '缺少 x/y')
+      return
+    }
+    if (!window.electronAPI.setWindowPosition) {
+      connectionStore.sendError(packet.id, 5004, '窗口移动能力不可用')
+      return
+    }
+    await window.electronAPI.setWindowPosition(payload.x, payload.y)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.resize') {
+    const payload = (packet.payload ?? {}) as DesktopWindowResizePayload
+    if (typeof payload.w !== 'number' || typeof payload.h !== 'number') {
+      connectionStore.sendError(packet.id, 4003, '缺少 w/h')
+      return
+    }
+    if (!window.electronAPI.setWindowSize) {
+      connectionStore.sendError(packet.id, 5004, '窗口缩放能力不可用')
+      return
+    }
+    await window.electronAPI.setWindowSize(payload.w, payload.h)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.setOpacity') {
+    const payload = (packet.payload ?? {}) as DesktopWindowOpacityPayload
+    if (typeof payload.opacity !== 'number') {
+      connectionStore.sendError(packet.id, 4003, '缺少 opacity')
+      return
+    }
+    if (!window.electronAPI.setWindowOpacity) {
+      connectionStore.sendError(packet.id, 5004, '透明度设置不可用')
+      return
+    }
+    await window.electronAPI.setWindowOpacity(payload.opacity)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.setTopmost') {
+    const payload = (packet.payload ?? {}) as DesktopWindowTopmostPayload
+    if (typeof payload.topmost !== 'boolean') {
+      connectionStore.sendError(packet.id, 4003, '缺少 topmost')
+      return
+    }
+    if (!window.electronAPI.setWindowTopmost) {
+      connectionStore.sendError(packet.id, 5004, '置顶设置不可用')
+      return
+    }
+    await window.electronAPI.setWindowTopmost(payload.topmost)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.window.setClickThrough') {
+    const payload = (packet.payload ?? {}) as DesktopWindowClickThroughPayload
+    const enabled = !!payload.enabled
+    const forward = !!payload.forward
+    if (!window.electronAPI.setIgnoreMouseEvents) {
+      connectionStore.sendError(packet.id, 5004, '点击穿透设置不可用')
+      return
+    }
+    await window.electronAPI.setIgnoreMouseEvents(enabled, forward ? { forward } : undefined)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.tray.notify') {
+    const payload = (packet.payload ?? {}) as DesktopTrayNotifyPayload
+    if (!payload.title || !payload.message) {
+      connectionStore.sendError(packet.id, 4003, '缺少通知内容')
+      return
+    }
+    if (!window.electronAPI.trayNotify) {
+      connectionStore.sendError(packet.id, 5004, '系统通知不可用')
+      return
+    }
+    await window.electronAPI.trayNotify(payload.title, payload.message, payload.icon)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.openUrl') {
+    const payload = (packet.payload ?? {}) as DesktopOpenUrlPayload
+    if (!payload.url) {
+      connectionStore.sendError(packet.id, 4003, '缺少 url')
+      return
+    }
+    if (!window.electronAPI.openExternal) {
+      connectionStore.sendError(packet.id, 5004, '打开链接能力不可用')
+      return
+    }
+    await window.electronAPI.openExternal(payload.url)
+    connectionStore.sendPacket(packet.op, { success: true }, packet.id)
+    return
+  }
+
+  if (packet.op === 'desktop.capture.screenshot') {
+    const payload = (packet.payload ?? {}) as DesktopCaptureScreenshotPayload
+    if (!window.electronAPI.captureScreenshot) {
+      connectionStore.sendError(packet.id, 5004, '截图能力不可用')
+      return
+    }
+    try {
+      const screenshot = await window.electronAPI.captureScreenshot(payload.format, payload.quality)
+      if (!screenshot?.success || !screenshot.dataUrl) {
+        connectionStore.sendError(packet.id, 5003, '截图失败')
+        return
+      }
+      const response = await fetch(screenshot.dataUrl)
+      const blob = await response.blob()
+      const resource = await connectionStore.prepareBinaryResource('image', blob, screenshot.mime)
+      connectionStore.sendPacket(packet.op, {
+        resource: resource ? {
+          rid: resource.rid,
+          inline: resource.inline,
+          mime: resource.mime,
+          size: resource.size
+        } : null
+      }, packet.id)
+    } catch (error) {
+      connectionStore.sendError(packet.id, 5005, '截图上传失败')
+    }
+    return
+  }
+
+  if (packet.op.startsWith('desktop.')) {
+    connectionStore.sendError(packet.id, 5004, '不支持的桌面指令')
+  }
+}
+
 onUnmounted(() => {
+  window.removeEventListener('resize', handleWindowResize)
+
+  interruptPerform('unmount')
+
   // 清理气泡跟踪动画
   stopBubbleTracking()
 
@@ -305,7 +987,13 @@ const startBubbleTracking = () => {
 
     const padding = 12
     const x = clamp(headX, padding, window.innerWidth - padding)
-    const y = clamp(headY - 12, padding, window.innerHeight - padding)
+    let y = headY - 12
+    if (currentTextPosition.value === 'top') {
+      y = headY - info.height * 0.6
+    } else if (currentTextPosition.value === 'bottom') {
+      y = headY + info.height * 0.6
+    }
+    y = clamp(y, padding, window.innerHeight - padding)
     bubblePos.value = { x, y }
   }
 
@@ -332,7 +1020,7 @@ const onBubbleHover = (isHovered: boolean) => {
     renderer.value?.setUiInteracting?.(true)
   } else {
     // 鼠标离开时延迟 1 秒后消失
-    if (currentText.value) {
+    if (currentText.value && autoClearText) {
       bubbleTimer = window.setTimeout(() => {
         currentText.value = ''
         currentFullMessage.value = null
@@ -708,8 +1396,8 @@ const recordPerformItem = async (item: any) => {
     const textContent = item.content ?? item.text ?? ''
     await saveAIMessage('text', String(textContent || ''), item)
   } else if (item.type === 'image') {
-    const imageUrl = await resolveResourceUrl(item)
-    await saveAIMessage('image', imageUrl || '', item)
+    const imageRes = await resolveResource(item)
+    await saveAIMessage('image', imageRes?.url || '', item)
   } else if (item.type === 'motion') {
     const payload = `${item.group ?? ''}:${item.index ?? ''}`
     await saveAIMessage('motion', payload, item)
@@ -719,40 +1407,6 @@ const recordPerformItem = async (item: any) => {
   } else if (item.type === 'tts') {
     const ttsContent = item.text || item.url || item.inline || item.rid || ''
     await saveAIMessage('tts', ttsContent, item)
-  }
-}
-
-const resolveResourceUrl = async (item: any) => {
-  if (item.url) return item.url
-  if (item.inline) return item.inline
-  if (item.rid) {
-    const resource = await connectionStore.getResource(item.rid)
-    return resource?.url || resource?.inline || ''
-  }
-  return ''
-}
-
-const playTTS = async (item: any) => {
-  const ttsMode = item.ttsMode || 'remote'
-  if (ttsMode === 'remote') {
-    const audioUrl = item.url || item.inline || (await resolveResourceUrl(item))
-    if (!audioUrl) return
-    const audio = new Audio(audioUrl)
-    audio.volume = item.volume || 1.0
-    audio.playbackRate = item.speed || 1.0
-    audio.play().catch((e) => {
-      logger.error('TTS 播放失败', e)
-    })
-  } else if (ttsMode === 'local' && item.text) {
-    if (!('speechSynthesis' in window)) {
-      logger.error('浏览器不支持Web Speech API')
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(item.text)
-    utterance.voice = item.voice || null
-    utterance.volume = item.volume || 1.0
-    utterance.rate = item.speed || 1.0
-    window.speechSynthesis.speak(utterance)
   }
 }
 
