@@ -57,6 +57,23 @@ const modelSettings = ref({
 let mouseMoveListenerAttached = false
 let settingsCleanup: (() => void) | null = null
 
+const UI_HIT_SELECTORS = [
+  '.input-popup',
+  '.bubble-dialog',
+  '.attachment-preview',
+  '.image-display'
+]
+
+const isUiElement = (element: Element | null) => {
+  if (!element) return false
+  return UI_HIT_SELECTORS.some((selector) => element.closest(selector))
+}
+
+const isUiHitAtPoint = (x: number, y: number) => {
+  const element = document.elementFromPoint(x, y)
+  return isUiElement(element)
+}
+
 onMounted(async () => {
   if (!canvas.value || !canvasContainer.value) return
 
@@ -219,7 +236,8 @@ const setupMousePassthrough = () => {
   passthroughManager = new MousePassthroughManager({
     enabled: modelSettings.value.passthroughEnabled,
     alphaThreshold: modelSettings.value.alphaThreshold,
-    debounceMs: modelSettings.value.debounceMs
+    debounceMs: modelSettings.value.debounceMs,
+    uiHitTest: isUiHitAtPoint
   })
 
   // 设置上下文
@@ -230,6 +248,9 @@ const setupMousePassthrough = () => {
     window.addEventListener('mousemove', handleMouseMove)
     mouseMoveListenerAttached = true
   }
+
+  // 初始化状态同步，避免外部设置导致穿透状态卡死
+  void passthroughManager.syncWithCursor()
 
   logger.info('智能鼠标穿透已启用')
 }
@@ -424,13 +445,8 @@ const setupClickInteraction = () => {
   let windowStartY = 0
 
   const isUiTarget = (target: EventTarget | null) => {
-    const element = target as HTMLElement | null
-    if (!element?.closest) return false
-    return Boolean(
-      element.closest(
-        '.input-popup, .bubble-dialog, .attachment-preview, .image-display'
-      )
-    )
+    if (!(target instanceof Element)) return false
+    return isUiElement(target)
   }
 
   // 鼠标按下

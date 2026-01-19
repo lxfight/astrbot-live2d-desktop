@@ -380,6 +380,7 @@ const showTextItem = async (item: any, signal: AbortSignal) => {
   currentText.value = String(textContent)
   currentTextStyle.value = normalizeBubbleStyle(item.style)
   currentTextPosition.value = item.position || 'center'
+  bubbleHovered.value = false
 
   startBubbleTracking()
   renderer.value?.setUiInteracting?.(true)
@@ -389,17 +390,18 @@ const showTextItem = async (item: any, signal: AbortSignal) => {
     bubbleTimer = null
   }
 
-  const hasDuration = item.duration !== undefined && item.duration !== null
-  const duration = hasDuration ? Math.max(0, Number(item.duration) || 0) : BUBBLE_DURATION
-  autoClearText = hasDuration ? duration > 0 : true
-  if (autoClearText) {
-    bubbleTimer = window.setTimeout(() => {
-      if (!bubbleHovered.value) {
-        clearText()
-      }
-    }, duration)
-    await waitWithAbort(duration, signal)
-  }
+  const rawDuration = item.duration
+  const parsedDuration = Number(rawDuration)
+  const duration = Number.isFinite(parsedDuration) && parsedDuration > 0
+    ? parsedDuration
+    : BUBBLE_DURATION
+  autoClearText = true
+  bubbleTimer = window.setTimeout(() => {
+    if (!bubbleHovered.value) {
+      clearText()
+    }
+  }, duration)
+  await waitWithAbort(duration, signal)
 }
 
 const showImageItem = async (item: any, signal: AbortSignal) => {
@@ -538,6 +540,7 @@ const clearText = () => {
   currentText.value = ''
   currentTextStyle.value = undefined
   currentFullMessage.value = null
+  bubbleHovered.value = false
   autoClearText = false
   stopBubbleTracking()
   renderer.value?.setUiInteracting?.(false)

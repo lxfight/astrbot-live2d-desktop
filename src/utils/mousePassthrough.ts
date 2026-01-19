@@ -9,6 +9,7 @@ export interface MousePassthroughOptions {
   enabled?: boolean      // 是否启用智能穿透，默认 true
   alphaThreshold?: number
   debounceMs?: number
+  uiHitTest?: (x: number, y: number) => boolean
 }
 
 export class MousePassthroughManager {
@@ -21,6 +22,7 @@ export class MousePassthroughManager {
   private hoverStart: number | null = null
   private lastCursor: { x: number; y: number } | null = null
   private lastMoveTime: number = 0
+  private uiHitTest?: (x: number, y: number) => boolean
   private readonly pollIntervalMs = 80
   private readonly enterDelayMs = 80
   private readonly settleMs = 80
@@ -28,6 +30,7 @@ export class MousePassthroughManager {
 
   constructor(options: MousePassthroughOptions = {}) {
     this.enabled = options.enabled ?? true
+    this.uiHitTest = options.uiHitTest
     this.hitTester = new HitTester({
       alphaThreshold: options.alphaThreshold,
       debounceMs: options.debounceMs
@@ -52,6 +55,10 @@ export class MousePassthroughManager {
 
     const x = event.clientX
     const y = event.clientY
+    if (this.isUiHit(x, y)) {
+      this.updatePassthroughState(true)
+      return
+    }
     if (this.currentState === 'passthrough') return
 
     // 使用 HitTester 检测，结果变化时会触发回调
@@ -135,6 +142,34 @@ export class MousePassthroughManager {
     }
   }
 
+  /**
+   * 同步当前鼠标位置对应的穿透状态
+   * 用于修复外部设置导致的状态不同步问题
+   */
+  async syncWithCursor() {
+    if (this.pollInFlight) return
+    if (this.lockedState) return
+    if (!this.enabled) return
+    if (!window.electronAPI?.getCursorPosition || !window.electronAPI?.getWindowPosition) return
+
+    this.pollInFlight = true
+    try {
+      const [cursor, winPos] = await Promise.all([
+        window.electronAPI.getCursorPosition(),
+        window.electronAPI.getWindowPosition()
+      ])
+
+      const localX = cursor.x - winPos.x
+      const localY = cursor.y - winPos.y
+      this.recordCursorMove(localX, localY)
+
+      const isHit = this.isUiHit(localX, localY) || this.hitTester.testImmediate(localX, localY)
+      this.forceState(isHit ? 'intercept' : 'passthrough')
+    } finally {
+      this.pollInFlight = false
+    }
+  }
+
   private recordCursorMove(x: number, y: number) {
     if (this.lastCursor) {
       const dx = x - this.lastCursor.x
@@ -179,6 +214,11 @@ export class MousePassthroughManager {
       const localY = cursor.y - winPos.y
       this.recordCursorMove(localX, localY)
 
+      if (this.isUiHit(localX, localY)) {
+        this.updatePassthroughState(true)
+        return
+      }
+
       const isHit = this.hitTester.testImmediate(localX, localY)
       if (!isHit) {
         this.hoverStart = null
@@ -207,5 +247,9 @@ export class MousePassthroughManager {
   destroy() {
     this.stopPolling()
     this.hitTester.destroy()
+  }
+
+  private isUiHit(x: number, y: number): boolean {
+    return this.uiHitTest ? this.uiHitTest(x, y) : false
   }
 }

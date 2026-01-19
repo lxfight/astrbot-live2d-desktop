@@ -84,9 +84,10 @@ export interface Live2DModel {
 
 // 鼠标穿透配置
 export interface MousePassthroughOptions {
-  enabled: boolean
-  alphaThreshold: number
-  debounceMs: number
+  enabled?: boolean
+  alphaThreshold?: number
+  debounceMs?: number
+  uiHitTest?: (x: number, y: number) => boolean
 }
 
 // HitTest 配置
