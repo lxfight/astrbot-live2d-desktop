@@ -47,6 +47,16 @@ astrbot-live2d-desktop/
 └── package.json
 ```
 
+## 模型与运行时资源（重要）
+
+由于 Live2D 官方许可限制，本仓库不分发：
+- Live2D 模型资产（`*.moc3`、纹理、动作等）
+- Cubism Core 运行时（`public/lib/live2dcubismcore.min.js`）
+
+本地开发时：
+1. 运行 `scripts/fetch-default-model.ps1` 下载官方示例模型到 `public/models/default/`。
+2. 从 Live2D 官方 Cubism SDK for Web 获取 `live2dcubismcore.min.js` 并放到 `public/lib/`。
+
 ## 快速开始
 
 ### 1. 安装依赖

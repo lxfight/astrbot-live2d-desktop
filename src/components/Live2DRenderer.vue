@@ -1,8 +1,7 @@
 <template>
   <div ref="canvasContainer" class="live2d-container">
     <canvas ref="canvas"></canvas>
-    <!-- 调试：绘制检测区域边界 -->
-    <canvas ref="debugCanvas" class="debug-canvas" v-if="debugMode"></canvas>
+
     <div v-if="loading" class="loading-overlay">
       <div class="loading-spinner"></div>
       <p>加载模型中...</p>
@@ -14,11 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { Application } from 'pixi.js'
 import { MousePassthroughManager } from '../utils/mousePassthrough'
 import { getModelInfo as getModelDetails, type ParsedModelInfo } from '../utils/modelLoader'
 import { logger } from '../utils/logger'
+import { motionService, idleMotions } from '../services/motionManagement'
 
 const emit = defineEmits<{
   (e: 'model-input', payload: { x: number; y: number; hitAreas: string[] }): void
@@ -31,18 +31,21 @@ if (window.PIXI) {
 
 const canvasContainer = ref<HTMLDivElement>()
 const canvas = ref<HTMLCanvasElement>()
-const debugCanvas = ref<HTMLCanvasElement>()
+
 let app: Application | null = null
 let model: any = null
+const modelCache = new Map<string, any>() // 模型缓存
 let passthroughManager: MousePassthroughManager | null = null
 let modelBaseBounds: { width: number; height: number } | null = null
+let customIdleTimer: number | null = null
+let motionFinishListener: ((...args: any[]) => void) | null = null
 
 const loading = ref(true)
 const error = ref('')
 const currentModelPath = ref('/models/default/model3.json')
 const currentModelName = ref('default')
 const currentModelInfo = ref<ParsedModelInfo | null>(null)
-const debugMode = ref(import.meta.env.DEV) // 仅开发环境启用调试模式
+
 const modelSettings = ref({
   modelScale: 1.0,
   modelX: 0,
@@ -91,7 +94,7 @@ onMounted(async () => {
     // 动态导入 Live2DModel（确保在 Cubism SDK 加载后）
     const { Live2DModel } = await import('pixi-live2d-display')
 
-    // 创建 PixiJS 应用（PixiJS 6 使用构造函数初始化；没有 app.init）
+    // 创建 PixiJS 应用，优化性能设置
     app = new Application({
       view: canvas.value,
       width: window.innerWidth,
@@ -101,6 +104,8 @@ onMounted(async () => {
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      // 性能优化设置
+      powerPreference: 'high-performance',
     })
 
     // 本项目的交互（拖拽/点击/视线跟随）由 DOM + Live2D hitTest 处理，不需要 Pixi 的交互插件。
@@ -116,10 +121,18 @@ onMounted(async () => {
       // ignore
     }
 
-    // 加载 Live2D 模型
+    // 加载 Live2D 模型（使用缓存）
     logger.info('开始加载 Live2D 模型:', currentModelPath.value)
-    model = await Live2DModel.from(currentModelPath.value)
-    logger.info('Live2D 模型加载成功')
+    
+    if (modelCache.has(currentModelPath.value)) {
+      model = modelCache.get(currentModelPath.value)
+      logger.info('从缓存加载 Live2D 模型')
+    } else {
+      model = await Live2DModel.from(currentModelPath.value)
+      modelCache.set(currentModelPath.value, model)
+      logger.info('Live2D 模型加载成功并缓存')
+    }
+    
     modelBaseBounds = model.getLocalBounds()
 
     // 加载模型详细信息
@@ -135,8 +148,7 @@ onMounted(async () => {
       // 模型居中和缩放
       setupModel()
 
-      // 根据模型边界调整窗口大小
-      adjustWindowSizeToModel()
+
 
       // 监听窗口大小变化
       window.addEventListener('resize', handleResize)
@@ -147,10 +159,7 @@ onMounted(async () => {
       // 初始化智能鼠标穿透
       setupMousePassthrough()
 
-      // 初始化调试画布
-      if (debugMode.value) {
-        initDebugCanvas()
-      }
+
     }
 
     if (window.electronAPI?.onSettingsChanged) {
@@ -181,8 +190,16 @@ onUnmounted(() => {
     settingsCleanup = null
   }
 
+  // 清理模型缓存
+  modelCache.clear()
+
   if (app) {
-    app.destroy(true)
+    // 先停止所有动画和渲染
+    app.stop()
+    app.ticker.stop()
+    
+    // 销毁应用
+    app.destroy(true, { children: true, texture: true, baseTexture: true })
     app = null
   }
   model = null
@@ -218,11 +235,10 @@ const applySettings = async (settings?: any) => {
     await reloadModel(settings.currentModel)
   }
 
-  if (model) {
-    setupModel()
-    updateMousePassthrough()
-    adjustWindowSizeToModel()
-  }
+    if (model) {
+      setupModel()
+      updateMousePassthrough()
+    }
 }
 
 // 设置智能鼠标穿透
@@ -267,8 +283,20 @@ const setUiInteracting = (interacting: boolean) => {
   void interacting
 }
 
-// 处理鼠标移动
-const handleMouseMove = (event: MouseEvent) => {
+// 节流函数
+const createThrottle = (func: Function, delay: number) => {
+  let lastCall = 0
+  return (...args: any[]) => {
+    const now = Date.now()
+    if (now - lastCall >= delay) {
+      lastCall = now
+      return func.apply(this, args)
+    }
+  }
+}
+
+// 处理鼠标移动（节流优化）
+const handleMouseMove = createThrottle((event: MouseEvent) => {
   if (passthroughManager) {
     passthroughManager.handleMouseMove(event)
   }
@@ -276,69 +304,82 @@ const handleMouseMove = (event: MouseEvent) => {
   if (modelSettings.value.eyeTracking && model && typeof model.focus === 'function') {
     model.focus(event.clientX, event.clientY)
   }
+}, modelSettings.value.debounceMs || 16) // 约60fps
 
-  // 调试：绘制检测区域
-  if (debugMode.value && debugCanvas.value && model) {
-    drawDebugOverlay(event.clientX, event.clientY)
-  }
-}
+const setupIdleStrategy = () => {
+  if (!model) return
 
-// 绘制调试覆盖层
-const drawDebugOverlay = (mouseX: number, mouseY: number) => {
-  if (!debugCanvas.value || !model) return
+  const randomEnabled = localStorage.getItem('idle_random_enabled') !== 'false'
+  const hasCustomIdle = (idleMotions.value && idleMotions.value.length > 0) || !randomEnabled
+  
+  // 先停止现有的自定义循环
+  stopCustomIdleLoop()
 
-  const ctx = debugCanvas.value.getContext('2d')
-  if (!ctx) return
-
-  // 清除画布
-  ctx.clearRect(0, 0, debugCanvas.value.width, debugCanvas.value.height)
-
-  // 绘制模型边界框
-  const bounds = model.getBounds()
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'
-  ctx.lineWidth = 2
-  ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height)
-
-  // 绘制边界框标签
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'
-  ctx.font = '12px monospace'
-  ctx.fillText('Model Bounds (getBounds)', bounds.x + 5, bounds.y + 15)
-
-  // 检测当前鼠标位置的 HitArea
-  let hitAreas: string[] = []
-  if (model.internalModel?.hitTest) {
-    hitAreas = model.internalModel.hitTest(mouseX, mouseY) || []
-  }
-
-  // 绘制鼠标位置
-  ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'
-  ctx.beginPath()
-  ctx.arc(mouseX, mouseY, 5, 0, Math.PI * 2)
-  ctx.fill()
-
-  // 绘制鼠标位置信息
-  ctx.fillStyle = 'rgba(0, 255, 0, 0.9)'
-  ctx.font = '14px monospace'
-  ctx.fillText(`Mouse: (${mouseX}, ${mouseY})`, mouseX + 10, mouseY - 10)
-
-  if (hitAreas.length > 0) {
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.9)'
-    ctx.fillText(`HitAreas: ${hitAreas.join(', ')}`, mouseX + 10, mouseY + 10)
+  if (hasCustomIdle) {
+    // 禁用默认待机动作
+    model.autoplay = false
+    logger.info('启用自定义待机动作策略')
+    
+    // 启动自定义循环
+    startCustomIdleLoop()
   } else {
-    ctx.fillStyle = 'rgba(128, 128, 128, 0.9)'
-    ctx.fillText('No HitArea', mouseX + 10, mouseY + 10)
+    // 启用默认待机动作
+    model.autoplay = true
+    logger.info('启用默认待机动作策略')
   }
 }
 
-// 初始化调试画布
-const initDebugCanvas = () => {
-  if (!debugCanvas.value) return
+const startCustomIdleLoop = () => {
+  if (!model) return
 
-  debugCanvas.value.width = window.innerWidth
-  debugCanvas.value.height = window.innerHeight
-
-  logger.debug('调试画布已初始化')
+  // 监听动作结束事件
+  motionFinishListener = () => {
+    scheduleNextIdle()
+  }
+  
+  model.on('motionFinish', motionFinishListener)
+  
+  // 启动循环
+  scheduleNextIdle()
 }
+
+const stopCustomIdleLoop = () => {
+  if (customIdleTimer) {
+    clearTimeout(customIdleTimer)
+    customIdleTimer = null
+  }
+  if (model && motionFinishListener) {
+    model.off('motionFinish', motionFinishListener)
+    motionFinishListener = null
+  }
+}
+
+const scheduleNextIdle = () => {
+  if (customIdleTimer) clearTimeout(customIdleTimer)
+  
+  // 从 localStorage 读取配置 (暂定，后续应移至 motionService 或 settings)
+  const intervalStr = localStorage.getItem('idle_motion_interval')
+  const interval = parseInt(intervalStr || '10') * 1000
+  const randomEnabled = localStorage.getItem('idle_random_enabled') !== 'false'
+  
+  if (!randomEnabled && idleMotions.value.length === 0) return
+
+  customIdleTimer = window.setTimeout(() => {
+    // 检查模型是否存在且没有在播放高优先级动作
+    if (!model) return
+    
+    // 简单检查：如果 internalModel 存在
+    const motion = motionService.getRandomIdleMotion()
+    if (motion) {
+        // 使用优先级 0 (IDLE) 播放
+        playMotion(motion.groupId, motion.index, 0)
+    }
+  }, interval)
+}
+
+watch(idleMotions, () => {
+  setupIdleStrategy()
+}, { deep: true })
 
 // 设置模型位置和缩放
 const setupModel = () => {
@@ -349,11 +390,13 @@ const setupModel = () => {
   const baseBounds = modelBaseBounds ?? model.getLocalBounds()
   const baseHeight = Math.max(baseBounds.height || 0, 1)
 
-  // 计算缩放比例
-  // 在全屏模式下，我们不希望模型铺满整个屏幕，而是保持一个合理的大小
-  // 比如高度占屏幕的 50% 或者固定像素高度
-  const targetHeight = windowHeight * 0.5 // 占用屏幕高度的 50%
-  const baseScale = targetHeight / baseHeight
+  // 计算缩放比例 - 适配更小的窗口尺寸
+  // 针对桌面宠物设计：模型应占据窗口的大部分空间但留有边距
+  const targetHeight = Math.min(windowHeight * 0.85, 300) // 限制最大高度为300px
+  const targetWidth = Math.min(windowWidth * 0.85, 250) // 限制最大宽度为250px
+  const heightScale = targetHeight / baseHeight
+  const widthScale = targetWidth / Math.max(baseBounds.width || 1, 1)
+  const baseScale = Math.min(heightScale, widthScale) // 选择较小的缩放比例确保完整显示
   const scale = baseScale * (modelSettings.value.modelScale || 1)
 
   model.scale.set(scale)
@@ -368,48 +411,41 @@ const setupModel = () => {
     model.anchor.set(0.5, 0.5)
   }
 
-  // 小窗模式：模型固定在窗口内（底部居中）
+  // 桌面宠物模式：模型居中显示，适合小窗口
   const scaledHeight = baseHeight * scale
+  const scaledWidth = (baseBounds.width || 1) * scale
+  
+  // 居中显示，考虑用户偏移设置
   model.x = windowWidth * 0.5 + (modelSettings.value.modelX || 0)
-  model.y = windowHeight - (scaledHeight * 0.5) + (modelSettings.value.modelY || 0)
+  model.y = windowHeight * 0.5 + (modelSettings.value.modelY || 0)
+  
+  // 确保模型完全在窗口内显示
+  const padding = 20
+  model.x = Math.max(padding + scaledWidth * 0.5, Math.min(windowWidth - padding - scaledWidth * 0.5, model.x))
+  model.y = Math.max(padding + scaledHeight * 0.5, Math.min(windowHeight - padding - scaledHeight * 0.5, model.y))
+
+  // 初始化待机策略
+  setupIdleStrategy()
 }
 
-// 根据模型边界调整窗口大小
-const adjustWindowSizeToModel = async () => {
-  if (!model || !window.electronAPI) return
 
-  try {
-    // 获取模型的本地边界（相对于模型自身的坐标系）
-    const bounds = modelBaseBounds ?? model.getLocalBounds()
 
-    // 计算实际显示大小（考虑缩放）
-    const scale = model.scale.x
-    const actualWidth = Math.max(bounds.width, 1) * scale
-    const actualHeight = Math.max(bounds.height, 1) * scale
-
-    // 计算窗口大小（添加一些边距）
-    const padding = 40
-    const windowWidth = Math.ceil(actualWidth + padding * 2)
-    const windowHeight = Math.ceil(actualHeight + padding * 2)
-
-    const currentWidth = window.innerWidth
-    const currentHeight = window.innerHeight
-    const nextWidth = Math.max(currentWidth, windowWidth)
-    const nextHeight = Math.max(currentHeight, windowHeight)
-
-    // 只在需要放大时调整窗口大小，避免反复缩小
-    if (nextWidth !== currentWidth || nextHeight !== currentHeight) {
-      await window.electronAPI.setWindowSize(nextWidth, nextHeight)
+// 防抖函数
+const createDebounce = (func: Function, delay: number) => {
+  let timeoutId: number | null = null
+  return (...args: any[]) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
     }
-
-    logger.debug(`根据模型边界调整窗口大小: ${nextWidth}x${nextHeight} (模型边界: ${bounds.width}x${bounds.height}, 缩放: ${scale})`)
-  } catch (error) {
-    logger.error('调整窗口大小失败:', error)
+    timeoutId = window.setTimeout(() => {
+      func.apply(this, args)
+      timeoutId = null
+    }, delay)
   }
 }
 
-// 处理窗口大小变化
-const handleResize = () => {
+// 处理窗口大小变化（防抖优化）
+const handleResize = createDebounce(() => {
   if (!app || !canvas.value) return
 
   const width = window.innerWidth
@@ -417,13 +453,7 @@ const handleResize = () => {
 
   app.renderer.resize(width, height)
   setupModel()
-
-  // 调整调试画布大小
-  if (debugMode.value && debugCanvas.value) {
-    debugCanvas.value.width = width
-    debugCanvas.value.height = height
-  }
-}
+}, 150) // 150ms防抖
 
 // 设置点击交互和拖拽
 const setupClickInteraction = () => {
@@ -431,8 +461,7 @@ const setupClickInteraction = () => {
 
   let isDragging = false
   let passthroughLocked = false
-  let dragStartX = 0
-  let dragStartY = 0
+
   let dragStartScreenX = 0
   let dragStartScreenY = 0
   let modelStartX = 0
@@ -482,8 +511,7 @@ const setupClickInteraction = () => {
       downHitAreas = hitAreas
       downX = x
       downY = y
-      dragStartX = x
-      dragStartY = y
+
       // 关键：窗口拖拽必须用屏幕坐标，否则窗口移动会导致 client 坐标反向变化，引发抖动
       dragStartScreenX = event.screenX
       dragStartScreenY = event.screenY
@@ -719,9 +747,16 @@ const reloadModel = async (modelName: string) => {
       model.destroy()
     }
 
-    // 加载新模型
-    model = await Live2DModel.from(newModelPath)
-    logger.info('新模型加载成功')
+    // 加载新模型（使用缓存）
+    if (modelCache.has(newModelPath)) {
+      model = modelCache.get(newModelPath)
+      logger.info('从缓存加载新模型')
+    } else {
+      model = await Live2DModel.from(newModelPath)
+      modelCache.set(newModelPath, model)
+      logger.info('新模型加载成功并缓存')
+    }
+    
     modelBaseBounds = model.getLocalBounds()
 
     // 加载模型详细信息
@@ -751,6 +786,25 @@ const reloadModel = async (modelName: string) => {
     error.value = `加载失败: ${errorMessage}`
     loading.value = false
     return { success: false, error: errorMessage }
+  }
+}
+
+// 监听跨窗口配置变化
+onMounted(() => {
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
+})
+
+const handleStorageChange = (e: StorageEvent) => {
+  if (e.key === 'idle_random_enabled' || e.key === 'idle_motion_interval') {
+    setupIdleStrategy()
+    // 如果间隔改变，重启循环
+    if (e.key === 'idle_motion_interval') {
+      scheduleNextIdle()
+    }
   }
 }
 
@@ -785,15 +839,7 @@ canvas {
   height: 100%;
 }
 
-.debug-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-}
+
 
 .loading-overlay,
 .error-overlay {

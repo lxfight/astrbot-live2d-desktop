@@ -244,6 +244,7 @@ export interface MotionPerformItem {
   loop?: boolean
   fadeIn?: number
   fadeOut?: number
+  motionType?: string  // 新增：动作类型标识
 }
 
 export interface ExpressionPerformItem {
@@ -251,6 +252,7 @@ export interface ExpressionPerformItem {
   id?: string
   expressionId?: string
   fade?: number
+  motionType?: string  // 新增：动作类型标识
 }
 
 export interface TtsPerformItem {

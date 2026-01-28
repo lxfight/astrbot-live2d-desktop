@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
 
   // 窗口控制
+  minimize: () => ipcRenderer.invoke('window-minimize'),
+  maximize: () => ipcRenderer.invoke('window-maximize'),
+  close: () => ipcRenderer.invoke('window-close'),
+  isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  
   showSettings: () => ipcRenderer.invoke('show-settings'),
   showWindow: () => ipcRenderer.invoke('show-window'),
   hideWindow: () => ipcRenderer.invoke('hide-window'),
@@ -45,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   validateModel: (folderPath) => ipcRenderer.invoke('validate-model', folderPath),
   importModel: (sourcePath, targetName) => ipcRenderer.invoke('import-model', sourcePath, targetName),
   getAvailableModels: () => ipcRenderer.invoke('get-available-models'),
+  getModelConfig: (modelName) => ipcRenderer.invoke('get-model-config', modelName),
   deleteModel: (modelName) => ipcRenderer.invoke('delete-model', modelName),
 
   // 动作和表情预览

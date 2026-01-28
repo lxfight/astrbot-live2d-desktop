@@ -33,51 +33,73 @@ defineProps<Props>()
 .indicator-content {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(10px);
-  border-radius: 24px;
+  gap: 14px;
+  padding: 18px 28px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.85) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 28px;
   color: #fff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 
+    0 12px 32px rgba(239, 68, 68, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.4s ease-out, breathe 2s ease-in-out infinite;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 
+      0 12px 32px rgba(239, 68, 68, 0.3),
+      0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.02);
+    box-shadow: 
+      0 16px 40px rgba(239, 68, 68, 0.4),
+      0 6px 16px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .microphone-icon {
-  width: 24px;
-  height: 24px;
-  color: #ff4757;
-  animation: iconPulse 1.5s ease-in-out infinite;
+  width: 28px;
+  height: 28px;
+  color: rgba(255, 255, 255, 0.95);
+  animation: iconGlow 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+}
+
+@keyframes iconGlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8));
+  }
 }
 
 .recording-text {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.95;
-  }
-  50% {
-    transform: scale(1.02);
-    opacity: 1;
-  }
-}
 
-@keyframes iconPulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-}
 
 .fade-enter-active,
 .fade-leave-active {

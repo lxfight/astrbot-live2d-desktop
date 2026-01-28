@@ -5,8 +5,16 @@ dist/
 
 # 本地缓存和下载资源
 .cache/
-public/models/default/
 public/vendor/
+
+# Live2D 资产（受 Live2D 官方许可限制，本仓库不分发）
+public/lib/live2dcubismcore*.js
+public/models/*
+!public/models/manifest.json
+!public/models/README.md
+!public/models/default/
+public/models/default/*
+!public/models/default/.gitkeep
 
 # 操作系统和IDE
 .DS_Store

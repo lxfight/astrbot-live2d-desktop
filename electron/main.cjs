@@ -33,8 +33,10 @@ const defaultSettings = {
   modelScale: 1.0,
   modelX: 0,
   modelY: 0,
-  windowSize: { width: 400, height: 600 },
-  windowPosition: null
+  windowSize: { width: 280, height: 350 }, // 优化为更合理的桌面宠物尺寸
+  windowPosition: null,
+  gameMode: true, // 默认启用游戏模式
+  fullscreenHideTimeout: 3000 // 全屏检测超时（毫秒）
 };
 
 /**

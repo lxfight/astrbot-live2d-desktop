@@ -2,6 +2,7 @@ const { ipcMain, dialog, BrowserWindow, screen, Notification, shell } = require(
 const path = require('path');
 const fs = require('fs');
 const { createLogger } = require('./logger.cjs');
+const windowManager = require('./window-manager.cjs');
 
 const logger = createLogger('[IPC]');
 
@@ -35,6 +36,14 @@ function registerIPCHandlers(
       }
     }
 
+    // Apply game mode changes immediately (enable/disable/interval changes).
+    try {
+      const merged = getMergedSettings();
+      windowManager.updateGameMode(getMainWindow(), store, merged);
+    } catch (error) {
+      logger.error('更新游戏模式失败:', error);
+    }
+
     BrowserWindow.getAllWindows().forEach((win) => {
       if (!win.isDestroyed() && win.webContents) {
         win.webContents.send('settings-changed', settings);
@@ -64,6 +73,33 @@ function registerIPCHandlers(
   });
 
   // ========== 窗口控制 ==========
+  // 通用窗口控制 (基于发送事件的窗口)
+  ipcMain.handle('window-minimize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) win.minimize();
+  });
+
+  ipcMain.handle('window-maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      if (win.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win.maximize();
+      }
+    }
+  });
+
+  ipcMain.handle('window-close', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) win.close();
+  });
+
+  ipcMain.handle('window-is-maximized', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? win.isMaximized() : false;
+  });
+
   ipcMain.handle('set-window-focusable', (event, focusable) => {
     const mainWindow = getMainWindow();
     if (!mainWindow) return { success: false };
@@ -361,6 +397,46 @@ function registerIPCHandlers(
     } catch (error) {
       logger.error('获取模型列表失败:', error);
       return { success: false, error: error.message, models: [] };
+    }
+  });
+
+  ipcMain.handle('get-model-config', async (event, modelName) => {
+    try {
+      const safeName = String(modelName || '').trim();
+      if (!safeName) {
+        return { success: false, error: '缺少模型名称' };
+      }
+
+      const publicModelsPath = path.join(__dirname, '../public/models');
+      const distModelsPath = path.join(__dirname, '../dist/models');
+
+      let modelsPath = publicModelsPath;
+      if (!fs.existsSync(publicModelsPath) && fs.existsSync(distModelsPath)) {
+        modelsPath = distModelsPath;
+      }
+
+      const folderPath = path.join(modelsPath, safeName);
+      if (!fs.existsSync(folderPath)) {
+        return { success: false, error: `模型不存在: ${safeName}` };
+      }
+
+      const model3Path = path.join(folderPath, 'model3.json');
+      const model2Path = path.join(folderPath, 'model.json');
+      const configPath = fs.existsSync(model3Path) ? model3Path : (fs.existsSync(model2Path) ? model2Path : null);
+      if (!configPath) {
+        return { success: false, error: '未找到 model3.json 或 model.json 配置文件' };
+      }
+
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(raw);
+      return {
+        success: true,
+        config,
+        configFile: path.basename(configPath)
+      };
+    } catch (error) {
+      logger.error('读取模型配置失败:', error);
+      return { success: false, error: error.message };
     }
   });
 

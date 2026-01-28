@@ -106,34 +106,111 @@
       <section class="stats-chart">
         <h3>每日消息趋势</h3>
         <div v-if="dailyStats.length > 0" class="chart-container">
-          <div class="chart-bars">
-            <div
-              v-for="stat in dailyStats"
-              :key="stat.stat_date"
-              class="chart-bar-group"
+          <div ref="chartHost" class="line-chart">
+            <svg 
+              class="chart-svg" 
+              :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
             >
-              <div class="bar-container">
-                <div
-                  class="bar user-bar"
-                  :style="{ height: getBarHeight(stat.user_messages) }"
+              <!-- 网格线 -->
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--border-soft)" stroke-width="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+              
+              <!-- Y轴刻度线和标签 -->
+              <g v-for="tick in yAxisTicks" :key="tick" class="y-axis">
+                <line 
+                  :x1="chartPadding.left" 
+                  :y1="getYPosition(tick)" 
+                  :x2="chartWidth - chartPadding.right" 
+                  :y2="getYPosition(tick)"
+                  stroke="var(--border-soft)" 
+                  stroke-width="1"
+                />
+                <text 
+                  :x="chartPadding.left - 10" 
+                  :y="getYPosition(tick) + 5"
+                  fill="var(--text-muted)" 
+                  font-size="12" 
+                  text-anchor="end"
+                >
+                  {{ tick }}
+                </text>
+              </g>
+              
+              <!-- 用户消息折线 -->
+              <polyline
+                v-if="dailyStats.length > 1"
+                :points="getLinePoints(dailyStats, 'user_messages')"
+                fill="none"
+                :stroke="userLineColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+              />
+              
+              <!-- AI消息折线 -->
+              <polyline
+                v-if="dailyStats.length > 1"
+                :points="getLinePoints(dailyStats, 'ai_messages')"
+                fill="none"
+                :stroke="aiLineColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+              />
+              
+              <!-- 用户消息数据点 -->
+              <g v-for="(stat, index) in dailyStats" :key="`user-${stat.stat_date}`" class="data-points">
+                <circle
+                  :cx="getXPosition(index)"
+                  :cy="getYPosition(stat.user_messages)"
+                  r="4"
+                  :fill="userLineColor"
+                  stroke="rgba(255,255,255,0.8)"
+                  stroke-width="2"
+                  class="data-point"
                   :title="`用户消息: ${stat.user_messages}`"
-                ></div>
-                <div
-                  class="bar ai-bar"
-                  :style="{ height: getBarHeight(stat.ai_messages) }"
+                />
+              </g>
+              
+              <!-- AI消息数据点 -->
+              <g v-for="(stat, index) in dailyStats" :key="`ai-${stat.stat_date}`" class="data-points">
+                <circle
+                  :cx="getXPosition(index)"
+                  :cy="getYPosition(stat.ai_messages)"
+                  r="4"
+                  :fill="aiLineColor"
+                  stroke="rgba(255,255,255,0.8)"
+                  stroke-width="2"
+                  class="data-point"
                   :title="`AI消息: ${stat.ai_messages}`"
-                ></div>
-              </div>
-              <div class="bar-label">{{ formatDate(stat.stat_date) }}</div>
-            </div>
+                />
+              </g>
+              
+              <!-- X轴标签 -->
+              <g v-for="(stat, index) in dailyStats" :key="`label-${stat.stat_date}`" class="x-axis">
+                <text
+                  :x="getXPosition(index)"
+                  :y="chartHeight - chartPadding.bottom + 20"
+                  fill="var(--text-muted)"
+                  font-size="12"
+                  text-anchor="middle"
+                >
+                  {{ formatDate(stat.stat_date) }}
+                </text>
+              </g>
+            </svg>
           </div>
           <div class="chart-legend">
             <div class="legend-item">
-              <span class="legend-color user"></span>
+              <span class="legend-line user"></span>
               <span>用户消息</span>
             </div>
             <div class="legend-item">
-              <span class="legend-color ai"></span>
+              <span class="legend-line ai"></span>
               <span>AI消息</span>
             </div>
           </div>
@@ -204,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { DailyStatistics } from '@/types/history'
 
 const dateRanges = [
@@ -231,6 +308,26 @@ const totalStats = ref<Omit<DailyStatistics, 'id' | 'stat_date'>>({
 const maxMessages = computed(() => {
   if (dailyStats.value.length === 0) return 1
   return Math.max(...dailyStats.value.map(s => Math.max(s.user_messages, s.ai_messages)))
+})
+
+const chartPadding = { top: 20, right: 20, bottom: 40, left: 50 }
+
+const chartInnerWidth = computed(() => chartDimensions.value.width - chartPadding.left - chartPadding.right)
+const chartInnerHeight = computed(() => chartDimensions.value.height - chartPadding.top - chartPadding.bottom)
+
+const userLineColor = 'rgba(11, 95, 255, 0.9)'
+const aiLineColor = 'rgba(38, 167, 255, 0.9)'
+
+const yAxisTicks = computed(() => {
+  if (maxMessages.value === 0) return [0]
+  const max = Math.ceil(maxMessages.value / 10) * 10 // 向上取整到最近的10
+  const tickCount = 5
+  const step = Math.ceil(max / tickCount / 10) * 10
+  const ticks = []
+  for (let i = 0; i <= tickCount; i++) {
+    ticks.push(i * step)
+  }
+  return ticks
 })
 
 onMounted(async () => {
@@ -281,6 +378,79 @@ const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
+
+// 折线图相关方法
+const getXPosition = (index: number): number => {
+  if (dailyStats.value.length <= 1) return chartPadding.left + chartInnerWidth.value / 2
+  const step = chartInnerWidth.value / (dailyStats.value.length - 1)
+  return chartPadding.left + index * step
+}
+
+const getYPosition = (value: number): number => {
+  if (maxMessages.value === 0) return chartDimensions.value.height - chartPadding.bottom
+  const percentage = value / maxMessages.value
+  return chartDimensions.value.height - chartPadding.bottom - (percentage * chartInnerHeight.value)
+}
+
+const getLinePoints = (stats: DailyStatistics[], key: 'user_messages' | 'ai_messages'): string => {
+  if (stats.length <= 1) return ''
+  
+  return stats.map((stat, index) => {
+    const x = getXPosition(index)
+    const y = getYPosition(stat[key])
+    return `${x},${y}`
+  }).join(' ')
+}
+
+// 响应式图表尺寸计算
+// Chart sizing should be based on the actual container width; using window.innerWidth
+// will overflow in a small settings window and can produce NaN during initial render.
+const chartHost = ref<HTMLDivElement | null>(null)
+const chartDimensions = ref({ width: 640, height: 360 })
+
+const chartWidth = computed(() => chartDimensions.value.width)
+const chartHeight = computed(() => chartDimensions.value.height)
+
+let chartResizeObserver: ResizeObserver | null = null
+
+const updateChartSize = () => {
+  const host = chartHost.value
+  if (!host) return
+
+  const w = Math.max(320, Math.floor(host.clientWidth || 0))
+  const aspectRatio = 16 / 9
+  const h = Math.max(220, Math.floor(Math.min(w / aspectRatio, 420)))
+  chartDimensions.value = { width: w, height: h }
+}
+
+onMounted(() => {
+  // Run once on mount; if the chart isn't visible yet, watcher below will handle it.
+  updateChartSize()
+
+  if ('ResizeObserver' in window) {
+    chartResizeObserver = new ResizeObserver(() => updateChartSize())
+    if (chartHost.value) chartResizeObserver.observe(chartHost.value)
+  } else {
+    window.addEventListener('resize', updateChartSize)
+  }
+})
+
+// When data loads, the chart container is created; measure again after render.
+const chartReady = computed(() => dailyStats.value.length > 0)
+watch(chartReady, async (ready) => {
+  if (!ready) return
+  await nextTick()
+  updateChartSize()
+  if (chartResizeObserver && chartHost.value) chartResizeObserver.observe(chartHost.value)
+})
+
+onUnmounted(() => {
+  if (chartResizeObserver) {
+    chartResizeObserver.disconnect()
+    chartResizeObserver = null
+  }
+  window.removeEventListener('resize', updateChartSize)
+})
 </script>
 
 <style scoped>
@@ -294,7 +464,7 @@ const formatDate = (dateStr: string): string => {
 }
 
 .stats-header {
-  padding: 24px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   justify-content: space-between;
@@ -303,8 +473,8 @@ const formatDate = (dateStr: string): string => {
 
 .stats-header h2 {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .date-filter {
@@ -313,14 +483,14 @@ const formatDate = (dateStr: string): string => {
 }
 
 .filter-btn {
-  padding: 8px 16px;
+  padding: 7px 12px;
   background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
   color: var(--text);
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .filter-btn:hover {
@@ -336,7 +506,7 @@ const formatDate = (dateStr: string): string => {
 .stats-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 16px 18px;
 }
 
 .stats-cards {
@@ -350,11 +520,12 @@ const formatDate = (dateStr: string): string => {
   background: var(--glass);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
   transition: all 0.2s;
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -369,32 +540,32 @@ const formatDate = (dateStr: string): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 123, 182, 0.12);
+  background: rgba(11, 95, 255, 0.12);
   color: var(--accent);
 }
 
 .card-icon.user {
-  background: rgba(103, 183, 255, 0.14);
+  background: rgba(38, 167, 255, 0.14);
   color: var(--accent-2);
 }
 
 .card-icon.ai {
-  background: rgba(188, 130, 255, 0.14);
-  color: rgba(188, 130, 255, 0.95);
+  background: rgba(11, 95, 255, 0.1);
+  color: var(--accent);
 }
 
 .card-icon.text {
-  background: rgba(255, 123, 182, 0.12);
+  background: rgba(11, 95, 255, 0.12);
   color: var(--accent);
 }
 
 .card-icon.image {
-  background: rgba(255, 110, 199, 0.14);
-  color: rgba(255, 110, 199, 0.95);
+  background: rgba(38, 167, 255, 0.12);
+  color: rgba(38, 167, 255, 0.95);
 }
 
 .card-icon.voice {
-  background: rgba(103, 183, 255, 0.14);
+  background: rgba(38, 167, 255, 0.14);
   color: var(--accent-2);
 }
 
@@ -403,14 +574,14 @@ const formatDate = (dateStr: string): string => {
 }
 
 .card-label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .card-value {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 800;
   color: var(--text);
 }
 
@@ -418,70 +589,48 @@ const formatDate = (dateStr: string): string => {
   background: var(--glass);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 24px;
+  padding: 18px;
   margin-bottom: 32px;
+  overflow: hidden;
 }
 
 .stats-chart h3 {
-  margin: 0 0 24px 0;
+  margin: 0 0 14px 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .chart-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 100%;
 }
 
-.chart-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  height: 200px;
-  padding: 0 8px;
-}
-
-.chart-bar-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.bar-container {
+.line-chart {
   width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 4px;
+  height: auto;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.bar {
-  flex: 1;
-  min-height: 2px;
-  border-radius: 4px 4px 0 0;
-  transition: all 0.3s;
+.chart-svg {
+  width: 100%;
+  height: auto;
+  background: var(--input-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: block;
 }
 
-.bar.user-bar {
-  background: linear-gradient(to top, rgba(255, 110, 199, 0.9), rgba(255, 123, 182, 0.7));
+.data-point {
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.bar.ai-bar {
-  background: linear-gradient(to top, rgba(103, 183, 255, 0.9), rgba(188, 130, 255, 0.7));
-}
-
-.bar:hover {
-  opacity: 0.8;
-}
-
-.bar-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  text-align: center;
+.data-point:hover {
+  r: 6;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
 }
 
 .chart-legend {
@@ -499,18 +648,18 @@ const formatDate = (dateStr: string): string => {
   font-size: 14px;
 }
 
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+.legend-line {
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
 }
 
-.legend-color.user {
-  background: linear-gradient(135deg, rgba(255, 110, 199, 0.9), rgba(255, 123, 182, 0.7));
+.legend-line.user {
+  background: linear-gradient(90deg, rgba(11, 95, 255, 0.95), rgba(38, 167, 255, 0.75));
 }
 
-.legend-color.ai {
-  background: linear-gradient(135deg, rgba(103, 183, 255, 0.9), rgba(188, 130, 255, 0.7));
+.legend-line.ai {
+  background: linear-gradient(90deg, rgba(38, 167, 255, 0.95), rgba(140, 200, 255, 0.75));
 }
 
 .empty-chart {
@@ -571,15 +720,15 @@ const formatDate = (dateStr: string): string => {
 }
 
 .dist-bar.text {
-  background: linear-gradient(90deg, rgba(255, 123, 182, 0.9), rgba(255, 210, 230, 0.95));
+  background: linear-gradient(90deg, rgba(11, 95, 255, 0.9), rgba(140, 200, 255, 0.95));
 }
 
 .dist-bar.image {
-  background: linear-gradient(90deg, rgba(255, 110, 199, 0.9), rgba(188, 130, 255, 0.8));
+  background: linear-gradient(90deg, rgba(38, 167, 255, 0.9), rgba(140, 200, 255, 0.85));
 }
 
 .dist-bar.voice {
-  background: linear-gradient(90deg, rgba(103, 183, 255, 0.9), rgba(198, 220, 255, 0.95));
+  background: linear-gradient(90deg, rgba(11, 95, 255, 0.75), rgba(198, 220, 255, 0.95));
 }
 
 .dist-value {

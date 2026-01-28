@@ -137,11 +137,29 @@ let cleanupPlayMotion: (() => void) | null = null
 let cleanupPlayExpression: (() => void) | null = null
 let cleanupStartRecording: (() => void) | null = null
 let cleanupStopRecording: (() => void) | null = null
+let cleanupSettingsChanged: (() => void) | null = null
+
+let lastConnectionSettings = {
+  wsUrl: 'ws://localhost:9090/astrbot/live2d',
+  token: ''
+}
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 const handleWindowResize = () => {
   syncStateConfig()
+}
+
+// Keep the WS connection in sync with persisted settings (wsUrl/token).
+const applyConnectionSettings = (next?: any) => {
+  const wsUrl = String(next?.wsUrl || lastConnectionSettings.wsUrl || 'ws://localhost:9090/astrbot/live2d')
+  const token = String(next?.token || '')
+
+  if (wsUrl === lastConnectionSettings.wsUrl && token === lastConnectionSettings.token) return
+
+  lastConnectionSettings = { wsUrl, token }
+  connectionStore.disconnect()
+  connectionStore.connect(wsUrl, token)
 }
 
 const inputStyle = computed(() => ({
@@ -190,12 +208,17 @@ onMounted(async () => {
   if (window.electronAPI?.getSettings) {
     window.electronAPI.getSettings().then((settings) => {
       logger.info('已加载设置:', settings)
-      const wsUrl = settings?.wsUrl || 'ws://localhost:9090/astrbot/live2d'
-      const token = settings?.token || ''
-      connectionStore.connect(wsUrl, token)
+      applyConnectionSettings(settings)
     })
   } else {
-    connectionStore.connect('ws://localhost:9090/astrbot/live2d', '')
+    applyConnectionSettings({ wsUrl: 'ws://localhost:9090/astrbot/live2d', token: '' })
+  }
+
+  // When settings are saved in the settings window, the main window should react immediately.
+  if (window.electronAPI?.onSettingsChanged) {
+    cleanupSettingsChanged = window.electronAPI.onSettingsChanged((nextSettings) => {
+      applyConnectionSettings(nextSettings)
+    })
   }
 
   // 监听连接状态变化，通知主进程更新托盘菜单
@@ -314,12 +337,42 @@ const executePerformItem = async (item: any, signal: AbortSignal) => {
   }
 
   if (item.type === 'motion') {
+    // 处理带有动作类型的动作
+    if (item.motionType) {
+      const { motionService } = await import('./services/motionManagement')
+      const motionAssignment = motionService.getRandomMotionForType(item.motionType)
+      
+      if (motionAssignment) {
+        renderer.value?.playMotion(motionAssignment.groupId, motionAssignment.index, item.priority)
+        logger.debug(`播放类型化动作: ${item.motionType} -> ${motionAssignment.motionName}`)
+        return
+      } else {
+        logger.debug(`动作类型 ${item.motionType} 没有分配动作，使用原始动作`)
+      }
+    }
+    
+    // 回退到原始动作
     renderer.value?.playMotion(item.group, item.index, item.priority)
     return
   }
 
   if (item.type === 'expression') {
+    // 处理带有动作类型的表情
     const expressionId = item.id || item.expressionId
+    if (item.motionType) {
+      const { motionService } = await import('./services/motionManagement')
+      const expressionAssignment = motionService.getRandomExpressionForType(item.motionType)
+      
+      if (expressionAssignment) {
+        renderer.value?.setExpression(expressionAssignment.motionId)
+        logger.debug(`播放类型化表情: ${item.motionType} -> ${expressionAssignment.motionName}`)
+        return
+      } else {
+        logger.debug(`动作类型 ${item.motionType} 没有分配表情，使用原始表情`)
+      }
+    }
+    
+    // 回退到原始表情
     if (expressionId) {
       renderer.value?.setExpression(expressionId)
     }
@@ -965,24 +1018,64 @@ onUnmounted(() => {
     mediaRecorder.value.stop()
     mediaRecorder.value = null
   }
+  
+  // 清理音频资源
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.src = ''
+    currentAudio = null
+  }
+  
+  if (currentSpeech) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    currentSpeech = null
+  }
 
   // 清理事件监听器
   cleanupPlayMotion?.()
   cleanupPlayExpression?.()
   cleanupStartRecording?.()
   cleanupStopRecording?.()
+  cleanupSettingsChanged?.()
+
+  // 清理资源ID
+  if (currentAudioRid) {
+    void releaseResourceSafely(currentAudioRid)
+    currentAudioRid = null
+  }
 
   // 断开 WebSocket 连接
   connectionStore.disconnect()
+  
+  // 强制垃圾回收提示（如果可用）
+  if (window.gc) {
+    window.gc()
+  }
 })
 
-const startBubbleTracking = () => {
-  if (bubbleRaf !== null) return
+// 创建节流函数优化气泡跟踪
+const createBubbleTracker = () => {
+  let lastUpdateTime = 0
+  const updateInterval = 16 // 约60fps
 
   const tick = () => {
-    bubbleRaf = window.requestAnimationFrame(tick)
+    if (bubbleRaf === null) return
+    
+    const now = performance.now()
+    if (now - lastUpdateTime < updateInterval) {
+      bubbleRaf = window.requestAnimationFrame(tick)
+      return
+    }
+    
+    lastUpdateTime = now
+    
     const info = renderer.value?.getModelInfo?.()
-    if (!info?.position) return
+    if (!info?.position) {
+      bubbleRaf = window.requestAnimationFrame(tick)
+      return
+    }
 
     // 假设 model.anchor = (0.5, 0.5) 时：position 为中心点
     const headX = info.position.x
@@ -997,9 +1090,22 @@ const startBubbleTracking = () => {
       y = headY + info.height * 0.6
     }
     y = clamp(y, padding, window.innerHeight - padding)
-    bubblePos.value = { x, y }
+    
+    // 只在位置真正改变时更新
+    if (bubblePos.value.x !== x || bubblePos.value.y !== y) {
+      bubblePos.value = { x, y }
+    }
+    
+    bubbleRaf = window.requestAnimationFrame(tick)
   }
 
+  return tick
+}
+
+const startBubbleTracking = () => {
+  if (bubbleRaf !== null) return
+
+  const tick = createBubbleTracker()
   bubbleRaf = window.requestAnimationFrame(tick)
 }
 
@@ -1048,13 +1154,13 @@ const onBubbleClick = () => {
 }
 
 const openModelInput = async (payload: { x: number; y: number }) => {
-  const popupWidth = 280 + 8 + 64 // input + gap + button（用于边界 clamp 的估算值）
-  const popupHeight = 36
-  const padding = 12
+  const popupWidth = 280 + 12 + 44 + 20 + 44 // input + gaps + buttons + padding（用于边界 clamp 的估算值）
+  const popupHeight = 44 + 32 // button + padding
+  const padding = 20
 
   const x = clamp(payload.x, padding + popupWidth / 2, window.innerWidth - padding - popupWidth / 2)
-  // 弹在点击点上方一点，更“贴近头部”
-  const y = clamp(payload.y - 48, padding, window.innerHeight - padding - popupHeight)
+  // 弹在点击点上方一点，更"贴近头部"
+  const y = clamp(payload.y - 60, padding, window.innerHeight - padding - popupHeight)
 
   inputPos.value = { x, y }
   inputVisible.value = true
@@ -1065,12 +1171,20 @@ const openModelInput = async (payload: { x: number; y: number }) => {
 
   await nextTick()
   inputEl.value?.focus()
+  
+  // 添加输入音效反馈（如果需要）
+  if ((window.electronAPI as any)?.playSound) {
+    (window.electronAPI as any).playSound('input_open')
+  }
 }
 
 const closeInput = () => {
-  inputVisible.value = false
-  renderer.value?.setUiInteracting?.(false)
-  window.electronAPI?.setWindowFocusable?.(false)
+  // 延迟关闭，给用户更好的视觉反馈
+  setTimeout(() => {
+    inputVisible.value = false
+    renderer.value?.setUiInteracting?.(false)
+    window.electronAPI?.setWindowFocusable?.(false)
+  }, 100)
 }
 
 const onInputBlur = (e: FocusEvent) => {
@@ -1086,6 +1200,13 @@ const send = async () => {
 
   if (!text && !hasAttachment) return
 
+  // 禁用发送按钮，防止重复发送
+  const sendButton = document.querySelector('.btn') as HTMLButtonElement
+  if (sendButton) {
+    sendButton.disabled = true
+    sendButton.textContent = '发送中...'
+  }
+
   // 构建消息内容
   const content: Array<{ type: string; [key: string]: any }> = []
 
@@ -1098,22 +1219,43 @@ const send = async () => {
     content.push({ type: 'image', file: attachedImageFile.value })
   }
 
-  await connectionStore.sendMessage(content)
-  if (text) {
-    await saveUserMessage('text', text, { text })
-  }
-  if (hasAttachment && attachmentFile) {
-    await saveUserMessage('image', attachmentFile.name || 'image', {
-      name: attachmentFile.name,
-      size: attachmentFile.size,
-      type: attachmentFile.type
-    })
-  }
+  try {
+    await connectionStore.sendMessage(content)
+    
+    // 保存用户消息到本地
+    if (text) {
+      await saveUserMessage('text', text, { text })
+    }
+    if (hasAttachment && attachmentFile) {
+      await saveUserMessage('image', attachmentFile.name || 'image', {
+        name: attachmentFile.name,
+        size: attachmentFile.size,
+        type: attachmentFile.type
+      })
+    }
 
-  inputText.value = ''
-  attachedImage.value = null
-  attachedImageFile.value = null
-  closeInput()
+    // 清空输入
+    inputText.value = ''
+    attachedImage.value = null
+    attachedImageFile.value = null
+    closeInput()
+  } catch (error) {
+    logger.error('发送消息失败:', error)
+    // 显示错误提示
+    if (text) {
+      currentText.value = '发送失败，请重试'
+      currentTextStyle.value = { color: '#ff6b6b' }
+      setTimeout(() => {
+        clearText()
+      }, 2000)
+    }
+  } finally {
+    // 恢复发送按钮
+    if (sendButton) {
+      sendButton.disabled = false
+      sendButton.textContent = '发送'
+    }
+  }
 }
 
 const onImageLoad = () => {
@@ -1426,105 +1568,190 @@ const recordPerformItem = async (item: any) => {
 .input-popup {
   position: fixed;
   display: flex;
-  gap: 8px;
+  gap: 12px;
   z-index: 1000;
   transform: translateX(-50%);
+  animation: slideUp 0.2s ease-out;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .input {
   width: 280px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.55);
-  color: rgba(255, 255, 255, 0.9);
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
   outline: none;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.input:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .btn {
-  height: 36px;
-  padding: 0 14px;
-  min-width: 64px;
+  height: 44px;
+  padding: 0 20px;
+  min-width: 72px;
   white-space: nowrap;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.55);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
   color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  outline: none;
+}
+
+.btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.12) 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .image-display {
   position: fixed;
   z-index: 999;
   pointer-events: none;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .image-display img {
   display: block;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.15);
   object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 
 .btn-attachment {
-  height: 36px;
-  width: 36px;
+  height: 44px;
+  width: 44px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.55);
-  color: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  outline: none;
 }
 
 .btn-attachment:hover {
-  background: rgba(0, 0, 0, 0.7);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.10) 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: rgba(255, 255, 255, 1);
+}
+
+.btn-attachment:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .attachment-preview {
   position: fixed;
-  bottom: 80px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 8px;
-  padding: 8px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.8) 100%);
+  border-radius: 16px;
+  padding: 12px;
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: fadeInUp 0.3s ease-out;
 }
 
 .attachment-preview img {
-  max-width: 100px;
-  max-height: 100px;
-  border-radius: 4px;
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 12px;
   object-fit: contain;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .btn-remove {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: none;
-  background: rgba(255, 0, 0, 0.8);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%);
   color: white;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  outline: none;
 }
 
 .btn-remove:hover {
-  background: rgba(255, 0, 0, 1);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 1) 0%, rgba(220, 38, 38, 1) 100%);
   transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-remove:active {
+  transform: scale(0.95);
 }
 </style>

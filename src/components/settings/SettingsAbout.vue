@@ -1,100 +1,167 @@
 <template>
-  <div class="settings-section about-section">
-    <h2>关于</h2>
+  <div class="about-container">
+    <div class="about-header">
+      <div class="logo-container">
+        <!-- Placeholder for logo if image fails -->
+        <AppIcon name="cube" :size="48" class="logo-icon" />
+      </div>
+      <div class="app-info">
+        <h2 class="app-name">AstrBot Live2D Desktop</h2>
+        <div class="app-version">Version 1.0.0</div>
+      </div>
+    </div>
 
     <div class="about-content">
-      <div class="about-item">
-        <h3>项目信息</h3>
-        <p><strong>项目名称：</strong>AstrBot Live2D Desktop</p>
-        <p><strong>作者：</strong>lxfight</p>
-        <p><strong>版本：</strong>1.0.0</p>
-      </div>
+      <section class="info-group">
+        <h3 class="group-title">开发信息</h3>
+        <div class="info-row">
+          <span class="label">作者</span>
+          <span class="value">lxfight</span>
+        </div>
+        <div class="info-row">
+          <span class="label">开源协议</span>
+          <span class="value">MIT License</span>
+        </div>
+        <div class="info-row">
+          <span class="label">GitHub</span>
+          <a href="https://github.com/Soulter/AstrBot" target="_blank" class="link">Soulter/AstrBot</a>
+        </div>
+      </section>
 
-      <div class="about-item">
-        <h3>版权声明</h3>
-        <p>© 2024-2025 lxfight. All rights reserved.</p>
-        <p>本项目使用 MIT 协议开源。</p>
-      </div>
+      <section class="info-group">
+        <h3 class="group-title">版权声明</h3>
+        <div class="legal-text">
+          <p>Live2D Cubism® 是 Live2D 公司的注册商标。</p>
+          <p>本应用使用 Live2D Cubism Core 和 Live2D Cubism SDK。</p>
+          <p>Live2D Cubism Core: © Live2D Inc.</p>
+        </div>
+      </section>
 
-      <div class="about-item">
-        <h3>Live2D® 版权声明</h3>
-        <p>Live2D Cubism® 是 Live2D 公司的注册商标。</p>
-        <p>本应用使用 Live2D Cubism Core 和 Live2D Cubism SDK。</p>
-        <p>Live2D Cubism Core: © Live2D Inc.</p>
-        <p>关于 Live2D® 的更多信息，请访问：<a href="https://www.live2d.com" target="_blank" rel="noopener noreferrer">https://www.live2d.com</a></p>
-      </div>
-
-      <div class="about-item">
-        <h3>第三方库</h3>
-        <p>本项目使用以下开源库：</p>
-        <ul>
-          <li>Vue 3 - MIT License</li>
-          <li>Electron - MIT License</li>
-          <li>PixiJS - MIT License</li>
-          <li>pixi-live2d-display - MIT License</li>
-          <li>Pinia - MIT License</li>
-        </ul>
-      </div>
+      <section class="info-group">
+        <h3 class="group-title">第三方组件</h3>
+        <div class="tech-stack">
+          <span class="tag">Vue 3</span>
+          <span class="tag">Electron</span>
+          <span class="tag">PixiJS</span>
+          <span class="tag">TypeScript</span>
+          <span class="tag">Vite</span>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// 纯展示组件，无需状态管理
+import AppIcon from '../icons/AppIcon.vue'
 </script>
 
 <style scoped>
-.about-section {
-  max-width: 800px;
+.about-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-top: 20px;
+}
+
+.about-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.logo-container {
+  width: 80px;
+  height: 80px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  color: var(--text-primary);
+}
+
+.app-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+}
+
+.app-version {
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  padding: 2px 10px;
+  border-radius: 12px;
 }
 
 .about-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
-.about-item {
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.about-item h3 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
+.group-title {
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.about-item p {
-  margin: 8px 0;
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
 }
 
-.about-item strong {
-  color: rgba(255, 255, 255, 0.9);
+.info-row .label {
+  color: var(--text-secondary);
 }
 
-.about-item a {
-  color: #4a9eff;
+.info-row .value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.link {
+  color: var(--text-primary);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
 }
 
-.about-item a:hover {
-  text-decoration: underline;
+.link:hover {
+  border-color: var(--text-primary);
 }
 
-.about-item ul {
-  margin: 8px 0;
-  padding-left: 24px;
-}
-
-.about-item li {
+.legal-text p {
   margin: 4px 0;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
 }
 </style>

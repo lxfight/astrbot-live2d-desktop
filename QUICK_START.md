@@ -5,6 +5,22 @@
 - Node.js 18+ 和 pnpm
 - 已启动并配置好 AstrBot（包含 Live2D 适配器插件）
 
+## 模型与运行时资源（重要）
+
+由于 Live2D 官方许可限制，本仓库不分发任何 Live2D 模型文件与 Cubism Core 运行时文件。
+
+在本地开发前请先准备：
+
+1) 默认模型（用于本地开发）
+```powershell
+cd astrbot-live2d-desktop
+pwsh -File .\\scripts\\fetch-default-model.ps1
+```
+
+2) Cubism Core 运行时
+- 从 Live2D 官方 Cubism SDK for Web 获取 `live2dcubismcore.min.js`
+- 放到 `astrbot-live2d-desktop/public/lib/live2dcubismcore.min.js`
+
 ## 安装与运行
 
 ### 1. 安装依赖
@@ -123,7 +139,8 @@ Live2D Desktop → 显示回复
 ### 3. 模型不显示
 
 检查：
-- `public/models/` 目录下是否有 Live2D 模型
+- 是否已下载默认模型（`public/models/default/`）
+- 是否已放置 `public/lib/live2dcubismcore.min.js`
 - 浏览器控制台是否有模型加载错误
 
 ## 开发参考

@@ -57,4 +57,6 @@ $destModelJson = Join-Path $DestDir "model3.json"
 Copy-Item -Path $modelJson.FullName -Destination $destModelJson -Force
 
 Write-Host "[fetch-default-model] Done. Entry:" $destModelJson
-Write-Host "[fetch-default-model] Next: pnpm tauri dev"
+Write-Host "[fetch-default-model] Next:"
+Write-Host "  - Browser dev:   npm run dev"
+Write-Host "  - Electron dev:  npm run start"

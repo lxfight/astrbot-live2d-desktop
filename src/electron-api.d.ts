@@ -22,6 +22,10 @@ declare global {
     setIgnoreMouseEvents: (ignore: boolean, options?: { forward?: boolean }) => Promise<{ success: boolean }>
 
     // 窗口控制
+    minimize: () => Promise<void>
+    maximize: () => Promise<void>
+    close: () => Promise<void>
+    isMaximized: () => Promise<boolean>
     showSettings: () => Promise<{ success: boolean }>
     showWindow: () => Promise<{ success: boolean }>
     hideWindow: () => Promise<{ success: boolean }>
@@ -69,6 +73,12 @@ declare global {
     getAvailableModels: () => Promise<{
       success: boolean
       models?: Array<{ name: string; path: string; isDeletable: boolean }>
+      error?: string
+    }>
+    getModelConfig: (modelName: string) => Promise<{
+      success: boolean
+      config?: unknown
+      configFile?: string
       error?: string
     }>
     deleteModel: (modelName: string) => Promise<{ success: boolean; error?: string }>

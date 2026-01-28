@@ -87,6 +87,7 @@ function registerGlobalShortcuts(mainWindow, settingsWindow, getMergedSettings) 
   const hotkey = settings.recordHotkey || 'CommandOrControl+T';
 
   try {
+    // 录音快捷键
     const ret = globalShortcut.register(hotkey, () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
 
@@ -98,17 +99,52 @@ function registerGlobalShortcuts(mainWindow, settingsWindow, getMergedSettings) 
     });
 
     if (!ret) {
-      logger.error(`注册失败，可能与其他应用冲突: ${hotkey}`);
+      logger.error(`录音快捷键注册失败，可能与其他应用冲突: ${hotkey}`);
       if (settingsWindow && !settingsWindow.isDestroyed()) {
         settingsWindow.webContents.send('hotkey-conflict', hotkey);
       }
-      return false;
     } else {
-      logger.info(`注册成功: ${hotkey}`);
-      return true;
+      logger.info(`录音快捷键注册成功: ${hotkey}`);
     }
+
+    // 游戏模式：强制显示快捷键 (Ctrl+Shift+H)
+    const showRet = globalShortcut.register('CommandOrControl+Shift+H', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      
+      mainWindow.show();
+      mainWindow.focus();
+      logger.info('[游戏模式] 强制显示Live2D窗口');
+    });
+
+    if (showRet) {
+      logger.info('强制显示快捷键注册成功: CommandOrControl+Shift+H');
+    } else {
+      logger.warn('强制显示快捷键注册失败，可能与其他应用冲突');
+    }
+
+    // 显示/隐藏切换快捷键 (Ctrl+Shift+T) - 不同于录音快捷键
+    const toggleRet = globalShortcut.register('CommandOrControl+Shift+T', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+        logger.info('切换快捷键：隐藏Live2D窗口');
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+        logger.info('切换快捷键：显示Live2D窗口');
+      }
+    });
+
+    if (toggleRet) {
+      logger.info('显示/隐藏快捷键注册成功: CommandOrControl+Shift+T');
+    } else {
+      logger.warn('显示/隐藏快捷键注册失败，可能与其他应用冲突');
+    }
+
+    return ret || showRet || toggleRet;
   } catch (error) {
-    logger.error('注册错误:', error);
+    logger.error('快捷键注册错误:', error);
     return false;
   }
 }

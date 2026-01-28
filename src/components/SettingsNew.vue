@@ -1,803 +1,727 @@
 <template>
-  <div class="settings-container" :data-theme="theme">
-    <!-- 顶部栏 -->
-    <header class="window-header">
-      <div class="window-drag-bar">
-        <div class="app-title">
-          <span class="project-name">AstrBot Live2D Desktop</span>
-          <span class="author">by lxfight</span>
-        </div>
+  <div class="settings-window" :data-theme="effectiveTheme">
+    <!-- Title Bar -->
+    <header class="title-bar">
+      <div class="title-drag-region">
+        <span class="window-title">设置</span>
       </div>
-
-      <div class="window-actions">
-        <button
-          type="button"
-          class="theme-toggle"
-          :title="theme === 'dark' ? '切换到浅色主题' : '切换到暗色主题'"
-          @click="toggleTheme"
-        >
-          <span class="theme-toggle-icon">
-            <svg v-if="theme === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 19v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M4.22 5.22l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M18.36 18.36l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M3 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M19 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M4.22 18.78l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M21 13.5a8 8 0 1 1-10.5-10a6 6 0 1 0 10.5 10Z"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
-          <span class="theme-toggle-text">{{ theme === 'dark' ? '浅色' : '暗色' }}</span>
+      <div class="window-controls">
+        <button class="control-btn" @click="minimizeWindow" title="最小化">
+          <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor"><rect width="10" height="1"></rect></svg>
         </button>
-
-        <button @click="closeSettings" class="window-close-btn" title="关闭设置">
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <path d="M 1,1 L 11,11 M 11,1 L 1,11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+        <button class="control-btn" @click="maximizeWindow" title="最大化">
+          <svg v-if="isMaximized" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1"><path d="M2.5 2.5h7v7h-7z"/><path d="M0.5 0.5h7v7h-7z"/></svg>
+          <svg v-else width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1"><rect x="1.5" y="1.5" width="7" height="7"></rect></svg>
+        </button>
+        <button class="control-btn close-btn" @click="closeWindow" title="关闭">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M1 1l8 8M9 1l-8 8"/></svg>
         </button>
       </div>
     </header>
 
-    <!-- 主体区域（左右布局） -->
-    <div class="settings-body">
-      <!-- 左侧导航 -->
-      <aside class="settings-sidebar">
-        <div class="sidebar-header">
-          <h1>设置</h1>
+    <div class="main-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-content">
+          <div class="nav-section">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              :class="['nav-item', { active: activeTab === tab.id }]"
+              @click="activeTab = tab.id"
+            >
+              <AppIcon :name="tab.icon" :size="18" class="nav-icon" />
+              <span>{{ tab.label }}</span>
+            </button>
+          </div>
+          
+          <div class="nav-section mt-auto">
+            <!-- Theme Switcher -->
+            <div class="theme-switcher">
+              <button @click="cycleTheme" class="theme-btn" title="切换主题">
+                <AppIcon v-if="themeMode === 'light'" name="sun" :size="16" />
+                <AppIcon v-else-if="themeMode === 'dark'" name="moon" :size="16" />
+                <AppIcon v-else name="monitor" :size="16" />
+                <span>{{ themeMode === 'system' ? '跟随系统' : themeMode === 'light' ? '亮色模式' : '暗色模式' }}</span>
+              </button>
+            </div>
+             <button
+              :class="['nav-item', { active: activeTab === 'about' }]"
+              @click="activeTab = 'about'"
+            >
+              <AppIcon name="info" :size="18" class="nav-icon" />
+              <span>关于</span>
+            </button>
+          </div>
         </div>
-        <nav class="sidebar-nav">
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            :class="['nav-item', { active: activeTab === tab.key }]"
-            @click="activeTab = tab.key"
-          >
-            {{ tab.label }}
-          </button>
-        </nav>
       </aside>
 
-      <!-- 右侧内容区 -->
-      <main class="settings-main">
-        <div
-          class="settings-content"
-          :class="{
-            'settings-content-history': activeTab === 'history',
-            'settings-content-statistics': activeTab === 'statistics'
-          }"
-        >
-          <!-- 使用子组件 -->
-          <div v-show="activeTab === 'basic'">
-            <SettingsBasic
-              :settings="settings"
-              @save="saveSettings"
-            />
-          </div>
+      <!-- Main Content -->
+      <main class="content-area">
+        <div class="content-scroll" :class="{ 'no-scroll': activeTab === 'data' }">
+          <transition name="fade" mode="out-in">
+            <div :key="activeTab" class="tab-container">
+              
+              <!-- General Tab -->
+              <div v-if="activeTab === 'general'">
+                <h1 class="page-title">通用</h1>
+                <SettingsGeneral 
+                  :settings="draft" 
+                  :errors="validation.errors"
+                  :hotkey-conflict="hotkeyConflict"
+                  @update:hotkeyConflict="hotkeyConflict = $event"
+                />
+              </div>
 
-          <div v-show="activeTab === 'websocket'">
-            <SettingsWebSocket
-              :settings="settings"
-              @save="saveSettings"
-            />
-          </div>
+              <!-- Model Tab -->
+              <div v-else-if="activeTab === 'model'">
+                <h1 class="page-title">模型</h1>
+                <SettingsModel
+                  :settings="draft"
+                  :default-settings="defaultSettings"
+                  @save="attemptSave"
+                />
+              </div>
 
-          <div v-show="activeTab === 'model'">
-            <SettingsModel
-              :settings="settings"
-              :default-settings="defaultSettings"
-              @save="saveSettings"
-            />
-          </div>
+              <!-- Interaction Tab -->
+              <div v-else-if="activeTab === 'interaction'">
+                <h1 class="page-title">交互</h1>
+                <section class="group-section">
+                  <h2 class="section-header">动作与表情</h2>
+                  <SettingsMotionExpressionManager :theme="effectiveTheme" />
+                </section>
+                <div class="spacer"></div>
+                 <section class="group-section">
+                  <h2 class="section-header">闲置行为</h2>
+                  <SettingsIdleMotion />
+                </section>
+              </div>
 
-          <!-- 对话历史 - 使用现有组件 -->
-          <ConversationHistory v-if="activeTab === 'history'" />
+              <!-- Data Tab -->
+              <div v-else-if="activeTab === 'data'" class="data-tab">
+                <div class="data-tabs-nav">
+                  <button 
+                    :class="{active: dataSubTab === 'history'}" 
+                    @click="dataSubTab = 'history'"
+                  >历史记录</button>
+                  <button 
+                    :class="{active: dataSubTab === 'stats'}" 
+                    @click="dataSubTab = 'stats'"
+                  >统计信息</button>
+                </div>
+                <div class="data-content">
+                  <ConversationHistory v-show="dataSubTab === 'history'" />
+                  <StatisticsView v-show="dataSubTab === 'stats'" />
+                </div>
+              </div>
 
-          <!-- 数据统计 - 使用现有组件 -->
-          <StatisticsView v-if="activeTab === 'statistics'" />
+              <!-- About Tab -->
+              <div v-else-if="activeTab === 'about'">
+                <h1 class="page-title">关于</h1>
+                <SettingsAbout />
+              </div>
 
-          <div v-show="activeTab === 'system'">
-            <SettingsSystem
-              :settings="settings"
-              :hotkey-conflict="hotkeyConflict"
-              @save="saveSettings"
-              @update:hotkeyConflict="hotkeyConflict = $event"
-            />
-          </div>
-
-          <div v-show="activeTab === 'about'">
-            <SettingsAbout />
-          </div>
+            </div>
+          </transition>
         </div>
 
-        <div v-if="activeTab !== 'history' && activeTab !== 'statistics' && activeTab !== 'about'" class="settings-footer">
-          <button @click="resetSettings" class="btn btn-secondary">恢复默认</button>
-          <button @click="saveSettings" class="btn btn-primary">保存设置</button>
-        </div>
+        <!-- Action Footer -->
+        <footer class="action-footer" v-if="!['about', 'data'].includes(activeTab)">
+          <div class="status-indicator">
+             <span v-if="isSaving" class="status-text saving">保存中...</span>
+             <span v-else-if="!isDirty" class="status-text saved">已保存</span>
+             <span v-else class="status-text dirty">有未保存的更改</span>
+          </div>
+
+          <div class="footer-buttons">
+            <button 
+              class="btn-text" 
+              :disabled="!isDirty || isSaving" 
+              @click="discardChanges"
+            >
+              放弃
+            </button>
+            <button 
+              class="btn-primary" 
+              :disabled="!isDirty || !validation.isValid || isSaving" 
+              @click="attemptSave"
+            >
+              保存更改
+            </button>
+          </div>
+        </footer>
       </main>
     </div>
-
-    <!-- 保存成功提示 -->
-    <div v-if="showSaveSuccess" class="save-success">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 6px;">
-        <path d="M13.5 3 L6 10.5 L2.5 7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      设置已保存
-    </div>
+    
+    <!-- Notifications -->
+    <transition name="toast">
+      <div v-if="showSaveSuccess" class="toast success">
+        <AppIcon name="check" :size="16" />
+        <span>设置已保存</span>
+      </div>
+    </transition>
+    <transition name="toast">
+      <div v-if="lastSaveError" class="toast error">
+        <AppIcon name="alert-triangle" :size="16" />
+        <span>{{ lastSaveError }}</span>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useSettings } from '../composables/useSettings'
-import SettingsAbout from './settings/SettingsAbout.vue'
-import SettingsBasic from './settings/SettingsBasic.vue'
+import AppIcon from './icons/AppIcon.vue'
+import SettingsGeneral from './settings/SettingsGeneral.vue'
 import SettingsModel from './settings/SettingsModel.vue'
-import SettingsWebSocket from './settings/SettingsWebSocket.vue'
-import SettingsSystem from './settings/SettingsSystem.vue'
+import SettingsMotionExpressionManager from './settings/SettingsMotionExpressionManager.vue'
+import SettingsIdleMotion from './settings/SettingsIdleMotion.vue'
+import SettingsAbout from './settings/SettingsAbout.vue'
 import ConversationHistory from './settings/history/ConversationHistory.vue'
 import StatisticsView from './settings/statistics/StatisticsView.vue'
 
-type ThemeMode = 'light' | 'dark'
+const activeTab = ref('general')
+const dataSubTab = ref('history')
+const isMaximized = ref(false)
 
-const theme = ref<ThemeMode>('light')
-
-// 标签页定义
 const tabs = [
-  { key: 'basic', label: '基础设置' },
-  { key: 'model', label: '模型设置' },
-  { key: 'websocket', label: 'WebSocket' },
-  { key: 'history', label: '对话历史' },
-  { key: 'statistics', label: '数据统计' },
-  { key: 'system', label: '系统设置' },
-  { key: 'about', label: '关于' }
+  { id: 'general', label: '通用', icon: 'sliders' },
+  { id: 'model', label: '模型', icon: 'cube' },
+  { id: 'interaction', label: '交互', icon: 'sparkles' },
+  { id: 'data', label: '数据', icon: 'bar-chart' },
 ]
 
-const activeTab = ref('basic')
-
-// 使用 composable 管理设置
 const {
-  settings,
+  draft,
+  isDirty,
+  validation,
+  isSaving,
+  lastSaveError,
   showSaveSuccess,
   hotkeyConflict,
   loadSettings,
   saveSettings,
-  resetSettings,
+  resetDraft,
   defaultSettings
 } = useSettings()
 
-onMounted(async () => {
-  const savedTheme = localStorage.getItem('astrbot.settings.theme') as ThemeMode | null
-  if (savedTheme === 'light' || savedTheme === 'dark') {
-    theme.value = savedTheme
-  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    theme.value = 'dark'
+// Theme Management
+type ThemeMode = 'light' | 'dark' | 'system'
+const themeMode = ref<ThemeMode>('system') // Or load from settings
+
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
+
+const effectiveTheme = computed(() => {
+  if (themeMode.value === 'system') {
+    return prefersDark.matches ? 'dark' : 'light'
   }
-  await loadSettings()
+  return themeMode.value
 })
 
-const toggleTheme = () => {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
-  localStorage.setItem('astrbot.settings.theme', theme.value)
+function applyTheme(theme: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', theme)
 }
 
-const closeSettings = () => {
-  window.close()
+watch(effectiveTheme, applyTheme, { immediate: true })
+
+onMounted(() => {
+  prefersDark.addEventListener('change', () => applyTheme(effectiveTheme.value))
+})
+
+const themeCycle: ThemeMode[] = ['system', 'light', 'dark']
+function cycleTheme() {
+  const currentIndex = themeCycle.indexOf(themeMode.value)
+  themeMode.value = themeCycle[(currentIndex + 1) % themeCycle.length]
+  // here you would save the theme preference to settings
+}
+
+
+onMounted(async () => {
+  await loadSettings()
+  checkMaximizedState()
+  window.addEventListener('resize', checkMaximizedState)
+  window.addEventListener('keydown', onGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMaximizedState)
+  window.removeEventListener('keydown', onGlobalKeydown)
+})
+
+const checkMaximizedState = async () => {
+  if (window.electronAPI?.isMaximized) {
+    isMaximized.value = await window.electronAPI.isMaximized()
+  }
+}
+
+const minimizeWindow = () => window.electronAPI?.minimize()
+const maximizeWindow = async () => {
+  await window.electronAPI?.maximize()
+  setTimeout(checkMaximizedState, 100)
+}
+const closeWindow = () => {
+  if (isDirty.value && !confirm('更改未保存，确定要关闭吗？')) return
+  window.electronAPI?.close()
+}
+
+const attemptSave = async () => {
+  if (!validation.value.isValid) return
+  await saveSettings()
+}
+
+const discardChanges = () => resetDraft()
+
+const onGlobalKeydown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    if (isDirty.value && !isSaving.value) attemptSave()
+  }
 }
 </script>
 
+<style>
+/* CSS Variables for Theming */
+:root {
+  --bg-app: #f3f4f6;
+  --bg-sidebar: #ffffff;
+  --bg-titlebar: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
+  
+  --border-color: #e5e7eb;
+  --border-hover: #d1d5db;
+  
+  --primary-color: #000000;
+  --primary-color-alpha: rgba(0,0,0,0.1);
+  --primary-fg: #ffffff;
+  
+  /* Button Colors (Reversed) */
+  --btn-bg: #ffffff;
+  --btn-fg: #000000;
+  
+  --surface-color: #ffffff;
+  --input-bg: #f9fafb;
+  --hover-bg: #f3f4f6;
+  --active-bg: #e5e7eb;
+  
+  --switch-off: #d1d5db;
+  --danger-color: #ef4444;
+  
+  --sidebar-width: 220px;
+  --title-bar-height: 32px;
+}
+
+[data-theme='dark'] {
+  --bg-app: #1e1e1e;
+  --bg-sidebar: #252525;
+  --bg-titlebar: #252525;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #707070;
+  
+  --border-color: #3a3a3a;
+  --border-hover: #505050;
+  
+  --primary-color: #ffffff;
+  --primary-color-alpha: rgba(255,255,255,0.1);
+  --primary-fg: #000000;
+  
+  /* Button Colors (Reversed) */
+  --btn-bg: #000000;
+  --btn-fg: #ffffff;
+  
+  --surface-color: #2a2a2a;
+  --input-bg: #2a2a2a;
+  --hover-bg: #333333;
+  --active-bg: #444444;
+
+  --switch-off: #555;
+}
+
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+</style>
+
 <style scoped>
-.settings-container {
-  --accent: #ff7bb6;
-  --accent-2: #6aa8ff;
-  --success: rgba(62, 201, 163, 0.92);
-  --danger: rgba(220, 60, 95, 0.92);
-
-  --text: #2b2b33;
-  --text-muted: rgba(43, 43, 51, 0.6);
-  --border: rgba(255, 255, 255, 0.9);
-  --border-soft: rgba(43, 43, 51, 0.08);
-  --shadow: rgba(60, 72, 98, 0.12);
-
-  --glass: rgba(255, 255, 255, 0.64);
-  --glass-strong: rgba(255, 255, 255, 0.72);
-  --input-bg: rgba(255, 255, 255, 0.78);
-
+.settings-window {
   width: 100vw;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  position: relative;
-  font-family: ui-rounded, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(255, 210, 230, 0.9), rgba(255, 210, 230, 0) 55%),
-    radial-gradient(1100px 900px at 85% 20%, rgba(195, 220, 255, 0.95), rgba(195, 220, 255, 0) 60%),
-    radial-gradient(900px 700px at 60% 90%, rgba(233, 206, 255, 0.9), rgba(233, 206, 255, 0) 55%),
-    linear-gradient(135deg, #fff6fb 0%, #f1f6ff 45%, #fff1fb 100%);
-  color: var(--text);
-  color-scheme: light;
+  background: var(--bg-app);
+  color: var(--text-primary);
   overflow: hidden;
+  border: 1px solid var(--border-color);
+  transition: background 0.3s, color 0.3s;
 }
 
-.settings-container[data-theme="dark"] {
-  --accent: #ff6ec7;
-  --accent-2: #67b7ff;
-  --success: rgba(62, 201, 163, 0.92);
-  --danger: rgba(220, 60, 95, 0.92);
-
-  --text: rgba(255, 255, 255, 0.92);
-  --text-muted: rgba(255, 255, 255, 0.62);
-  --border: rgba(255, 255, 255, 0.14);
-  --border-soft: rgba(255, 255, 255, 0.1);
-  --shadow: rgba(0, 0, 0, 0.4);
-
-  --glass: rgba(10, 14, 26, 0.55);
-  --glass-strong: rgba(10, 14, 26, 0.7);
-  --input-bg: rgba(10, 14, 26, 0.62);
-
-  background:
-    radial-gradient(1100px 900px at 20% 10%, rgba(255, 110, 199, 0.22), rgba(255, 110, 199, 0) 55%),
-    radial-gradient(1100px 900px at 85% 20%, rgba(103, 183, 255, 0.2), rgba(103, 183, 255, 0) 60%),
-    radial-gradient(900px 700px at 60% 90%, rgba(188, 130, 255, 0.18), rgba(188, 130, 255, 0) 55%),
-    linear-gradient(135deg, #070a12 0%, #0b1022 45%, #090a18 100%);
-  color-scheme: dark;
-}
-
-.settings-container::before {
-  content: "";
-  position: absolute;
-  inset: -40px;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.9) 0 2px, rgba(255, 255, 255, 0) 3px),
-    radial-gradient(circle at 55% 35%, rgba(255, 255, 255, 0.85) 0 1.5px, rgba(255, 255, 255, 0) 3px),
-    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.8) 0 2px, rgba(255, 255, 255, 0) 3px),
-    radial-gradient(circle at 30% 80%, rgba(255, 255, 255, 0.75) 0 1.6px, rgba(255, 255, 255, 0) 3px);
-  opacity: 0.45;
-  filter: blur(0.2px);
-  pointer-events: none;
-}
-
-.window-header {
+/* Title Bar */
+.title-bar {
+  height: var(--title-bar-height);
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  height: 40px;
-  padding: 0 14px;
-  background: var(--glass-strong);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 10px 30px var(--shadow);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-app-region: drag;
+  align-items: center;
+  background: var(--bg-titlebar);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.window-drag-bar {
+.title-drag-region {
   flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
   display: flex;
   align-items: center;
+  padding-left: 16px;
 }
 
-.app-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.project-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.author {
+.window-title {
   font-size: 12px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-.window-actions {
+.window-controls {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  height: 100%;
   -webkit-app-region: no-drag;
 }
 
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.55);
-  color: rgba(43, 43, 51, 0.8);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.settings-container[data-theme="dark"] .theme-toggle {
-  background: rgba(10, 14, 26, 0.6);
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.theme-toggle:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.95);
-}
-
-.theme-toggle-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-}
-
-.theme-toggle-text {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-}
-
-.window-close-btn {
-  width: 32px;
-  height: 32px;
+.control-btn {
+  width: 46px;
+  height: 100%;
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid var(--border);
-  color: rgba(43, 43, 51, 0.72);
+  color: var(--text-primary);
   cursor: pointer;
-  border-radius: 10px;
-  transition: all 0.2s;
+  transition: background 0.15s;
 }
 
-.settings-container[data-theme="dark"] .window-close-btn {
-  background: rgba(10, 14, 26, 0.6);
-  color: rgba(255, 255, 255, 0.75);
+.control-btn:hover {
+  background: rgba(0,0,0,0.05);
 }
 
-.window-close-btn:hover {
-  background: rgba(255, 214, 230, 0.75);
-  color: #c02757;
-  transform: translateY(-1px);
+[data-theme='dark'] .control-btn:hover {
+  background: rgba(255,255,255,0.1);
 }
 
-.settings-body {
+.control-btn.close-btn:hover {
+  background: #e81123;
+  color: white;
+}
+
+/* Layout */
+.main-layout {
+  display: flex;
   flex: 1;
-  display: flex;
-  gap: 14px;
-  padding: 14px;
   overflow: hidden;
 }
 
-.settings-sidebar {
-  width: 220px;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px var(--shadow);
-  backdrop-filter: blur(18px) saturate(1.2);
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  padding: 16px 8px;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.sidebar-header {
-  padding: 18px 16px 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.sidebar-header h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 0.5px;
-}
-
-.sidebar-nav {
+.sidebar-content {
   flex: 1;
-  padding: 10px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section.mt-auto {
+  margin-top: auto;
 }
 
 .nav-item {
-  width: 100%;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid var(--border);
-  color: rgba(43, 43, 51, 0.78);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 14px;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 12px;
-  margin-bottom: 8px;
-}
-
-.settings-container[data-theme="dark"] .nav-item {
-  background: rgba(10, 14, 26, 0.55);
-  color: rgba(255, 255, 255, 0.74);
+  transition: all 0.15s;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.78);
-  color: rgba(43, 43, 51, 0.9);
-  transform: translateY(-1px);
-}
-
-.settings-container[data-theme="dark"] .nav-item:hover {
-  background: rgba(10, 14, 26, 0.72);
-  color: rgba(255, 255, 255, 0.92);
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(255, 193, 222, 0.85), rgba(198, 220, 255, 0.85));
-  color: rgba(43, 43, 51, 0.92);
-  border-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 10px 22px var(--shadow);
+  background: var(--active-bg);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
-.settings-container[data-theme="dark"] .nav-item.active {
-  background: linear-gradient(135deg, rgba(255, 110, 199, 0.3), rgba(103, 183, 255, 0.28));
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(255, 255, 255, 0.18);
+.theme-switcher {
+  padding: 4px 0;
 }
 
-.settings-main {
+.theme-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.theme-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* Content Area */
+.content-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px var(--shadow);
-  backdrop-filter: blur(18px) saturate(1.2);
+  min-width: 0;
+  background: var(--bg-app);
 }
 
-.settings-content {
+.content-scroll {
   flex: 1;
-  padding: 22px 22px 18px 22px;
+  overflow-y: auto;
+  padding: 32px 48px;
+}
+
+.content-scroll.no-scroll {
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-scroll.no-scroll .tab-container {
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 32px 0;
+  color: var(--text-primary);
+}
+
+.section-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.group-section {
+  margin-bottom: 24px;
+}
+
+.spacer {
+  height: 24px;
+}
+
+/* Data Tab */
+.data-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.data-tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.data-tabs-nav button {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.data-tabs-nav button:hover {
+  color: var(--text-primary);
+}
+.data-tabs-nav button.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+.data-content {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
-.settings-content.settings-content-history {
-  padding: 14px;
-  overflow: hidden;
-}
 
-.settings-content.settings-content-statistics {
-  padding: 14px;
-}
-
-.settings-footer {
+/* Footer */
+.action-footer {
+  padding: 16px 48px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 14px 18px;
-  background: var(--glass-strong);
-  border-top: 1px solid var(--border);
+  gap: 16px;
+  z-index: 10;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.btn {
-  padding: 10px 18px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+[data-theme='dark'] .action-footer {
+  background: rgba(42,42,42,0.8);
 }
 
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.75);
-  color: rgba(43, 43, 51, 0.85);
+
+.status-indicator {
+  margin-right: auto;
 }
 
-.settings-container[data-theme="dark"] .btn-secondary {
-  background: rgba(10, 14, 26, 0.62);
-  color: rgba(255, 255, 255, 0.84);
+.status-text {
+  font-size: 13px;
 }
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateY(-1px);
-}
-
-.settings-container[data-theme="dark"] .btn-secondary:hover {
-  background: rgba(10, 14, 26, 0.78);
-}
+.status-text.saved { color: var(--text-tertiary); }
+.status-text.saving { color: var(--text-primary); }
+.status-text.dirty { color: #f59e0b; }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #fff;
-  box-shadow: 0 14px 30px rgba(106, 168, 255, 0.22);
+  padding: 8px 20px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
 .btn-primary:hover {
-  filter: brightness(1.02);
-  transform: translateY(-1px);
+  opacity: 0.9;
 }
 
-.save-success {
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-text {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-text:hover {
+  color: var(--text-primary);
+}
+
+.btn-text:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toast */
+.toast {
   position: fixed;
-  top: 60px;
-  right: 32px;
-  padding: 12px 20px;
-  background: var(--success);
-  color: #fff;
-  border-radius: 14px;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #333;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 18px 40px rgba(60, 72, 98, 0.18);
-  animation: slideIn 0.3s ease-out;
-  z-index: 1000;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+[data-theme='dark'] .toast {
+  background: #f0f0f0;
+  color: #1a1a1a;
 }
 
-.settings-sidebar::-webkit-scrollbar,
-.settings-content::-webkit-scrollbar {
-  width: 10px;
+.toast.error {
+  background: var(--danger-color);
+  color: white;
 }
 
-.settings-sidebar::-webkit-scrollbar-thumb,
-.settings-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 193, 222, 0.65);
-  border-radius: 999px;
-  border: 3px solid rgba(255, 255, 255, 0.9);
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
 }
 
-.settings-container[data-theme="dark"] .settings-sidebar::-webkit-scrollbar-thumb,
-.settings-container[data-theme="dark"] .settings-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 110, 199, 0.28);
-  border-color: rgba(255, 255, 255, 0.14);
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 
-.settings-sidebar::-webkit-scrollbar-track,
-.settings-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.55);
-  border-radius: 999px;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.settings-container[data-theme="dark"] .settings-sidebar::-webkit-scrollbar-track,
-.settings-container[data-theme="dark"] .settings-content::-webkit-scrollbar-track {
-  background: rgba(10, 14, 26, 0.5);
-}
-
-.settings-content :deep(.settings-section) {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 18px 18px 14px 18px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px rgba(60, 72, 98, 0.1);
-  backdrop-filter: blur(18px) saturate(1.2);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.settings-section) {
-  background: rgba(10, 14, 26, 0.55);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-}
-
-.settings-content :deep(.settings-section > h2) {
-  margin: 0 0 14px 0;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: 0.4px;
-  padding-bottom: 10px;
-  background-image: linear-gradient(90deg, rgba(255, 123, 182, 0.9), rgba(106, 168, 255, 0.9));
-  background-repeat: no-repeat;
-  background-size: 120px 3px;
-  background-position: left bottom;
-}
-
-.settings-content :deep(.settings-section h2) {
-  color: var(--text);
-}
-
-.settings-content :deep(.settings-section h3),
-.settings-content :deep(.settings-section h4) {
-  color: var(--text);
-}
-
-.settings-content :deep(.settings-section p),
-.settings-content :deep(.settings-section li),
-.settings-content :deep(.settings-section span) {
-  color: inherit;
-  word-break: break-word;
-  white-space: normal;
-}
-
-.settings-content :deep(.settings-section .detail-item .label) {
-  color: var(--text-muted);
-}
-
-.settings-content :deep(.settings-section .detail-item .value) {
-  color: var(--text);
-}
-
-.settings-content :deep(.settings-section .setting-item .value) {
-  color: var(--text-muted);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.settings-section > h2) {
-  background-image: linear-gradient(90deg, rgba(255, 110, 199, 0.85), rgba(103, 183, 255, 0.85));
-}
-
-.settings-content :deep(.settings-section .setting-item) {
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.settings-content :deep(.settings-section .setting-item:last-of-type) {
-  border-bottom: none;
-}
-
-.settings-content :deep(.settings-section .setting-item label) {
-  color: rgba(43, 43, 51, 0.86);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.settings-section .setting-item label) {
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.settings-content :deep(.settings-section .hint),
-.settings-content :deep(.settings-section .loading-text) {
-  color: var(--text-muted);
-}
-
-.settings-content :deep(.text-input),
-.settings-content :deep(.hotkey-input),
-.settings-content :deep(input[type="text"]),
-.settings-content :deep(input[type="password"]) {
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text);
-  box-shadow: 0 10px 24px rgba(60, 72, 98, 0.08);
-}
-
-.settings-content :deep(.text-input::placeholder),
-.settings-content :deep(.hotkey-input::placeholder),
-.settings-content :deep(input[type="text"]::placeholder),
-.settings-content :deep(input[type="password"]::placeholder) {
-  color: rgba(43, 43, 51, 0.45);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.text-input::placeholder),
-.settings-container[data-theme="dark"] .settings-content :deep(.hotkey-input::placeholder),
-.settings-container[data-theme="dark"] .settings-content :deep(input[type="text"]::placeholder),
-.settings-container[data-theme="dark"] .settings-content :deep(input[type="password"]::placeholder) {
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.settings-content :deep(.text-input:focus),
-.settings-content :deep(.hotkey-input:focus),
-.settings-content :deep(input[type="text"]:focus),
-.settings-content :deep(input[type="password"]:focus) {
-  outline: none;
-  border-color: rgba(255, 123, 182, 0.65);
-  box-shadow: 0 0 0 3px rgba(255, 123, 182, 0.18), 0 12px 26px rgba(60, 72, 98, 0.1);
-}
-
-.settings-content :deep(input[type="checkbox"]),
-.settings-content :deep(input[type="range"]) {
-  accent-color: var(--accent);
-}
-
-.settings-content :deep(.setting-description),
-.settings-content :deep(.about-item),
-.settings-content :deep(.model-info-card),
-.settings-content :deep(.motion-group),
-.settings-content :deep(.model-card) {
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  box-shadow: 0 14px 34px rgba(60, 72, 98, 0.08);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.setting-description),
-.settings-container[data-theme="dark"] .settings-content :deep(.about-item),
-.settings-container[data-theme="dark"] .settings-content :deep(.model-info-card),
-.settings-container[data-theme="dark"] .settings-content :deep(.motion-group),
-.settings-container[data-theme="dark"] .settings-content :deep(.model-card) {
-  background: rgba(10, 14, 26, 0.5);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-}
-
-.settings-content :deep(.about-item a) {
-  color: #2a77ff;
-}
-
-.settings-content :deep(.model-tab) {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  color: rgba(43, 43, 51, 0.75);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.model-tab) {
-  background: rgba(10, 14, 26, 0.55);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.68);
-}
-
-.settings-content :deep(.model-tab.active) {
-  background: linear-gradient(135deg, rgba(255, 193, 222, 0.85), rgba(198, 220, 255, 0.85));
-  border-color: rgba(255, 255, 255, 0.98);
-  color: rgba(43, 43, 51, 0.92);
-  box-shadow: 0 10px 22px rgba(70, 76, 96, 0.12);
-}
-
-.settings-container[data-theme="dark"] .settings-content :deep(.model-tab.active) {
-  background: linear-gradient(135deg, rgba(255, 110, 199, 0.28), rgba(103, 183, 255, 0.24));
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
-}
-
-.settings-content :deep(.current-badge) {
-  background: rgba(255, 123, 182, 0.18);
-  color: #c02757;
-}
-
-.settings-content :deep(.btn-preview),
-.settings-content :deep(.btn-primary) {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-}
-
-.settings-content :deep(.btn-secondary) {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  color: rgba(43, 43, 51, 0.88);
-}
-
-.settings-content :deep(.btn-switch) {
-  background: rgba(255, 255, 255, 0.9);
-  color: rgba(43, 43, 51, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-}
-
-.settings-content :deep(.btn-delete) {
-  color: #c02757;
-  border-color: rgba(192, 39, 87, 0.35);
-}
-
-.settings-content :deep(.btn-delete:hover) {
-  background: rgba(255, 123, 182, 0.14);
-}
-
-.settings-content :deep(.preview-toast.success) {
-  background: var(--success);
-}
-
-.settings-content :deep(.preview-toast.error) {
-  background: var(--danger);
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

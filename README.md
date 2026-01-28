@@ -2,7 +2,7 @@
 
 AstrBot 的 Live2D 桌面端 Web 应用，基于 Vue 3 + PixiJS 开发。
 
-> **📊 重构状态**: 本项目正在进行深度优化重构（80% 完成）。查看 [重构状态](./docs/REFACTORING_STATUS.md) 了解详情。
+注意：本项目仓库不分发任何 Live2D 模型文件与 Cubism Core 运行时文件（见“模型与运行时资源”）。
 
 ## 技术栈
 
@@ -79,18 +79,19 @@ connectionStore.connect('ws://localhost:8765/ws', 'your_token')
 
 ## 模型资源
 
-Live2D 模型文件放置在 `public/models/` 目录下，格式为：
+### 模型与运行时资源（重要）
 
-```
-public/
-└── models/
-    ├── manifest.json
-    └── default/
-        ├── model3.json
-        ├── textures/
-        ├── motions/
-        └── expressions/
-```
+由于 Live2D 官方许可限制：
+- 本仓库 **不包含** 任何 Live2D 模型资产（如 `*.moc3`、纹理、动作等）。
+- 本仓库 **不包含** `live2dcubismcore.min.js`（Cubism Core 运行时）。
+
+本地开发时请按以下方式准备资源：
+1. 默认模型：运行 `scripts/fetch-default-model.ps1` 下载 Live2D 官方示例模型到 `public/models/default/`。
+2. Cubism Core：从 Live2D 官方 Cubism SDK for Web 获取 `live2dcubismcore.min.js`，放入 `public/lib/`。
+
+相关说明见：
+- `astrbot-live2d-desktop/public/models/README.md`
+- `astrbot-live2d-desktop/public/lib/README.md`
 
 ## 协议
 

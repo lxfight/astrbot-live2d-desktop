@@ -308,28 +308,27 @@ const formatTime = (timestamp: number): string => {
 <style scoped>
 .conversation-history {
   display: flex;
-  gap: 16px;
+  gap: 0;
   height: 100%;
   min-height: 0;
   padding: 0;
   border: none;
-  color: var(--text);
+  background: var(--bg-app);
+  color: var(--text-primary);
 }
 
 .conversation-list {
-  flex: 0 0 clamp(200px, 24%, 240px);
-  width: auto;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  flex: 0 0 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .list-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -337,18 +336,19 @@ const formatTime = (timestamp: number): string => {
 
 .list-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
 .btn-new {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: linear-gradient(135deg, rgba(255, 123, 182, 0.95), rgba(106, 168, 255, 0.95));
-  color: #fff;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -357,8 +357,8 @@ const formatTime = (timestamp: number): string => {
 }
 
 .btn-new:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.03);
+  background: var(--hover-bg);
+  border-color: var(--text-secondary);
 }
 
 .conversations {
@@ -368,22 +368,22 @@ const formatTime = (timestamp: number): string => {
 
 .conversation-item {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: background 0.2s;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .conversation-item:hover {
-  background: var(--border-soft);
+  background: var(--hover-bg);
 }
 
 .conversation-item.active {
-  background: rgba(255, 123, 182, 0.14);
-  border-left: 3px solid var(--accent);
+  background: var(--active-bg);
+  border-right: 3px solid var(--primary-color);
 }
 
 .conv-info {
@@ -398,12 +398,12 @@ const formatTime = (timestamp: number): string => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .conv-meta {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .btn-delete {
@@ -415,46 +415,48 @@ const formatTime = (timestamp: number): string => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
+  opacity: 0;
   transition: opacity 0.2s, color 0.2s;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.conversation-item:hover .btn-delete {
+  opacity: 1;
 }
 
 .btn-delete:hover {
-  opacity: 1;
-  color: var(--text);
+  color: var(--danger-color);
 }
 
 .message-detail {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--bg-app);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .messages-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--surface-color);
 }
 
 .messages-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .message-count {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .messages-container {
@@ -467,44 +469,44 @@ const formatTime = (timestamp: number): string => {
 .messages-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 24px;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .message-item {
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--glass-strong);
-  border: 1px solid var(--border-soft);
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  max-width: 85%;
+  align-self: flex-start;
 }
 
 .message-item.message-user {
-  background: rgba(255, 110, 199, 0.1);
-  border-color: rgba(255, 110, 199, 0.26);
+  background: var(--hover-bg); /* Use hover-bg or a specific user-msg-bg */
+  border-color: var(--border-color);
+  align-self: flex-end;
 }
 
 .message-sender {
   font-weight: 600;
   font-size: 13px;
-  margin-bottom: 4px;
-  color: var(--text);
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sender-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  color: var(--text);
-}
-
-.message-item.message-user .sender-badge {
-  background: rgba(255, 110, 199, 0.1);
-  border-color: rgba(255, 110, 199, 0.26);
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .sender-badge svg {
@@ -513,18 +515,18 @@ const formatTime = (timestamp: number): string => {
 
 .message-time {
   font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
+  color: var(--text-secondary);
 }
 
 .message-content {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text);
+  color: var(--text-primary);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
+/* Markdown Styles */
 .message-text :deep(p) {
   margin: 0 0 8px 0;
 }
@@ -548,18 +550,20 @@ const formatTime = (timestamp: number): string => {
 .message-text :deep(h3),
 .message-text :deep(h4) {
   margin: 10px 0 6px 0;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .message-text :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .message-text :deep(hr) {
   border: none;
-  border-top: 1px solid var(--border-soft);
-  margin: 10px 0;
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0;
 }
 
 .message-text :deep(table) {
@@ -569,49 +573,51 @@ const formatTime = (timestamp: number): string => {
 
 .message-text :deep(th),
 .message-text :deep(td) {
-  border: 1px solid var(--border-soft);
-  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
 }
 
 .message-text :deep(th) {
-  background: var(--border-soft);
+  background: var(--hover-bg);
+  font-weight: 600;
 }
 
 .message-text :deep(a) {
-  color: var(--accent-2);
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.message-text :deep(a:hover) {
   text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .message-text :deep(pre) {
-  background: var(--input-bg);
-  color: var(--text);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
 }
 
 .message-text :deep(code) {
-  background: var(--border-soft);
-  color: var(--text);
-  padding: 2px 6px;
-  border-radius: 6px;
+  background: var(--hover-bg);
+  color: var(--primary-color);
+  padding: 2px 4px;
+  border-radius: 4px;
   font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
 }
 
 .message-text :deep(blockquote) {
   margin: 8px 0;
-  padding: 8px 10px;
-  border-left: 3px solid var(--border);
-  background: var(--border-soft);
-  color: var(--text-muted);
-  border-radius: 10px;
-}
-
-.message-text :deep(.katex-display) {
-  margin: 8px 0;
-  overflow-x: auto;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-color);
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+  border-radius: 4px;
 }
 
 .message-image,
@@ -620,8 +626,11 @@ const formatTime = (timestamp: number): string => {
 .message-expression,
 .message-tts,
 .message-other {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .message-type {
@@ -629,7 +638,7 @@ const formatTime = (timestamp: number): string => {
   align-items: center;
   gap: 8px;
   font-style: normal;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .message-type svg {
@@ -639,22 +648,22 @@ const formatTime = (timestamp: number): string => {
 .load-more {
   padding: 16px;
   text-align: center;
-  border-top: 1px solid var(--border-soft);
 }
 
 .load-more button {
   padding: 8px 24px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  color: var(--text);
-  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 13px;
 }
 
 .load-more button:hover:not(:disabled) {
-  background: rgba(255, 110, 199, 0.12);
-  border-color: rgba(255, 110, 199, 0.3);
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .load-more button:disabled {
@@ -667,7 +676,9 @@ const formatTime = (timestamp: number): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 14px;
+  flex-direction: column;
+  gap: 12px;
 }
 </style>

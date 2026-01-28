@@ -17,6 +17,7 @@
     "clean:deep": "bash scripts/clean.sh --deep"
   },
   "dependencies": {
+    "active-win": "^8.2.1",
     "better-sqlite3": "^12.5.0",
     "electron-store": "^8.2.0",
     "highlight.js": "^11.11.1",
