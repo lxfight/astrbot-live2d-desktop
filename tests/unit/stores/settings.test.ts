@@ -24,7 +24,7 @@ describe('useSettingsStore', () => {
 
   it('should load settings in Electron mode', async () => {
     const mockSettings = {
-      wsUrl: 'ws://test:8765/ws',
+      wsUrl: 'ws://test:9090/astrbot/live2d',
       token: 'test-token',
       alwaysOnTop: true,
       transparent: true,
@@ -40,7 +40,7 @@ describe('useSettingsStore', () => {
     const store = useSettingsStore()
     await store.loadSettings()
 
-    expect(store.settings.wsUrl).toBe('ws://test:8765/ws')
+    expect(store.settings.wsUrl).toBe('ws://test:9090/astrbot/live2d')
     expect(store.settings.token).toBe('test-token')
   })
 

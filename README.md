@@ -1,14 +1,15 @@
 # AstrBot Live2D Desktop
 
-AstrBot 的 Live2D 桌面端 Web 应用，基于 Vue 3 + PixiJS 开发。
+AstrBot 的 Live2D 桌面端应用（Electron + Vue 3 + PixiJS）。
 
 注意：本项目仓库不分发任何 Live2D 模型文件与 Cubism Core 运行时文件（见“模型与运行时资源”）。
 
 ## 技术栈
 
+- Electron - 桌面应用框架
 - Vue 3 - 渐进式 JavaScript 框架
 - Pinia - Vue 状态管理
-- PixiJS 7 - 2D WebGL 渲染引擎
+- PixiJS 6 - 2D WebGL 渲染引擎
 - pixi-live2d-display - Live2D 模型渲染库
 - WebSocket - 与服务端通信
 - Vite - 构建工具
@@ -58,7 +59,9 @@ pnpm preview
 ```
 src/
 ├── main.ts                 # 入口文件
-├── App.vue                 # 根组件
+├── App.desktop.vue         # 桌面端主界面
+├── App.simple.vue          # 简化版界面（调试/演示）
+├── App.vue                 # 兼容入口（保留）
 ├── style.css              # 全局样式
 ├── components/            # 组件目录
 │   ├── Live2DRenderer.vue # Live2D 渲染组件
@@ -71,11 +74,11 @@ src/
 
 ## 配置
 
-在 `src/App.vue` 中修改 WebSocket 连接地址和 Token：
+默认连接地址：`ws://localhost:9090/astrbot/live2d`
 
-```typescript
-connectionStore.connect('ws://localhost:8765/ws', 'your_token')
-```
+推荐通过设置界面修改：设置 -> 连接设置（WebSocket URL / Token）。
+
+如需修改硬编码默认值：编辑 `src/App.desktop.vue` 中的 `lastConnectionSettings.wsUrl`。
 
 ## 模型资源
 
@@ -90,12 +93,16 @@ connectionStore.connect('ws://localhost:8765/ws', 'your_token')
 2. Cubism Core：从 Live2D 官方 Cubism SDK for Web 获取 `live2dcubismcore.min.js`，放入 `public/lib/`。
 
 相关说明见：
-- `astrbot-live2d-desktop/public/models/README.md`
-- `astrbot-live2d-desktop/public/lib/README.md`
+- `public/models/README.md`
+- `public/lib/README.md`
 
 ## 协议
 
-使用 L2D-Bridge Protocol v1.0，详见 [../docs/api.md](../docs/api.md)
+使用 L2D-Bridge Protocol v1.0，详见 `docs/API.md` 的 “WebSocket 协议” 章节。
+
+## 相关项目
+
+- [astrbot-live2d-adapter](https://github.com/lxfight/astrbot-live2d-adapter) - AstrBot 平台适配器插件
 
 ## License
 

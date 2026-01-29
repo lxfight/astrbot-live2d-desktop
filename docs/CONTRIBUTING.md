@@ -23,7 +23,7 @@
 ### 克隆项目
 
 ```bash
-git clone https://github.com/yourusername/astrbot-live2d-desktop.git
+git clone https://github.com/lxfight/astrbot-live2d-desktop.git
 cd astrbot-live2d-desktop
 ```
 
@@ -48,7 +48,8 @@ cp .env.example .env.local
 pnpm dev
 
 # 完整 Electron 应用开发
-pnpm start
+pnpm dev:electron
+# 或：pnpm start
 ```
 
 ### 运行测试

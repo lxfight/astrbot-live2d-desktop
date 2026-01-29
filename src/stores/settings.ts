@@ -11,7 +11,7 @@ import { logger } from '@/utils/logger'
 export const useSettingsStore = defineStore('settings', () => {
   // 状态
   const settings = ref<AppSettings>({
-    wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8765/ws',
+    wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:9090/astrbot/live2d',
     token: import.meta.env.VITE_WS_TOKEN || '',
     alwaysOnTop: import.meta.env.VITE_ALWAYS_ON_TOP === 'true',
     transparent: import.meta.env.VITE_TRANSPARENT !== 'false',

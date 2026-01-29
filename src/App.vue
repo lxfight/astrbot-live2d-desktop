@@ -76,7 +76,7 @@ onMounted(async () => {
   })
 
   // 连接到服务器
-  connectionStore.connect('ws://localhost:8765/ws', '')
+  connectionStore.connect('ws://localhost:9090/astrbot/live2d', '')
 
   // 监听表演指令
   connectionStore.onPerform((sequence) => {

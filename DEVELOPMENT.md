@@ -18,9 +18,9 @@ AstrBot Live2D 桌面端是一个基于 Electron + Vue 3 + PixiJS 的轻量级�
 ## 技术栈
 
 - **桌面框架**: Electron 39+
-- **前端框架**: Vue 3 + Vite 5
+- **前端框架**: Vue 3 + Vite 6
 - **状态管理**: Pinia
-- **渲染引擎**: PixiJS v8 + pixi-live2d-display v0.4.0
+- **渲染引擎**: PixiJS v6（pixi.js@6.5.10）+ pixi-live2d-display v0.4.0
 - **配置存储**: electron-store
 
 ## 项目结构
@@ -28,8 +28,9 @@ AstrBot Live2D 桌面端是一个基于 Electron + Vue 3 + PixiJS 的轻量级�
 ```
 astrbot-live2d-desktop/
 ├── electron/                  # Electron 主进程
-│   ├── main.js               # 应用入口
-│   └── preload.js            # IPC 预加载脚本
+│   ├── main.cjs              # 应用入口
+│   ├── preload.cjs           # IPC 预加载脚本
+│   └── ...                   # 其它主进程模块
 ├── src/                      # Vue 前端源码
 │   ├── components/
 │   │   ├── Live2DRenderer.vue   # Live2D 渲染组件
@@ -95,7 +96,7 @@ pnpm run build
 ### Phase 2: 核心功能（✅ 已完成）
 
 1. **模型区域识别算法** (src/utils/hitTest.ts)
-   - PixiJS v8 的 rootBoundary.hitTest API
+   - PixiJS 命中检测（HitTest / Bounds / Alpha）
    - Live2D HitArea 检测
    - Canvas Alpha 像素检测（备用方案）
    - 防抖优化机制
@@ -163,10 +164,8 @@ window.electronAPI = {
 
 ## 已知问题
 
-1. **PixiJS 版本兼容性**
-   - pixi-live2d-display@0.4.0 依赖 PixiJS v6
-   - 当前使用 PixiJS v8，存在 peer dependency 警告
-   - 解决方案：已适配 v8 API，功能正常
+1. **BLEND_MODES 补丁**
+   - pixi-live2d-display 依赖 `PIXI.BLEND_MODES.SRC_TO_X`，项目启动时会自动补齐（见 `src/main.ts`）
 
 2. **Electron 安装**
    - 某些环境可能需要重新安装 Electron
@@ -188,11 +187,11 @@ window.electronAPI = {
 
 ## 参考文档
 
-- [项目概述](../../docs/README.md)
-- [架构设计](../../docs/architecture.md)
-- [桌面端规范](../../docs/desktop-spec.md)
-- [开发路线图](../../docs/roadmap.md)
-- [开发进度](../../docs/progress.md)
+- [快速开始](./QUICK_START.md)
+- [API / WebSocket 协议](./docs/API.md)
+- [模型导入说明](./docs/MODEL_IMPORT.md)
+- [贡献指南](./docs/CONTRIBUTING.md)
+- [AstrBot 平台适配器](https://github.com/lxfight/astrbot-live2d-adapter)
 
 ## 贡献
 

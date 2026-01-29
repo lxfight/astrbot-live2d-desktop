@@ -26,7 +26,7 @@ app.on('web-contents-created', (_event, contents) => {
 
 // 默认设置
 const defaultSettings = {
-  wsUrl: 'ws://localhost:8765/ws',
+  wsUrl: 'ws://localhost:9090/astrbot/live2d',
   token: '',
   alwaysOnTop: false,
   transparent: true,

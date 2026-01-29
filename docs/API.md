@@ -361,7 +361,7 @@ import { AppError, ErrorCode, handleError, tryCatch } from '@/utils/errorHandler
 throw new AppError({
   code: ErrorCode.NETWORK,
   message: '网络连接失败',
-  context: { url: 'ws://localhost:8765' }
+  context: { url: 'ws://localhost:9090/astrbot/live2d' }
 })
 
 // 处理错误
@@ -424,9 +424,26 @@ const isHit = await hitTester.testWithDebounce(x, y)
   "id": "uuid",
   "ts": 1234567890,
   "payload": {
+    "version": "1.0.0",
+    "clientId": "uuid",
+    "clientName": "astrbot-live2d-desktop",
     "token": "your-token",
-    "client": "astrbot-live2d-desktop",
-    "version": "0.0.0"
+    "capabilities": [
+      "input.message",
+      "input.touch",
+      "input.shortcut",
+      "perform.show",
+      "perform.interrupt",
+      "resource.prepare",
+      "resource.commit",
+      "resource.get",
+      "resource.release",
+      "state.ready",
+      "state.playing",
+      "state.config",
+      "model.*",
+      "desktop.*"
+    ]
   }
 }
 ```

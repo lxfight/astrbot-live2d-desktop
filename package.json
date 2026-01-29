@@ -1,13 +1,25 @@
 {
   "name": "astrbot-live2d-desktop",
+  "description": "AstrBot Live2D 桌面端应用（Electron + Vue 3 + PixiJS）",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "author": "lxfight",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lxfight/astrbot-live2d-desktop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lxfight/astrbot-live2d-desktop/issues"
+  },
+  "homepage": "https://github.com/lxfight/astrbot-live2d-desktop#readme",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "electron": "cross-env NODE_ENV=development electron electron/main.cjs",
+    "dev:electron": "pnpm start",
     "start": "concurrently -k \"npm run dev\" \"wait-on http://localhost:1420 && npm run electron\"",
     "test": "vitest",
     "test:ui": "vitest --ui",

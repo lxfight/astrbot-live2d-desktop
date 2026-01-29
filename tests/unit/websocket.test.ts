@@ -36,7 +36,7 @@ describe('WebSocketClient', () => {
   let client: WebSocketClient
 
   beforeEach(() => {
-    client = new WebSocketClient('ws://localhost:8765/ws', 'test-token')
+    client = new WebSocketClient('ws://localhost:9090/astrbot/live2d', 'test-token')
   })
 
   afterEach(() => {

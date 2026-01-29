@@ -19,7 +19,7 @@ pwsh -File .\\scripts\\fetch-default-model.ps1
 
 2) Cubism Core 运行时
 - 从 Live2D 官方 Cubism SDK for Web 获取 `live2dcubismcore.min.js`
-- 放到 `astrbot-live2d-desktop/public/lib/live2dcubismcore.min.js`
+- 放到 `public/lib/live2dcubismcore.min.js`
 
 ## 安装与运行
 
@@ -32,7 +32,7 @@ pnpm install
 
 ### 2. 配置连接
 
-默认连接地址：`ws://localhost:8765/ws`
+默认连接地址：`ws://localhost:9090/astrbot/live2d`
 
 如果你的 AstrBot Live2D 适配器使用了不同的端口或路径，需要修改：
 
@@ -41,10 +41,12 @@ pnpm install
 - 在"连接设置"中修改 WebSocket URL 和 Token
 
 **方式 2：修改默认配置**
-编辑 `src/App.desktop.vue` 第 54 行：
+编辑 `src/App.desktop.vue` 中的默认连接配置：
 ```typescript
-const wsUrl = settings?.wsUrl || 'ws://localhost:8765/ws'
-const token = settings?.token || ''  // 如果适配器配置了 auth_token，这里填写
+let lastConnectionSettings = {
+  wsUrl: 'ws://localhost:9090/astrbot/live2d',
+  token: '' // 如果适配器配置了 auth_token，这里填写
+}
 ```
 
 ### 3. 启动应用
@@ -145,6 +147,6 @@ Live2D Desktop → 显示回复
 
 ## 开发参考
 
-- [协议文档](../docs/Live2D-Bridge-Protocol.md)
-- [适配器开发文档](../docs/adapter-spec.md)
+- [WebSocket 协议](./docs/API.md)
+- [AstrBot 平台适配器](https://github.com/lxfight/astrbot-live2d-adapter)
 - [桌面端开发说明](./DEVELOPMENT.md)

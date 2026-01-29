@@ -23,8 +23,16 @@
           <span class="value">MIT License</span>
         </div>
         <div class="info-row">
-          <span class="label">GitHub</span>
-          <a href="https://github.com/Soulter/AstrBot" target="_blank" class="link">Soulter/AstrBot</a>
+          <span class="label">项目仓库</span>
+          <a href="https://github.com/lxfight/astrbot-live2d-desktop" target="_blank" class="link">lxfight/astrbot-live2d-desktop</a>
+        </div>
+        <div class="info-row">
+          <span class="label">适配器仓库</span>
+          <a href="https://github.com/lxfight/astrbot-live2d-adapter" target="_blank" class="link">lxfight/astrbot-live2d-adapter</a>
+        </div>
+        <div class="info-row">
+          <span class="label">AstrBot</span>
+          <a href="https://github.com/AstrBotDevs/AstrBot" target="_blank" class="link">AstrBotDevs/AstrBot</a>
         </div>
       </section>
 
