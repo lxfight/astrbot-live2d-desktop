@@ -1,177 +1,75 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { WebSocketClient } from '../utils/websocket'
-import { logger } from '../utils/logger'
-import type { BasePacket, MessageOperation, PerformItem } from '../types/websocket'
 
 export const useConnectionStore = defineStore('connection', () => {
-  const ws = ref<WebSocketClient | null>(null)
-  const connected = ref(false)
-  const performCallbacks = ref<Array<(sequence: PerformItem[], interrupt?: boolean) => void>>([])
-  const interruptCallbacks = ref<Array<() => void>>([])
-  const commandCallbacks = ref<Array<(packet: BasePacket) => void>>([])
-  const stateCallbacks = ref<Array<(packet: BasePacket) => void>>([])
-  const serverConfig = ref<Record<string, any> | null>(null)
+  const isConnected = ref(false)
+  const sessionId = ref('')
+  const userId = ref('')
+  const serverUrl = ref('ws://127.0.0.1:9090/astrbot/live2d')
+  const token = ref('')
 
-  const connect = (url: string, token: string) => {
-    ws.value = new WebSocketClient(url, token)
+  // 连接到服务器
+  async function connect(url?: string, authToken?: string) {
+    try {
+      const targetUrl = url || serverUrl.value
+      const result = await window.electron.bridge.connect(targetUrl, authToken || token.value)
 
-    ws.value.on('open', () => {
-      connected.value = true
-      logger.info('WebSocket 已连接')
-    })
-
-    ws.value.on('close', () => {
-      connected.value = false
-      logger.info('WebSocket 已断开')
-    })
-
-    ws.value.on('message', (packet: BasePacket) => {
-      // 处理表演消息（Live2D-Bridge Protocol v1.0）
-      if (packet.op === 'perform.show' || packet.op === 'cmd.perform') {
-        const payload = (packet as any)?.payload || {}
-        const interrupt = payload?.interrupt
-        const sequence = payload?.sequence || []
-        performCallbacks.value.forEach(cb => cb(sequence, interrupt))
-        return
+      if (result.success) {
+        serverUrl.value = targetUrl
+        if (authToken) token.value = authToken
+        isConnected.value = true
+        return { success: true }
+      } else {
+        return { success: false, error: result.error }
       }
-      if (packet.op === 'perform.interrupt') {
-        interruptCallbacks.value.forEach(cb => cb())
-        return
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 断开连接
+  async function disconnect() {
+    try {
+      await window.electron.bridge.disconnect()
+      isConnected.value = false
+      sessionId.value = ''
+      userId.value = ''
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 检查连接状态
+  async function checkConnection() {
+    const connected = await window.electron.bridge.isConnected()
+    isConnected.value = connected
+
+    if (connected) {
+      const session = await window.electron.bridge.getSession()
+      if (session) {
+        sessionId.value = session.sessionId || ''
+        userId.value = session.userId || ''
       }
-      if (packet.op.startsWith('model.') || packet.op.startsWith('desktop.')) {
-        commandCallbacks.value.forEach(cb => cb(packet))
-        return
-      }
-      if (packet.op.startsWith('state.')) {
-        stateCallbacks.value.forEach(cb => cb(packet))
-        return
-      }
-    })
-
-    ws.value.on('ready', (payload) => {
-      serverConfig.value = payload?.config || null
-    })
-
-    ws.value.connect()
-  }
-
-  const disconnect = () => {
-    if (ws.value) {
-      ws.value.disconnect()
-      ws.value = null
-      connected.value = false
     }
+
+    return connected
   }
 
-  const onPerform = (callback: (sequence: PerformItem[], interrupt?: boolean) => void) => {
-    performCallbacks.value.push(callback)
-  }
-
-  const onPerformInterrupt = (callback: () => void) => {
-    interruptCallbacks.value.push(callback)
-  }
-
-  const onCommand = (callback: (packet: BasePacket) => void) => {
-    commandCallbacks.value.push(callback)
-  }
-
-  const onState = (callback: (packet: BasePacket) => void) => {
-    stateCallbacks.value.push(callback)
-  }
-
-  const sendTouch = (part: string, action: string) => {
-    if (ws.value && connected.value) {
-      ws.value.sendTouch(part, action)
-    }
-  }
-
-  const sendText = async (text: string) => {
-    if (ws.value && connected.value) {
-      await ws.value.sendText(text)
-    }
-  }
-
-  const sendMessage = async (content: Array<{ type: string; [key: string]: unknown }>) => {
-    if (ws.value && connected.value) {
-      await ws.value.sendMessage(content)
-    }
-  }
-
-  const getResource = async (rid: string) => {
-    if (ws.value && connected.value) {
-      return await ws.value.getResource(rid)
-    }
-    return null
-  }
-
-  const releaseResource = async (rid: string) => {
-    if (ws.value && connected.value) {
-      await ws.value.releaseResource(rid)
-    }
-  }
-
-  const sendPacket = (op: MessageOperation, payload?: any, id?: string) => {
-    if (ws.value && connected.value) {
-      ws.value.sendPacket(op, payload, id)
-    }
-  }
-
-  const sendError = (id: string, code: number, message: string) => {
-    if (ws.value && connected.value) {
-      ws.value.sendError(code, message, id)
-    }
-  }
-
-  const sendStatePlaying = (isPlaying: boolean) => {
-    if (ws.value && connected.value) {
-      ws.value.sendStatePlaying(isPlaying)
-    }
-  }
-
-  const sendStateConfig = (payload: { modelId?: string; screen?: { w: number; h: number } }) => {
-    if (ws.value && connected.value) {
-      ws.value.sendStateConfig(payload)
-    }
-  }
-
-  const prepareBinaryResource = async (
-    kind: 'image' | 'audio' | 'video' | 'file',
-    file: Blob,
-    mimeOverride?: string
-  ) => {
-    if (ws.value && connected.value) {
-      return await ws.value.prepareBinaryResource(kind, file, mimeOverride)
-    }
-    return null
-  }
-
-  const hasCapability = (capability: string) => {
-    if (ws.value && connected.value) {
-      return ws.value.hasCapability(capability)
-    }
-    return false
+  // 发送消息
+  async function sendMessage(content: any[], metadata: any) {
+    return await window.electron.bridge.sendMessage({ content, metadata })
   }
 
   return {
-    connected,
-    serverConfig,
+    isConnected,
+    sessionId,
+    userId,
+    serverUrl,
+    token,
     connect,
     disconnect,
-    onPerform,
-    onPerformInterrupt,
-    onCommand,
-    onState,
-    sendTouch,
-    sendText,
-    sendMessage,
-    getResource,
-    releaseResource,
-    sendPacket,
-    sendError,
-    sendStatePlaying,
-    sendStateConfig,
-    prepareBinaryResource,
-    hasCapability
+    checkConnection,
+    sendMessage
   }
 })

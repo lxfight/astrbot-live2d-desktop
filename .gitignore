@@ -1,38 +1,71 @@
-# 依赖和构建产物
-node_modules/
-dist/
-.vite/
+# 依赖
+node_modules
+.pnpm-store
 
-# 本地缓存和下载资源
-.cache/
-public/vendor/
+# 构建输出
+dist
+dist-electron
+release
+out
+build
+*.tsbuildinfo
 
-# Live2D 资产（受 Live2D 官方许可限制，本仓库不分发）
-public/lib/live2dcubismcore*.js
-public/models/*
-!public/models/manifest.json
-!public/models/README.md
-!public/models/default/
-public/models/default/*
-!public/models/default/.gitkeep
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# 操作系统和IDE
+# 数据库
+*.db
+*.db-shm
+*.db-wal
+
+# 系统文件
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
+Desktop.ini
 
-# 日志文件
-*.log
-
-# 环境配置
+# 环境变量
 .env
 .env.local
 .env.*.local
 
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
 # 临时文件
-tmpclaude-*
 *.tmp
 *.temp
-.env.development
-CLAUDE.md
+.cache
+
+# 用户数据
+userData/
+
+# Live2D 模型资源（不上传用户导入的模型）
+public/models/*
+!public/models/.gitkeep
+
+# Electron 打包产物
+*.dmg
+*.exe
+*.zip
+*.tar.gz
+*.AppImage
+*.deb
+*.rpm
+*.asar
+
+# 测试覆盖率
+coverage/
+*.lcov

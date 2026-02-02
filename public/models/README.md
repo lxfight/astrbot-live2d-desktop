@@ -1,19 +1,36 @@
-# public/models
+# Live2D 模型目录
 
-This repository does NOT ship any Live2D model files (e.g. `*.moc3`, textures, motions) due to Live2D's licensing terms.
+将 Live2D 模型文件放置在此目录下。
 
-To get a local default model for development, run:
+## 支持的格式
 
-```powershell
-cd astrbot-live2d-desktop
-pwsh -File .\\scripts\\fetch-default-model.ps1
+- Cubism 2.1 (.moc / .model.json)
+- Cubism 3.0+ (.moc3 / .model3.json)
+- Cubism 4.0+ (.moc3 / .model3.json)
+
+## 目录结构示例
+
+```
+models/
+├── hiyori/
+│   ├── hiyori.model3.json
+│   ├── hiyori.moc3
+│   ├── textures/
+│   ├── motions/
+│   └── expressions/
+└── shizuku/
+    ├── shizuku.model3.json
+    └── ...
 ```
 
-The script downloads the model from Live2D's official sample repository into:
+## 加载模型
 
-`astrbot-live2d-desktop/public/models/default/`
+在主窗口中调用：
+```typescript
+live2dCanvasRef.value?.loadModel('/models/hiyori/hiyori.model3.json')
+```
 
-Notes:
-- `public/models/manifest.json` is tracked in git; model assets are ignored by `.gitignore`.
-- For production builds, make sure your model assets are available at runtime (do not commit them back into this repo).
+## 示例模型下载
 
+- [Live2D Sample Models](https://github.com/guansss/pixi-live2d-display/tree/master/test/assets)
+- [Live2D Official Samples](https://www.live2d.com/en/download/sample-data/)
