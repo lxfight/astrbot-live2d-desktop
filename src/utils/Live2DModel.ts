@@ -213,6 +213,90 @@ export class Live2DModel {
   }
 
   /**
+   * 获取模型信息
+   */
+  getModelInfo(): {
+    name: string;
+    motionGroups: Record<string, Array<{ index: number; file: string }>>;
+    expressions: string[]
+  } {
+    if (!this.model) {
+      return { name: '', motionGroups: {}, expressions: [] }
+    }
+
+    const motionGroups: Record<string, Array<{ index: number; file: string }>> = {}
+    const expressions: string[] = []
+
+    try {
+      // 获取动作组列表及每个动作的详细信息
+      const internalModel = this.model.internalModel
+      if (internalModel && internalModel.motionManager) {
+        const motionManager = internalModel.motionManager
+
+        // Cubism 2
+        if (motionManager.definitions) {
+          Object.keys(motionManager.definitions).forEach(group => {
+            const motions = motionManager.definitions[group]
+            if (Array.isArray(motions)) {
+              motionGroups[group] = motions.map((motion: any, index: number) => ({
+                index,
+                file: motion.file || `motion_${index}`
+              }))
+            }
+          })
+        }
+
+        // Cubism 4
+        if (motionManager.groups) {
+          Object.keys(motionManager.groups).forEach(group => {
+            const motions = motionManager.groups[group]
+            if (Array.isArray(motions)) {
+              motionGroups[group] = motions.map((motion: any, index: number) => ({
+                index,
+                file: motion.File || `motion_${index}`
+              }))
+            }
+          })
+        }
+      }
+
+      // 获取表情列表
+      if (internalModel && internalModel.expressionManager) {
+        const expressionManager = internalModel.expressionManager
+
+        // Cubism 2
+        if (expressionManager.definitions) {
+          expressionManager.definitions.forEach((expr: any, index: number) => {
+            const name = expr.name || `expression_${index}`
+            expressions.push(name)
+          })
+        }
+
+        // Cubism 4
+        if (expressionManager.expressions) {
+          expressionManager.expressions.forEach((expr: any, index: number) => {
+            const name = expr.name || `expression_${index}`
+            expressions.push(name)
+          })
+        }
+      }
+
+      console.log('[Live2D] 模型信息:', { motionGroups, expressions })
+    } catch (error) {
+      console.warn('[Live2D] 获取模型信息失败:', error)
+    }
+
+    // 提取模型名称
+    const modelName = this.modelPath.split('/').filter(Boolean).pop()?.replace(/\.(model|model3)\.json$/, '') || 'unknown'
+
+    return {
+      name: modelName,
+      motionGroups,
+      expressions
+    }
+  }
+
+  /**
    * 销毁模型（仅移除模型，保留 Application）
    */
   destroy(): void {

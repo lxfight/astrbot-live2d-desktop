@@ -43,6 +43,7 @@ export const OP = {
   STATE_READY: 'state.ready',
   STATE_PLAYING: 'state.playing',
   STATE_CONFIG: 'state.config',
+  STATE_MODEL: 'state.model', // 模型信息更新
 
   // STT（语音转文字）
   STT_TRANSCRIBE: 'stt.transcribe',
@@ -70,6 +71,11 @@ export interface HandshakePayload {
   version: string
   clientId: string
   token?: string
+  model?: {
+    name: string
+    motionGroups: string[] // 可用的动作组列表
+    expressions: string[] // 可用的表情列表
+  }
 }
 
 // 握手确认
@@ -203,4 +209,11 @@ export interface STTResultPayload {
   text: string // 识别的文字
   confidence?: number // 置信度 0-1
   language?: string // 检测到的语言
+}
+
+// 模型信息载荷
+export interface StateModelPayload {
+  name: string // 模型名称
+  motionGroups: Record<string, Array<{ index: number; file: string }>> // 动作组及每个动作的详细信息
+  expressions: string[] // 可用的表情列表
 }

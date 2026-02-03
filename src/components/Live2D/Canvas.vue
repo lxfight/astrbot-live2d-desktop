@@ -12,6 +12,7 @@ let model: Live2DModel | null = null
 const emit = defineEmits<{
   modelLoaded: []
   modelClick: [{ x: number; y: number }]
+  modelInfoChanged: [{ name: string; motionGroups: string[]; expressions: string[] }]
 }>()
 
 /**
@@ -41,10 +42,25 @@ async function loadModel(modelPath: string) {
 
     console.log('[Live2D] 模型加载成功')
     emit('modelLoaded')
+
+    // 获取并发送模型信息
+    const modelInfo = model.getModelInfo()
+    emit('modelInfoChanged', modelInfo)
+    console.log('[Live2D] 模型信息已发送:', modelInfo)
   } catch (error) {
     console.error('[Live2D] 模型加载失败:', error)
     throw error
   }
+}
+
+/**
+ * 获取当前模型信息
+ */
+function getModelInfo() {
+  if (!model) {
+    return { name: '', motionGroups: [], expressions: [] }
+  }
+  return model.getModelInfo()
 }
 
 /**
@@ -154,7 +170,8 @@ defineExpose({
   loadModel,
   playMotion,
   setExpression,
-  playRandomMotion
+  playRandomMotion,
+  getModelInfo
 })
 </script>
 

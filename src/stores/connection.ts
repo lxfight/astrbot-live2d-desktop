@@ -61,6 +61,11 @@ export const useConnectionStore = defineStore('connection', () => {
     return await window.electron.bridge.sendMessage({ content, metadata })
   }
 
+  // 发送状态
+  async function sendState(op: string, payload: any) {
+    return await window.electron.bridge.sendState(op, payload)
+  }
+
   return {
     isConnected,
     sessionId,
@@ -70,6 +75,7 @@ export const useConnectionStore = defineStore('connection', () => {
     connect,
     disconnect,
     checkConnection,
-    sendMessage
+    sendMessage,
+    sendState
   }
 })

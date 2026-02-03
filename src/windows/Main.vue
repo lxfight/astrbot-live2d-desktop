@@ -28,6 +28,7 @@
       ref="live2dCanvasRef"
       @model-click="handleModelClick"
       @model-loaded="handleModelLoaded"
+      @model-info-changed="handleModelInfoChanged"
     />
 
     <!-- 媒体播放器 -->
@@ -64,7 +65,7 @@
 
     <!-- 快速输入框 -->
     <Transition name="input">
-      <div v-if="showInput" class="input-panel-container">
+      <div v-if="showInput" class="input-panel-container" @click.stop>
         <div class="input-toolbar">
           <n-button text size="small" @click="handleSelectImage">
             <template #icon>
@@ -214,6 +215,25 @@ function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
   message.success('模型加载成功')
+}
+
+// 模型信息变化
+async function handleModelInfoChanged(modelInfo: {
+  name: string;
+  motionGroups: Record<string, Array<{ index: number; file: string }>>;
+  expressions: string[]
+}) {
+  console.log('[主窗口] 模型信息变化:', modelInfo)
+
+  // 如果已连接到服务器，发送模型信息更新
+  if (connectionStore.isConnected) {
+    try {
+      await connectionStore.sendState('state.model', modelInfo)
+      console.log('[主窗口] 模型信息已发送到服务器')
+    } catch (error: any) {
+      console.error('[主窗口] 发送模型信息失败:', error)
+    }
+  }
 }
 
 // 点击模型
