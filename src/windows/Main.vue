@@ -58,7 +58,14 @@
 
     <!-- 文字气泡 -->
     <Transition name="bubble">
-      <div v-if="currentBubble" class="bubble" :class="currentBubble.position" @click.stop>
+      <div
+        v-if="currentBubble"
+        class="bubble"
+        :class="currentBubble.position"
+        @click.stop
+        @mouseenter="handleBubbleMouseEnter"
+        @mouseleave="handleBubbleMouseLeave"
+      >
         <div class="bubble-content">
           <div v-html="renderBubbleMarkdown(currentBubble.content)"></div>
         </div>
@@ -159,6 +166,9 @@ const isRecording = ref(false)
 const recordingDuration = ref(0)
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
+let bubbleTimer: NodeJS.Timeout | null = null
+let bubbleHoverTimer: NodeJS.Timeout | null = null
+const isBubbleHovered = ref(false)
 
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
@@ -229,12 +239,45 @@ function renderBubbleMarkdown(text: string): string {
   }
 }
 
+// 气泡鼠标进入
+function handleBubbleMouseEnter() {
+  isBubbleHovered.value = true
+  // 清除自动隐藏定时器
+  if (bubbleHoverTimer) {
+    clearTimeout(bubbleHoverTimer)
+    bubbleHoverTimer = null
+  }
+}
+
+// 气泡鼠标离开
+function handleBubbleMouseLeave() {
+  isBubbleHovered.value = false
+  // 鼠标离开后 3 秒自动隐藏
+  startBubbleHideTimer(3000)
+}
+
+// 启动气泡自动隐藏定时器
+function startBubbleHideTimer(delay: number) {
+  // 清除旧的定时器
+  if (bubbleHoverTimer) {
+    clearTimeout(bubbleHoverTimer)
+  }
+  // 设置新的定时器
+  bubbleHoverTimer = setTimeout(() => {
+    if (!isBubbleHovered.value) {
+      currentBubble.value = null
+    }
+  }, delay)
+}
+
 // 创建表演队列
 const performQueue = new PerformanceQueue()
 
 // 设置表演队列回调
 performQueue.onText((content, position, duration) => {
   currentBubble.value = { content, position }
+  // 启动自动隐藏定时器（默认 5 秒后隐藏）
+  startBubbleHideTimer(5000)
   // 文字会在队列中自动等待 duration 后继续
 })
 
