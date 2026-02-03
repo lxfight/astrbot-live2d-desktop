@@ -17,6 +17,22 @@ export const useModelStore = defineStore('model', () => {
     return localStorage.getItem('lastModelPath')
   }
 
+  function setModelPosition(x: number, y: number) {
+    localStorage.setItem('modelPosition', JSON.stringify({ x, y }))
+  }
+
+  function getModelPosition(): { x: number; y: number } | null {
+    const saved = localStorage.getItem('modelPosition')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
   async function loadModelList() {
     const result = await window.electron.model.getList()
     if (result.success && result.models) {
@@ -29,6 +45,8 @@ export const useModelStore = defineStore('model', () => {
     availableModels,
     setCurrentModel,
     getLastModel,
+    setModelPosition,
+    getModelPosition,
     loadModelList
   }
 })

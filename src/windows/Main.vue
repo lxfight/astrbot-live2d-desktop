@@ -163,7 +163,7 @@ const bubbleStyle = ref({ left: '0px', top: '0px' })
 const showInput = ref(false)
 const inputStyle = ref({ left: '0px', top: '0px' })
 const inputText = ref('')
-const hasModel = ref(false)
+const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
 const isRecording = ref(false)
 const recordingDuration = ref(0)
@@ -391,6 +391,8 @@ function handleModelPositionChanged(position: { x: number; y: number }) {
   modelPositionX = position.x
   modelPositionY = position.y
   updateUIPositions()
+  // 保存模型位置
+  modelStore.setModelPosition(position.x, position.y)
 }
 
 // 更新 UI 元素位置（跟随模型）
@@ -985,15 +987,31 @@ onMounted(async () => {
   const lastModelPath = modelStore.getLastModel()
   if (lastModelPath) {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
+
     try {
       await live2dCanvasRef.value?.loadModel(lastModelPath)
-      hasModel.value = true
       modelStore.setCurrentModel(lastModelPath)
       console.log('[主窗口] 自动加载成功')
+
+      // 恢复上次的模型位置
+      const savedPosition = modelStore.getModelPosition()
+      if (savedPosition) {
+        console.log('[主窗口] 恢复模型位置:', savedPosition)
+        // 等待模型完全加载后再设置位置
+        setTimeout(() => {
+          live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
+          modelPositionX = savedPosition.x
+          modelPositionY = savedPosition.y
+        }, 100)
+      }
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
-      // 自动加载失败不显示错误提示，让用户手动导入
+      // 自动加载失败，显示导入提示
+      hasModel.value = false
     }
+  } else {
+    // 没有上次使用的模型，显示导入提示
+    hasModel.value = false
   }
 
   // 自动注册全局快捷键

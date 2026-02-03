@@ -89,6 +89,27 @@ function playRandomMotion() {
   console.log('[Live2D] 播放随机动作')
 }
 
+/**
+ * 设置模型位置
+ */
+function setModelPosition(x: number, y: number) {
+  if (!model || !model.model) return
+  model.model.x = x
+  model.model.y = y
+  console.log('[Live2D] 模型位置已设置:', { x, y })
+}
+
+/**
+ * 获取模型位置
+ */
+function getModelPosition(): { x: number; y: number } | null {
+  if (!model || !model.model) return null
+  return {
+    x: model.model.x,
+    y: model.model.y
+  }
+}
+
 // 拖动相关状态
 let isDragging = false
 let isDragStartedOnModel = false // 标记拖动是否从模型上开始
@@ -352,7 +373,9 @@ defineExpose({
   playRandomMotion,
   getModelInfo,
   disablePassThrough,
-  enablePassThrough
+  enablePassThrough,
+  setModelPosition,
+  getModelPosition
 })
 </script>
 
