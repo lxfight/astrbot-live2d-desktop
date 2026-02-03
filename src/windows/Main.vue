@@ -497,6 +497,23 @@ async function sendAudioMessage(audioBlob: Blob) {
 
     if (result.success) {
       message.success('语音已发送')
+
+      // 保存语音消息记录
+      try {
+        await window.electron.history.saveMessage({
+          messageId: `msg_${Date.now()}`,
+          sessionId: connectionStore.sessionId || 'default',
+          userId: connectionStore.userId || 'desktop-user',
+          userName: '桌面用户',
+          messageType: 'friend',
+          direction: 'outgoing',
+          content: content,
+          rawText: '[语音消息]',
+          timestamp: Date.now()
+        })
+      } catch (error) {
+        console.error('[主窗口] 保存语音消息记录失败:', error)
+      }
     } else {
       message.error(`发送失败: ${result.error}`)
     }
@@ -556,6 +573,23 @@ async function handleSendMessage() {
       showInput.value = false
       inputText.value = ''
       selectedImage.value = null
+
+      // 保存消息记录
+      try {
+        await window.electron.history.saveMessage({
+          messageId: `msg_${Date.now()}`,
+          sessionId: connectionStore.sessionId || 'default',
+          userId: connectionStore.userId || 'desktop-user',
+          userName: '桌面用户',
+          messageType: 'friend',
+          direction: 'outgoing',
+          content: content,
+          rawText: inputText.value,
+          timestamp: Date.now()
+        })
+      } catch (error) {
+        console.error('[主窗口] 保存消息记录失败:', error)
+      }
     } else {
       message.error(`发送失败: ${result.error}`)
     }
@@ -609,6 +643,91 @@ onMounted(async () => {
         sequence: payload.sequence,
         interruptible: payload.interruptible !== false
       })
+
+      // 保存表演记录和更新统计
+      try {
+        const timestamp = Date.now()
+        const date = new Date(timestamp)
+        const dateStr = date.toISOString().split('T')[0]
+        const hour = date.getHours()
+        const performanceId = `perf_${timestamp}`
+
+        // 先保存一条incoming消息记录（服务器发来的表演）
+        window.electron.history.saveMessage({
+          messageId: performanceId,
+          sessionId: connectionStore.sessionId || 'default',
+          userId: 'server',
+          userName: '服务器',
+          messageType: 'friend',
+          direction: 'incoming',
+          content: payload.sequence,
+          rawText: '[表演序列]',
+          timestamp: timestamp
+        }).then(() => {
+          // 保存表演记录（关联到消息）
+          return window.electron.history.savePerformance({
+            messageId: performanceId,
+            sessionId: connectionStore.sessionId || 'default',
+            sequence: payload.sequence,
+            timestamp: timestamp
+          })
+        }).catch((error: any) => {
+          console.error('[主窗口] 保存表演记录失败:', error)
+        })
+
+        // 统计各类元素数量
+        let textCount = 0
+        let imageCount = 0
+        let audioCount = 0
+        let videoCount = 0
+        const motionUsage: Record<string, number> = {}
+        const expressionUsage: Record<string, number> = {}
+
+        payload.sequence.forEach((element: any) => {
+          switch (element.type) {
+            case 'text':
+              textCount++
+              break
+            case 'image':
+              imageCount++
+              break
+            case 'tts':
+            case 'audio':
+              audioCount++
+              break
+            case 'video':
+              videoCount++
+              break
+            case 'motion':
+              const motionKey = `${element.group}_${element.index}`
+              motionUsage[motionKey] = (motionUsage[motionKey] || 0) + 1
+              break
+            case 'expression':
+              const exprKey = element.expressionId || element.id
+              if (exprKey) {
+                expressionUsage[exprKey] = (expressionUsage[exprKey] || 0) + 1
+              }
+              break
+          }
+        })
+
+        // 更新统计数据
+        window.electron.history.updateStatistics({
+          date: dateStr,
+          hour: hour,
+          messageCount: 1,
+          textCount: textCount,
+          imageCount: imageCount,
+          audioCount: audioCount,
+          videoCount: videoCount,
+          motionUsage: JSON.stringify(motionUsage),
+          expressionUsage: JSON.stringify(expressionUsage)
+        }).catch((error: any) => {
+          console.error('[主窗口] 更新统计数据失败:', error)
+        })
+      } catch (error) {
+        console.error('[主窗口] 处理表演记录失败:', error)
+      }
     }
   })
 

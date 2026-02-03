@@ -69,3 +69,4 @@ public/models/*
 # 测试覆盖率
 coverage/
 *.lcov
+docs/MODEL_INFO_SYNC.md

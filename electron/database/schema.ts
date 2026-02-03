@@ -209,7 +209,7 @@ export function getMessages(options: {
     params.push(`%${options.keyword}%`)
   }
 
-  sql += ' ORDER BY timestamp DESC'
+  sql += ' ORDER BY timestamp ASC'
 
   if (options.limit) {
     sql += ' LIMIT ?'
