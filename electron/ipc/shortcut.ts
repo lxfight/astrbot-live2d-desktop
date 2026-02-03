@@ -58,7 +58,7 @@ ipcMain.handle('shortcut:isRegistered', async (event, accelerator: string) => {
 })
 
 /**
- * 处理快捷键按下
+ * 处理快捷键按下（切换模式）
  */
 function handleShortcutPressed() {
   const mainWindow = BrowserWindow.getAllWindows().find(win => !win.isDestroyed())
@@ -69,22 +69,13 @@ function handleShortcutPressed() {
     isRecording = true
     console.log('[快捷键] 开始录音')
     mainWindow.webContents.send('shortcut:recording-start')
-  }
-}
-
-/**
- * 处理快捷键释放（需要监听键盘事件）
- */
-ipcMain.on('shortcut:recording-stop', () => {
-  if (isRecording) {
+  } else {
+    // 停止录音
     isRecording = false
     console.log('[快捷键] 停止录音')
-    const mainWindow = BrowserWindow.getAllWindows().find(win => !win.isDestroyed())
-    if (mainWindow) {
-      mainWindow.webContents.send('shortcut:recording-stop')
-    }
+    mainWindow.webContents.send('shortcut:recording-stop')
   }
-})
+}
 
 /**
  * 应用退出时清理

@@ -65,6 +65,17 @@
       </div>
     </Transition>
 
+    <!-- 全局录音提示 -->
+    <Transition name="recording-toast">
+      <div v-if="isRecording" class="recording-toast" @click.stop>
+        <div class="recording-toast-content">
+          <span class="recording-dot"></span>
+          <span class="recording-text">正在录音... {{ recordingDuration }}s</span>
+          <span class="recording-hint">再次按下快捷键停止</span>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 快速输入框 -->
     <Transition name="input">
       <div v-if="showInput" class="input-panel-container" @click.stop>
@@ -508,6 +519,12 @@ async function stopRecording() {
     }
 
     console.log('[主窗口] 录音完成，大小:', audioBlob.size, '字节')
+
+    // 检查录音时长
+    if (audioBlob.size < 1000) {
+      message.warning('录音时间太短')
+      return
+    }
 
     // 检查连接状态
     if (!connectionStore.isConnected) {
@@ -1218,6 +1235,50 @@ onMounted(async () => {
   }
 }
 
+.recording-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+
+  .recording-toast-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(255, 77, 79, 0.95);
+    border-radius: 8px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(255, 77, 79, 0.4);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    pointer-events: auto;
+
+    .recording-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      animation: recording-pulse 1.5s ease-in-out infinite;
+    }
+
+    .recording-text {
+      font-weight: 600;
+    }
+
+    .recording-hint {
+      font-size: 12px;
+      opacity: 0.85;
+      margin-left: 4px;
+      padding-left: 8px;
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+    }
+  }
+}
+
 @keyframes recording-pulse {
   0%, 100% {
     opacity: 1;
@@ -1278,5 +1339,14 @@ onMounted(async () => {
 .input-enter-from, .input-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(20px);
+}
+
+.recording-toast-enter-active, .recording-toast-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.recording-toast-enter-from, .recording-toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 </style>
