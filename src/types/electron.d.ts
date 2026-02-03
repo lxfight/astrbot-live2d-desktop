@@ -40,6 +40,13 @@ declare global {
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>
         onLoad: (callback: (modelPath: string) => void) => void
       }
+      shortcut: {
+        register: (accelerator: string) => Promise<{ success: boolean; error?: string }>
+        unregister: () => Promise<{ success: boolean; error?: string }>
+        isRegistered: (accelerator: string) => Promise<boolean>
+        onRecordingStart: (callback: () => void) => void
+        onRecordingStop: (callback: () => void) => void
+      }
     }
   }
 }

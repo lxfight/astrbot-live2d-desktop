@@ -152,9 +152,7 @@ let recordingTimer: NodeJS.Timeout | null = null
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
   breaks: true,
-  gfm: true,
-  headerIds: false,
-  mangle: false
+  gfm: true
 })
 
 marked.use({
@@ -264,11 +262,11 @@ async function handleImportModel() {
     }
 
     // 提取模型名称
-    const fileName = result.filePath.split(/[/\\]/).pop() || 'model'
+    const fileName = result.filePath?.split(/[/\\]/).pop() || 'model'
     const modelName = fileName.replace(/\.(model|model3)\.json$/, '')
 
     // 导入模型
-    const importResult = await window.electron.model.import(result.filePath, modelName)
+    const importResult = await window.electron.model.import(result.filePath!, modelName)
 
     if (!importResult.success) {
       message.error(`导入模型失败: ${importResult.error}`)
@@ -276,9 +274,9 @@ async function handleImportModel() {
     }
 
     // 加载模型
-    await live2dCanvasRef.value?.loadModel(importResult.modelPath)
+    await live2dCanvasRef.value?.loadModel(importResult.modelPath!)
     hasModel.value = true
-    modelStore.setCurrentModel(importResult.modelPath)
+    modelStore.setCurrentModel(importResult.modelPath!)
 
     message.success('模型导入成功')
   } catch (error: any) {
@@ -296,7 +294,7 @@ function handleModelLoaded() {
 // 模型信息变化
 async function handleModelInfoChanged(modelInfo: {
   name: string;
-  motionGroups: Record<string, Array<{ index: number; file: string }>>;
+  motionGroups: string[] | Record<string, Array<{ index: number; file: string }>>;
   expressions: string[]
 }) {
   console.log('[主窗口] 模型信息变化:', modelInfo)
