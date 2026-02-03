@@ -37,7 +37,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-primary);
-  background: var(--color-bg-dark);
+  background: transparent; /* 改为透明 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -46,6 +46,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background: transparent; /* 改为透明 */
 }
 
 /* 滚动条样式 */

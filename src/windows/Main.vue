@@ -26,9 +26,10 @@
     <Live2DCanvas
       v-show="hasModel"
       ref="live2dCanvasRef"
-      @model-click="handleModelClick"
+      @model-right-click="handleModelRightClick"
       @model-loaded="handleModelLoaded"
       @model-info-changed="handleModelInfoChanged"
+      @model-position-changed="handleModelPositionChanged"
     />
 
     <!-- 媒体播放器 -->
@@ -61,7 +62,7 @@
       <div
         v-if="currentBubble"
         class="bubble"
-        :class="currentBubble.position"
+        :style="bubbleStyle"
         @click.stop
         @mouseenter="handleBubbleMouseEnter"
         @mouseleave="handleBubbleMouseLeave"
@@ -85,7 +86,7 @@
 
     <!-- 快速输入框 -->
     <Transition name="input">
-      <div v-if="showInput" class="input-panel-container" @click.stop>
+      <div v-if="showInput" class="input-panel-container" :style="inputStyle" @click.stop>
         <div class="input-toolbar">
           <n-button text size="small" @click="handleSelectImage">
             <template #icon>
@@ -158,7 +159,9 @@ const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
 const currentBubble = ref<any>(null)
+const bubbleStyle = ref({ left: '0px', top: '0px' })
 const showInput = ref(false)
+const inputStyle = ref({ left: '0px', top: '0px' })
 const inputText = ref('')
 const hasModel = ref(false)
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
@@ -169,6 +172,8 @@ let recordingTimer: NodeJS.Timeout | null = null
 let bubbleTimer: NodeJS.Timeout | null = null
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
+let modelPositionX = window.innerWidth / 2
+let modelPositionY = window.innerHeight / 2
 
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
@@ -276,6 +281,7 @@ const performQueue = new PerformanceQueue()
 // 设置表演队列回调
 performQueue.onText((content, position, duration) => {
   currentBubble.value = { content, position }
+  updateUIPositions()
   // 启动自动隐藏定时器（默认 5 秒后隐藏）
   startBubbleHideTimer(5000)
   // 文字会在队列中自动等待 duration 后继续
@@ -364,11 +370,15 @@ async function handleModelInfoChanged(modelInfo: {
   }
 }
 
-// 点击模型
-function handleModelClick(position: { x: number; y: number }) {
-  console.log('[主窗口] 点击模型:', position)
+// 模型右键点击
+function handleModelRightClick(position: { x: number; y: number }) {
+  console.log('[主窗口] 右键点击模型:', position)
 
-  // 显示菜单
+  // 更新模型位置
+  modelPositionX = position.x
+  modelPositionY = position.y
+
+  // 显示菜单（在鼠标位置附近）
   menuStyle.value = {
     left: `${position.x - 100}px`,
     top: `${position.y - 100}px`
@@ -376,14 +386,56 @@ function handleModelClick(position: { x: number; y: number }) {
   showMenu.value = true
 }
 
-// 点击窗口处理（只关闭菜单和输入框，不打开菜单）
+// 模型位置变化（拖动时）
+function handleModelPositionChanged(position: { x: number; y: number }) {
+  modelPositionX = position.x
+  modelPositionY = position.y
+  updateUIPositions()
+}
+
+// 更新 UI 元素位置（跟随模型）
+function updateUIPositions() {
+  // 更新气泡位置（模型头顶上方 250px，避免遮挡模型）
+  if (currentBubble.value) {
+    bubbleStyle.value = {
+      left: `${modelPositionX}px`,
+      top: `${modelPositionY - 250}px`
+    }
+  }
+
+  // 更新输入框位置（模型下方 150px）
+  if (showInput.value) {
+    inputStyle.value = {
+      left: `${modelPositionX}px`,
+      top: `${modelPositionY + 150}px`
+    }
+  }
+}
+
+// 点击窗口处理（关闭菜单和输入框）
 function handleWindowClick(event: MouseEvent) {
-  // 只关闭已打开的菜单和输入框
+  // 检查点击是否在交互元素上
+  const target = event.target as HTMLElement
+
+  // 如果点击的是菜单、输入框、气泡或其子元素，不处理
+  if (
+    target.closest('.context-menu') ||
+    target.closest('.input-panel-container') ||
+    target.closest('.bubble') ||
+    target.closest('.recording-toast') ||
+    target.closest('.empty-state')
+  ) {
+    return
+  }
+
+  // 关闭菜单和输入框
   if (showMenu.value) {
     showMenu.value = false
   }
   if (showInput.value) {
     showInput.value = false
+    // 输入框关闭后，恢复动态穿透
+    live2dCanvasRef.value?.enablePassThrough()
   }
 }
 
@@ -405,6 +457,9 @@ function openInput() {
   showInput.value = true
   inputText.value = ''
   selectedImage.value = null
+  updateUIPositions()
+  // 禁用动态穿透，让整个窗口可以接收点击事件
+  live2dCanvasRef.value?.disablePassThrough()
 }
 
 // 选择图片
@@ -707,6 +762,8 @@ async function handleSendMessage() {
       showInput.value = false
       inputText.value = ''
       selectedImage.value = null
+      // 恢复动态穿透
+      live2dCanvasRef.value?.enablePassThrough()
 
       // 保存消息记录
       try {
@@ -968,7 +1025,18 @@ onMounted(async () => {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg-dark);
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+/* 需要交互的元素不穿透 */
+.live2d-canvas,
+.context-menu,
+.bubble,
+.recording-toast,
+.input-panel-container,
+.empty-state {
+  pointer-events: auto; /* 这些元素不穿透 */
 }
 
 .empty-state {
@@ -980,7 +1048,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg-dark);
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(20px);
   z-index: 10;
 
   .empty-content {
@@ -1069,24 +1138,7 @@ onMounted(async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-
-  &.center {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-
-  &.top {
-    top: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  &.bottom {
-    bottom: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-  }
+  transform: translateX(-50%);
 }
 
 .bubble-content {
@@ -1236,9 +1288,6 @@ onMounted(async () => {
 
 .input-panel-container {
   position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
   width: 400px;
   padding: 16px;
   background: rgba(26, 26, 26, 0.95);
@@ -1246,6 +1295,7 @@ onMounted(async () => {
   backdrop-filter: blur(20px);
   box-shadow: var(--shadow-lg);
   z-index: 200;
+  transform: translateX(-50%);
 
   display: flex;
   flex-direction: column;

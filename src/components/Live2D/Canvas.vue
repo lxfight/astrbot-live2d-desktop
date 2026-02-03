@@ -12,7 +12,9 @@ let model: Live2DModel | null = null
 const emit = defineEmits<{
   modelLoaded: []
   modelClick: [{ x: number; y: number }]
+  modelRightClick: [{ x: number; y: number }]
   modelInfoChanged: [{ name: string; motionGroups: string[]; expressions: string[] }]
+  modelPositionChanged: [{ x: number; y: number }]
 }>()
 
 /**
@@ -87,35 +89,159 @@ function playRandomMotion() {
   console.log('[Live2D] 播放随机动作')
 }
 
+// 拖动相关状态
+let isDragging = false
+let isDragStartedOnModel = false // 标记拖动是否从模型上开始
+let dragStartX = 0
+let dragStartY = 0
+let modelOffsetX = 0
+let modelOffsetY = 0
+const DRAG_THRESHOLD = 5 // 拖动阈值（像素）
+let passThroughEnabled = true // 是否启用动态穿透
+
 /**
- * 处理画布点击
+ * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
  */
-function handleCanvasClick(event: MouseEvent) {
+function isPointInModel(x: number, y: number): boolean {
+  if (!model || !model.model) return false
+
+  const modelSprite = model.model
+  const modelX = modelSprite.x
+  const modelY = modelSprite.y
+  const modelWidth = modelSprite.width
+  const modelHeight = modelSprite.height
+  const anchorX = modelSprite.anchor?.x ?? 0.5
+  const anchorY = modelSprite.anchor?.y ?? 0.5
+
+  // 计算模型的边界框
+  const left = modelX - modelWidth * anchorX
+  const right = modelX + modelWidth * (1 - anchorX)
+  const top = modelY - modelHeight * anchorY
+  const bottom = modelY + modelHeight * (1 - anchorY)
+
+  // 简单的矩形碰撞检测
+  return x >= left && x <= right && y >= top && y <= bottom
+}
+
+/**
+ * 处理鼠标按下
+ */
+function handleMouseDown(event: MouseEvent) {
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
 
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
 
-  // 使用 PIXI 的 interaction 系统检测点击
-  const PIXI = (window as any).PIXI
-  if (!PIXI || !model.model) return
+  // 检查是否点击到模型（使用优化的检测方法）
+  const hitModel = isPointInModel(x, y)
 
-  // 将屏幕坐标转换为模型本地坐标
-  const localPoint = model.model.toLocal(new PIXI.Point(x, y))
+  // 左键开始拖动
+  if (event.button === 0 && hitModel) {
+    isDragging = false // 先标记为未拖动，等移动超过阈值再标记
+    isDragStartedOnModel = true // 标记拖动从模型上开始
+    dragStartX = event.clientX
+    dragStartY = event.clientY
 
-  // 检查点击是否在模型的边界内
-  const bounds = model.model.getBounds()
-  const isHit = bounds.contains(x, y)
+    // 获取当前模型位置
+    if (model.model) {
+      modelOffsetX = model.model.x
+      modelOffsetY = model.model.y
+    }
 
-  console.log('[Canvas] 点击检测:', { x, y, isHit, bounds: bounds.toString() })
+    event.preventDefault()
+  }
+}
 
-  // 只有点击到模型时才触发事件并阻止冒泡
+/**
+ * 处理鼠标移动
+ */
+function handleMouseMove(event: MouseEvent) {
+  if (!model || !model.model) return
+
+  // 只有当拖动从模型上开始时才允许拖动
+  if (event.buttons === 1 && isDragStartedOnModel) {
+    const deltaX = event.clientX - dragStartX
+    const deltaY = event.clientY - dragStartY
+
+    // 判断是否超过拖动阈值
+    if (!isDragging && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
+      isDragging = true
+    }
+
+    // 如果正在拖动，更新模型位置
+    if (isDragging) {
+      model.model.x = modelOffsetX + deltaX
+      model.model.y = modelOffsetY + deltaY
+
+      // 发射模型位置变化事件
+      emit('modelPositionChanged', {
+        x: model.model.x,
+        y: model.model.y
+      })
+
+      event.preventDefault()
+    }
+  }
+}
+
+/**
+ * 处理鼠标释放
+ */
+function handleMouseUp(event: MouseEvent) {
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (!rect || !model) return
+
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // 检查是否点击到模型（使用优化的检测方法）
+  const isHit = isPointInModel(x, y)
+
+  // 如果没有拖动且点击到模型，触发点击事件
+  if (!isDragging && isHit && isDragStartedOnModel) {
+    event.stopPropagation()
+    emit('modelClick', { x: event.clientX, y: event.clientY })
+  }
+
+  // 重置拖动状态
+  isDragging = false
+  isDragStartedOnModel = false
+}
+
+/**
+ * 处理右键点击
+ */
+function handleContextMenu(event: MouseEvent) {
+  event.preventDefault()
+
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (!rect || !model) return
+
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // 检查是否点击到模型（使用优化的检测方法）
+  const isHit = isPointInModel(x, y)
+
   if (isHit) {
     event.stopPropagation()
-    emit('modelClick', { x, y })
+
+    // 发射右键点击事件，同时传递模型当前位置
+    if (model && model.model) {
+      emit('modelRightClick', {
+        x: model.model.x,
+        y: model.model.y
+      })
+    }
   }
-  // 如果没有点击到模型，让事件继续冒泡到父组件
+}
+
+/**
+ * 处理画布点击（已废弃，保留用于兼容）
+ */
+function handleCanvasClick(event: MouseEvent) {
+  // 此函数已被 handleMouseUp 和 handleContextMenu 替代
 }
 
 /**
@@ -131,18 +257,67 @@ function handleResize() {
   }
 }
 
+/**
+ * 处理鼠标移动（用于动态设置穿透）
+ */
+function handleMouseMoveForPassThrough(event: MouseEvent) {
+  // 如果动态穿透被禁用（有 UI 显示），不处理
+  if (!passThroughEnabled) return
+
+  if (!canvasRef.value || !model) return
+
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // 检查鼠标是否在模型上
+  const isOnModel = isPointInModel(x, y)
+
+  // 动态设置窗口穿透
+  // 参数说明：
+  // - ignore: true = 穿透，false = 不穿透
+  // - options.forward: true = 将事件转发给下层窗口
+  if (isOnModel) {
+    // 鼠标在模型上：不穿透，不转发
+    window.electron.window.setIgnoreMouseEvents(false)
+  } else {
+    // 鼠标不在模型上：穿透，转发给桌面
+    window.electron.window.setIgnoreMouseEvents(true)
+  }
+}
+
+/**
+ * 禁用动态穿透（当有 UI 元素显示时）
+ */
+function disablePassThrough() {
+  passThroughEnabled = false
+  window.electron.window.setIgnoreMouseEvents(false)
+}
+
+/**
+ * 启用动态穿透
+ */
+function enablePassThrough() {
+  passThroughEnabled = true
+  // 立即检查当前鼠标位置
+  const event = new MouseEvent('mousemove')
+  handleMouseMoveForPassThrough(event as any)
+}
+
 onMounted(() => {
   if (canvasRef.value) {
     // 设置画布大小
     canvasRef.value.width = window.innerWidth
     canvasRef.value.height = window.innerHeight
 
-    // 监听点击事件（包括右键）
-    canvasRef.value.addEventListener('click', handleCanvasClick)
-    canvasRef.value.addEventListener('contextmenu', (e) => {
-      e.preventDefault()
-      handleCanvasClick(e as MouseEvent)
-    })
+    // 监听鼠标事件
+    canvasRef.value.addEventListener('mousedown', handleMouseDown)
+    canvasRef.value.addEventListener('mousemove', handleMouseMove)
+    canvasRef.value.addEventListener('mouseup', handleMouseUp)
+    canvasRef.value.addEventListener('contextmenu', handleContextMenu)
+
+    // 监听鼠标移动以动态设置穿透
+    window.addEventListener('mousemove', handleMouseMoveForPassThrough)
 
     // 监听窗口大小变化
     window.addEventListener('resize', handleResize)
@@ -159,9 +334,13 @@ onUnmounted(() => {
   Live2DModel.destroyApp()
 
   if (canvasRef.value) {
-    canvasRef.value.removeEventListener('click', handleCanvasClick)
+    canvasRef.value.removeEventListener('mousedown', handleMouseDown)
+    canvasRef.value.removeEventListener('mousemove', handleMouseMove)
+    canvasRef.value.removeEventListener('mouseup', handleMouseUp)
+    canvasRef.value.removeEventListener('contextmenu', handleContextMenu)
   }
 
+  window.removeEventListener('mousemove', handleMouseMoveForPassThrough)
   window.removeEventListener('resize', handleResize)
 })
 
@@ -171,7 +350,9 @@ defineExpose({
   playMotion,
   setExpression,
   playRandomMotion,
-  getModelInfo
+  getModelInfo,
+  disablePassThrough,
+  enablePassThrough
 })
 </script>
 
@@ -180,5 +361,6 @@ defineExpose({
   width: 100%;
   height: 100%;
   display: block;
+  pointer-events: auto; /* Canvas 可以接收鼠标事件 */
 }
 </style>

@@ -126,8 +126,18 @@ export class Live2DModel {
         backgroundAlpha: 0,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
-        autoDensity: true
+        autoDensity: true,
+        // 性能优化选项
+        powerPreference: 'high-performance', // 使用高性能 GPU
+        preserveDrawingBuffer: false, // 不保留绘图缓冲区，避免 ReadPixels
+        clearBeforeRender: true
       })
+
+      // 禁用 PIXI 的交互管理器，我们使用自定义的点击检测
+      if (Live2DModel.app.renderer.plugins.interaction) {
+        Live2DModel.app.renderer.plugins.interaction.destroy()
+        delete Live2DModel.app.renderer.plugins.interaction
+      }
     }
 
     // 清空舞台上的所有内容
@@ -137,7 +147,7 @@ export class Live2DModel {
     const scale = Math.min(
       canvas.width / this.model.width,
       canvas.height / this.model.height
-    ) * 0.8
+    ) * 0.3  // 缩放系数：0.3 = 占屏幕 30%
 
     this.model.scale.set(scale)
     this.model.x = canvas.width / 2
@@ -163,7 +173,7 @@ export class Live2DModel {
     const scale = Math.min(
       width / this.model.width,
       height / this.model.height
-    ) * 0.8
+    ) * 0.3  // 缩放系数：0.3 = 占屏幕 30%
 
     this.model.scale.set(scale)
     this.model.x = width / 2

@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -11,19 +11,31 @@ let mainWindow: BrowserWindow | null = null
  * 创建 Live2D 显示窗口
  */
 export function createMainWindow(): BrowserWindow {
+  // 获取主显示器尺寸
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
+
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: width,
+    height: height,
+    x: 0,
+    y: 0,
     frame: false,
-    transparent: false,
-    backgroundColor: '#1a1a1a',
-    alwaysOnTop: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
     skipTaskbar: false,
-    resizable: true,
+    resizable: false,
+    hasShadow: false,
+    // Windows 特定配置
+    ...(process.platform === 'win32' ? {
+      type: 'toolbar', // 工具窗口类型，有助于透明度
+    } : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false // 防止后台节流
     }
   })
 
@@ -38,6 +50,15 @@ export function createMainWindow(): BrowserWindow {
       hash: '/main'
     })
   }
+
+  // 窗口加载完成后设置透明
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[主窗口] 页面加载完成')
+    // 确保窗口透明
+    if (mainWindow) {
+      mainWindow.setBackgroundColor('#00000000')
+    }
+  })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -87,5 +108,22 @@ export function setAlwaysOnTop(flag: boolean): void {
 export function setIgnoreMouseEvents(ignore: boolean): void {
   if (mainWindow) {
     mainWindow.setIgnoreMouseEvents(ignore, { forward: true })
+  }
+}
+
+/**
+ * 设置完全穿透模式
+ */
+export function setMousePassThrough(enable: boolean): void {
+  if (mainWindow) {
+    if (enable) {
+      // 完全穿透模式：整个窗口都穿透
+      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+      console.log('[主窗口] 已启用完全穿透模式')
+    } else {
+      // 非穿透模式：窗口不穿透（但可以通过 CSS pointer-events 控制局部穿透）
+      mainWindow.setIgnoreMouseEvents(false)
+      console.log('[主窗口] 已禁用完全穿透模式')
+    }
   }
 }

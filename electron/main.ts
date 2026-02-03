@@ -16,8 +16,8 @@ import './ipc/shortcut'
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 app.commandLine.appendSwitch('disable-gpu-program-cache')
 
-// 禁用硬件加速（可选，解决某些渲染问题）
-// app.disableHardwareAcceleration()
+// 启用硬件加速以获得更好的性能
+// 注意：Windows 透明窗口在新版 Electron 中已支持硬件加速
 
 // 全局 WebSocket 客户端实例
 export let bridgeClient: L2DBridgeClient | null = null

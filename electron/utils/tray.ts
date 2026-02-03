@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { showMainWindow, hideMainWindow } from '../windows/mainWindow'
+import { showMainWindow, hideMainWindow, setMousePassThrough } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 
@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let tray: Tray | null = null
+let isPassThroughMode = false // 穿透模式状态
 
 /**
  * 创建系统托盘
@@ -31,6 +32,23 @@ export function createTray(): Tray {
   tray = new Tray(icon)
   tray.setToolTip('AstrBot Live2D')
 
+  // 更新托盘菜单
+  updateTrayMenu()
+
+  // 点击托盘图标显示/隐藏主窗口
+  tray.on('click', () => {
+    showMainWindow()
+  })
+
+  return tray
+}
+
+/**
+ * 更新托盘菜单
+ */
+function updateTrayMenu(): void {
+  if (!tray) return
+
   // 创建右键菜单
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -47,6 +65,17 @@ export function createTray(): Tray {
     },
     { type: 'separator' },
     {
+      label: isPassThroughMode ? '完全穿透模式' : '完全穿透模式',
+      type: 'checkbox',
+      checked: isPassThroughMode,
+      click: () => {
+        isPassThroughMode = !isPassThroughMode
+        setMousePassThrough(isPassThroughMode)
+        updateTrayMenu()
+      }
+    },
+    { type: 'separator' },
+    {
       label: '退出',
       click: () => {
         app.quit()
@@ -55,13 +84,6 @@ export function createTray(): Tray {
   ])
 
   tray.setContextMenu(contextMenu)
-
-  // 点击托盘图标显示/隐藏主窗口
-  tray.on('click', () => {
-    showMainWindow()
-  })
-
-  return tray
 }
 
 /**
