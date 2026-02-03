@@ -58,8 +58,10 @@
 
     <!-- 文字气泡 -->
     <Transition name="bubble">
-      <div v-if="currentBubble" class="bubble" :class="currentBubble.position">
-        {{ currentBubble.content }}
+      <div v-if="currentBubble" class="bubble" :class="currentBubble.position" @click.stop>
+        <div class="bubble-content">
+          <div v-html="renderBubbleMarkdown(currentBubble.content)"></div>
+        </div>
       </div>
     </Transition>
 
@@ -125,6 +127,9 @@ import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
 import { AudioRecorder } from '@/utils/AudioRecorder'
+import { marked } from 'marked'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
 const message = useMessage()
 const connectionStore = useConnectionStore()
@@ -143,6 +148,77 @@ const isRecording = ref(false)
 const recordingDuration = ref(0)
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
+
+// 配置 marked（与 History.vue 相同）
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false
+})
+
+marked.use({
+  extensions: [
+    {
+      name: 'latex-inline',
+      level: 'inline',
+      start(src: string) { return src.indexOf('$') },
+      tokenizer(src: string) {
+        const match = src.match(/^\$([^\$]+)\$/)
+        if (match) {
+          return {
+            type: 'latex-inline',
+            raw: match[0],
+            text: match[1]
+          }
+        }
+      },
+      renderer(token: any) {
+        try {
+          return katex.renderToString(token.text, { throwOnError: false })
+        } catch (e) {
+          return token.raw
+        }
+      }
+    },
+    {
+      name: 'latex-block',
+      level: 'block',
+      start(src: string) { return src.indexOf('$$') },
+      tokenizer(src: string) {
+        const match = src.match(/^\$\$([^\$]+)\$\$/)
+        if (match) {
+          return {
+            type: 'latex-block',
+            raw: match[0],
+            text: match[1]
+          }
+        }
+      },
+      renderer(token: any) {
+        try {
+          return katex.renderToString(token.text, {
+            displayMode: true,
+            throwOnError: false
+          })
+        } catch (e) {
+          return token.raw
+        }
+      }
+    }
+  ]
+})
+
+// 渲染气泡 Markdown
+function renderBubbleMarkdown(text: string): string {
+  if (!text) return ''
+  try {
+    return marked.parse(text) as string
+  } catch (error) {
+    console.error('[Main] Markdown渲染失败:', error)
+    return text
+  }
+}
 
 // 创建表演队列
 const performQueue = new PerformanceQueue()
@@ -922,15 +998,19 @@ onMounted(async () => {
 
 .bubble {
   position: absolute;
-  background: rgba(26, 26, 26, 0.9);
+  background: rgba(26, 26, 26, 0.95);
   color: var(--color-text-primary);
   padding: 12px 16px;
   border-radius: var(--radius);
   font-size: 14px;
-  max-width: 300px;
+  max-width: 600px;
+  max-height: 30vh;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 
   &.center {
     top: 50%;
@@ -948,6 +1028,151 @@ onMounted(async () => {
     bottom: 20%;
     left: 50%;
     transform: translateX(-50%);
+  }
+}
+
+.bubble-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  line-height: 1.6;
+  word-wrap: break-word;
+  word-break: break-word;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+
+  /* Markdown 样式 */
+  :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+    margin: 12px 0 8px 0;
+    font-weight: 600;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+
+  :deep(h1) { font-size: 1.6em; }
+  :deep(h2) { font-size: 1.4em; }
+  :deep(h3) { font-size: 1.2em; }
+  :deep(h4) { font-size: 1.1em; }
+
+  :deep(p) {
+    margin: 6px 0;
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+
+  :deep(ul), :deep(ol) {
+    margin: 6px 0;
+    padding-left: 20px;
+  }
+
+  :deep(li) {
+    margin: 3px 0;
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+
+  :deep(code) {
+    background: rgba(100, 108, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+    word-break: break-all;
+  }
+
+  :deep(pre) {
+    background: rgba(100, 108, 255, 0.1);
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 6px 0;
+    max-width: 100%;
+  }
+
+  :deep(pre code) {
+    background: none;
+    padding: 0;
+    word-break: normal;
+  }
+
+  :deep(blockquote) {
+    border-left: 3px solid rgba(100, 108, 255, 0.5);
+    padding-left: 10px;
+    margin: 6px 0;
+    color: var(--color-text-secondary);
+    word-wrap: break-word;
+  }
+
+  :deep(a) {
+    color: #646cff;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6px 0;
+    font-size: 0.9em;
+  }
+
+  :deep(th), :deep(td) {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 10px;
+    text-align: left;
+  }
+
+  :deep(th) {
+    background: rgba(100, 108, 255, 0.2);
+    font-weight: 600;
+  }
+
+  :deep(hr) {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 12px 0;
+  }
+
+  :deep(strong) {
+    font-weight: 600;
+    color: #fff;
+  }
+
+  :deep(em) {
+    font-style: italic;
+  }
+
+  /* LaTeX 公式样式 */
+  :deep(.katex) {
+    font-size: 1.05em;
+  }
+
+  :deep(.katex-display) {
+    margin: 12px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* 滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(100, 108, 255, 0.5);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(100, 108, 255, 0.7);
+    }
   }
 }
 
