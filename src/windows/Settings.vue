@@ -64,48 +64,10 @@
           </n-space>
         </div>
 
-        <!-- 表演设置 -->
-        <div v-if="activeMenu === 'perform'" class="panel">
-          <h2>表演设置</h2>
-          <n-form label-placement="left" label-width="140">
-            <n-form-item label="默认动作组">
-              <n-input v-model:value="performSettings.defaultMotionGroup" placeholder="idle" />
-            </n-form-item>
-            <n-form-item label="文字显示时长">
-              <n-input-number v-model:value="performSettings.textDuration" :min="1000" :max="10000" :step="500">
-                <template #suffix>毫秒</template>
-              </n-input-number>
-            </n-form-item>
-            <n-form-item label="动作优先级">
-              <n-input-number v-model:value="performSettings.motionPriority" :min="0" :max="3" />
-            </n-form-item>
-            <n-form-item label="自动播放动画">
-              <n-switch v-model:value="performSettings.autoPlayMotion" />
-            </n-form-item>
-            <n-form-item>
-              <n-button type="primary" @click="savePerformSettings">
-                保存设置
-              </n-button>
-            </n-form-item>
-          </n-form>
-        </div>
-
         <!-- 高级选项 -->
         <div v-if="activeMenu === 'advanced'" class="panel">
           <h2>高级选项</h2>
           <n-form label-placement="left" label-width="140">
-            <n-form-item label="窗口置顶">
-              <n-switch v-model:value="advancedSettings.alwaysOnTop" @update:value="handleAlwaysOnTopChange" />
-            </n-form-item>
-            <n-form-item label="鼠标穿透">
-              <n-switch v-model:value="advancedSettings.ignoreMouseEvents" @update:value="handleIgnoreMouseChange" />
-            </n-form-item>
-            <n-form-item label="启动时自动连接">
-              <n-switch v-model:value="advancedSettings.autoConnect" />
-            </n-form-item>
-            <n-form-item label="启动时自动加载模型">
-              <n-switch v-model:value="advancedSettings.autoLoadModel" />
-            </n-form-item>
             <n-form-item label="全局录音快捷键">
               <n-space>
                 <n-input
@@ -166,20 +128,8 @@ const serverUrl = ref(connectionStore.serverUrl)
 const token = ref(connectionStore.token)
 const modelList = ref<Array<{ name: string; path: string }>>([])
 
-// 表演设置
-const performSettings = ref({
-  defaultMotionGroup: 'idle',
-  textDuration: 3000,
-  motionPriority: 2,
-  autoPlayMotion: true
-})
-
 // 高级设置
 const advancedSettings = ref({
-  alwaysOnTop: false,
-  ignoreMouseEvents: false,
-  autoConnect: false,
-  autoLoadModel: true,
   recordingShortcut: 'Alt+R'
 })
 
@@ -188,7 +138,6 @@ const shortcutRegistered = ref(false)
 const menuItems = [
   { key: 'connection', icon: '🌐', label: '连接' },
   { key: 'model', icon: '🎭', label: '模型' },
-  { key: 'perform', icon: '🎬', label: '表演' },
   { key: 'advanced', icon: '⚙️', label: '高级' }
 ]
 
@@ -231,11 +180,6 @@ async function checkShortcutRegistration() {
 
 function loadSettings() {
   // 从 localStorage 加载设置
-  const savedPerformSettings = localStorage.getItem('performSettings')
-  if (savedPerformSettings) {
-    performSettings.value = JSON.parse(savedPerformSettings)
-  }
-
   const savedAdvancedSettings = localStorage.getItem('advancedSettings')
   if (savedAdvancedSettings) {
     advancedSettings.value = JSON.parse(savedAdvancedSettings)
@@ -304,11 +248,6 @@ async function handleDeleteModel(modelName: string) {
   } else {
     message.error(`删除失败: ${result.error}`)
   }
-}
-
-function savePerformSettings() {
-  localStorage.setItem('performSettings', JSON.stringify(performSettings.value))
-  message.success('表演设置已保存')
 }
 
 function saveAdvancedSettings() {
@@ -380,14 +319,6 @@ async function handleRegisterShortcut() {
   }
 }
 
-async function handleAlwaysOnTopChange(value: boolean) {
-  await window.electron.window.setAlwaysOnTop(value)
-}
-
-async function handleIgnoreMouseChange(value: boolean) {
-  await window.electron.window.setIgnoreMouseEvents(value)
-}
-
 function handleClearCache() {
   dialog.warning({
     title: '清除缓存',
@@ -397,14 +328,12 @@ function handleClearCache() {
     onPositiveClick: () => {
       // 清除 localStorage 中的缓存数据（保留设置）
       const lastModelPath = localStorage.getItem('lastModelPath')
-      const performSettingsStr = localStorage.getItem('performSettings')
       const advancedSettingsStr = localStorage.getItem('advancedSettings')
 
       localStorage.clear()
 
       // 恢复设置
       if (lastModelPath) localStorage.setItem('lastModelPath', lastModelPath)
-      if (performSettingsStr) localStorage.setItem('performSettings', performSettingsStr)
       if (advancedSettingsStr) localStorage.setItem('advancedSettings', advancedSettingsStr)
 
       message.success('缓存已清除')
@@ -420,17 +349,7 @@ function handleResetSettings() {
     negativeText: '取消',
     onPositiveClick: () => {
       localStorage.clear()
-      performSettings.value = {
-        defaultMotionGroup: 'idle',
-        textDuration: 3000,
-        motionPriority: 2,
-        autoPlayMotion: true
-      }
       advancedSettings.value = {
-        alwaysOnTop: false,
-        ignoreMouseEvents: false,
-        autoConnect: false,
-        autoLoadModel: true,
         recordingShortcut: 'Alt+R'
       }
       message.success('设置已重置')
