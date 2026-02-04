@@ -6,6 +6,7 @@ import App from './App.vue'
 import MainWindow from './windows/Main.vue'
 import SettingsWindow from './windows/Settings.vue'
 import HistoryWindow from './windows/History.vue'
+import WelcomeWindow from './windows/Welcome.vue'
 import './styles/global.scss'
 
 // 创建路由
@@ -15,7 +16,8 @@ const router = createRouter({
     { path: '/', redirect: '/main' },
     { path: '/main', component: MainWindow },
     { path: '/settings', component: SettingsWindow },
-    { path: '/history', component: HistoryWindow }
+    { path: '/history', component: HistoryWindow },
+    { path: '/welcome', component: WelcomeWindow }
   ]
 })
 

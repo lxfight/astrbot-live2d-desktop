@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { createMainWindow } from './windows/mainWindow'
 import { showSettingsWindow } from './windows/settingsWindow'
 import { showHistoryWindow } from './windows/historyWindow'
-import { initDatabase, closeDatabase } from './database/schema'
+import { createWelcomeWindow, closeWelcomeWindow } from './windows/welcomeWindow'
+import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
@@ -11,6 +12,7 @@ import './ipc/window'
 import './ipc/history'
 import './ipc/model'
 import './ipc/shortcut'
+import './ipc/user'
 
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
@@ -29,12 +31,23 @@ async function initialize() {
   // 初始化数据库
   initDatabase()
 
-  // 创建主窗口
-  createMainWindow()
+  // 检查是否是首次启动（没有用户名）
+  const userName = getUserName()
+  if (!userName) {
+    // 首次启动，显示欢迎窗口
+    createWelcomeWindow()
+  } else {
+    // 非首次启动，直接创建主窗口
+    createMainWindow()
+    createTray()
+    initBridgeClient()
+  }
+}
 
-  // 创建系统托盘
-  createTray()
-
+/**
+ * 初始化 Bridge 客户端
+ */
+export function initBridgeClient() {
   // 创建 WebSocket 客户端
   bridgeClient = new L2DBridgeClient()
 

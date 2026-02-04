@@ -38,12 +38,20 @@ contextBridge.exposeInMainWorld('electron', {
     closeSettings: () => ipcRenderer.invoke('window:closeSettings'),
     openHistory: () => ipcRenderer.invoke('window:openHistory'),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
+    closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
     setAlwaysOnTop: (flag: boolean) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
     setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
     onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
       ipcRenderer.removeAllListeners('window:passThroughModeChanged')
       ipcRenderer.on('window:passThroughModeChanged', (event, enabled) => callback(enabled))
     }
+  },
+
+  // 用户配置
+  user: {
+    setUserName: (name: string) => ipcRenderer.invoke('user:setUserName', name),
+    getUserName: () => ipcRenderer.invoke('user:getUserName'),
+    getUserId: () => ipcRenderer.invoke('user:getUserId')
   },
 
   // 历史记录

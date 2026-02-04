@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 import path from 'path'
+import crypto from 'crypto'
 
 let db: Database.Database | null = null
 
@@ -18,6 +19,13 @@ export function initDatabase(): Database.Database {
 
   // 创建表
   db.exec(`
+    -- 用户配置表
+    CREATE TABLE IF NOT EXISTS user_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- 消息表
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,3 +338,74 @@ export function clearHistory(): void {
   `)
   console.log('[数据库] 历史记录已清空')
 }
+
+/**
+ * 获取用户配置
+ */
+export function getUserConfig(key: string): string | null {
+  const db = getDatabase()
+  const stmt = db.prepare('SELECT value FROM user_config WHERE key = ?')
+  const result = stmt.get(key) as any
+  return result ? result.value : null
+}
+
+/**
+ * 设置用户配置
+ */
+export function setUserConfig(key: string, value: string): void {
+  const db = getDatabase()
+  const stmt = db.prepare(`
+    INSERT INTO user_config (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = CURRENT_TIMESTAMP
+  `)
+  stmt.run(key, value)
+}
+
+/**
+ * 获取或生成用户ID
+ */
+export function getUserId(): string {
+  let userId = getUserConfig('user_id')
+  if (!userId) {
+    // 生成默认用户ID（时间戳）
+    userId = Date.now().toString()
+    setUserConfig('user_id', userId)
+  }
+  return userId
+}
+
+/**
+ * 获取用户名称
+ */
+export function getUserName(): string | null {
+  const userName = getUserConfig('user_name')
+  // 如果用户名为空或无效，返回 null（触发欢迎窗口）
+  if (!userName || userName.trim() === '') {
+    return null
+  }
+  return userName
+}
+
+/**
+ * 设置用户名称
+ */
+export function setUserName(name: string): void {
+  setUserConfig('user_name', name)
+  // 同时更新 user_id 为名称的哈希值（确保唯一性）
+  const hash = crypto.createHash('md5').update(name).digest('hex')
+  const userId = hash.substring(0, 15) // 取前15位作为数字ID
+  setUserConfig('user_id', parseInt(userId, 16).toString())
+}
+
+/**
+ * 清空用户配置
+ */
+export function clearUserConfig(): void {
+  const db = getDatabase()
+  db.exec('DELETE FROM user_config')
+  console.log('[数据库] 用户配置已清空')
+}
+

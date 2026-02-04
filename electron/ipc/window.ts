@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
+import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
 
 /**
@@ -32,6 +33,14 @@ ipcMain.handle('window:openHistory', async () => {
  */
 ipcMain.handle('window:closeHistory', async () => {
   closeHistoryWindow()
+  return { success: true }
+})
+
+/**
+ * 关闭欢迎窗口
+ */
+ipcMain.handle('window:closeWelcome', async () => {
+  closeWelcomeWindow()
   return { success: true }
 })
 

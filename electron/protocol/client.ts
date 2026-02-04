@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
 import { EventEmitter } from 'events'
+import { getUserId } from '../database/schema'
 import type {
   BasePacket,
   HandshakePayload,
@@ -106,9 +107,12 @@ export class L2DBridgeClient extends EventEmitter {
    * 发送握手请求
    */
   private sendHandshake(): void {
+    // 从数据库获取用户ID
+    const userId = getUserId()
+
     const payload: HandshakePayload = {
       version: '1.0.0',
-      clientId: 'desktop-client',
+      clientId: userId,
       token: this.token
     }
 
