@@ -41,7 +41,14 @@
 
     <!-- 圆形交互菜单 -->
     <Transition name="menu">
-      <div v-if="showMenu" class="context-menu" :style="menuStyle" @click.stop>
+      <div
+        v-if="showMenu"
+        class="context-menu"
+        :style="menuStyle"
+        @click.stop
+        @mouseenter="handleMenuMouseEnter"
+        @mouseleave="handleMenuMouseLeave"
+      >
         <div class="menu-item" @click="openHistory">
           <span class="icon">📊</span>
           <span class="label">历史</span>
@@ -162,6 +169,7 @@ const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
+let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<any>(null)
 const bubbleStyle = ref({ left: '0px', top: '0px' })
 const showInput = ref(false)
@@ -396,6 +404,43 @@ function handleModelRightClick(position: { x: number; y: number }) {
     top: `${position.y - 100}px`
   }
   showMenu.value = true
+
+  // 启动自动关闭定时器（3秒后自动关闭）
+  startMenuAutoCloseTimer()
+}
+
+// 启动菜单自动关闭定时器
+function startMenuAutoCloseTimer() {
+  // 清除之前的定时器
+  if (menuAutoCloseTimer !== null) {
+    clearTimeout(menuAutoCloseTimer)
+  }
+
+  // 3秒后自动关闭菜单
+  menuAutoCloseTimer = window.setTimeout(() => {
+    showMenu.value = false
+    menuAutoCloseTimer = null
+  }, 3000)
+}
+
+// 清除菜单自动关闭定时器
+function clearMenuAutoCloseTimer() {
+  if (menuAutoCloseTimer !== null) {
+    clearTimeout(menuAutoCloseTimer)
+    menuAutoCloseTimer = null
+  }
+}
+
+// 鼠标进入菜单
+function handleMenuMouseEnter() {
+  // 鼠标进入菜单时，清除自动关闭定时器
+  clearMenuAutoCloseTimer()
+}
+
+// 鼠标离开菜单
+function handleMenuMouseLeave() {
+  // 鼠标离开菜单时，重新启动自动关闭定时器
+  startMenuAutoCloseTimer()
 }
 
 // 模型位置变化（拖动时）
@@ -445,6 +490,7 @@ function handleWindowClick(event: MouseEvent) {
   // 关闭菜单和输入框
   if (showMenu.value) {
     showMenu.value = false
+    clearMenuAutoCloseTimer()
   }
   if (showInput.value) {
     showInput.value = false
@@ -456,18 +502,21 @@ function handleWindowClick(event: MouseEvent) {
 // 打开历史记录窗口
 async function openHistory() {
   showMenu.value = false
+  clearMenuAutoCloseTimer()
   await window.electron.window.openHistory()
 }
 
 // 打开设置窗口
 async function openSettings() {
   showMenu.value = false
+  clearMenuAutoCloseTimer()
   await window.electron.window.openSettings()
 }
 
 // 打开输入框
 function openInput() {
   showMenu.value = false
+  clearMenuAutoCloseTimer()
   showInput.value = true
   inputText.value = ''
   selectedImage.value = null
@@ -728,6 +777,7 @@ async function sendAudioMessage(audioBlob: Blob) {
 // 播放随机动作
 function playRandomMotion() {
   showMenu.value = false
+  clearMenuAutoCloseTimer()
   live2dCanvasRef.value?.playRandomMotion()
 }
 
