@@ -223,6 +223,157 @@ export class Live2DModel {
   }
 
   /**
+   * 开始口型同步
+   */
+  startLipSync(audioElement: HTMLAudioElement): void {
+    if (!this.model) return
+
+    try {
+      // 检查模型是否支持口型同步
+      const internalModel = this.model.internalModel
+      if (!internalModel) {
+        console.warn('[Live2D] 模型不支持口型同步')
+        return
+      }
+
+      // 创建音频上下文和分析器
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 256
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      // 连接音频源
+      const source = audioContext.createMediaElementSource(audioElement)
+      source.connect(analyser)
+      analyser.connect(audioContext.destination)
+
+      // 口型同步参数名称（不同模型可能不同）
+      const lipSyncParams = [
+        'ParamMouthOpenY',  // Cubism 4 标准参数
+        'PARAM_MOUTH_OPEN_Y', // Cubism 2 标准参数
+        'mouth_open_y',
+        'MouthOpenY'
+      ]
+
+      // 找到模型支持的口型参数
+      let lipSyncParamIndex = -1
+      for (const paramName of lipSyncParams) {
+        try {
+          if (internalModel.coreModel) {
+            // Cubism 4
+            const paramIndex = internalModel.coreModel.getParameterIndex(paramName)
+            if (paramIndex >= 0) {
+              lipSyncParamIndex = paramIndex
+              console.log(`[Live2D] 使用口型参数: ${paramName}`)
+              break
+            }
+          } else if (internalModel.getParamIndex) {
+            // Cubism 2
+            const paramIndex = internalModel.getParamIndex(paramName)
+            if (paramIndex >= 0) {
+              lipSyncParamIndex = paramIndex
+              console.log(`[Live2D] 使用口型参数: ${paramName}`)
+              break
+            }
+          }
+        } catch (e) {
+          // 参数不存在，继续尝试下一个
+        }
+      }
+
+      if (lipSyncParamIndex < 0) {
+        console.warn('[Live2D] 未找到口型参数，无法进行口型同步')
+        return
+      }
+
+      // 口型同步动画循环
+      const updateLipSync = () => {
+        if (audioElement.paused || audioElement.ended) {
+          // 音频停止，重置口型
+          this.setLipSyncValue(0)
+          return
+        }
+
+        // 获取音频频率数据
+        analyser.getByteFrequencyData(dataArray)
+
+        // 计算平均音量（0-255）
+        let sum = 0
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i]
+        }
+        const average = sum / bufferLength
+
+        // 将音量映射到口型开合度（0-1）
+        const lipSyncValue = Math.min(average / 128, 1.0)
+
+        // 设置口型参数
+        this.setLipSyncValue(lipSyncValue)
+
+        // 继续下一帧
+        requestAnimationFrame(updateLipSync)
+      }
+
+      // 开始口型同步
+      console.log('[Live2D] 开始口型同步')
+      updateLipSync()
+
+      // 音频结束时清理
+      audioElement.addEventListener('ended', () => {
+        this.setLipSyncValue(0)
+        audioContext.close()
+        console.log('[Live2D] 口型同步结束')
+      }, { once: true })
+
+    } catch (error) {
+      console.error('[Live2D] 口型同步初始化失败:', error)
+    }
+  }
+
+  /**
+   * 设置口型参数值
+   */
+  private setLipSyncValue(value: number): void {
+    if (!this.model) return
+
+    try {
+      const internalModel = this.model.internalModel
+      if (!internalModel) return
+
+      // 口型参数名称列表
+      const lipSyncParams = [
+        'ParamMouthOpenY',
+        'PARAM_MOUTH_OPEN_Y',
+        'mouth_open_y',
+        'MouthOpenY'
+      ]
+
+      // 尝试设置口型参数
+      for (const paramName of lipSyncParams) {
+        try {
+          if (internalModel.coreModel) {
+            // Cubism 4
+            const paramIndex = internalModel.coreModel.getParameterIndex(paramName)
+            if (paramIndex >= 0) {
+              internalModel.coreModel.setParameterValueById(paramName, value)
+              return
+            }
+          } else if (internalModel.setParamFloat) {
+            // Cubism 2
+            internalModel.setParamFloat(paramName, value)
+            return
+          }
+        } catch (e) {
+          // 参数不存在，继续尝试下一个
+        }
+      }
+    } catch (error) {
+      // 忽略错误，避免频繁输出
+    }
+  }
+
+  /**
    * 获取模型信息
    */
   getModelInfo(): {

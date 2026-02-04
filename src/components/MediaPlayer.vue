@@ -33,6 +33,12 @@ const videoRef = ref<HTMLVideoElement>()
 const currentImage = ref<string>()
 const currentVideo = ref<string>()
 
+// 定义 emit
+const emit = defineEmits<{
+  audioStart: [audioElement: HTMLAudioElement]
+  audioEnd: []
+}>()
+
 /**
  * 播放音频（支持 URL、RID、inline base64）
  */
@@ -57,6 +63,9 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
     audioRef.value.src = audioUrl
     audioRef.value.volume = Math.max(0, Math.min(1, volume))
     await audioRef.value.play()
+
+    // 发射音频开始事件，传递 audio 元素用于口型同步
+    emit('audioStart', audioRef.value)
   } catch (error) {
     console.error('[媒体播放器] 音频播放失败:', error)
   }
@@ -135,6 +144,7 @@ function hideVideo() {
  */
 function handleAudioEnded() {
   console.log('[媒体播放器] 音频播放结束')
+  emit('audioEnd')
 }
 
 /**

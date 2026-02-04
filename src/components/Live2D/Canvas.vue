@@ -385,7 +385,12 @@ defineExpose({
   disablePassThrough,
   enablePassThrough,
   setModelPosition,
-  getModelPosition
+  getModelPosition,
+  startLipSync: (audioElement: HTMLAudioElement) => {
+    if (model) {
+      model.startLipSync(audioElement)
+    }
+  }
 })
 </script>
 

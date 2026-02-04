@@ -33,7 +33,11 @@
     />
 
     <!-- 媒体播放器 -->
-    <MediaPlayer ref="mediaPlayerRef" />
+    <MediaPlayer
+      ref="mediaPlayerRef"
+      @audio-start="handleAudioStart"
+      @audio-end="handleAudioEnd"
+    />
 
     <!-- 圆形交互菜单 -->
     <Transition name="menu">
@@ -717,6 +721,17 @@ async function sendAudioMessage(audioBlob: Blob) {
 function playRandomMotion() {
   showMenu.value = false
   live2dCanvasRef.value?.playRandomMotion()
+}
+
+// 处理音频开始播放（启动口型同步）
+function handleAudioStart(audioElement: HTMLAudioElement) {
+  console.log('[主窗口] 音频开始播放，启动口型同步')
+  live2dCanvasRef.value?.startLipSync(audioElement)
+}
+
+// 处理音频播放结束
+function handleAudioEnd() {
+  console.log('[主窗口] 音频播放结束')
 }
 
 // 发送消息
