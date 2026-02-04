@@ -56,6 +56,10 @@ userData/
 public/models/*
 !public/models/.gitkeep
 
+# Cubism Core 文件（构建时下载）
+public/lib/live2d.min.js
+public/lib/live2dcubismcore.min.js
+
 # Electron 打包产物
 *.dmg
 *.exe

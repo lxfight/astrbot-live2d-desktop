@@ -5,6 +5,26 @@
 
 /// <reference types="pixi.js" />
 
+import * as PIXI from 'pixi.js'
+import { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
+import { createNoise2D } from 'simplex-noise'
+
+// 将 PIXI 挂载到 window，供 pixi-live2d-display 使用
+if (typeof window !== 'undefined') {
+  (window as any).PIXI = PIXI
+}
+
+// 抑制 pixi-live2d-display 内部的 PIXI v7 弃用警告
+// 这是库本身的问题，等待官方更新
+const originalWarn = console.warn
+console.warn = function(...args: any[]) {
+  const message = args[0]
+  if (typeof message === 'string' && message.includes('renderer.plugins.interaction has been deprecated')) {
+    return
+  }
+  originalWarn.apply(console, args)
+}
+
 export class Live2DModel {
   private static app: any = null  // 共享的 PIXI Application
   private static canvas: HTMLCanvasElement | null = null
@@ -26,12 +46,6 @@ export class Live2DModel {
   async load(modelPath: string): Promise<void> {
     this.modelPath = modelPath
 
-    // 动态加载 PIXI.js 和 Live2D SDK
-    await this.loadSDK()
-
-    // 使用 pixi-live2d-display 加载模型
-    const { Live2DModel: PixiLive2DModel } = (window as any).PIXI.live2d
-
     try {
       this.model = await PixiLive2DModel.from(modelPath, {
         autoInteract: false
@@ -44,71 +58,16 @@ export class Live2DModel {
     }
   }
 
-  /**
-   * 动态加载 SDK
-   */
-  private async loadSDK(): Promise<void> {
-    const win = window as any
-
-    // 检查是否已加载
-    if (win.PIXI && win.PIXI.live2d) {
-      return
-    }
-
-    console.log('[Live2D] 开始加载 SDK...')
-
-    // 1. 加载 PIXI.js
-    if (!win.PIXI) {
-      console.log('[Live2D] 加载 PIXI.js...')
-      await this.loadScript('https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js')
-    }
-
-    // 2. 加载 Cubism 2 运行时（可选，支持旧版 .model.json 模型）
-    if (!win.Live2D) {
-      try {
-        console.log('[Live2D] 加载 Cubism 2 Core...')
-        await this.loadScript('https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js')
-      } catch (error) {
-        console.warn('[Live2D] Cubism 2 运行时加载失败，将仅支持 Cubism 4 模型')
-      }
-    }
-
-    // 3. 加载 Cubism 4 Core（支持 .model3.json 模型）
-    // 注意：官方 CDN 的 Core 版本为 5.1.0，仅支持 moc3 version 5
-    // moc3 version 6 需要 Cubism SDK 6.0+，需要手动下载部署
-    if (!win.Live2DCubismCore) {
-      console.log('[Live2D] 加载 Cubism Core...')
-      await this.loadScript('https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js')
-    }
-
-    // 4. 加载 pixi-live2d-display
-    if (!win.PIXI || !win.PIXI.live2d) {
-      console.log('[Live2D] 加载 pixi-live2d-display...')
-      await this.loadScript('https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js')
-    }
-
-    console.log('[Live2D] SDK 加载完成')
-  }
-
-  /**
-   * 加载脚本
-   */
-  private loadScript(src: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script')
-      script.src = src
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error(`Failed to load ${src}`))
-      document.head.appendChild(script)
-    })
-  }
+  // 待机动作相关
+  private noise2D = createNoise2D()
+  private idleMotionTime = 0
+  private idleMotionEnabled = true
+  private idleMotionAnimationId: number | null = null
 
   /**
    * 初始化 WebGL（创建共享的 PIXI Application）
    */
   initWebGL(canvas: HTMLCanvasElement): void {
-    const PIXI = (window as any).PIXI
-
     if (!this.model) {
       throw new Error('模型未加载')
     }
@@ -130,14 +89,10 @@ export class Live2DModel {
         // 性能优化选项
         powerPreference: 'high-performance', // 使用高性能 GPU
         preserveDrawingBuffer: false, // 不保留绘图缓冲区，避免 ReadPixels
-        clearBeforeRender: true
+        clearBeforeRender: true,
+        // PIXI v7 禁用事件系统
+        eventMode: 'none'
       })
-
-      // 禁用 PIXI 的交互管理器，我们使用自定义的点击检测
-      if (Live2DModel.app.renderer.plugins.interaction) {
-        Live2DModel.app.renderer.plugins.interaction.destroy()
-        delete Live2DModel.app.renderer.plugins.interaction
-      }
     }
 
     // 清空舞台上的所有内容
