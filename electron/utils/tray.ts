@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow } from '../windows/mainWindow'
+import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow, setAlwaysOnTop } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename)
 
 let tray: Tray | null = null
 let isPassThroughMode = false // 穿透模式状态
+let isAlwaysOnTop = true // 窗口置顶状态，默认为 true
 
 /**
  * 创建系统托盘
@@ -65,6 +66,17 @@ function updateTrayMenu(): void {
       click: () => showHistoryWindow()
     },
     { type: 'separator' },
+    {
+      label: '窗口置顶',
+      type: 'checkbox',
+      checked: isAlwaysOnTop,
+      click: () => {
+        isAlwaysOnTop = !isAlwaysOnTop
+        setAlwaysOnTop(isAlwaysOnTop)
+        console.log(`[系统托盘] 窗口置顶: ${isAlwaysOnTop ? '开启' : '关闭'}`)
+        updateTrayMenu()
+      }
+    },
     {
       label: '完全穿透模式',
       type: 'checkbox',
