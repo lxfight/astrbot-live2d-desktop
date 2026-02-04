@@ -124,7 +124,10 @@ export class L2DBridgeClient extends EventEmitter {
    * 处理接收到的数据包
    */
   private handlePacket(packet: BasePacket): void {
-    console.log('[L2D] 收到数据包:', packet.op, packet.payload)
+    // 过滤心跳日志，避免刷屏
+    if (packet.op !== OPS.SYS_PONG) {
+      console.log('[L2D] 收到数据包:', packet.op, packet.payload)
+    }
 
     switch (packet.op) {
       case OPS.SYS_HANDSHAKE_ACK:
@@ -132,7 +135,7 @@ export class L2DBridgeClient extends EventEmitter {
         break
 
       case OPS.SYS_PONG:
-        // 心跳响应
+        // 心跳响应，静默处理
         break
 
       case OPS.PERFORM_SHOW:
