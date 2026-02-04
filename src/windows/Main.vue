@@ -1178,7 +1178,7 @@ onMounted(async () => {
   padding: 12px 16px;
   border-radius: var(--radius);
   font-size: 14px;
-  max-width: 600px;
+  max-width: 450px;
   max-height: 30vh;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);

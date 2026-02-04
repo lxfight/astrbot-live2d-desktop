@@ -77,6 +77,9 @@
                   <n-button @click="handleClearHistory" type="error">
                     清空历史
                   </n-button>
+                  <n-button @click="handleRefresh" type="primary">
+                    刷新
+                  </n-button>
                 </n-space>
               </n-card>
 
@@ -342,6 +345,9 @@ onMounted(async () => {
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
+
+  // 监听窗口获得焦点时自动刷新
+  window.addEventListener('focus', handleWindowFocus)
 })
 
 onUnmounted(() => {
@@ -350,7 +356,15 @@ onUnmounted(() => {
   charts = []
 
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('focus', handleWindowFocus)
 })
+
+function handleWindowFocus() {
+  console.log('[历史窗口] 窗口获得焦点，自动刷新数据')
+  loadMessages()
+  loadStatistics()
+  loadAnalysisData()
+}
 
 function handleResize() {
   charts.forEach(chart => chart.resize())
@@ -689,6 +703,13 @@ function handleClearHistory() {
       }
     }
   })
+}
+
+async function handleRefresh() {
+  await loadMessages()
+  await loadStatistics()
+  await loadAnalysisData()
+  message.success('已刷新')
 }
 
 function formatTimestamp(timestamp: number): string {
