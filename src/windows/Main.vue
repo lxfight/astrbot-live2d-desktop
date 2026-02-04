@@ -61,10 +61,6 @@
           <span class="icon">💬</span>
           <span class="label">对话</span>
         </div>
-        <div class="menu-item" @click="playRandomMotion">
-          <span class="icon">🎭</span>
-          <span class="label">动作</span>
-        </div>
       </div>
     </Transition>
 
@@ -772,13 +768,6 @@ async function sendAudioMessage(audioBlob: Blob) {
   } catch (error: any) {
     message.error(`发送失败: ${error.message}`)
   }
-}
-
-// 播放随机动作
-function playRandomMotion() {
-  showMenu.value = false
-  clearMenuAutoCloseTimer()
-  live2dCanvasRef.value?.playRandomMotion()
 }
 
 // 处理音频开始播放（启动口型同步）
