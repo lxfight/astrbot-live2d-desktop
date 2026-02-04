@@ -5,6 +5,7 @@ import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow, set
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
+import { getUserConfig, setUserConfig } from '../database/schema'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -12,6 +13,37 @@ const __dirname = path.dirname(__filename)
 let tray: Tray | null = null
 let isPassThroughMode = false // 穿透模式状态
 let isAlwaysOnTop = true // 窗口置顶状态，默认为 true
+
+/**
+ * 加载托盘配置
+ */
+function loadTrayConfig(): void {
+  // 从数据库加载配置
+  const passThroughConfig = getUserConfig('tray_pass_through_mode')
+  const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
+  const gameModeConfig = getUserConfig('tray_game_mode')
+
+  // 恢复穿透模式
+  if (passThroughConfig !== null) {
+    isPassThroughMode = passThroughConfig === 'true'
+    setMousePassThrough(isPassThroughMode)
+    const mainWindow = getMainWindow()
+    if (mainWindow) {
+      mainWindow.webContents.send('window:passThroughModeChanged', isPassThroughMode)
+    }
+  }
+
+  // 恢复窗口置顶
+  if (alwaysOnTopConfig !== null) {
+    isAlwaysOnTop = alwaysOnTopConfig === 'true'
+    setAlwaysOnTop(isAlwaysOnTop)
+  }
+
+  // 恢复游戏模式
+  if (gameModeConfig === 'true' && !isGameModeActive()) {
+    enableGameMode()
+  }
+}
 
 /**
  * 创建系统托盘
@@ -33,6 +65,9 @@ export function createTray(): Tray {
 
   tray = new Tray(icon)
   tray.setToolTip('AstrBot Live2D')
+
+  // 加载保存的配置
+  loadTrayConfig()
 
   // 更新托盘菜单
   updateTrayMenu()
@@ -73,6 +108,7 @@ function updateTrayMenu(): void {
       click: () => {
         isAlwaysOnTop = !isAlwaysOnTop
         setAlwaysOnTop(isAlwaysOnTop)
+        setUserConfig('tray_always_on_top', isAlwaysOnTop.toString())
         console.log(`[系统托盘] 窗口置顶: ${isAlwaysOnTop ? '开启' : '关闭'}`)
         updateTrayMenu()
       }
@@ -84,6 +120,7 @@ function updateTrayMenu(): void {
       click: () => {
         isPassThroughMode = !isPassThroughMode
         setMousePassThrough(isPassThroughMode)
+        setUserConfig('tray_pass_through_mode', isPassThroughMode.toString())
 
         // 通知渲染进程穿透模式状态变化
         const mainWindow = getMainWindow()
@@ -101,8 +138,10 @@ function updateTrayMenu(): void {
       click: () => {
         if (isGameModeActive()) {
           disableGameMode()
+          setUserConfig('tray_game_mode', 'false')
         } else {
           enableGameMode()
+          setUserConfig('tray_game_mode', 'true')
         }
         updateTrayMenu()
       }
