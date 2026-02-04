@@ -721,8 +721,10 @@ function renderMarkdown(text: string): string {
   console.log('[History] renderMarkdown 输入:', text)
   try {
     const result = marked.parse(text) as string
-    console.log('[History] renderMarkdown 输出:', result)
-    return result
+    // 移除末尾的换行符（marked 会在末尾添加 \n）
+    const trimmed = result.trim()
+    console.log('[History] renderMarkdown 输出:', trimmed)
+    return trimmed
   } catch (error) {
     console.error('[History] Markdown渲染失败:', error)
     return text
@@ -1003,7 +1005,15 @@ function getMessageTypeColor(type: string): 'success' | 'info' | 'warning' {
   :deep(h4) { font-size: 1.1em; }
 
   :deep(p) {
-    margin: 8px 0;
+    margin: 4px 0;
+  }
+
+  :deep(p:first-child) {
+    margin-top: 0;
+  }
+
+  :deep(p:last-child) {
+    margin-bottom: 0;
   }
 
   :deep(ul), :deep(ol) {
