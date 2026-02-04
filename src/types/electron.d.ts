@@ -23,6 +23,7 @@ declare global {
         closeHistory: () => Promise<{ success: boolean }>
         setAlwaysOnTop: (flag: boolean) => Promise<{ success: boolean }>
         setIgnoreMouseEvents: (ignore: boolean) => Promise<{ success: boolean }>
+        onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
       }
       history: {
         getMessages: (options: any) => Promise<{ success: boolean; data?: any[]; error?: string }>

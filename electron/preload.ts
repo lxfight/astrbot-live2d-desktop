@@ -39,7 +39,11 @@ contextBridge.exposeInMainWorld('electron', {
     openHistory: () => ipcRenderer.invoke('window:openHistory'),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     setAlwaysOnTop: (flag: boolean) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
-    setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore)
+    setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
+    onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
+      ipcRenderer.removeAllListeners('window:passThroughModeChanged')
+      ipcRenderer.on('window:passThroughModeChanged', (event, enabled) => callback(enabled))
+    }
   },
 
   // 历史记录

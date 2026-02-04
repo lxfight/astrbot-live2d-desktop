@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { showMainWindow, hideMainWindow, setMousePassThrough } from '../windows/mainWindow'
+import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 
@@ -65,12 +65,19 @@ function updateTrayMenu(): void {
     },
     { type: 'separator' },
     {
-      label: isPassThroughMode ? '完全穿透模式' : '完全穿透模式',
+      label: isPassThroughMode ? '完全穿透模式开启' : '完全穿透模式',
       type: 'checkbox',
       checked: isPassThroughMode,
       click: () => {
         isPassThroughMode = !isPassThroughMode
         setMousePassThrough(isPassThroughMode)
+
+        // 通知渲染进程穿透模式状态变化
+        const mainWindow = getMainWindow()
+        if (mainWindow) {
+          mainWindow.webContents.send('window:passThroughModeChanged', isPassThroughMode)
+        }
+
         updateTrayMenu()
       }
     },

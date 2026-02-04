@@ -119,6 +119,7 @@ let modelOffsetX = 0
 let modelOffsetY = 0
 const DRAG_THRESHOLD = 5 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
+let isFullPassThroughMode = false // 是否处于完全穿透模式
 
 /**
  * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
@@ -282,6 +283,9 @@ function handleResize() {
  * 处理鼠标移动（用于动态设置穿透）
  */
 function handleMouseMoveForPassThrough(event: MouseEvent) {
+  // 如果处于完全穿透模式，不处理
+  if (isFullPassThroughMode) return
+
   // 如果动态穿透被禁用（有 UI 显示），不处理
   if (!passThroughEnabled) return
 
@@ -342,6 +346,12 @@ onMounted(() => {
 
     // 监听窗口大小变化
     window.addEventListener('resize', handleResize)
+
+    // 监听完全穿透模式变化
+    window.electron.window.onPassThroughModeChanged((enabled: boolean) => {
+      console.log('[Live2D] 完全穿透模式:', enabled ? '开启' : '关闭')
+      isFullPassThroughMode = enabled
+    })
   }
 })
 
