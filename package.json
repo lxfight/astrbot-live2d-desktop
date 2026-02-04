@@ -51,6 +51,7 @@
     "katex": "^0.16.28",
     "marked": "^17.0.1",
     "naive-ui": "^2.37.0",
+    "node-window-manager": "^2.2.4",
     "pinia": "^2.1.0",
     "uuid": "^9.0.0",
     "vue": "^3.4.0",

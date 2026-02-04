@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
+import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -65,7 +66,7 @@ function updateTrayMenu(): void {
     },
     { type: 'separator' },
     {
-      label: isPassThroughMode ? '完全穿透模式开启' : '完全穿透模式',
+      label: '完全穿透模式',
       type: 'checkbox',
       checked: isPassThroughMode,
       click: () => {
@@ -78,6 +79,19 @@ function updateTrayMenu(): void {
           mainWindow.webContents.send('window:passThroughModeChanged', isPassThroughMode)
         }
 
+        updateTrayMenu()
+      }
+    },
+    {
+      label: '自动检测全屏应用',
+      type: 'checkbox',
+      checked: isGameModeActive(),
+      click: () => {
+        if (isGameModeActive()) {
+          disableGameMode()
+        } else {
+          enableGameMode()
+        }
         updateTrayMenu()
       }
     },
