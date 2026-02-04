@@ -149,6 +149,9 @@ function isPointInModel(x: number, y: number): boolean {
  * 处理鼠标按下
  */
 function handleMouseDown(event: MouseEvent) {
+  // 如果处于完全穿透模式，不处理任何鼠标事件
+  if (isFullPassThroughMode) return
+
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
 
@@ -179,6 +182,9 @@ function handleMouseDown(event: MouseEvent) {
  * 处理鼠标移动
  */
 function handleMouseMove(event: MouseEvent) {
+  // 如果处于完全穿透模式，不处理任何鼠标事件
+  if (isFullPassThroughMode) return
+
   if (!model || !model.model) return
 
   // 只有当拖动从模型上开始时才允许拖动
@@ -211,6 +217,9 @@ function handleMouseMove(event: MouseEvent) {
  * 处理鼠标释放
  */
 function handleMouseUp(event: MouseEvent) {
+  // 如果处于完全穿透模式，不处理任何鼠标事件
+  if (isFullPassThroughMode) return
+
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
 
@@ -236,6 +245,9 @@ function handleMouseUp(event: MouseEvent) {
  */
 function handleContextMenu(event: MouseEvent) {
   event.preventDefault()
+
+  // 如果处于完全穿透模式，不处理任何鼠标事件
+  if (isFullPassThroughMode) return
 
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
@@ -351,6 +363,24 @@ onMounted(() => {
     window.electron.window.onPassThroughModeChanged((enabled: boolean) => {
       console.log('[Live2D] 完全穿透模式:', enabled ? '开启' : '关闭')
       isFullPassThroughMode = enabled
+
+      // 立即应用穿透设置
+      if (enabled) {
+        window.electron.window.setIgnoreMouseEvents(true)
+      } else {
+        window.electron.window.setIgnoreMouseEvents(false)
+      }
+    })
+
+    // 初始化时检查穿透模式状态
+    window.electron.window.getPassThroughMode().then((enabled: boolean) => {
+      console.log('[Live2D] 初始穿透模式状态:', enabled ? '开启' : '关闭')
+      isFullPassThroughMode = enabled
+
+      // 立即应用穿透设置
+      if (enabled) {
+        window.electron.window.setIgnoreMouseEvents(true)
+      }
     })
   }
 })

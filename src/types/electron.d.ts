@@ -24,6 +24,7 @@ declare global {
         closeWelcome: () => Promise<{ success: boolean }>
         setAlwaysOnTop: (flag: boolean) => Promise<{ success: boolean }>
         setIgnoreMouseEvents: (ignore: boolean) => Promise<{ success: boolean }>
+        getPassThroughMode: () => Promise<boolean>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
       }
       user: {

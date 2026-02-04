@@ -2,7 +2,8 @@ import { ipcMain } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
+import { setAlwaysOnTop, setIgnoreMouseEvents, getMainWindow } from '../windows/mainWindow'
+import { getUserConfig } from '../database/schema'
 
 /**
  * 打开设置窗口
@@ -58,4 +59,13 @@ ipcMain.handle('window:setAlwaysOnTop', async (event, flag: boolean) => {
 ipcMain.handle('window:setIgnoreMouseEvents', async (event, ignore: boolean) => {
   setIgnoreMouseEvents(ignore)
   return { success: true }
+})
+
+/**
+ * 获取当前穿透模式状态
+ */
+ipcMain.handle('window:getPassThroughMode', async () => {
+  const passThroughConfig = getUserConfig('tray_pass_through_mode')
+  const isPassThroughMode = passThroughConfig === 'true'
+  return isPassThroughMode
 })
