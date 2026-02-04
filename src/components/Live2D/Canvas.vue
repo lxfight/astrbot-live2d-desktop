@@ -20,7 +20,7 @@ const emit = defineEmits<{
 /**
  * 加载 Live2D 模型
  */
-async function loadModel(modelPath: string) {
+async function loadModel(modelPath: string, initialPosition?: { x: number; y: number }) {
   if (!canvasRef.value) {
     console.error('[Live2D] Canvas 未初始化')
     return
@@ -39,8 +39,8 @@ async function loadModel(modelPath: string) {
     // 加载新模型
     model = await Live2DModel.from(modelPath)
 
-    // 初始化或更新 WebGL（复用 Application）
-    model.initWebGL(canvasRef.value)
+    // 初始化或更新 WebGL（复用 Application），传入初始位置
+    model.initWebGL(canvasRef.value, initialPosition)
 
     console.log('[Live2D] 模型加载成功')
     emit('modelLoaded')

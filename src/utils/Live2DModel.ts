@@ -67,7 +67,7 @@ export class Live2DModel {
   /**
    * 初始化 WebGL（创建共享的 PIXI Application）
    */
-  initWebGL(canvas: HTMLCanvasElement): void {
+  initWebGL(canvas: HTMLCanvasElement, initialPosition?: { x: number; y: number }): void {
     if (!this.model) {
       throw new Error('模型未加载')
     }
@@ -105,8 +105,17 @@ export class Live2DModel {
     ) * 0.3  // 缩放系数：0.3 = 占屏幕 30%
 
     this.model.scale.set(scale)
-    this.model.x = canvas.width / 2
-    this.model.y = canvas.height / 2
+
+    // 使用传入的初始位置，如果没有则使用画布中心
+    if (initialPosition) {
+      this.model.x = initialPosition.x
+      this.model.y = initialPosition.y
+      console.log('[Live2D] 使用保存的位置:', initialPosition)
+    } else {
+      this.model.x = canvas.width / 2
+      this.model.y = canvas.height / 2
+      console.log('[Live2D] 使用默认中心位置')
+    }
     this.model.anchor.set(0.5, 0.5)
 
     // 添加到舞台

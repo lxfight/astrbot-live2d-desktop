@@ -337,20 +337,17 @@ async function handleImportModel() {
       return
     }
 
-    // 加载模型
-    await live2dCanvasRef.value?.loadModel(importResult.modelPath!)
+    // 加载模型，传入保存的位置（如果有）
+    const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
+    await live2dCanvasRef.value?.loadModel(importResult.modelPath!, savedPosition || undefined)
     hasModel.value = true
     modelStore.setCurrentModel(importResult.modelPath!)
 
-    // 恢复该模型的位置（如果之前保存过）
-    const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
+    // 如果有保存的位置，更新本地变量
     if (savedPosition) {
-      console.log('[主窗口] 恢复模型位置:', savedPosition)
-      setTimeout(() => {
-        live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
-        modelPositionX = savedPosition.x
-        modelPositionY = savedPosition.y
-      }, 100)
+      console.log('[主窗口] 使用保存的模型位置:', savedPosition)
+      modelPositionX = savedPosition.x
+      modelPositionY = savedPosition.y
     }
 
     message.success('模型导入成功')
@@ -842,19 +839,17 @@ onMounted(async () => {
     isLoadingModel = true
 
     try {
-      await live2dCanvasRef.value?.loadModel(modelPath)
+      // 获取保存的位置并传入 loadModel
+      const savedPosition = modelStore.getModelPosition(modelPath)
+      await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
       hasModel.value = true
       modelStore.setCurrentModel(modelPath)
 
-      // 恢复该模型的位置（如果之前保存过）
-      const savedPosition = modelStore.getModelPosition(modelPath)
+      // 如果有保存的位置，更新本地变量
       if (savedPosition) {
-        console.log('[主窗口] 恢复模型位置:', savedPosition)
-        setTimeout(() => {
-          live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
-          modelPositionX = savedPosition.x
-          modelPositionY = savedPosition.y
-        }, 100)
+        console.log('[主窗口] 使用保存的模型位置:', savedPosition)
+        modelPositionX = savedPosition.x
+        modelPositionY = savedPosition.y
       }
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
@@ -1027,20 +1022,17 @@ onMounted(async () => {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
 
     try {
-      await live2dCanvasRef.value?.loadModel(lastModelPath)
+      // 获取保存的位置并传入 loadModel
+      const savedPosition = modelStore.getModelPosition(lastModelPath)
+      await live2dCanvasRef.value?.loadModel(lastModelPath, savedPosition || undefined)
       modelStore.setCurrentModel(lastModelPath)
       console.log('[主窗口] 自动加载成功')
 
-      // 恢复该模型的位置
-      const savedPosition = modelStore.getModelPosition(lastModelPath)
+      // 如果有保存的位置，更新本地变量
       if (savedPosition) {
-        console.log('[主窗口] 恢复模型位置:', savedPosition)
-        // 等待模型完全加载后再设置位置
-        setTimeout(() => {
-          live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
-          modelPositionX = savedPosition.x
-          modelPositionY = savedPosition.y
-        }, 100)
+        console.log('[主窗口] 使用保存的模型位置:', savedPosition)
+        modelPositionX = savedPosition.x
+        modelPositionY = savedPosition.y
       }
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
