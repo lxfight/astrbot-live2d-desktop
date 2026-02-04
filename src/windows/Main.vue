@@ -342,6 +342,17 @@ async function handleImportModel() {
     hasModel.value = true
     modelStore.setCurrentModel(importResult.modelPath!)
 
+    // 恢复该模型的位置（如果之前保存过）
+    const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
+    if (savedPosition) {
+      console.log('[主窗口] 恢复模型位置:', savedPosition)
+      setTimeout(() => {
+        live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
+        modelPositionX = savedPosition.x
+        modelPositionY = savedPosition.y
+      }, 100)
+    }
+
     message.success('模型导入成功')
   } catch (error: any) {
     message.error(`导入模型失败: ${error.message}`)
@@ -834,6 +845,18 @@ onMounted(async () => {
       await live2dCanvasRef.value?.loadModel(modelPath)
       hasModel.value = true
       modelStore.setCurrentModel(modelPath)
+
+      // 恢复该模型的位置（如果之前保存过）
+      const savedPosition = modelStore.getModelPosition(modelPath)
+      if (savedPosition) {
+        console.log('[主窗口] 恢复模型位置:', savedPosition)
+        setTimeout(() => {
+          live2dCanvasRef.value?.setModelPosition(savedPosition.x, savedPosition.y)
+          modelPositionX = savedPosition.x
+          modelPositionY = savedPosition.y
+        }, 100)
+      }
+
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
       message.error(`模型加载失败: ${error.message}`)
@@ -1008,8 +1031,8 @@ onMounted(async () => {
       modelStore.setCurrentModel(lastModelPath)
       console.log('[主窗口] 自动加载成功')
 
-      // 恢复上次的模型位置
-      const savedPosition = modelStore.getModelPosition()
+      // 恢复该模型的位置
+      const savedPosition = modelStore.getModelPosition(lastModelPath)
       if (savedPosition) {
         console.log('[主窗口] 恢复模型位置:', savedPosition)
         // 等待模型完全加载后再设置位置

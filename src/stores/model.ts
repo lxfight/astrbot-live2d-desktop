@@ -18,19 +18,32 @@ export const useModelStore = defineStore('model', () => {
   }
 
   function setModelPosition(x: number, y: number) {
-    localStorage.setItem('modelPosition', JSON.stringify({ x, y }))
+    // 为当前模型保存位置
+    if (currentModel.value) {
+      const positions = getAllModelPositions()
+      positions[currentModel.value] = { x, y }
+      localStorage.setItem('modelPositions', JSON.stringify(positions))
+    }
   }
 
-  function getModelPosition(): { x: number; y: number } | null {
-    const saved = localStorage.getItem('modelPosition')
+  function getModelPosition(modelPath?: string): { x: number; y: number } | null {
+    const path = modelPath || currentModel.value
+    if (!path) return null
+
+    const positions = getAllModelPositions()
+    return positions[path] || null
+  }
+
+  function getAllModelPositions(): Record<string, { x: number; y: number }> {
+    const saved = localStorage.getItem('modelPositions')
     if (saved) {
       try {
         return JSON.parse(saved)
       } catch {
-        return null
+        return {}
       }
     }
-    return null
+    return {}
   }
 
   async function loadModelList() {
