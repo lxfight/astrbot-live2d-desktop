@@ -261,11 +261,11 @@ function handleContextMenu(event: MouseEvent) {
   if (isHit) {
     event.stopPropagation()
 
-    // 发射右键点击事件，同时传递模型当前位置
+    // 发射右键点击事件，传递鼠标点击位置（屏幕坐标）
     if (model && model.model) {
       emit('modelRightClick', {
-        x: model.model.x,
-        y: model.model.y
+        x: event.clientX,
+        y: event.clientY
       })
     }
   }

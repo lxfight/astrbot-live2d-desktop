@@ -154,9 +154,9 @@ import { ref, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
-import { 
-  Drama, FolderOpen, ChartColumn, Settings, MessageCircle, 
-  Image as ImageIcon, Clipboard, Disc, Mic, X 
+import {
+  Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
+  Image as ImageIcon, Clipboard, Disc, Mic, X
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
@@ -427,10 +427,10 @@ function handleModelRightClick(position: { x: number; y: number }) {
   modelPositionX = position.x
   modelPositionY = position.y
 
-  // 显示菜单（以鼠标位置为中心）
+  // 显示菜单（以鼠标位置为中心，微调偏移）
   menuStyle.value = {
-    left: `${position.x}px`,
-    top: `${position.y}px`
+    left: `${position.x + 30}px`,
+    top: `${position.y + 30}px`
   }
   showMenu.value = true
 
@@ -445,11 +445,11 @@ function startMenuAutoCloseTimer() {
     clearTimeout(menuAutoCloseTimer)
   }
 
-  // 3秒后自动关闭菜单
+  // 2秒后自动关闭菜单
   menuAutoCloseTimer = window.setTimeout(() => {
     showMenu.value = false
     menuAutoCloseTimer = null
-  }, 3000)
+  }, 2000)
 }
 
 // 清除菜单自动关闭定时器
@@ -569,10 +569,10 @@ function getMenuItemStyle(index: number, total: number) {
   const angleStep = 360 / total
   const angle = startAngle + index * angleStep
   const radian = (angle * Math.PI) / 180
-  
+
   const x = Math.cos(radian) * MENU_RADIUS
   const y = Math.sin(radian) * MENU_RADIUS
-  
+
   return {
     '--tx': `${x}px`,
     '--ty': `${y}px`,
@@ -1265,13 +1265,13 @@ onMounted(async () => {
     justify-content: center;
     cursor: pointer;
     pointer-events: auto; /* 恢复点击 */
-    
+
     /* 使用 CSS 变量控制位置 */
     transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay), 
-                background 0.3s, 
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay),
+                background 0.3s,
                 box-shadow 0.3s;
-    
+
     .menu-icon {
       color: #fff;
       display: flex;
