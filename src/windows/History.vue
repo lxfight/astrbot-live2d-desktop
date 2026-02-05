@@ -94,8 +94,13 @@
                     </div>
                     <div class="message-content-wrapper">
                       <div class="message-header">
-                        <span class="message-user">{{ msg.user_name || msg.user_id }}</span>
-
+                        <span class="message-user">
+                          {{ 
+                            msg.direction === 'incoming' 
+                              ? (msg.user_id === 'server' || msg.user_id === 'bot' ? 'AstrBot' : (msg.user_name || msg.user_id))
+                              : (msg.user_name || '我') 
+                          }}
+                        </span>
                       </div>
                       <div class="message-bubble">
                         <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)">
@@ -810,387 +815,851 @@ function handleClose() {
 </script>
 
 <style scoped lang="scss">
+
 .history-window {
+
   width: 100vw;
+
   height: 100vh;
-  background: var(--color-bg-dark);
+
+  background: var(--color-bg-dark); /* 深色背景基调 */
+
   overflow: hidden;
+
   display: flex;
+
   flex-direction: column;
+
+  color: var(--color-text-primary);
+
 }
+
+
 
 .window-header {
-  height: 32px;
-  background: var(--color-bg-light);
+
+  height: 40px; /* 稍微增加头部高度 */
+
+  background: rgba(30, 30, 35, 0.8); /* 半透明背景 */
+
+  backdrop-filter: blur(10px);
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   padding: 0 16px;
-  border-bottom: 1px solid var(--color-border);
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
   flex-shrink: 0;
+
+  z-index: 10;
+
+
 
   .header-title {
+
     display: flex;
+
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 500;
+
+    gap: 10px;
+
+    font-size: 14px;
+
+    font-weight: 600;
+
     color: var(--color-text-primary);
+
+    
+
+    svg {
+
+      color: #646cff; /* 强调色图标 */
+
+    }
+
   }
+
+
 
   .window-close-btn {
-    width: 24px;
-    height: 24px;
+
+    width: 28px;
+
+    height: 28px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
-    border-radius: 4px;
+
+    border-radius: 6px;
+
     background: transparent;
+
     color: var(--color-text-secondary);
-    transition: all 0.2s;
+
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    border: none;
+
+    cursor: pointer;
+
+
 
     &:hover {
-      background: rgba(255, 77, 79, 0.1);
-      color: var(--color-error);
+
+      background: rgba(255, 77, 79, 0.2);
+
+      color: #ff4d4f;
+
+      transform: scale(1.05);
+
     }
+
+    
+
+    &:active {
+
+      transform: scale(0.95);
+
+    }
+
   }
+
 }
+
+
 
 .history-container {
-  max-width: 1400px;
+
+  max-width: 1200px; /* 限制最大宽度，提升阅读体验 */
+
   margin: 0 auto;
-  padding: var(--spacing-lg);
+
+  padding: 24px;
+
   flex: 1;
-  overflow: auto;
-  width: 100%;
-}
 
-.statistics-panel,
-.history-panel,
-.analysis-panel {
-  padding: var(--spacing-md) 0;
-}
-
-.chart {
-  width: 100%;
-  height: 300px;
-}
-
-.chart-large {
-  width: 100%;
-  height: 400px;
-}
-
-/* 消息列表样式 */
-.message-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px 0;
-}
-
-.message-item {
-  display: flex;
-  gap: 12px;
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.message-incoming {
-  flex-direction: row;
-}
-
-.message-outgoing {
-  flex-direction: row-reverse;
-}
-
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.message-content-wrapper {
-  flex: 1;
-  max-width: 70%;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.message-outgoing .message-content-wrapper {
-  align-items: flex-end;
-}
-
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.message-outgoing .message-header {
-  flex-direction: row-reverse;
-}
-
-.message-user {
-  font-weight: 500;
-}
-
-.message-bubble {
-  background: var(--color-bg-light);
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  word-wrap: break-word;
-}
-
-.message-outgoing .message-bubble {
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-  color: white;
-}
-
-.message-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-}
-
-.message-outgoing .message-footer {
-  flex-direction: row-reverse;
-}
-
-.message-time {
-  font-weight: 500;
-}
-
-.message-id {
-  opacity: 0.6;
-}
-
-/* 内容项样式 */
-.content-item {
-  margin-bottom: 8px;
-}
-
-.content-item:last-child {
-  margin-bottom: 0;
-}
-
-.text-content {
-  line-height: 1.6;
-  white-space: pre-wrap;
-
-  /* Markdown 样式 */
-  :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
-    margin: 16px 0 8px 0;
-    font-weight: 600;
-    line-height: 1.4;
-  }
-
-  :deep(h1) { font-size: 1.8em; }
-  :deep(h2) { font-size: 1.5em; }
-  :deep(h3) { font-size: 1.3em; }
-  :deep(h4) { font-size: 1.1em; }
-
-  :deep(p) {
-    margin: 4px 0;
-  }
-
-  :deep(p:first-child) {
-    margin-top: 0;
-  }
-
-  :deep(p:last-child) {
-    margin-bottom: 0;
-  }
-
-  :deep(ul), :deep(ol) {
-    margin: 8px 0;
-    padding-left: 24px;
-  }
-
-  :deep(li) {
-    margin: 4px 0;
-  }
-
-  :deep(code) {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 0.9em;
-  }
-
-  :deep(pre) {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 8px 0;
-  }
-
-  :deep(pre code) {
-    background: none;
-    padding: 0;
-  }
-
-  :deep(blockquote) {
-    border-left: 4px solid rgba(100, 108, 255, 0.5);
-    padding-left: 12px;
-    margin: 8px 0;
-    color: var(--color-text-secondary);
-  }
-
-  :deep(a) {
-    color: #646cff;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  :deep(table) {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 8px 0;
-  }
-
-  :deep(th), :deep(td) {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 12px;
-    text-align: left;
-  }
-
-  :deep(th) {
-    background: rgba(100, 108, 255, 0.1);
-    font-weight: 600;
-  }
-
-  :deep(hr) {
-    border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    margin: 16px 0;
-  }
-
-  /* LaTeX 公式样式 */
-  :deep(.katex) {
-    font-size: 1.1em;
-  }
-
-  :deep(.katex-display) {
-    margin: 16px 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-}
-
-.message-outgoing .text-content {
-  :deep(code) {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  :deep(pre) {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  :deep(blockquote) {
-    border-left-color: rgba(255, 255, 255, 0.5);
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  :deep(a) {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  :deep(th), :deep(td) {
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  :deep(th) {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  :deep(hr) {
-    border-top-color: rgba(255, 255, 255, 0.2);
-  }
-}
-
-.image-content {
-  margin-top: 8px;
-}
-
-.image-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 20px;
-  background: rgba(100, 108, 255, 0.1);
-  border-radius: 8px;
-  color: var(--color-text-secondary);
-}
-
-.audio-content,
-.video-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(100, 108, 255, 0.1);
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-/* 表演序列样式 */
-.performance-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.performance-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.performance-elements {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.performance-text-preview {
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  max-height: 300px;
   overflow-y: auto;
 
-  .text-content {
-    font-size: 0.95em;
+  overflow-x: hidden;
+
+  width: 100%;
+
+  
+
+  /* 自定义滚动条 */
+
+  &::-webkit-scrollbar {
+
+    width: 6px;
+
   }
+
+  &::-webkit-scrollbar-track {
+
+    background: transparent;
+
+  }
+
+  &::-webkit-scrollbar-thumb {
+
+    background: rgba(255, 255, 255, 0.1);
+
+    border-radius: 3px;
+
+    &:hover {
+
+      background: rgba(255, 255, 255, 0.2);
+
+    }
+
+  }
+
 }
 
+
+
+.statistics-panel,
+
+.history-panel,
+
+.analysis-panel {
+
+  padding: 8px 0;
+
+}
+
+
+
+/* Naive UI Card Override */
+
+:deep(.n-card) {
+
+  background: rgba(40, 40, 45, 0.6) !important;
+
+  backdrop-filter: blur(10px);
+
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+
+  border-radius: 12px !important;
+
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  
+
+  &:hover {
+
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+
+  }
+
+}
+
+
+
+.chart {
+
+  width: 100%;
+
+  height: 320px;
+
+}
+
+
+
+.chart-large {
+
+  width: 100%;
+
+  height: 420px;
+
+}
+
+
+
+/* 消息列表样式 */
+
+.message-list {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 24px; /* 增加消息间距 */
+
+  padding: 16px 8px;
+
+}
+
+
+
+.message-item {
+
+  display: flex;
+
+  gap: 16px;
+
+  animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  max-width: 85%; /* 限制单条消息最大宽度 */
+
+}
+
+
+
+@keyframes slideIn {
+
+  from {
+
+    opacity: 0;
+
+    transform: translateY(20px);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translateY(0);
+
+  }
+
+}
+
+
+
+.message-incoming {
+
+  flex-direction: row;
+
+  align-self: flex-start; /* 靠左对齐 */
+
+}
+
+
+
+.message-outgoing {
+
+  flex-direction: row-reverse;
+
+  align-self: flex-end; /* 靠右对齐 */
+
+}
+
+
+
+.message-avatar {
+
+  flex-shrink: 0;
+
+  margin-top: 2px; /* 微调头像位置 */
+
+  
+
+  :deep(.n-avatar) {
+
+    background: rgba(255, 255, 255, 0.1);
+
+    border: 2px solid rgba(255, 255, 255, 0.05);
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  }
+
+}
+
+
+
+.message-content-wrapper {
+
+  flex: 1;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+  min-width: 0; /* 防止 flex 子项溢出 */
+
+}
+
+
+
+.message-outgoing .message-content-wrapper {
+
+  align-items: flex-end;
+
+}
+
+
+
+.message-header {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  font-size: 12px;
+
+  color: var(--color-text-secondary);
+
+  opacity: 0.8;
+
+}
+
+
+
+.message-outgoing .message-header {
+
+  flex-direction: row-reverse;
+
+}
+
+
+
+.message-user {
+
+  font-weight: 600;
+
+  letter-spacing: 0.5px;
+
+}
+
+
+
+.message-bubble {
+
+  background: rgba(50, 50, 55, 0.9);
+
+  border-radius: 4px 16px 16px 16px; /* 非对称圆角 */
+
+  padding: 14px 18px;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  word-wrap: break-word;
+
+  position: relative;
+
+  border: 1px solid rgba(255, 255, 255, 0.05);
+
+  transition: background-color 0.2s;
+
+
+
+  &:hover {
+
+    background: rgba(60, 60, 65, 0.95);
+
+  }
+
+}
+
+
+
+.message-outgoing .message-bubble {
+
+  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
+
+  border-radius: 16px 4px 16px 16px; /* 镜像非对称圆角 */
+
+  color: white;
+
+  border: none;
+
+  box-shadow: 0 4px 12px rgba(83, 91, 242, 0.3);
+
+  
+
+  &:hover {
+
+    filter: brightness(1.1);
+
+  }
+
+}
+
+
+
+/* 消息尾巴效果 (可选，稍微复杂，这里暂且省略，保持简洁现代感) */
+
+
+
+.message-footer {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  font-size: 11px;
+
+  color: var(--color-text-tertiary);
+
+  margin-top: 2px;
+
+  opacity: 0.6;
+
+  transition: opacity 0.2s;
+
+  
+
+  &:hover {
+
+    opacity: 1;
+
+  }
+
+}
+
+
+
+.message-outgoing .message-footer {
+
+  flex-direction: row-reverse;
+
+}
+
+
+
+.message-time {
+
+  font-family: 'JetBrains Mono', monospace;
+
+}
+
+
+
+/* 内容项样式 */
+
+.content-item {
+
+  margin-bottom: 8px;
+
+}
+
+
+
+.content-item:last-child {
+
+  margin-bottom: 0;
+
+}
+
+
+
+.text-content {
+
+  line-height: 1.7;
+
+  font-size: 14px;
+
+  white-space: pre-wrap;
+
+
+
+  /* Markdown 样式优化 */
+
+  :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
+
+    margin: 12px 0 8px 0;
+
+    font-weight: 700;
+
+    line-height: 1.3;
+
+  }
+
+  
+
+  :deep(p) {
+
+    margin: 6px 0;
+
+  }
+
+  
+
+  :deep(code) {
+
+    background: rgba(0, 0, 0, 0.2);
+
+    padding: 2px 6px;
+
+    border-radius: 4px;
+
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+
+    font-size: 0.9em;
+
+    color: #a5b4fc;
+
+  }
+
+  
+
+  :deep(pre) {
+
+    background: rgba(0, 0, 0, 0.3);
+
+    padding: 12px;
+
+    border-radius: 8px;
+
+    overflow-x: auto;
+
+    margin: 10px 0;
+
+    border: 1px solid rgba(255, 255, 255, 0.05);
+
+  }
+
+  
+
+  :deep(blockquote) {
+
+    border-left: 3px solid #646cff;
+
+    padding-left: 12px;
+
+    margin: 8px 0;
+
+    color: rgba(255, 255, 255, 0.6);
+
+    background: rgba(100, 108, 255, 0.1);
+
+    padding: 8px 12px;
+
+    border-radius: 0 4px 4px 0;
+
+  }
+
+  
+
+  :deep(a) {
+
+    color: #818cf8;
+
+    text-decoration: none;
+
+    border-bottom: 1px dashed rgba(129, 140, 248, 0.5);
+
+    transition: all 0.2s;
+
+
+
+    &:hover {
+
+      color: #a5b4fc;
+
+      border-bottom-style: solid;
+
+    }
+
+  }
+
+}
+
+
+
+.message-outgoing .text-content {
+
+  :deep(code) {
+
+    background: rgba(255, 255, 255, 0.2);
+
+    color: #e0e7ff;
+
+  }
+
+  
+
+  :deep(pre) {
+
+    background: rgba(0, 0, 0, 0.2);
+
+    border-color: rgba(255, 255, 255, 0.1);
+
+  }
+
+  
+
+  :deep(blockquote) {
+
+    border-left-color: rgba(255, 255, 255, 0.6);
+
+    background: rgba(255, 255, 255, 0.1);
+
+    color: rgba(255, 255, 255, 0.9);
+
+  }
+
+  
+
+  :deep(a) {
+
+    color: white;
+
+    border-bottom-color: rgba(255, 255, 255, 0.6);
+
+    &:hover {
+
+      opacity: 0.9;
+
+    }
+
+  }
+
+}
+
+
+
+.image-content {
+
+  margin-top: 8px;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+
+  transition: transform 0.2s;
+
+  
+
+  &:hover {
+
+    transform: scale(1.02);
+
+  }
+
+}
+
+
+
+.image-placeholder {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 24px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  border-radius: 8px;
+
+  color: var(--color-text-secondary);
+
+}
+
+
+
+.audio-content,
+
+.video-content {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 10px 14px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  border-radius: 8px;
+
+  font-size: 14px;
+
+  cursor: pointer;
+
+  transition: background 0.2s;
+
+  
+
+  &:hover {
+
+    background: rgba(0, 0, 0, 0.3);
+
+  }
+
+}
+
+
+
+.message-outgoing .audio-content,
+
+.message-outgoing .video-content {
+
+  background: rgba(255, 255, 255, 0.2);
+
+  &:hover {
+
+    background: rgba(255, 255, 255, 0.3);
+
+  }
+
+}
+
+
+
+/* 表演序列样式 */
+
+.performance-content {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 12px;
+
+  min-width: 280px;
+
+}
+
+
+
+.performance-header {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  font-weight: 600;
+
+  font-size: 14px;
+
+  padding-bottom: 10px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+  color: #a5b4fc;
+
+}
+
+
+
+.performance-elements {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  padding-bottom: 4px;
+
+}
+
+
+
+.performance-text-preview {
+
+  margin-top: 8px;
+
+  padding: 12px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  border-radius: 8px;
+
+  max-height: 200px;
+
+  overflow-y: auto;
+
+  border: 1px solid rgba(255, 255, 255, 0.05);
+
+
+
+  .text-content {
+
+    font-size: 0.9em;
+
+    color: rgba(255, 255, 255, 0.8);
+
+  }
+
+}
 
 </style>
