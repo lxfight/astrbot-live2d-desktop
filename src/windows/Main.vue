@@ -58,7 +58,7 @@
           v-for="(item, index) in menuItems"
           :key="item.key"
           class="radial-menu-item"
-          :style="getMenuItemStyle(index, menuItems.length)"
+          :style="{ ...getMenuItemStyle(index, menuItems.length), '--theme-color': themeColor }"
           @click="item.action"
         >
           <div class="menu-icon">
@@ -165,6 +165,8 @@ import { AudioRecorder } from '@/utils/AudioRecorder'
 import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+// @ts-ignore
+import ColorThief from 'colorthief'
 
 const message = useMessage()
 const connectionStore = useConnectionStore()
@@ -174,6 +176,7 @@ const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
+const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<any>(null)
 const bubbleStyle = ref({ left: '0px', top: '0px' })
@@ -370,10 +373,31 @@ async function handleImportModel() {
 }
 
 // 模型加载完成
-function handleModelLoaded() {
+async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
   message.success('模型加载成功')
+
+  // 提取主题色
+  try {
+    const img = live2dCanvasRef.value?.getTextureSource()
+    if (img) {
+      const colorThief = new ColorThief()
+      // 确保图片已加载
+      if (img.complete) {
+        const color = colorThief.getColor(img)
+        themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
+      } else {
+        img.addEventListener('load', () => {
+          const color = colorThief.getColor(img)
+          themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
+        })
+      }
+      console.log('[主窗口] 提取主题色:', themeColor.value)
+    }
+  } catch (error) {
+    console.warn('[主窗口] 提取主题色失败:', error)
+  }
 }
 
 // 模型信息变化
@@ -1232,9 +1256,9 @@ onMounted(async () => {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: rgba(26, 26, 26, 0.9);
+    background: var(--theme-color, rgba(26, 26, 26, 0.9));
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     display: flex;
     align-items: center;
@@ -1252,6 +1276,7 @@ onMounted(async () => {
       color: #fff;
       display: flex;
       transition: transform 0.3s;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
 
     .menu-label {
@@ -1271,8 +1296,9 @@ onMounted(async () => {
     }
 
     &:hover {
-      background: var(--color-accent);
-      box-shadow: 0 0 20px rgba(100, 108, 255, 0.5);
+      background: var(--theme-color);
+      filter: brightness(1.2);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
       z-index: 10;
 
       .menu-icon {

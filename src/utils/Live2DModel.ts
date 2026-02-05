@@ -422,6 +422,34 @@ export class Live2DModel {
   }
 
   /**
+   * 获取模型纹理源（用于颜色提取）
+   */
+  getTextureSource(): HTMLImageElement | null {
+    if (!this.model) return null
+
+    try {
+      // 尝试从内部模型获取纹理
+      // pixi-live2d-display 可能会将纹理存储在 internalModel 中
+      const internalModel = this.model.internalModel
+      if (internalModel && internalModel.coreModel) {
+        // Cubism 4 or 2
+        // 这里比较复杂，我们尝试直接从 PIXI DisplayObject 的 textures 获取
+        // 通常 model.textures 包含了所有纹理
+        const textures = (this.model as any).textures
+        if (Array.isArray(textures) && textures.length > 0) {
+          const texture = textures[0]
+          if (texture.baseTexture && texture.baseTexture.resource && texture.baseTexture.resource.source) {
+            return texture.baseTexture.resource.source as HTMLImageElement
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Live2D] 获取模型纹理失败:', e)
+    }
+    return null
+  }
+
+  /**
    * 销毁模型（仅移除模型，保留 Application）
    */
   destroy(): void {

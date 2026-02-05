@@ -416,6 +416,7 @@ defineExpose({
   enablePassThrough,
   setModelPosition,
   getModelPosition,
+  getTextureSource: () => model?.getTextureSource(),
   startLipSync: (audioElement: HTMLAudioElement) => {
     if (model) {
       model.startLipSync(audioElement)

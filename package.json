@@ -45,6 +45,7 @@
     "@vueuse/core": "^10.7.0",
     "axios": "^1.6.0",
     "better-sqlite3": "^9.2.0",
+    "colorthief": "^2.6.0",
     "date-fns": "^3.0.0",
     "echarts": "^5.4.0",
     "electron-store": "^8.1.0",
