@@ -30,11 +30,7 @@
                     <div ref="messageTrendRef" class="chart"></div>
                   </n-card>
                 </n-gi>
-                <n-gi>
-                  <n-card title="消息类型分布">
-                    <div ref="messageTypeRef" class="chart"></div>
-                  </n-card>
-                </n-gi>
+
                 <n-gi>
                   <n-card title="表演元素使用量">
                     <div ref="performElementRef" class="chart"></div>
@@ -66,14 +62,7 @@
                       <Search :size="16" />
                     </template>
                   </n-input>
-                  <n-select
-                    v-model:value="messageTypeFilter"
-                    :options="messageTypeOptions"
-                    placeholder="消息类型"
-                    clearable
-                    style="width: 150px"
-                    @update:value="loadMessages"
-                  />
+
                   <n-select
                     v-model:value="directionFilter"
                     :options="directionOptions"
@@ -106,9 +95,7 @@
                     <div class="message-content-wrapper">
                       <div class="message-header">
                         <span class="message-user">{{ msg.user_name || msg.user_id }}</span>
-                        <n-tag :type="getMessageTypeColor(msg.message_type)" size="small">
-                          {{ getMessageTypeLabel(msg.message_type) }}
-                        </n-tag>
+
                       </div>
                       <div class="message-bubble">
                         <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)">
@@ -324,14 +311,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const totalPages = ref(0)
 const keyword = ref('')
-const messageTypeFilter = ref<string>()
 const directionFilter = ref<string>()
-
-const messageTypeOptions = [
-  { label: '好友', value: 'friend' },
-  { label: '群聊', value: 'group' },
-  { label: '通知', value: 'notify' }
-]
 
 const directionOptions = [
   { label: '发送', value: 'outgoing' },
@@ -345,7 +325,6 @@ const avgResponseTime = ref(0)
 
 // 图表引用
 const messageTrendRef = ref<HTMLElement>()
-const messageTypeRef = ref<HTMLElement>()
 const performElementRef = ref<HTMLElement>()
 const activeHoursRef = ref<HTMLElement>()
 const motionRankRef = ref<HTMLElement>()
@@ -394,10 +373,6 @@ async function loadMessages() {
 
     if (keyword.value) {
       options.keyword = keyword.value
-    }
-
-    if (messageTypeFilter.value) {
-      options.messageType = messageTypeFilter.value
     }
 
     if (directionFilter.value) {
@@ -502,25 +477,6 @@ function renderCharts(data: any[]) {
     charts.push(chart)
   } else {
     console.warn('[History] messageTrendRef 未找到')
-  }
-
-  // 消息类型分布（饼图）
-  if (messageTypeRef.value) {
-    console.log('[History] 渲染消息类型分布图')
-    const chart = echarts.init(messageTypeRef.value)
-    const typeData = aggregateByType(data, 'message_count')
-    chart.setOption({
-      tooltip: { trigger: 'item' },
-      series: [{
-        name: '消息类型',
-        type: 'pie',
-        radius: '60%',
-        data: typeData
-      }]
-    })
-    charts.push(chart)
-  } else {
-    console.warn('[History] messageTypeRef 未找到')
   }
 
   // 表演元素使用量（柱状图）
@@ -641,13 +597,6 @@ function renderCharts(data: any[]) {
   }
 
   console.log('[History] 图表渲染完成，共', charts.length, '个图表')
-}
-
-function aggregateByType(data: any[], field: string) {
-  const total = data.reduce((sum, d) => sum + (d[field] || 0), 0)
-  return [
-    { name: '总计', value: total }
-  ]
 }
 
 function aggregateMotionUsage(data: any[]) {
@@ -840,15 +789,6 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 }
 
-function getMessageTypeLabel(type: string): string {
-  switch (type) {
-    case 'friend': return '好友'
-    case 'group': return '群聊'
-    case 'notify': return '通知'
-    default: return type
-  }
-}
-
 function formatContent(content: string): string {
   try {
     const parsed = JSON.parse(content)
@@ -861,15 +801,6 @@ function formatContent(content: string): string {
     return String(content)
   } catch {
     return String(content)
-  }
-}
-
-function getMessageTypeColor(type: string): 'success' | 'info' | 'warning' {
-  switch (type) {
-    case 'friend': return 'success'
-    case 'group': return 'info'
-    case 'notify': return 'warning'
-    default: return 'info'
   }
 }
 
