@@ -55,7 +55,7 @@
                     @update:value="handleSearch"
                   >
                     <template #prefix>
-                      <span>🔍</span>
+                      <Search :size="16" />
                     </template>
                   </n-input>
                   <n-select
@@ -92,7 +92,7 @@
                   >
                     <div class="message-avatar">
                       <n-avatar :size="40">
-                        {{ msg.direction === 'outgoing' ? '👤' : '🤖' }}
+                        <component :is="msg.direction === 'outgoing' ? User : Bot" :size="24" />
                       </n-avatar>
                     </div>
                     <div class="message-content-wrapper">
@@ -107,7 +107,7 @@
                           <!-- 表演序列消息 -->
                           <div class="performance-content">
                             <div class="performance-header">
-                              <n-icon size="18"><span>🎭</span></n-icon>
+                              <n-icon size="18"><Drama /></n-icon>
                               <span>表演序列</span>
                             </div>
                             <div class="performance-elements">
@@ -118,6 +118,9 @@
                                 size="small"
                                 style="margin: 2px"
                               >
+                                <template #icon>
+                                  <component :is="getElementIcon(element.type)" :size="14" />
+                                </template>
                                 {{ formatElement(element) }}
                               </n-tag>
                             </div>
@@ -141,18 +144,18 @@
                                 object-fit="cover"
                               />
                               <div v-else class="image-placeholder">
-                                <n-icon size="40"><span>🖼️</span></n-icon>
+                                <n-icon size="40"><ImageIcon /></n-icon>
                                 <span>图片</span>
                               </div>
                             </div>
                             <!-- 语音 -->
                             <div v-else-if="item.type === 'audio'" class="audio-content">
-                              <n-icon size="20"><span>🎤</span></n-icon>
+                              <n-icon size="20"><Mic /></n-icon>
                               <span>语音消息</span>
                             </div>
                             <!-- 视频 -->
                             <div v-else-if="item.type === 'video'" class="video-content">
-                              <n-icon size="20"><span>🎬</span></n-icon>
+                              <n-icon size="20"><Video /></n-icon>
                               <span>视频</span>
                             </div>
                           </div>
@@ -189,21 +192,21 @@
                 <n-gi>
                   <n-statistic label="总消息数" :value="totalMessages">
                     <template #prefix>
-                      <span style="font-size: 24px">💬</span>
+                      <MessageSquare :size="24" />
                     </template>
                   </n-statistic>
                 </n-gi>
                 <n-gi>
                   <n-statistic label="总表演次数" :value="totalPerformances">
                     <template #prefix>
-                      <span style="font-size: 24px">🎭</span>
+                      <Drama :size="24" />
                     </template>
                   </n-statistic>
                 </n-gi>
                 <n-gi>
                   <n-statistic label="平均响应速度" :value="avgResponseTime" suffix="ms">
                     <template #prefix>
-                      <span style="font-size: 24px">⚡</span>
+                      <Zap :size="24" />
                     </template>
                   </n-statistic>
                 </n-gi>
@@ -232,6 +235,10 @@ import { format } from 'date-fns'
 import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { 
+  Search, User, Bot, Drama, Image as ImageIcon, Mic, Video, 
+  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle 
+} from 'lucide-vue-next'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -772,24 +779,38 @@ function formatElement(element: any): string {
   switch (element.type) {
     case 'text':
       const textPreview = element.content?.substring(0, 15) || '文本'
-      return `💬 ${textPreview}${element.content?.length > 15 ? '...' : ''}`
+      return `${textPreview}${element.content?.length > 15 ? '...' : ''}`
     case 'image':
-      return '🖼️ 图片'
+      return '图片'
     case 'tts':
       const ttsPreview = element.text?.substring(0, 10) || '语音'
-      return `🔊 ${ttsPreview}${element.text?.length > 10 ? '...' : ''}`
+      return `${ttsPreview}${element.text?.length > 10 ? '...' : ''}`
     case 'audio':
-      return '🎤 音频'
+      return '音频'
     case 'video':
-      return '🎬 视频'
+      return '视频'
     case 'motion':
-      return `💃 动作: ${element.group}_${element.index}`
+      return `动作: ${element.group}_${element.index}`
     case 'expression':
-      return `😊 表情: ${element.expressionId || element.id}`
+      return `表情: ${element.expressionId || element.id}`
     case 'wait':
-      return `⏱️ 等待 ${element.duration}ms`
+      return `等待 ${element.duration}ms`
     default:
-      return `❓ ${element.type}`
+      return `${element.type}`
+  }
+}
+
+function getElementIcon(type: string) {
+  switch (type) {
+    case 'text': return MessageSquare
+    case 'image': return ImageIcon
+    case 'tts':
+    case 'audio': return Mic
+    case 'video': return Video
+    case 'motion': return Activity
+    case 'expression': return Smile
+    case 'wait': return Clock
+    default: return HelpCircle
   }
 }
 

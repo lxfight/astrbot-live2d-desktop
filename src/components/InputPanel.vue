@@ -15,17 +15,17 @@
         <n-space :size="8">
           <n-button text @click="handleSelectImage">
             <template #icon>
-              <span>🖼️</span>
+              <ImageIcon :size="18" />
             </template>
           </n-button>
           <n-button text @click="handleSelectAudio">
             <template #icon>
-              <span>🎵</span>
+              <Music :size="18" />
             </template>
           </n-button>
           <n-button text @click="handleSelectVideo">
             <template #icon>
-              <span>🎬</span>
+              <Video :size="18" />
             </template>
           </n-button>
           <n-button type="primary" @click="handleSend" :disabled="!canSend">
@@ -38,11 +38,13 @@
     <!-- 附件预览 -->
     <div v-if="attachments.length > 0" class="attachments">
       <div v-for="(item, index) in attachments" :key="index" class="attachment-item">
-        <span class="attachment-icon">{{ getAttachmentIcon(item.type) }}</span>
+        <span class="attachment-icon">
+          <component :is="getAttachmentIcon(item.type)" :size="16" />
+        </span>
         <span class="attachment-name">{{ item.name }}</span>
         <n-button text size="small" @click="removeAttachment(index)">
           <template #icon>
-            <span>❌</span>
+            <X :size="14" color="white" />
           </template>
         </n-button>
       </div>
@@ -53,6 +55,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useMessage } from 'naive-ui'
+import { Image as ImageIcon, Music, Video, X, Paperclip } from 'lucide-vue-next'
 import type { MessageContent } from '@/types/protocol'
 
 const message = useMessage()
@@ -253,12 +256,12 @@ async function uploadFile(file: File): Promise<string> {
 /**
  * 获取附件图标
  */
-function getAttachmentIcon(type: string): string {
+function getAttachmentIcon(type: string) {
   switch (type) {
-    case 'image': return '🖼️'
-    case 'audio': return '🎵'
-    case 'video': return '🎬'
-    default: return '📎'
+    case 'image': return ImageIcon
+    case 'audio': return Music
+    case 'video': return Video
+    default: return Paperclip
   }
 }
 </script>

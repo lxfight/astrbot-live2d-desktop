@@ -4,13 +4,15 @@
     <Transition name="fade">
       <div v-if="!hasModel" class="empty-state">
         <div class="empty-content">
-          <div class="empty-icon">🎭</div>
+          <div class="empty-icon">
+            <Drama :size="80" />
+          </div>
           <h2>欢迎使用 AstrBot Live2D</h2>
           <p>还没有导入模型，请先导入一个 Live2D 模型</p>
           <n-space vertical :size="16">
             <n-button type="primary" size="large" @click="handleImportModel">
               <template #icon>
-                <span>📁</span>
+                <FolderOpen :size="18" />
               </template>
               导入模型
             </n-button>
@@ -50,15 +52,15 @@
         @mouseleave="handleMenuMouseLeave"
       >
         <div class="menu-item" @click="openHistory">
-          <span class="icon">📊</span>
+          <ChartColumn :size="24" />
           <span class="label">历史</span>
         </div>
         <div class="menu-item" @click="openSettings">
-          <span class="icon">⚙️</span>
+          <Settings :size="24" />
           <span class="label">设置</span>
         </div>
         <div class="menu-item" @click="openInput">
-          <span class="icon">💬</span>
+          <MessageCircle :size="24" />
           <span class="label">对话</span>
         </div>
       </div>
@@ -97,12 +99,12 @@
         <div class="input-toolbar">
           <n-button text size="small" @click="handleSelectImage">
             <template #icon>
-              <span>🖼️</span>
+              <ImageIcon :size="18" />
             </template>
           </n-button>
           <n-button text size="small" @click="handlePaste">
             <template #icon>
-              <span>📋</span>
+              <Clipboard :size="18" />
             </template>
           </n-button>
           <n-button
@@ -114,7 +116,7 @@
             @mouseleave="cancelRecordingIfActive"
           >
             <template #icon>
-              <span>{{ isRecording ? '⏺️' : '🎤' }}</span>
+              <component :is="isRecording ? Disc : Mic" :size="18" />
             </template>
           </n-button>
         </div>
@@ -134,7 +136,7 @@
           <img :src="selectedImage.preview" alt="预览" />
           <n-button text size="small" @click="clearImage">
             <template #icon>
-              <span>❌</span>
+              <X :size="14" color="white" />
             </template>
           </n-button>
         </div>
@@ -149,6 +151,10 @@ import { ref, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
+import { 
+  Drama, FolderOpen, ChartColumn, Settings, MessageCircle, 
+  Image as ImageIcon, Clipboard, Disc, Mic, X 
+} from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
@@ -1144,8 +1150,8 @@ onMounted(async () => {
     padding: 40px;
 
     .empty-icon {
-      font-size: 80px;
       margin-bottom: 24px;
+      color: var(--color-text-secondary);
     }
 
     h2 {
@@ -1197,10 +1203,6 @@ onMounted(async () => {
     &:hover {
       background: rgba(100, 108, 255, 0.2);
       transform: scale(1.05);
-    }
-
-    .icon {
-      font-size: 24px;
     }
 
     .label {

@@ -9,7 +9,7 @@
           :class="{ active: activeMenu === item.key }"
           @click="activeMenu = item.key"
         >
-          <span class="icon">{{ item.icon }}</span>
+          <component :is="item.icon" :size="20" />
           <span class="label">{{ item.label }}</span>
         </div>
       </aside>
@@ -118,6 +118,7 @@
 import { ref, onMounted } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
+import { Globe, Drama, Settings } from 'lucide-vue-next'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -136,9 +137,9 @@ const advancedSettings = ref({
 const shortcutRegistered = ref(false)
 
 const menuItems = [
-  { key: 'connection', icon: '🌐', label: '连接' },
-  { key: 'model', icon: '🎭', label: '模型' },
-  { key: 'advanced', icon: '⚙️', label: '高级' }
+  { key: 'connection', icon: Globe, label: '连接' },
+  { key: 'model', icon: Drama, label: '模型' },
+  { key: 'advanced', icon: Settings, label: '高级' }
 ]
 
 onMounted(() => {
@@ -386,10 +387,6 @@ function handleResetSettings() {
     border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.2s;
-
-    .icon {
-      font-size: 20px;
-    }
 
     .label {
       font-size: 14px;
