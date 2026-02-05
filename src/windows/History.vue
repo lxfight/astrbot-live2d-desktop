@@ -310,26 +310,22 @@ const activeTab = ref('statistics')
 watch(activeTab, (newTab) => {
   if (newTab === 'statistics') {
     nextTick(() => {
-      loadStatistics()
-      charts.forEach(chart => {
-        try {
-          chart.resize()
-        } catch (e) {
-          console.warn('Chart resize failed:', e)
-        }
-      })
+      // 切换回统计面板时，使用缓存数据重新渲染图表
+      if (statisticsData.value.length > 0) {
+        renderCharts(statisticsData.value)
+      } else {
+        loadStatistics()
+      }
     })
   } else if (newTab === 'analysis') {
     nextTick(() => {
       loadAnalysisData()
-      // 尝试 resize 分析页面的图表
-      if (motionRankRef.value) {
-        const chart = echarts.getInstanceByDom(motionRankRef.value)
-        chart?.resize()
-      }
-      if (expressionRankRef.value) {
-        const chart = echarts.getInstanceByDom(expressionRankRef.value)
-        chart?.resize()
+      // 切换到分析面板时，使用缓存数据渲染分析图表
+      if (statisticsData.value.length > 0) {
+        renderCharts(statisticsData.value)
+      } else {
+        // 如果没有数据（比如直接打开分析页），则加载数据
+        loadStatistics()
       }
     })
   }
@@ -339,6 +335,9 @@ const dateRange = ref<[number, number]>([
   Date.now() - 7 * 24 * 60 * 60 * 1000,
   Date.now()
 ])
+
+// 缓存统计数据
+const statisticsData = ref<any[]>([])
 
 // 历史记录
 const messages = ref<any[]>([])
@@ -438,6 +437,7 @@ async function loadStatistics() {
 
     if (result.success && result.data) {
       console.log('[History] 统计数据:', result.data)
+      statisticsData.value = result.data
       await nextTick()
       renderCharts(result.data)
     } else {
