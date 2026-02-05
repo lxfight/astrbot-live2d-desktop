@@ -118,6 +118,45 @@
             </n-space>
           </n-space>
         </div>
+
+        <!-- 关于 -->
+        <div v-if="activeMenu === 'about'" class="panel">
+          <h2>关于</h2>
+          <n-card>
+            <n-space vertical :size="24">
+              <div class="about-section">
+                <h3>AstrBot Live2D Desktop</h3>
+                <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互、语音对话等功能。</p>
+                <p>作者：<strong>lxfight</strong></p>
+              </div>
+
+              <n-divider />
+
+              <div class="about-section">
+                <h3>相关项目</h3>
+                <n-space vertical>
+                  <n-button text tag="a" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
+                    AstrBot (Github)
+                  </n-button>
+                  <n-button text tag="a" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
+                    本项目仓库 (Github)
+                  </n-button>
+                </n-space>
+              </div>
+
+              <n-divider />
+
+              <div class="about-section">
+                <h3>版权声明</h3>
+                <p class="copyright-text">
+                  本软件使用 Live2D Cubism SDK。<br>
+                  Live2D 是 Live2D Inc. 的注册商标。<br>
+                  This application uses Live2D Cubism SDK. Live2D is a registered trademark of Live2D Inc.
+                </p>
+              </div>
+            </n-space>
+          </n-card>
+        </div>
       </main>
     </div>
   </div>
@@ -127,7 +166,7 @@
 import { ref, onMounted } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
-import { Globe, Drama, Settings, X } from 'lucide-vue-next'
+import { Globe, Drama, Settings, X, Info } from 'lucide-vue-next'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -148,7 +187,8 @@ const shortcutRegistered = ref(false)
 const menuItems = [
   { key: 'connection', icon: Globe, label: '连接' },
   { key: 'model', icon: Drama, label: '模型' },
-  { key: 'advanced', icon: Settings, label: '高级' }
+  { key: 'advanced', icon: Settings, label: '高级' },
+  { key: 'about', icon: Info, label: '关于' }
 ]
 
 onMounted(() => {
@@ -370,6 +410,10 @@ function handleResetSettings() {
 function handleClose() {
   window.electron.window.closeSettings()
 }
+
+function handleOpenLink(url: string) {
+  window.electron.window.openExternal(url)
+}
 </script>
 
 <style scoped lang="scss">
@@ -474,6 +518,23 @@ function handleClose() {
       margin-bottom: var(--spacing-sm);
       font-size: 16px;
       font-weight: 600;
+    }
+  }
+
+  .about-section {
+    h3 {
+      margin-bottom: 12px;
+      color: var(--color-text-primary);
+    }
+    
+    p {
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+
+    .copyright-text {
+      font-size: 12px;
+      opacity: 0.8;
     }
   }
 }

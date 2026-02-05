@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
@@ -68,4 +68,12 @@ ipcMain.handle('window:getPassThroughMode', async () => {
   const passThroughConfig = getUserConfig('tray_pass_through_mode')
   const isPassThroughMode = passThroughConfig === 'true'
   return isPassThroughMode
+})
+
+/**
+ * 打开外部链接
+ */
+ipcMain.handle('window:openExternal', async (event, url: string) => {
+  await shell.openExternal(url)
+  return { success: true }
 })
