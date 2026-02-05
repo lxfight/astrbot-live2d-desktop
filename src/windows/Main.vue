@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
@@ -427,12 +427,21 @@ function handleModelRightClick(position: { x: number; y: number }) {
   modelPositionX = position.x
   modelPositionY = position.y
 
-  // 显示菜单（以鼠标位置为中心，微调偏移）
+  // 更新菜单位置
   menuStyle.value = {
     left: `${position.x + 30}px`,
     top: `${position.y + 30}px`
   }
-  showMenu.value = true
+
+  // 如果菜单已显示，先关闭再打开以触发动画
+  if (showMenu.value) {
+    showMenu.value = false
+    nextTick(() => {
+      showMenu.value = true
+    })
+  } else {
+    showMenu.value = true
+  }
 
   // 启动自动关闭定时器（3秒后自动关闭）
   startMenuAutoCloseTimer()
