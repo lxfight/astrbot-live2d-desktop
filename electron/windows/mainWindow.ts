@@ -46,7 +46,8 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.loadURL('http://localhost:5173/#/main')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'), {
+    // 生产环境下渲染进程文件在 app.getAppPath()/dist 中（通常位于 resources/app.asar/dist）
+    mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
       hash: '/main'
     })
   }
@@ -58,6 +59,10 @@ export function createMainWindow(): BrowserWindow {
     if (mainWindow) {
       mainWindow.setBackgroundColor('#00000000')
     }
+  })
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('[主窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)
   })
 
   mainWindow.on('closed', () => {

@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -38,7 +38,7 @@ export function createHistoryWindow(): BrowserWindow {
     historyWindow.loadURL('http://localhost:5173/#/history')
     historyWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    historyWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'), {
+    historyWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
       hash: '/history'
     })
   }

@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -38,7 +38,7 @@ export function createSettingsWindow(): BrowserWindow {
     settingsWindow.loadURL('http://localhost:5173/#/settings')
     settingsWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    settingsWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'), {
+    settingsWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
       hash: '/settings'
     })
   }
