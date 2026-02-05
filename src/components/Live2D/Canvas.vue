@@ -72,9 +72,9 @@ function getModelInfo() {
 /**
  * 播放动作
  */
-function playMotion(group: string, index: number = 0) {
+function playMotion(group: string, index: number = 0, priority?: number) {
   if (!model) return
-  model.motion(group, index)
+  model.motion(group, index, priority)
 }
 
 /**

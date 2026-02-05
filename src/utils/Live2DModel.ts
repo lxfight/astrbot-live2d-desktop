@@ -168,11 +168,11 @@ export class Live2DModel {
   /**
    * 播放动作
    */
-  motion(group: string, index: number = 0): void {
+  motion(group: string, index: number = 0, priority?: number): void {
     if (!this.model) return
 
     try {
-      this.model.motion(group, index)
+      this.model.motion(group, index, priority)
       console.log(`[Live2D] 播放动作: ${group}[${index}]`)
     } catch (error) {
       console.warn(`[Live2D] 动作播放失败: ${group}[${index}]`, error)
