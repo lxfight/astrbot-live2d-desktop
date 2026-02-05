@@ -32,6 +32,13 @@ export class Live2DModel {
   private modelPath: string = ''
 
   /**
+   * 获取内部 PIXI Live2DModel 实例
+   */
+  get pixiModel(): any {
+    return this.model
+  }
+
+  /**
    * 从配置文件加载模型
    */
   static async from(modelPath: string): Promise<Live2DModel> {

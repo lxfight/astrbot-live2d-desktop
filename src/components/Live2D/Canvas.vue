@@ -13,7 +13,11 @@ const emit = defineEmits<{
   modelLoaded: []
   modelClick: [{ x: number; y: number }]
   modelRightClick: [{ x: number; y: number }]
-  modelInfoChanged: [{ name: string; motionGroups: string[]; expressions: string[] }]
+  modelInfoChanged: [{
+    name: string;
+    motionGroups: Record<string, Array<{ index: number; file: string }>>;
+    expressions: string[]
+  }]
   modelPositionChanged: [{ x: number; y: number }]
 }>()
 
@@ -68,7 +72,7 @@ function getModelInfo() {
 /**
  * 播放动作
  */
-function playMotion(group: string, index: number = 0, priority: number = 2) {
+function playMotion(group: string, index: number = 0) {
   if (!model) return
   model.motion(group, index)
 }
@@ -93,9 +97,9 @@ function playRandomMotion() {
  * 设置模型位置
  */
 function setModelPosition(x: number, y: number) {
-  if (!model || !model.model) return
-  model.model.x = x
-  model.model.y = y
+  if (!model || !model.pixiModel) return
+  model.pixiModel.x = x
+  model.pixiModel.y = y
   console.log('[Live2D] 模型位置已设置:', { x, y })
 }
 
@@ -103,10 +107,10 @@ function setModelPosition(x: number, y: number) {
  * 获取模型位置
  */
 function getModelPosition(): { x: number; y: number } | null {
-  if (!model || !model.model) return null
+  if (!model || !model.pixiModel) return null
   return {
-    x: model.model.x,
-    y: model.model.y
+    x: model.pixiModel.x,
+    y: model.pixiModel.y
   }
 }
 
@@ -125,9 +129,9 @@ let isFullPassThroughMode = false // 是否处于完全穿透模式
  * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
  */
 function isPointInModel(x: number, y: number): boolean {
-  if (!model || !model.model) return false
+  if (!model || !model.pixiModel) return false
 
-  const modelSprite = model.model
+  const modelSprite = model.pixiModel
   const modelX = modelSprite.x
   const modelY = modelSprite.y
   const modelWidth = modelSprite.width
@@ -169,9 +173,9 @@ function handleMouseDown(event: MouseEvent) {
     dragStartY = event.clientY
 
     // 获取当前模型位置
-    if (model.model) {
-      modelOffsetX = model.model.x
-      modelOffsetY = model.model.y
+    if (model.pixiModel) {
+      modelOffsetX = model.pixiModel.x
+      modelOffsetY = model.pixiModel.y
     }
 
     event.preventDefault()
@@ -185,7 +189,7 @@ function handleMouseMove(event: MouseEvent) {
   // 如果处于完全穿透模式，不处理任何鼠标事件
   if (isFullPassThroughMode) return
 
-  if (!model || !model.model) return
+  if (!model || !model.pixiModel) return
 
   // 只有当拖动从模型上开始时才允许拖动
   if (event.buttons === 1 && isDragStartedOnModel) {
@@ -199,13 +203,13 @@ function handleMouseMove(event: MouseEvent) {
 
     // 如果正在拖动，更新模型位置
     if (isDragging) {
-      model.model.x = modelOffsetX + deltaX
-      model.model.y = modelOffsetY + deltaY
+      model.pixiModel.x = modelOffsetX + deltaX
+      model.pixiModel.y = modelOffsetY + deltaY
 
       // 发射模型位置变化事件
       emit('modelPositionChanged', {
-        x: model.model.x,
-        y: model.model.y
+        x: model.pixiModel.x,
+        y: model.pixiModel.y
       })
 
       event.preventDefault()
@@ -262,20 +266,13 @@ function handleContextMenu(event: MouseEvent) {
     event.stopPropagation()
 
     // 发射右键点击事件，传递鼠标点击位置（屏幕坐标）
-    if (model && model.model) {
+    if (model && model.pixiModel) {
       emit('modelRightClick', {
         x: event.clientX,
         y: event.clientY
       })
     }
   }
-}
-
-/**
- * 处理画布点击（已废弃，保留用于兼容）
- */
-function handleCanvasClick(event: MouseEvent) {
-  // 此函数已被 handleMouseUp 和 handleContextMenu 替代
 }
 
 /**
