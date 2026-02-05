@@ -228,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import * as echarts from 'echarts'
 import { format } from 'date-fns'
@@ -305,6 +305,36 @@ marked.use({
 })
 
 const activeTab = ref('statistics')
+
+// 监听 tab 切换，修复图表不显示问题
+watch(activeTab, (newTab) => {
+  if (newTab === 'statistics') {
+    nextTick(() => {
+      loadStatistics()
+      charts.forEach(chart => {
+        try {
+          chart.resize()
+        } catch (e) {
+          console.warn('Chart resize failed:', e)
+        }
+      })
+    })
+  } else if (newTab === 'analysis') {
+    nextTick(() => {
+      loadAnalysisData()
+      // 尝试 resize 分析页面的图表
+      if (motionRankRef.value) {
+        const chart = echarts.getInstanceByDom(motionRankRef.value)
+        chart?.resize()
+      }
+      if (expressionRankRef.value) {
+        const chart = echarts.getInstanceByDom(expressionRankRef.value)
+        chart?.resize()
+      }
+    })
+  }
+})
+
 const dateRange = ref<[number, number]>([
   Date.now() - 7 * 24 * 60 * 60 * 1000,
   Date.now()
@@ -460,23 +490,76 @@ function renderCharts(data: any[]) {
     return
   }
 
+  // 通用暗色主题配置
+  const commonOption = {
+    backgroundColor: 'transparent',
+    textStyle: {
+      color: '#ccc'
+    },
+    title: {
+      textStyle: { color: '#eee' }
+    },
+    tooltip: {
+      backgroundColor: 'rgba(50, 50, 50, 0.9)',
+      borderColor: '#777',
+      textStyle: { color: '#fff' }
+    },
+    xAxis: {
+      axisLine: { lineStyle: { color: '#555' } },
+      axisLabel: { color: '#aaa' },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      axisLine: { lineStyle: { color: '#555' } },
+      axisLabel: { color: '#aaa' },
+      splitLine: { lineStyle: { color: '#333' } }
+    },
+    grid: {
+      top: 40,
+      right: 20,
+      bottom: 20,
+      left: 40,
+      containLabel: true
+    }
+  }
+
   // 消息趋势图
   if (messageTrendRef.value) {
     console.log('[History] 渲染消息趋势图')
     const chart = echarts.init(messageTrendRef.value)
     chart.setOption({
+      ...commonOption,
       tooltip: { trigger: 'axis' },
       xAxis: {
         type: 'category',
-        data: data.map(d => d.date)
+        data: data.map(d => d.date),
+        axisLine: { lineStyle: { color: '#555' } },
+        axisLabel: { color: '#aaa' }
       },
-      yAxis: { type: 'value' },
+      yAxis: { 
+        type: 'value',
+        splitLine: { lineStyle: { color: '#333' } },
+        axisLabel: { color: '#aaa' }
+      },
       series: [{
         name: '消息数',
         type: 'line',
         data: data.map(d => d.message_count),
         smooth: true,
-        areaStyle: {}
+        symbol: 'none',
+        lineStyle: {
+          width: 3,
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#818cf8' },
+            { offset: 1, color: '#c084fc' }
+          ])
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(129, 140, 248, 0.3)' },
+            { offset: 1, color: 'rgba(192, 132, 252, 0.05)' }
+          ])
+        }
       }]
     })
     charts.push(chart)
@@ -497,20 +580,25 @@ function renderCharts(data: any[]) {
     }, { text: 0, image: 0, audio: 0, video: 0 })
 
     chart.setOption({
+      ...commonOption,
       tooltip: { trigger: 'axis' },
       xAxis: {
         type: 'category',
-        data: ['文字', '图片', '音频', '视频']
+        data: ['文字', '图片', '音频', '视频'],
+        axisLine: { lineStyle: { color: '#555' } },
+        axisLabel: { color: '#aaa' }
       },
-      yAxis: { type: 'value' },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
       series: [{
         name: '使用量',
         type: 'bar',
+        barWidth: '40%',
         data: [totalData.text, totalData.image, totalData.audio, totalData.video],
         itemStyle: {
+          borderRadius: [4, 4, 0, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#646cff' },
-            { offset: 1, color: '#535bf2' }
+            { offset: 0, color: '#34d399' },
+            { offset: 1, color: '#059669' }
           ])
         }
       }]
@@ -520,7 +608,7 @@ function renderCharts(data: any[]) {
     console.warn('[History] performElementRef 未找到')
   }
 
-  // 活跃时段（热力图）
+  // 活跃时段（热力图风格柱状图）
   if (activeHoursRef.value) {
     console.log('[History] 渲染活跃时段图')
     const chart = echarts.init(activeHoursRef.value)
@@ -533,17 +621,27 @@ function renderCharts(data: any[]) {
     })
 
     chart.setOption({
+      ...commonOption,
       tooltip: { trigger: 'axis' },
       xAxis: {
         type: 'category',
-        data: Array.from({ length: 24 }, (_, i) => `${i}:00`)
+        data: Array.from({ length: 24 }, (_, i) => `${i}`),
+        axisLine: { lineStyle: { color: '#555' } },
+        axisLabel: { color: '#aaa' }
       },
-      yAxis: { type: 'value' },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
       series: [{
         name: '消息数',
         type: 'bar',
+        barWidth: '60%',
         data: hourData,
-        itemStyle: { color: '#646cff' }
+        itemStyle: {
+          borderRadius: [2, 2, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#f472b6' },
+            { offset: 1, color: '#db2777' }
+          ])
+        }
       }]
     })
     charts.push(chart)
@@ -558,17 +656,32 @@ function renderCharts(data: any[]) {
     const motionData = aggregateMotionUsage(data)
 
     chart.setOption({
+      ...commonOption,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      xAxis: { type: 'value' },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
       yAxis: {
         type: 'category',
-        data: motionData.map(d => d.name).slice(0, 10)
+        data: motionData.map(d => d.name).slice(0, 10),
+        axisLine: { lineStyle: { color: '#555' } },
+        axisLabel: { color: '#aaa', width: 80, overflow: 'truncate' }
+      },
+      grid: {
+        left: 100, // 增加左边距以显示长标签
+        right: 20,
+        top: 20,
+        bottom: 20
       },
       series: [{
         name: '使用次数',
         type: 'bar',
         data: motionData.map(d => d.value).slice(0, 10),
-        itemStyle: { color: '#646cff' }
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+            { offset: 0, color: '#60a5fa' },
+            { offset: 1, color: '#2563eb' }
+          ])
+        }
       }]
     })
     charts.push(chart)
@@ -583,17 +696,32 @@ function renderCharts(data: any[]) {
     const expressionData = aggregateExpressionUsage(data)
 
     chart.setOption({
+      ...commonOption,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      xAxis: { type: 'value' },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
       yAxis: {
         type: 'category',
-        data: expressionData.map(d => d.name).slice(0, 10)
+        data: expressionData.map(d => d.name).slice(0, 10),
+        axisLine: { lineStyle: { color: '#555' } },
+        axisLabel: { color: '#aaa', width: 80, overflow: 'truncate' }
+      },
+      grid: {
+        left: 100,
+        right: 20,
+        top: 20,
+        bottom: 20
       },
       series: [{
         name: '使用次数',
         type: 'bar',
         data: expressionData.map(d => d.value).slice(0, 10),
-        itemStyle: { color: '#535bf2' }
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+            { offset: 0, color: '#fbbf24' },
+            { offset: 1, color: '#d97706' }
+          ])
+        }
       }]
     })
     charts.push(chart)
