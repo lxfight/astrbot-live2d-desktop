@@ -12,12 +12,13 @@ let welcomeWindow: BrowserWindow | null = null
  */
 export function createWelcomeWindow(): BrowserWindow {
   welcomeWindow = new BrowserWindow({
-    width: 500,
+    width: 600,
     height: 400,
     center: true,
     resizable: false,
-    frame: true,
-    transparent: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
     alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
