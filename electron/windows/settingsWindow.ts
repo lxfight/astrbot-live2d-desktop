@@ -21,9 +21,10 @@ export function createSettingsWindow(): BrowserWindow {
     height: 600,
     minWidth: 800,
     minHeight: 500,
-    frame: true,
-    transparent: false,
+    frame: false,
+    transparent: false, // Settings usually opaque background is fine, but frame false allows custom header
     resizable: true,
+    titleBarStyle: 'hidden',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

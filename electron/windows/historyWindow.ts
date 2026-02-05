@@ -21,9 +21,10 @@ export function createHistoryWindow(): BrowserWindow {
     height: 700,
     minWidth: 900,
     minHeight: 600,
-    frame: true,
+    frame: false,
     transparent: false,
     resizable: true,
+    titleBarStyle: 'hidden',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

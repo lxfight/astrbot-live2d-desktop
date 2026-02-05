@@ -1,5 +1,14 @@
 <template>
   <div class="settings-window">
+    <div class="window-header window-drag-region">
+      <div class="header-title">
+        <Settings :size="16" />
+        <span>设置</span>
+      </div>
+      <button class="window-close-btn window-no-drag" @click="handleClose">
+        <X :size="16" />
+      </button>
+    </div>
     <div class="settings-layout">
       <aside class="settings-sidebar">
         <div
@@ -118,7 +127,7 @@
 import { ref, onMounted } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
-import { Globe, Drama, Settings } from 'lucide-vue-next'
+import { Globe, Drama, Settings, X } from 'lucide-vue-next'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -357,6 +366,10 @@ function handleResetSettings() {
     }
   })
 }
+
+function handleClose() {
+  window.electron.window.closeSettings()
+}
 </script>
 
 <style scoped lang="scss">
@@ -365,11 +378,51 @@ function handleResetSettings() {
   height: 100vh;
   background: var(--color-bg-dark);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.window-header {
+  height: 32px;
+  background: var(--color-bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .window-close-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 77, 79, 0.1);
+      color: var(--color-error);
+    }
+  }
 }
 
 .settings-layout {
   display: flex;
-  height: 100%;
+  flex: 1;
+  overflow: hidden;
 }
 
 .settings-sidebar {

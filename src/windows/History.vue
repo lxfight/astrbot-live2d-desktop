@@ -1,7 +1,15 @@
 <template>
   <div class="history-window">
+    <div class="window-header window-drag-region">
+      <div class="header-title">
+        <ChartColumn :size="16" />
+        <span>历史记录与数据统计</span>
+      </div>
+      <button class="window-close-btn window-no-drag" @click="handleClose">
+        <X :size="16" />
+      </button>
+    </div>
     <div class="history-container">
-      <h1>历史记录与数据统计</h1>
       <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- 统计面板 -->
         <n-tab-pane name="statistics" tab="统计">
@@ -237,7 +245,7 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { 
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video, 
-  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle 
+  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn
 } from 'lucide-vue-next'
 
 const message = useMessage()
@@ -864,6 +872,10 @@ function getMessageTypeColor(type: string): 'success' | 'info' | 'warning' {
     default: return 'info'
   }
 }
+
+function handleClose() {
+  window.electron.window.closeHistory()
+}
 </script>
 
 <style scoped lang="scss">
@@ -871,19 +883,55 @@ function getMessageTypeColor(type: string): 'success' | 'info' | 'warning' {
   width: 100vw;
   height: 100vh;
   background: var(--color-bg-dark);
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.window-header {
+  height: 32px;
+  background: var(--color-bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .window-close-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 77, 79, 0.1);
+      color: var(--color-error);
+    }
+  }
 }
 
 .history-container {
   max-width: 1400px;
   margin: 0 auto;
   padding: var(--spacing-lg);
-
-  h1 {
-    margin-bottom: var(--spacing-md);
-    font-size: 24px;
-    font-weight: 600;
-  }
+  flex: 1;
+  overflow: auto;
+  width: 100%;
 }
 
 .statistics-panel,
