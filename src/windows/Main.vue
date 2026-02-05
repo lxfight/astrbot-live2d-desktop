@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
@@ -193,6 +193,27 @@ let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
+let alwaysOnTopBeforeImport: boolean | null = null
+
+// 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
+watch(hasModel, async (value) => {
+  try {
+    if (!value) {
+      if (alwaysOnTopBeforeImport === null) {
+        alwaysOnTopBeforeImport = await window.electron.window.getAlwaysOnTop()
+      }
+      await window.electron.window.setAlwaysOnTop(false)
+      return
+    }
+
+    if (alwaysOnTopBeforeImport !== null) {
+      await window.electron.window.setAlwaysOnTop(alwaysOnTopBeforeImport)
+      alwaysOnTopBeforeImport = null
+    }
+  } catch (error) {
+    console.warn('[主窗口] 设置窗口置顶状态失败:', error)
+  }
+})
 
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
@@ -1202,13 +1223,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(26, 26, 26, 0.95);
-  backdrop-filter: blur(20px);
+  /* 导入界面背景保持透明，避免遮挡桌面 */
+  background: transparent;
   z-index: 10;
 
   .empty-content {
     text-align: center;
-    padding: 40px;
+    padding: 44px 48px;
+    background: rgba(26, 26, 26, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px);
+    max-width: 520px;
 
     .empty-icon {
       margin-bottom: 24px;

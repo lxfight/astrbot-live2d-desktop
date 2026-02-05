@@ -2,7 +2,7 @@ import { ipcMain, shell } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
+import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
 import { getUserConfig } from '../database/schema'
 
 /**
@@ -51,6 +51,14 @@ ipcMain.handle('window:closeWelcome', async () => {
 ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
   setAlwaysOnTop(flag)
   return { success: true }
+})
+
+/**
+ * 获取窗口置顶状态
+ */
+ipcMain.handle('window:getAlwaysOnTop', async () => {
+  const mainWindow = getMainWindow()
+  return mainWindow ? mainWindow.isAlwaysOnTop() : false
 })
 
 /**

@@ -19,7 +19,7 @@ export function createWelcomeWindow(): BrowserWindow {
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

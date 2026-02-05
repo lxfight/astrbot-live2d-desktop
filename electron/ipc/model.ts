@@ -19,7 +19,8 @@ function getModelsDir(): string {
  */
 ipcMain.handle('model:selectFile', async () => {
   try {
-    const result = await dialog.showOpenDialog({
+    const mainWindow = getMainWindow()
+    const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
       title: '选择 Live2D 模型文件',
       filters: [
         { name: 'Live2D 模型', extensions: ['json'] },

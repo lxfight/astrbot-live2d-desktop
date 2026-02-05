@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electron', {
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
     setAlwaysOnTop: (flag: boolean) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
+    getAlwaysOnTop: () => ipcRenderer.invoke('window:getAlwaysOnTop'),
     setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
     getPassThroughMode: () => ipcRenderer.invoke('window:getPassThroughMode'),
     onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
