@@ -263,23 +263,27 @@ async function handleDisconnect() {
 }
 
 async function handleImportModel() {
-  const result = await window.electron.model.selectFile()
+  const result = await window.electron.model.selectFolder()
 
   if (result.canceled) return
 
   if (!result.success) {
-    message.error(`选择文件失败: ${result.error}`)
+    message.error(`选择文件夹失败: ${result.error}`)
     return
   }
 
-  const fileName = result.filePath!.split(/[/\\]/).pop() || 'model'
-  const modelName = fileName.replace(/\.(model|model3)\.json$/, '')
+  const folderName = result.folderPath!.split(/[/\\]/).pop() || 'model'
+  const modelName = folderName
 
-  const importResult = await window.electron.model.import(result.filePath!, modelName)
+  const importResult = await window.electron.model.import(result.folderPath!, modelName)
 
   if (!importResult.success) {
     message.error(`导入模型失败: ${importResult.error}`)
     return
+  }
+
+  if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
+    message.info(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`)
   }
 
   message.success('模型导入成功')

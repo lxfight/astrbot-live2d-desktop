@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // 模型管理
   model: {
-    selectFile: () => ipcRenderer.invoke('model:selectFile'),
+    selectFolder: () => ipcRenderer.invoke('model:selectFolder'),
     import: (sourcePath: string, modelName: string) => ipcRenderer.invoke('model:import', sourcePath, modelName),
     getList: () => ipcRenderer.invoke('model:getList'),
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),

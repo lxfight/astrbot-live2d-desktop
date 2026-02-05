@@ -43,8 +43,14 @@ declare global {
         clearHistory: () => Promise<{ success: boolean; error?: string }>
       }
       model: {
-        selectFile: () => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>
-        import: (sourcePath: string, modelName: string) => Promise<{ success: boolean; modelPath?: string; error?: string }>
+        selectFolder: () => Promise<{ success: boolean; folderPath?: string; canceled?: boolean; error?: string }>
+        import: (sourceDir: string, modelName: string) => Promise<{
+          success: boolean;
+          modelPath?: string;
+          chosenFile?: string;
+          modelFiles?: string[];
+          error?: string
+        }>
         getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>
         delete: (modelName: string) => Promise<{ success: boolean; error?: string }>
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>
