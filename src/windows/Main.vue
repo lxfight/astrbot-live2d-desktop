@@ -42,26 +42,29 @@
     />
 
     <!-- 圆形交互菜单 -->
-    <Transition name="menu">
+    <Transition name="radial-menu">
       <div
         v-if="showMenu"
-        class="context-menu"
+        class="radial-menu-container"
         :style="menuStyle"
         @click.stop
         @mouseenter="handleMenuMouseEnter"
         @mouseleave="handleMenuMouseLeave"
       >
-        <div class="menu-item" @click="openHistory">
-          <ChartColumn :size="24" />
-          <span class="label">历史</span>
-        </div>
-        <div class="menu-item" @click="openSettings">
-          <Settings :size="24" />
-          <span class="label">设置</span>
-        </div>
-        <div class="menu-item" @click="openInput">
-          <MessageCircle :size="24" />
-          <span class="label">对话</span>
+        <!-- 中心圆点 (可选，作为视觉锚点) -->
+        <div class="radial-center"></div>
+
+        <div
+          v-for="(item, index) in menuItems"
+          :key="item.key"
+          class="radial-menu-item"
+          :style="getMenuItemStyle(index, menuItems.length)"
+          @click="item.action"
+        >
+          <div class="menu-icon">
+            <component :is="item.icon" :size="24" />
+          </div>
+          <span class="menu-label">{{ item.label }}</span>
         </div>
       </div>
     </Transition>
@@ -400,10 +403,10 @@ function handleModelRightClick(position: { x: number; y: number }) {
   modelPositionX = position.x
   modelPositionY = position.y
 
-  // 显示菜单（在鼠标位置附近）
+  // 显示菜单（以鼠标位置为中心）
   menuStyle.value = {
-    left: `${position.x - 100}px`,
-    top: `${position.y - 100}px`
+    left: `${position.x}px`,
+    top: `${position.y}px`
   }
   showMenu.value = true
 
@@ -480,7 +483,7 @@ function handleWindowClick(event: MouseEvent) {
 
   // 如果点击的是菜单、输入框、气泡或其子元素，不处理
   if (
-    target.closest('.context-menu') ||
+    target.closest('.radial-menu-container') ||
     target.closest('.input-panel-container') ||
     target.closest('.bubble') ||
     target.closest('.recording-toast') ||
@@ -525,6 +528,32 @@ function openInput() {
   updateUIPositions()
   // 禁用动态穿透，让整个窗口可以接收点击事件
   live2dCanvasRef.value?.disablePassThrough()
+}
+
+// 菜单配置
+const menuItems = [
+  { key: 'history', icon: ChartColumn, label: '历史', action: openHistory },
+  { key: 'settings', icon: Settings, label: '设置', action: openSettings },
+  { key: 'talk', icon: MessageCircle, label: '对话', action: openInput }
+]
+
+const MENU_RADIUS = 100
+
+function getMenuItemStyle(index: number, total: number) {
+  // 从 -90 度（正上方）开始
+  const startAngle = -90
+  const angleStep = 360 / total
+  const angle = startAngle + index * angleStep
+  const radian = (angle * Math.PI) / 180
+  
+  const x = Math.cos(radian) * MENU_RADIUS
+  const y = Math.sin(radian) * MENU_RADIUS
+  
+  return {
+    '--tx': `${x}px`,
+    '--ty': `${y}px`,
+    '--delay': `${index * 0.05}s`
+  }
 }
 
 // 选择图片
@@ -1177,39 +1206,111 @@ onMounted(async () => {
   opacity: 0;
 }
 
-.context-menu {
+.radial-menu-container {
   position: fixed;
-  display: grid;
-  grid-template-columns: repeat(2, 80px);
-  grid-template-rows: repeat(2, 80px);
-  gap: 16px;
-  padding: 16px;
-  background: rgba(26, 26, 26, 0.95);
-  border-radius: 16px;
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg);
+  width: 0;
+  height: 0;
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 允许鼠标穿透容器本身，只拦截子元素 */
+  pointer-events: none;
 
-  .menu-item {
+  .radial-center {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: rgba(100, 108, 255, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0; /* 默认隐藏，调试时可开启 */
+  }
+
+  .radial-menu-item {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(26, 26, 26, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
     cursor: pointer;
-    border-radius: 12px;
-    transition: all 0.2s;
+    pointer-events: auto; /* 恢复点击 */
+    
+    /* 使用 CSS 变量控制位置 */
+    transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay), 
+                background 0.3s, 
+                box-shadow 0.3s;
+    
+    .menu-icon {
+      color: #fff;
+      display: flex;
+      transition: transform 0.3s;
+    }
+
+    .menu-label {
+      position: absolute;
+      top: 100%;
+      margin-top: 8px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s;
+      white-space: nowrap;
+      pointer-events: none;
+    }
 
     &:hover {
-      background: rgba(100, 108, 255, 0.2);
-      transform: scale(1.05);
-    }
+      background: var(--color-accent);
+      box-shadow: 0 0 20px rgba(100, 108, 255, 0.5);
+      z-index: 10;
 
-    .label {
-      font-size: 12px;
-      color: var(--color-text-primary);
+      .menu-icon {
+        transform: scale(1.2);
+      }
+
+      .menu-label {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   }
+}
+
+/* 进场/离场动画 */
+.radial-menu-enter-active,
+.radial-menu-leave-active {
+  transition: opacity 0.3s;
+
+  .radial-menu-item {
+    /* 继承 item 自身的 transition，但在此处覆盖 transform */
+  }
+}
+
+.radial-menu-enter-from,
+.radial-menu-leave-to {
+  opacity: 0;
+
+  .radial-menu-item {
+    /* 收缩回中心，并带有旋转 */
+    transform: translate(-50%, -50%) translate(0, 0) rotate(-180deg) scale(0);
+  }
+}
+
+.radial-menu-enter-to,
+.radial-menu-leave-from {
+  opacity: 1;
+  /* 恢复默认 transform (由 inline style 定义) */
 }
 
 .bubble {
@@ -1494,15 +1595,6 @@ onMounted(async () => {
     border-radius: 50%;
     padding: 4px;
   }
-}
-
-.menu-enter-active, .menu-leave-active {
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.menu-enter-from, .menu-leave-to {
-  opacity: 0;
-  transform: scale(0.8);
 }
 
 .bubble-enter-active, .bubble-leave-active {
