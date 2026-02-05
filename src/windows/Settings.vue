@@ -126,6 +126,7 @@
             <n-space vertical :size="24">
               <div class="about-section">
                 <h3>AstrBot Live2D Desktop</h3>
+                <p>版本：<strong>v1.0.0-beta.1 (测试版)</strong></p>
                 <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互、语音对话等功能。</p>
                 <p>作者：<strong>lxfight</strong></p>
               </div>
