@@ -336,10 +336,7 @@ function convertToElectronFormat(shortcut: string): string {
   return shortcut.replace('Ctrl', 'CommandOrControl')
 }
 
-// 将 Electron 格式转换为显示格式
-function convertToDisplayFormat(shortcut: string): string {
-  return shortcut.replace('CommandOrControl', 'Ctrl')
-}
+
 
 // 清除快捷键
 async function handleClearShortcut() {
@@ -413,7 +410,7 @@ function handleClose() {
 }
 
 function handleOpenLink(url: string) {
-  window.electron.window.openExternal(url)
+  (window.electron.window as any).openExternal(url)
 }
 </script>
 

@@ -10,9 +10,9 @@ import type {
   PerformShowPayload,
   STTTranscribePayload,
   STTResultPayload,
-  OP
+
 } from './types'
-import { OP as OPS, ERROR_CODE } from './types'
+import { OP as OPS } from './types'
 
 /**
  * L2D-Bridge WebSocket 客户端

@@ -43,7 +43,7 @@ ipcMain.handle('model:selectFile', async () => {
 /**
  * 导入模型
  */
-ipcMain.handle('model:import', async (event, sourcePath: string, modelName: string) => {
+ipcMain.handle('model:import', async (_event, sourcePath: string, modelName: string) => {
   try {
     const sourceDir = path.dirname(sourcePath)
     const fileName = path.basename(sourcePath)
@@ -104,7 +104,7 @@ ipcMain.handle('model:getList', async () => {
 /**
  * 删除模型
  */
-ipcMain.handle('model:delete', async (event, modelName: string) => {
+ipcMain.handle('model:delete', async (_event, modelName: string) => {
   try {
     const modelDir = path.join(getModelsDir(), modelName)
     if (fs.existsSync(modelDir)) {
@@ -120,7 +120,7 @@ ipcMain.handle('model:delete', async (event, modelName: string) => {
 /**
  * 加载模型到主窗口
  */
-ipcMain.handle('model:load', async (event, modelPath: string) => {
+ipcMain.handle('model:load', async (_event, modelPath: string) => {
   try {
     const mainWindow = getMainWindow()
     if (mainWindow) {

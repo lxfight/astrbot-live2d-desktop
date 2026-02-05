@@ -16,16 +16,16 @@ contextBridge.exposeInMainWorld('electron', {
 
     // 事件监听
     onConnected: (callback: (payload: any) => void) => {
-      ipcRenderer.on('bridge:connected', (event, payload) => callback(payload))
+      ipcRenderer.on('bridge:connected', (_event: any, payload: any) => callback(payload))
     },
     onDisconnected: (callback: (info: any) => void) => {
-      ipcRenderer.on('bridge:disconnected', (event, info) => callback(info))
+      ipcRenderer.on('bridge:disconnected', (_event: any, info: any) => callback(info))
     },
     onError: (callback: (error: any) => void) => {
-      ipcRenderer.on('bridge:error', (event, error) => callback(error))
+      ipcRenderer.on('bridge:error', (_event: any, error: any) => callback(error))
     },
     onPerformShow: (callback: (payload: any) => void) => {
-      ipcRenderer.on('perform:show', (event, payload) => callback(payload))
+      ipcRenderer.on('perform:show', (_event: any, payload: any) => callback(payload))
     },
     onPerformInterrupt: (callback: () => void) => {
       ipcRenderer.on('perform:interrupt', () => callback())
@@ -44,7 +44,7 @@ contextBridge.exposeInMainWorld('electron', {
     getPassThroughMode: () => ipcRenderer.invoke('window:getPassThroughMode'),
     onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
       ipcRenderer.removeAllListeners('window:passThroughModeChanged')
-      ipcRenderer.on('window:passThroughModeChanged', (event, enabled) => callback(enabled))
+      ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
     },
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url)
   },
@@ -76,7 +76,7 @@ contextBridge.exposeInMainWorld('electron', {
     onLoad: (callback: (modelPath: string) => void) => {
       // 移除旧的监听器，避免重复
       ipcRenderer.removeAllListeners('model:load')
-      ipcRenderer.on('model:load', (event, modelPath) => callback(modelPath))
+      ipcRenderer.on('model:load', (_event: any, modelPath: string) => callback(modelPath))
     }
   },
 

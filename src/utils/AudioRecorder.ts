@@ -155,6 +155,6 @@ export class AudioRecorder {
    * 检查浏览器是否支持录音
    */
   static isSupported(): boolean {
-    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)
+    return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function' && window.MediaRecorder)
   }
 }

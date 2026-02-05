@@ -15,7 +15,7 @@ import {
 /**
  * 查询消息历史
  */
-ipcMain.handle('history:getMessages', async (event, options: {
+ipcMain.handle('history:getMessages', async (_event, options: {
   limit?: number
   offset?: number
   startDate?: number
@@ -37,7 +37,7 @@ ipcMain.handle('history:getMessages', async (event, options: {
 /**
  * 保存消息记录
  */
-ipcMain.handle('history:saveMessage', async (event, record: MessageRecord) => {
+ipcMain.handle('history:saveMessage', async (_event, record: MessageRecord) => {
   try {
     saveMessage(record)
     return { success: true }
@@ -50,7 +50,7 @@ ipcMain.handle('history:saveMessage', async (event, record: MessageRecord) => {
 /**
  * 保存表演记录
  */
-ipcMain.handle('history:savePerformance', async (event, record: PerformanceRecord) => {
+ipcMain.handle('history:savePerformance', async (_event, record: PerformanceRecord) => {
   try {
     savePerformance(record)
     return { success: true }
@@ -63,7 +63,7 @@ ipcMain.handle('history:savePerformance', async (event, record: PerformanceRecor
 /**
  * 更新统计数据
  */
-ipcMain.handle('history:updateStatistics', async (event, data: StatisticsData) => {
+ipcMain.handle('history:updateStatistics', async (_event, data: StatisticsData) => {
   try {
     updateStatistics(data)
     return { success: true }
@@ -76,7 +76,7 @@ ipcMain.handle('history:updateStatistics', async (event, data: StatisticsData) =
 /**
  * 获取统计数据
  */
-ipcMain.handle('history:getStatistics', async (event, startDate: string, endDate: string) => {
+ipcMain.handle('history:getStatistics', async (_event, startDate: string, endDate: string) => {
   try {
     const statistics = getStatistics(startDate, endDate)
     return { success: true, data: statistics }

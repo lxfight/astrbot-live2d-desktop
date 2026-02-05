@@ -48,7 +48,7 @@ export function createSettingsWindow(): BrowserWindow {
     console.log('[设置窗口] 页面加载完成')
   })
 
-  settingsWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  settingsWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[设置窗口] 页面加载失败:', errorCode, errorDescription)
   })
 

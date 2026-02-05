@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { showMainWindow, hideMainWindow, setMousePassThrough, getMainWindow, setAlwaysOnTop } from '../windows/mainWindow'
+import { showMainWindow, setMousePassThrough, getMainWindow, setAlwaysOnTop } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'

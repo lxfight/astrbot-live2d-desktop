@@ -4,43 +4,49 @@
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
-  "scripts": {
-    "dev": "npm run download:cubism && vite",
-    "build": "npm run download:cubism && vue-tsc --noEmit && vite build && electron-builder",
-    "build:dir": "npm run download:cubism && vue-tsc --noEmit && vite build && electron-builder --dir",
-    "build:win": "npm run download:cubism && vue-tsc --noEmit && vite build && electron-builder --win",
-    "build:fast": "npm run download:cubism && vite build && electron-builder --dir",
-    "preview": "vite preview",
-    "electron:dev": "echo '请使用 npm run dev 启动开发环境（vite-plugin-electron 会自动启动 Electron）'",
-    "electron:build": "vite build && electron-builder",
-    "rebuild": "electron-builder install-app-deps",
-    "typecheck": "vue-tsc --noEmit",
-    "download:cubism": "node scripts/download-cubism-core.js"
-  },
-  "keywords": [
-    "electron",
-    "vue3",
-    "live2d",
-    "astrbot"
-  ],
   "author": "",
   "license": "MIT",
+  "keywords": ["electron", "vue3", "live2d", "astrbot"],
+
+  "scripts": {
+    "dev": "npm run download:cubism && vite",
+
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview",
+
+    "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
+
+    "build": "npm run download:cubism && npm run typecheck && vite build && electron-builder",
+    "build:dir": "npm run download:cubism && npm run typecheck && vite build && electron-builder --dir",
+    "build:win": "npm run download:cubism && npm run typecheck && vite build && electron-builder --win",
+
+    "build:fast": "npm run download:cubism && vite build && electron-builder --dir",
+
+    "rebuild": "electron-builder install-app-deps",
+    "postinstall": "electron-builder install-app-deps",
+
+    "download:cubism": "node scripts/download-cubism-core.js"
+  },
+
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
+    "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/language-core": "^3.2.4",
     "concurrently": "^8.2.0",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.0",
-    "electron-rebuild": "^3.2.9",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3",
     "sass": "^1.69.0",
     "sass-embedded": "^1.97.3",
     "typescript": "^5.3.0",
-    "vite": "^5.0.0",
+    "vite": "^5.4.0",
     "vite-plugin-electron": "^0.28.0",
-    "vue-tsc": "^1.8.0",
+    "vue-tsc": "^3.2.4",
     "wait-on": "^7.2.0"
   },
+
   "dependencies": {
     "@vueuse/core": "^10.7.0",
     "axios": "^1.6.0",
@@ -64,52 +70,72 @@
     "vue-router": "^4.2.0",
     "ws": "^8.16.0"
   },
+
   "build": {
     "appId": "com.astrbot.live2d.desktop",
     "productName": "AstrBot Live2D",
+
     "directories": {
       "output": "release",
       "buildResources": "resources"
     },
+
+    "asar": true,
+
     "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "!node_modules/**/*",
-      "node_modules/better-sqlite3/**/*"
+      "dist/**",
+      "dist-electron/**",
+      "package.json",
+
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/*.vue",
+      "!**/*.md",
+      "!**/*.log",
+      "!**/node_modules/*/{test,tests,__tests__,docs,doc,example,examples}/**",
+      "!**/node_modules/.cache/**"
     ],
+
     "asarUnpack": [
-      "node_modules/better-sqlite3/**/*"
+      "**/*.node",
+      "node_modules/better-sqlite3/**",
+      "node_modules/node-window-manager/**"
     ],
+
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
       "icon": "resources/icon.ico",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
     },
+
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AstrBot Live2D"
+      "shortcutName": "AstrBot Live2D",
+      "deleteAppDataOnUninstall": false
     },
+
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
     },
+
     "compression": "maximum",
-    "asar": true
+
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lxfight",
+        "repo": "astrbot-live2d-desktop",
+        "releaseType": "release"
+      }
+    ]
   }
 }

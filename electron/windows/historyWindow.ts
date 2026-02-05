@@ -48,7 +48,7 @@ export function createHistoryWindow(): BrowserWindow {
     console.log('[历史窗口] 页面加载完成')
   })
 
-  historyWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  historyWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[历史窗口] 页面加载失败:', errorCode, errorDescription)
   })
 

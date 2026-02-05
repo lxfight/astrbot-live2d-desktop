@@ -6,7 +6,7 @@ let isRecording = false
 /**
  * 注册全局快捷键
  */
-ipcMain.handle('shortcut:register', async (event, accelerator: string) => {
+ipcMain.handle('shortcut:register', async (_event, accelerator: string) => {
   try {
     // 取消注册旧的快捷键
     if (currentShortcut) {
@@ -53,7 +53,7 @@ ipcMain.handle('shortcut:unregister', async () => {
 /**
  * 检查快捷键是否已注册
  */
-ipcMain.handle('shortcut:isRegistered', async (event, accelerator: string) => {
+ipcMain.handle('shortcut:isRegistered', async (_event, accelerator: string) => {
   return globalShortcut.isRegistered(accelerator)
 })
 

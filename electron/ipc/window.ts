@@ -2,7 +2,7 @@ import { ipcMain, shell } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { setAlwaysOnTop, setIgnoreMouseEvents, getMainWindow } from '../windows/mainWindow'
+import { setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
 import { getUserConfig } from '../database/schema'
 
 /**
@@ -48,7 +48,7 @@ ipcMain.handle('window:closeWelcome', async () => {
 /**
  * 设置窗口置顶
  */
-ipcMain.handle('window:setAlwaysOnTop', async (event, flag: boolean) => {
+ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
   setAlwaysOnTop(flag)
   return { success: true }
 })
@@ -56,7 +56,7 @@ ipcMain.handle('window:setAlwaysOnTop', async (event, flag: boolean) => {
 /**
  * 设置鼠标穿透
  */
-ipcMain.handle('window:setIgnoreMouseEvents', async (event, ignore: boolean) => {
+ipcMain.handle('window:setIgnoreMouseEvents', async (_event, ignore: boolean) => {
   setIgnoreMouseEvents(ignore)
   return { success: true }
 })
@@ -73,7 +73,7 @@ ipcMain.handle('window:getPassThroughMode', async () => {
 /**
  * 打开外部链接
  */
-ipcMain.handle('window:openExternal', async (event, url: string) => {
+ipcMain.handle('window:openExternal', async (_event, url: string) => {
   await shell.openExternal(url)
   return { success: true }
 })

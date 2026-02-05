@@ -7,7 +7,6 @@
 
 import * as PIXI from 'pixi.js'
 import { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
-import { createNoise2D } from 'simplex-noise'
 
 // 将 PIXI 挂载到 window，供 pixi-live2d-display 使用
 if (typeof window !== 'undefined') {
@@ -27,7 +26,6 @@ console.warn = function(...args: any[]) {
 
 export class Live2DModel {
   private static app: any = null  // 共享的 PIXI Application
-  private static canvas: HTMLCanvasElement | null = null
   private model: any = null
   private modelPath: string = ''
 
@@ -66,10 +64,10 @@ export class Live2DModel {
   }
 
   // 待机动作相关
-  private noise2D = createNoise2D()
-  private idleMotionTime = 0
-  private idleMotionEnabled = true
-  private idleMotionAnimationId: number | null = null
+  // private noise2D = createNoise2D()
+  // private idleMotionTime = 0
+  // private idleMotionEnabled = true
+  // private idleMotionAnimationId: number | null = null
 
   /**
    * 初始化 WebGL（创建共享的 PIXI Application）
@@ -82,8 +80,6 @@ export class Live2DModel {
     // 如果 Application 不存在，创建它
     if (!Live2DModel.app) {
       console.log('[Live2D] 创建 PIXI Application...')
-      Live2DModel.canvas = canvas
-
       Live2DModel.app = new PIXI.Application({
         view: canvas,
         width: canvas.width,
@@ -154,7 +150,7 @@ export class Live2DModel {
   /**
    * 更新模型（空实现，PIXI 自动处理）
    */
-  update(deltaTime: number): void {
+  update(_deltaTime: number): void {
     // pixi-live2d-display 会自动更新模型
   }
 
@@ -497,7 +493,6 @@ export class Live2DModel {
         console.warn('[Live2D] 销毁应用时出错:', error)
       }
       Live2DModel.app = null
-      Live2DModel.canvas = null
     }
   }
 }

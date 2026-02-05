@@ -8,7 +8,7 @@ import { initBridgeClient } from '../main'
 /**
  * 设置用户名称
  */
-ipcMain.handle('user:setUserName', async (event, name: string) => {
+ipcMain.handle('user:setUserName', async (_event, name: string) => {
   setUserName(name)
 
   // 关闭欢迎窗口，创建主窗口

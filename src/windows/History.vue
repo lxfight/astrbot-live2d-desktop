@@ -246,9 +246,7 @@ const dialog = useDialog()
 // 配置 marked
 marked.setOptions({
   breaks: true,
-  gfm: true,
-  headerIds: false,
-  mangle: false
+  gfm: true
 })
 
 // 使用 marked 的扩展系统来支持 LaTeX
@@ -416,8 +414,8 @@ async function loadMessages() {
     const result = await window.electron.history.getMessages(options)
 
     if (result.success) {
-      messages.value = result.data
-      totalMessages.value = result.total || 0
+      messages.value = result.data || []
+      totalMessages.value = (result as any).total || 0
       totalPages.value = Math.ceil(totalMessages.value / pageSize.value) || 1
     }
   } catch (error: any) {
@@ -454,7 +452,7 @@ async function loadAnalysisData() {
     // 获取所有消息用于计算总数
     const allMessagesResult = await window.electron.history.getMessages({ limit: 1 })
     if (allMessagesResult.success) {
-      totalMessages.value = allMessagesResult.total || 0
+      totalMessages.value = (allMessagesResult as any).total || 0
     }
 
     // 获取统计数据用于计算表演次数
@@ -922,20 +920,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 }
 
-function formatContent(content: string): string {
-  try {
-    const parsed = JSON.parse(content)
-    if (Array.isArray(parsed)) {
-      return parsed.map(item => {
-        if (item.type === 'text') return item.text
-        return `[${item.type}]`
-      }).join('')
-    }
-    return String(content)
-  } catch {
-    return String(content)
-  }
-}
+
 
 function handleClose() {
   window.electron.window.closeHistory()

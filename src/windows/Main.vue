@@ -189,7 +189,6 @@ const isRecording = ref(false)
 const recordingDuration = ref(0)
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
-let bubbleTimer: NodeJS.Timeout | null = null
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
@@ -299,7 +298,7 @@ function startBubbleHideTimer(delay: number) {
 const performQueue = new PerformanceQueue()
 
 // 设置表演队列回调
-performQueue.onText((content, position, duration) => {
+performQueue.onText((content, position, _duration) => {
   currentBubble.value = { content, position }
   updateUIPositions()
   // 启动自动隐藏定时器（默认 5 秒后隐藏）

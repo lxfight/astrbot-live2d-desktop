@@ -237,8 +237,9 @@ function fileToBase64(file: File): Promise<string> {
 /**
  * 上传文件到资源服务器
  */
-async function uploadFile(file: File): Promise<string> {
+async function uploadFile(_file: File): Promise<string> {
   // 1. 申请上传
+  /*
   const prepareResponse = await window.electron.bridge.sendMessage({
     content: [],
     metadata: {
@@ -247,6 +248,7 @@ async function uploadFile(file: File): Promise<string> {
       messageType: 'friend'
     }
   })
+  */
 
   // TODO: 实现完整的资源上传流程
   // 这里需要调用 resource.prepare, 上传文件, resource.commit

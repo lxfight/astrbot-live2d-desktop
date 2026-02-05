@@ -5,7 +5,7 @@ import type { InputMessagePayload } from '../protocol/types'
 /**
  * 连接到服务器
  */
-ipcMain.handle('bridge:connect', async (event, url: string, token?: string) => {
+ipcMain.handle('bridge:connect', async (_event, url: string, token?: string) => {
   try {
     const client = getBridgeClient()
     if (!client) {
@@ -55,7 +55,7 @@ ipcMain.handle('bridge:getSession', async () => {
 /**
  * 发送消息
  */
-ipcMain.handle('bridge:sendMessage', async (event, payload: InputMessagePayload) => {
+ipcMain.handle('bridge:sendMessage', async (_event, payload: InputMessagePayload) => {
   try {
     const client = getBridgeClient()
     if (!client) {
@@ -77,7 +77,7 @@ ipcMain.handle('bridge:sendMessage', async (event, payload: InputMessagePayload)
 /**
  * 发送触摸事件
  */
-ipcMain.handle('bridge:sendTouch', async (event, x: number, y: number, action: string) => {
+ipcMain.handle('bridge:sendTouch', async (_event, x: number, y: number, action: string) => {
   try {
     const client = getBridgeClient()
     if (!client) {
@@ -95,7 +95,7 @@ ipcMain.handle('bridge:sendTouch', async (event, x: number, y: number, action: s
 /**
  * 发送状态
  */
-ipcMain.handle('bridge:sendState', async (event, op: string, payload: any) => {
+ipcMain.handle('bridge:sendState', async (_event, op: string, payload: any) => {
   try {
     const client = getBridgeClient()
     if (!client) {
