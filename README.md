@@ -2,13 +2,15 @@
 
 基于 Electron + Vue3 + TypeScript 的 Live2D 桌面展示应用，可与 AstrBot 服务器通过 WebSocket 连接进行实时表演交互。
 
+> ⚠️ **重要提示**：使用本应用前，请确保您的 AstrBot 已经安装了适配器插件：[astrbot-live2d-adapter](https://github.com/lxfight/astrbot-live2d-adapter)。
+
 ## 功能特性
 
-- 🎭 **Live2D 渲染**：支持 Cubism 2/4 模型，支持动作、表情、音频、视频等多媒体表演
-- 🔌 **实时连接**：通过 WebSocket 与 AstrBot 服务器连接
-- 📊 **数据统计**：消息历史记录、数据可视化分析
-- ⚙️ **灵活配置**：窗口置顶、鼠标穿透、自动连接等高级选项
-- 🎨 **界面美观**：基于 Naive UI 的现代化界面设计
+- **Live2D 渲染**：支持 Cubism 2/4 模型，支持动作、表情、音频、视频等多媒体表演。
+- **实时连接**：通过 WebSocket 与 AstrBot 服务器连接。
+- **数据统计**：消息历史记录、数据可视化分析。
+- **灵活配置**：窗口置顶、鼠标穿透、自动连接等高级选项。
+- **界面设计**：基于 Naive UI 的现代化界面设计。
 
 ## 技术栈
 
@@ -81,25 +83,25 @@ desktop/
 
 首次启动时，需要先导入一个 Live2D 模型：
 
-1. 点击主窗口的"导入模型"按钮
-2. 选择模型配置文件（`.model.json` 或 `.model3.json`）
-3. 等待模型加载完成
+1. 点击主窗口的"导入模型"按钮。
+2. 选择模型配置文件（`.model.json` 或 `.model3.json`）。
+3. 等待模型加载完成。
 
 ### 2. 连接服务器
 
 在设置窗口中配置 WebSocket 连接：
 
-1. 填写服务器地址（如 `ws://localhost:6185`）
-2. 可选填写认证令牌
-3. 点击"连接"按钮
+1. 填写服务器地址（如 `ws://localhost:6185`）。
+2. 可选填写认证令牌。
+3. 点击"连接"按钮。
 
 ### 3. 查看历史记录
 
 在历史记录窗口中可以：
 
-- 查看消息历史
-- 查看统计图表
-- 分析表演数据
+- 查看消息历史。
+- 查看统计图表。
+- 分析表演数据。
 
 ## 配置选项
 
@@ -132,9 +134,9 @@ desktop/
 
 应用使用以下方式存储数据：
 
-- **SQLite 数据库**：消息历史、表演记录、统计数据
-- **LocalStorage**：用户设置、模型路径等轻量配置
-- **文件系统**：导入的 Live2D 模型文件
+- **SQLite 数据库**：消息历史、表演记录、统计数据。
+- **LocalStorage**：用户设置、模型路径等轻量配置。
+- **文件系统**：导入的 Live2D 模型文件。
 
 数据存储位置：
 - Windows: `%APPDATA%/astrbot-live2d-desktop/`
@@ -143,15 +145,15 @@ desktop/
 
 ## 性能优化
 
-- 使用共享的 PIXI Application 避免 WebGL 上下文耗尽
-- ECharts 图表自适应窗口大小
-- 按需加载和代码分割（Naive UI、ECharts、Vendor）
-- 生产构建启用压缩和混淆
+- 使用共享的 PIXI Application 避免 WebGL 上下文耗尽。
+- ECharts 图表自适应窗口大小。
+- 按需加载和代码分割（Naive UI、ECharts、Vendor）。
+- 生产构建启用压缩和混淆。
 
 ## 已知问题
 
-- **moc3 v6 支持**：当前使用的 Cubism Core 5.1.0 仅支持 moc3 v5，v6 模型暂不支持
-- **CSP unsafe-eval**：PIXI.js 需要 eval() 编译 WebGL 着色器，开发环境会有警告
+- **moc3 v6 支持**：当前使用的 Cubism Core 5.1.0 仅支持 moc3 v5，v6 模型暂不支持。
+- **CSP unsafe-eval**：PIXI.js 需要 eval() 编译 WebGL 着色器，开发环境会有警告。
 
 ## 协议
 
@@ -168,4 +170,3 @@ MIT License
 - [AstrBot](https://github.com/Soulter/AstrBot)
 - [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [Live2D Cubism SDK](https://www.live2d.com/download/cubism-sdk/)
-
