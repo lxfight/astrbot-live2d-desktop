@@ -85,6 +85,24 @@
       </div>
     </Transition>
 
+    <!-- 模型状态提示 -->
+    <Transition name="status-toast">
+      <div
+        v-if="modelStatus"
+        class="model-status-toast"
+        :class="modelStatus.type"
+        :style="modelStatusStyle"
+      >
+        <div class="status-icon">
+          <CheckCircle v-if="modelStatus.type === 'success'" :size="16" />
+          <AlertCircle v-if="modelStatus.type === 'error'" :size="16" />
+          <Loader2 v-if="modelStatus.type === 'loading'" :size="16" class="spin" />
+          <Info v-if="modelStatus.type === 'info'" :size="16" />
+        </div>
+        <span>{{ modelStatus.text }}</span>
+      </div>
+    </Transition>
+
     <!-- 全局录音提示 -->
     <Transition name="recording-toast">
       <div v-if="isRecording" class="recording-toast" @click.stop>
@@ -156,7 +174,8 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
-  Image as ImageIcon, Clipboard, Disc, Mic, X
+  Image as ImageIcon, Clipboard, Disc, Mic, X,
+  CheckCircle, AlertCircle, Loader2, Info
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
@@ -194,6 +213,23 @@ const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
+
+// 模型状态提示
+const modelStatus = ref<{ text: string; type: 'success' | 'error' | 'info' | 'loading' } | null>(null)
+const modelStatusStyle = ref({ left: '0px', top: '0px' })
+
+function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loading' = 'info', duration = 3000) {
+  modelStatus.value = { text, type }
+  updateUIPositions()
+
+  if (duration > 0) {
+    setTimeout(() => {
+      if (modelStatus.value?.text === text) {
+        modelStatus.value = null
+      }
+    }, duration)
+  }
+}
 
 // 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
 watch(hasModel, async (value) => {
@@ -369,12 +405,12 @@ async function handleImportModel() {
     const importResult = await window.electron.model.import(result.folderPath!, modelName)
 
     if (!importResult.success) {
-      message.error(`导入模型失败: ${importResult.error}`)
+      showModelStatus(`导入模型失败: ${importResult.error}`, 'error')
       return
     }
 
     if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
-      message.info(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`)
+      showModelStatus(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`, 'info')
     }
 
     // 加载模型，传入保存的位置（如果有）
@@ -390,9 +426,9 @@ async function handleImportModel() {
       modelPositionY = savedPosition.y
     }
 
-    message.success('模型导入成功')
+    showModelStatus('模型导入成功', 'success')
   } catch (error: any) {
-    message.error(`导入模型失败: ${error.message}`)
+    showModelStatus(`导入模型失败: ${error.message}`, 'error')
   }
 }
 
@@ -400,7 +436,7 @@ async function handleImportModel() {
 async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
-  message.success('模型加载成功')
+  showModelStatus('模型加载成功', 'success')
 
   // 提取主题色
   try {
@@ -521,6 +557,14 @@ function updateUIPositions() {
     bubbleStyle.value = {
       left: `${modelPositionX}px`,
       top: `${modelPositionY - 250}px`
+    }
+  }
+
+  // 更新状态提示位置（模型头顶上方 280px）
+  if (modelStatus.value) {
+    modelStatusStyle.value = {
+      left: `${modelPositionX}px`,
+      top: `${modelPositionY - 280}px`
     }
   }
 
@@ -985,7 +1029,7 @@ onMounted(async () => {
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
-      message.error(`模型加载失败: ${error.message}`)
+      showModelStatus(`模型加载失败: ${error.message}`, 'error')
     } finally {
       isLoadingModel = false
     }
@@ -1687,5 +1731,51 @@ onMounted(async () => {
 .recording-toast-enter-from, .recording-toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-20px);
+}
+
+.model-status-toast {
+  position: absolute;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  white-space: nowrap;
+
+  &.success { background: rgba(82, 196, 26, 0.9); }
+  &.error { background: rgba(255, 77, 79, 0.9); }
+  &.loading { background: rgba(24, 144, 255, 0.9); }
+  &.info { background: rgba(0, 0, 0, 0.8); }
+
+  .status-icon {
+    display: flex;
+    align-items: center;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.status-toast-enter-active, .status-toast-leave-active {
+  transition: all 0.3s ease;
+}
+
+.status-toast-enter-from, .status-toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
 }
 </style>
