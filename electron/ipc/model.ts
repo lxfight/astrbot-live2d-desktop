@@ -2,6 +2,7 @@ import { ipcMain, dialog, app } from 'electron'
 import { getMainWindow } from '../windows/mainWindow'
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'url'
 
 /**
  * 获取模型存储目录
@@ -132,10 +133,12 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     }
 
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
-    const relativePath = `/models/${modelName}/${relChosen}`
+    const modelPath = app.isPackaged
+      ? pathToFileURL(path.join(targetDir, relChosen)).toString()
+      : `/models/${modelName}/${relChosen}`
     return {
       success: true,
-      modelPath: relativePath,
+      modelPath,
       chosenFile: relChosen,
       modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f)))
     }
@@ -168,7 +171,9 @@ ipcMain.handle('model:getList', async () => {
           const rel = toPosixPath(path.relative(modelDir, modelFile))
           models.push({
             name: dir.name,
-            path: `/models/${dir.name}/${rel}`
+            path: app.isPackaged
+              ? pathToFileURL(modelFile).toString()
+              : `/models/${dir.name}/${rel}`
           })
         }
       }
