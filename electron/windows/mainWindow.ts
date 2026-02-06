@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { resolveAppIconPath } from '../utils/icon'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,6 +21,7 @@ export function createMainWindow(): BrowserWindow {
     height: height,
     x: 0,
     y: 0,
+    icon: resolveAppIconPath(),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',

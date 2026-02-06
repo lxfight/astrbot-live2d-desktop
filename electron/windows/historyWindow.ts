@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { resolveAppIconPath } from '../utils/icon'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,6 +22,7 @@ export function createHistoryWindow(): BrowserWindow {
     height: 700,
     minWidth: 900,
     minHeight: 600,
+    icon: resolveAppIconPath(),
     frame: false,
     transparent: false,
     resizable: true,

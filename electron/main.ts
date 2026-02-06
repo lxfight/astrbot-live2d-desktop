@@ -16,6 +16,11 @@ import './ipc/user'
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 app.commandLine.appendSwitch('disable-gpu-program-cache')
 
+// Windows 任务栏图标/分组需要 AppUserModelID 才能稳定生效
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.astrbot.live2d.desktop')
+}
+
 // 启用硬件加速以获得更好的性能
 // 注意：Windows 透明窗口在新版 Electron 中已支持硬件加速
 

@@ -85,6 +85,8 @@
     "files": [
       "dist/**",
       "dist-electron/**",
+      "resources/icon.png",
+      "resources/icon.ico",
       "package.json",
 
       "!**/*.map",

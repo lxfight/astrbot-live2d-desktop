@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { resolveAppIconPath } from '../utils/icon'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,6 +22,7 @@ export function createSettingsWindow(): BrowserWindow {
     height: 600,
     minWidth: 800,
     minHeight: 500,
+    icon: resolveAppIconPath(),
     frame: false,
     transparent: false, // Settings usually opaque background is fine, but frame false allows custom header
     resizable: true,

@@ -1,14 +1,10 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import { showMainWindow, setMousePassThrough, getMainWindow, setAlwaysOnTop } from '../windows/mainWindow'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
 import { getUserConfig, setUserConfig } from '../database/schema'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+import { resolveAppIconPath } from './icon'
 
 let tray: Tray | null = null
 let isPassThroughMode = false // 穿透模式状态
@@ -50,7 +46,7 @@ function loadTrayConfig(): void {
  */
 export function createTray(): Tray {
   // 创建托盘图标（使用默认图标）
-  const iconPath = path.join(__dirname, '../../resources/icon.png')
+  const iconPath = resolveAppIconPath()
   let icon: Electron.NativeImage
 
   try {
