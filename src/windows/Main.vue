@@ -424,6 +424,11 @@ async function handleImportModel() {
       console.log('[主窗口] 使用保存的模型位置:', savedPosition)
       modelPositionX = savedPosition.x
       modelPositionY = savedPosition.y
+    } else {
+      // 如果没有保存的位置，重置为中心
+      console.log('[主窗口] 使用默认中心位置')
+      modelPositionX = window.innerWidth / 2
+      modelPositionY = window.innerHeight / 2
     }
 
     showModelStatus('模型导入成功', 'success')
@@ -436,6 +441,15 @@ async function handleImportModel() {
 async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
+  
+  // 确保位置同步
+  const currentPos = live2dCanvasRef.value?.getModelPosition()
+  if (currentPos) {
+    modelPositionX = currentPos.x
+    modelPositionY = currentPos.y
+    updateUIPositions()
+  }
+  
   showModelStatus('模型加载成功', 'success')
 
   // 提取主题色
@@ -1025,6 +1039,11 @@ onMounted(async () => {
         console.log('[主窗口] 使用保存的模型位置:', savedPosition)
         modelPositionX = savedPosition.x
         modelPositionY = savedPosition.y
+      } else {
+        // 如果没有保存的位置，重置为中心
+        console.log('[主窗口] 使用默认中心位置')
+        modelPositionX = window.innerWidth / 2
+        modelPositionY = window.innerHeight / 2
       }
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
