@@ -6,28 +6,27 @@
   "type": "module",
   "author": "",
   "license": "MIT",
-  "keywords": ["electron", "vue3", "live2d", "astrbot"],
-
+  "keywords": [
+    "electron",
+    "vue3",
+    "live2d",
+    "astrbot"
+  ],
   "scripts": {
     "dev": "npm run download:cubism && vite",
-
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
-
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
-
-    "build": "npm run download:cubism && npm run typecheck && vite build && electron-builder",
-    "build:dir": "npm run download:cubism && npm run typecheck && vite build && electron-builder --dir",
-    "build:win": "npm run download:cubism && npm run typecheck && vite build && electron-builder --win",
-
-    "build:fast": "npm run download:cubism && vite build && electron-builder --dir",
-
+    "build": "npm run download:cubism && npm run typecheck && vite build && electron-builder --publish never",
+    "build:dir": "npm run download:cubism && npm run typecheck && vite build && electron-builder --dir --publish never",
+    "build:win": "npm run download:cubism && npm run typecheck && vite build && electron-builder --win --publish never",
+    "build:fast": "npm run download:cubism && vite build && electron-builder --dir --publish never",
     "rebuild": "electron-builder install-app-deps",
     "postinstall": "electron-builder install-app-deps",
-
-    "download:cubism": "node scripts/download-cubism-core.js"
+    "download:cubism": "node scripts/download-cubism-core.js",
+    "build:mac": "npm run download:cubism && npm run typecheck && vite build && electron-builder --mac --publish never",
+    "build:linux": "npm run download:cubism && npm run typecheck && vite build && electron-builder --linux --publish never"
   },
-
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
@@ -46,7 +45,6 @@
     "vue-tsc": "^3.2.4",
     "wait-on": "^7.2.0"
   },
-
   "dependencies": {
     "@vueuse/core": "^10.7.0",
     "axios": "^1.6.0",
@@ -70,25 +68,20 @@
     "vue-router": "^4.2.0",
     "ws": "^8.16.0"
   },
-
   "build": {
     "appId": "com.astrbot.live2d.desktop",
     "productName": "AstrBot Live2D",
-
     "directories": {
       "output": "release",
       "buildResources": "resources"
     },
-
     "asar": true,
-
     "files": [
       "dist/**",
       "dist-electron/**",
       "resources/icon.png",
       "resources/icon.ico",
       "package.json",
-
       "!**/*.map",
       "!**/*.ts",
       "!**/*.tsx",
@@ -98,23 +91,29 @@
       "!**/node_modules/*/{test,tests,__tests__,docs,doc,example,examples}/**",
       "!**/node_modules/.cache/**"
     ],
-
     "asarUnpack": [
       "**/*.node",
       "node_modules/better-sqlite3/**",
       "node_modules/node-window-manager/**"
     ],
-
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-
     "win": {
       "icon": "resources/icon.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
-
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -124,20 +123,22 @@
       "shortcutName": "AstrBot Live2D",
       "deleteAppDataOnUninstall": false
     },
-
     "portable": {
       "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
     },
-
     "compression": "maximum",
-
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "lxfight",
-        "repo": "astrbot-live2d-desktop",
-        "releaseType": "release"
-      }
-    ]
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
   }
 }

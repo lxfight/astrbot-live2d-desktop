@@ -38,7 +38,7 @@ npm install
 ### 启动开发服务器
 
 ```bash
-npm run electron:dev
+npm run dev
 ```
 
 ### 构建生产版本
@@ -50,7 +50,13 @@ npm run build
 # 仅构建 Windows
 npm run build:win
 
-# 构建到目录（不打包安装程序）
+# Build macOS only
+npm run build:mac
+
+# Build Linux only
+npm run build:linux
+
+# Build unpacked directory only
 npm run build:dir
 ```
 
