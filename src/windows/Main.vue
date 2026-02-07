@@ -79,8 +79,8 @@
         @mouseenter="handleBubbleMouseEnter"
         @mouseleave="handleBubbleMouseLeave"
       >
-        <div class="bubble-content">
-          <div v-html="renderBubbleMarkdown(currentBubble.content)"></div>
+        <div class="bubble-content" ref="bubbleContentRef">
+          <div v-html="renderBubbleMarkdown(displayedText)"></div>
         </div>
       </div>
     </Transition>
@@ -199,6 +199,9 @@ const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<any>(null)
 const bubbleStyle = ref({ left: '0px', top: '0px' })
+const bubbleContentRef = ref<HTMLElement | null>(null)
+const displayedText = ref('')
+let typewriterTimer: any = null
 const showInput = ref(false)
 const inputStyle = ref({ left: '0px', top: '0px' })
 const inputText = ref('')
@@ -248,6 +251,26 @@ watch(hasModel, async (value) => {
     }
   } catch (error) {
     console.warn('[主窗口] 设置窗口置顶状态失败:', error)
+  }
+})
+
+// 监听气泡内容变化，自动滚动到底部
+watch(displayedText, () => {
+  nextTick(() => {
+    if (bubbleContentRef.value) {
+      bubbleContentRef.value.scrollTop = bubbleContentRef.value.scrollHeight
+    }
+  })
+})
+
+// 监听气泡关闭，重置打字机
+watch(currentBubble, (val) => {
+  if (!val) {
+    if (typewriterTimer) {
+      clearInterval(typewriterTimer)
+      typewriterTimer = null
+    }
+    displayedText.value = ''
   }
 })
 
@@ -351,6 +374,38 @@ function startBubbleHideTimer(delay: number) {
   }, delay)
 }
 
+// 打字机效果
+function typewriter(text: string) {
+  if (typewriterTimer) {
+    clearInterval(typewriterTimer)
+    typewriterTimer = null
+  }
+  
+  // 检查是否是续写（例如流式传输）
+  let startIdx = 0
+  if (text.startsWith(displayedText.value) && displayedText.value.length > 0) {
+    startIdx = displayedText.value.length
+  } else {
+    displayedText.value = ''
+  }
+  
+  let i = startIdx
+  const len = text.length
+  
+  // 如果已经是完整文本，就不需要打字了
+  if (i >= len) return
+
+  typewriterTimer = setInterval(() => {
+    if (i < len) {
+      displayedText.value += text.charAt(i)
+      i++
+    } else {
+      clearInterval(typewriterTimer)
+      typewriterTimer = null
+    }
+  }, 50) // 50ms per char
+}
+
 // 创建表演队列
 const performQueue = new PerformanceQueue()
 
@@ -358,8 +413,13 @@ const performQueue = new PerformanceQueue()
 performQueue.onText((content, position, _duration) => {
   currentBubble.value = { content, position }
   updateUIPositions()
-  // 启动自动隐藏定时器（默认 5 秒后隐藏）
-  startBubbleHideTimer(5000)
+  
+  // 启动打字机效果
+  typewriter(content)
+  
+  // 启动自动隐藏定时器（默认 5 秒后隐藏，或者根据文本长度延长）
+  const autoHideDelay = Math.max(5000, content.length * 100)
+  startBubbleHideTimer(autoHideDelay)
   // 文字会在队列中自动等待 duration 后继续
 })
 
