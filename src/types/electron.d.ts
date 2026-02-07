@@ -25,6 +25,8 @@ declare global {
         setAlwaysOnTop: (flag: boolean) => Promise<{ success: boolean }>
         getAlwaysOnTop: () => Promise<boolean>
         setIgnoreMouseEvents: (ignore: boolean) => Promise<{ success: boolean }>
+        setSize: (width: number, height: number) => Promise<{ success: boolean }>
+        resetSize: () => Promise<{ success: boolean }>
         getPassThroughMode: () => Promise<boolean>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>

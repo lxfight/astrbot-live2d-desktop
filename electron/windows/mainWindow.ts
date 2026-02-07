@@ -134,3 +134,25 @@ export function setMousePassThrough(enable: boolean): void {
     }
   }
 }
+
+/**
+ * 设置窗口大小
+ */
+export function setWindowSize(width: number, height: number): void {
+  if (mainWindow) {
+    mainWindow.setSize(width, height)
+    mainWindow.center()
+  }
+}
+
+/**
+ * 重置窗口大小（全屏）
+ */
+export function resetWindowSize(): void {
+  if (mainWindow) {
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width, height } = primaryDisplay.workAreaSize
+    mainWindow.setSize(width, height)
+    mainWindow.setPosition(0, 0)
+  }
+}

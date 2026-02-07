@@ -2,7 +2,7 @@ import { ipcMain, shell } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents } from '../windows/mainWindow'
+import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
 import { getUserConfig } from '../database/schema'
 
 /**
@@ -76,6 +76,22 @@ ipcMain.handle('window:getPassThroughMode', async () => {
   const passThroughConfig = getUserConfig('tray_pass_through_mode')
   const isPassThroughMode = passThroughConfig === 'true'
   return isPassThroughMode
+})
+
+/**
+ * 设置窗口大小
+ */
+ipcMain.handle('window:setSize', async (_event, width: number, height: number) => {
+  setWindowSize(width, height)
+  return { success: true }
+})
+
+/**
+ * 重置窗口大小（全屏）
+ */
+ipcMain.handle('window:resetSize', async () => {
+  resetWindowSize()
+  return { success: true }
 })
 
 /**

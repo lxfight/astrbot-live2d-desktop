@@ -242,6 +242,7 @@ watch(hasModel, async (value) => {
         alwaysOnTopBeforeImport = await window.electron.window.getAlwaysOnTop()
       }
       await window.electron.window.setAlwaysOnTop(false)
+      await window.electron.window.setSize(600, 500)
       return
     }
 
@@ -249,8 +250,9 @@ watch(hasModel, async (value) => {
       await window.electron.window.setAlwaysOnTop(alwaysOnTopBeforeImport)
       alwaysOnTopBeforeImport = null
     }
+    await window.electron.window.resetSize()
   } catch (error) {
-    console.warn('[主窗口] 设置窗口置顶状态失败:', error)
+    console.warn('[主窗口] 设置窗口置顶/大小状态失败:', error)
   }
 })
 
