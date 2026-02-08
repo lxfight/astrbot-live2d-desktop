@@ -118,51 +118,56 @@
     <!-- 快速输入框 -->
     <Transition name="input">
       <div v-if="showInput" class="input-panel-container" :style="inputStyle" @click.stop>
-        <div class="input-toolbar">
-          <n-button text size="small" @click="handleSelectImage">
-            <template #icon>
-              <ImageIcon :size="18" />
-            </template>
-          </n-button>
-          <n-button text size="small" @click="handlePaste">
-            <template #icon>
-              <Clipboard :size="18" />
-            </template>
-          </n-button>
-          <n-button
-            text
-            size="small"
-            :type="isRecording ? 'error' : 'default'"
-            @mousedown="startRecording"
-            @mouseup="stopRecording"
-            @mouseleave="cancelRecordingIfActive"
-          >
-            <template #icon>
-              <component :is="isRecording ? Disc : Mic" :size="18" />
-            </template>
-          </n-button>
+        <!-- 录音提示 (悬浮) -->
+        <Transition name="fade">
+          <div v-if="isRecording" class="recording-indicator-floating">
+            <span class="recording-dot"></span>
+            <span>录音中... {{ recordingDuration }}s</span>
+          </div>
+        </Transition>
+
+        <!-- 图片预览 (悬浮) -->
+        <Transition name="fade">
+          <div v-if="selectedImage" class="image-preview-floating">
+            <img :src="selectedImage.preview" alt="Preview" />
+            <button class="close-image-btn" @click="clearImage">
+              <X :size="12" />
+            </button>
+          </div>
+        </Transition>
+
+        <!-- 玻璃拟态输入条 -->
+        <div class="glass-input-bar">
+          <button class="icon-btn" @click="handleSelectImage" title="发送图片">
+            <ImageIcon :size="20" />
+          </button>
+          
+          <input
+            v-model="inputText"
+            class="transparent-input"
+            placeholder="输入消息... (Ctrl+V 粘贴)"
+            @keydown.enter.exact="handleSendMessage"
+            @paste="handlePasteEvent"
+            ref="inputRef"
+          />
+          
+          <div class="action-buttons">
+            <button
+              class="icon-btn record-btn"
+              :class="{ 'recording': isRecording }"
+              @mousedown="startRecording"
+              @mouseup="stopRecording"
+              @mouseleave="cancelRecordingIfActive"
+              title="按住录音"
+            >
+              <component :is="isRecording ? Disc : Mic" :size="20" />
+            </button>
+            
+            <button class="icon-btn send-btn" @click="handleSendMessage" title="发送">
+              <SendHorizontal :size="20" />
+            </button>
+          </div>
         </div>
-        <div v-if="isRecording" class="recording-indicator">
-          <span class="recording-dot"></span>
-          <span>录音中... {{ recordingDuration }}s</span>
-        </div>
-        <n-input
-          v-model:value="inputText"
-          type="textarea"
-          placeholder="输入消息... (Ctrl+V 粘贴图片)"
-          :autosize="{ minRows: 2, maxRows: 4 }"
-          @keydown.enter.exact="handleSendMessage"
-          @paste="handlePasteEvent"
-        />
-        <div v-if="selectedImage" class="image-preview">
-          <img :src="selectedImage.preview" alt="预览" />
-          <n-button text size="small" @click="clearImage">
-            <template #icon>
-              <X :size="14" color="white" />
-            </template>
-          </n-button>
-        </div>
-        <n-button type="primary" @click="handleSendMessage">发送</n-button>
       </div>
     </Transition>
   </div>
@@ -176,7 +181,7 @@ import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
   Image as ImageIcon, Clipboard, Disc, Mic, X,
-  CheckCircle, AlertCircle, Loader2, Info, AlertTriangle
+  CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
@@ -204,6 +209,7 @@ const bubbleContentRef = ref<HTMLElement | null>(null)
 const displayedText = ref('')
 let typewriterTimer: any = null
 const showInput = ref(false)
+const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref({ left: '0px', top: '0px' })
 const inputText = ref('')
 const currentUserName = ref('桌面用户')
@@ -707,6 +713,9 @@ function openInput() {
   updateUIPositions()
   // 禁用动态穿透，让整个窗口可以接收点击事件
   live2dCanvasRef.value?.disablePassThrough()
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
 }
 
 // 菜单配置
@@ -1680,44 +1689,160 @@ onMounted(async () => {
 
 .input-panel-container {
   position: absolute;
-  width: 400px;
-  padding: 16px;
-  background: rgba(26, 26, 26, 0.95);
-  border-radius: var(--radius);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg);
+  width: 420px;
   z-index: 200;
   transform: translateX(-50%);
-
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  pointer-events: none; /* Container passes clicks, children catch them */
 }
 
-.input-toolbar {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
+.input-panel-container > * {
+  pointer-events: auto;
 }
 
-.recording-indicator {
+.glass-input-bar {
+  width: 100%;
+  height: 50px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: rgba(255, 77, 79, 0.1);
-  border-radius: 4px;
-  margin-bottom: 8px;
-  color: var(--color-error);
-  font-size: 14px;
+  padding: 0 12px;
+  background: rgba(20, 20, 20, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
 
+.glass-input-bar:focus-within {
+  background: rgba(20, 20, 20, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.transparent-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+  height: 100%;
+}
+
+.transparent-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.record-btn.recording {
+  color: #ff4d4f;
+  animation: pulse-red 1.5s infinite;
+}
+
+.send-btn {
+  color: #4096ff;
+}
+
+.send-btn:hover {
+  background: rgba(64, 150, 255, 0.1);
+  color: #69b1ff;
+}
+
+.recording-indicator-floating {
+  background: rgba(255, 77, 79, 0.9);
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  backdrop-filter: blur(4px);
+  
   .recording-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-error);
+    background: #fff;
     animation: recording-pulse 1.5s ease-in-out infinite;
   }
+}
+
+.image-preview-floating {
+  position: relative;
+  background: rgba(0,0,0,0.5);
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+}
+
+.image-preview-floating img {
+  max-height: 100px;
+  max-width: 200px;
+  border-radius: 4px;
+  display: block;
+}
+
+.close-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  border: 2px solid rgba(255,255,255,0.8);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 77, 79, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
 }
 
 .recording-toast {
@@ -1775,29 +1900,7 @@ onMounted(async () => {
   }
 }
 
-.image-preview {
-  position: relative;
-  width: 100%;
-  max-height: 200px;
-  margin: 8px 0;
-  border-radius: 4px;
-  overflow: hidden;
 
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  button {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 50%;
-    padding: 4px;
-  }
-}
 
 .bubble-enter-active, .bubble-leave-active {
   transition: opacity 0.3s, transform 0.3s;
