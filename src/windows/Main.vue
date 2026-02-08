@@ -1275,21 +1275,27 @@ onMounted(async () => {
   await connectionStore.checkConnection()
 
   // 自动连接功能
-  const advancedSettings = localStorage.getItem('advancedSettings')
-  if (advancedSettings) {
+  const advancedSettingsStr = localStorage.getItem('advancedSettings')
+  let shouldAutoConnect = true // 默认为 true
+
+  if (advancedSettingsStr) {
     try {
-      const settings = JSON.parse(advancedSettings)
-      if (settings.autoConnect && !connectionStore.isConnected) {
-        console.log('[主窗口] 启动时自动连接')
-        const result = await connectionStore.connect()
-        if (result.success) {
-          console.log('[主窗口] 自动连接成功')
-        } else {
-          console.warn('[主窗口] 自动连接失败:', result.error)
-        }
+      const settings = JSON.parse(advancedSettingsStr)
+      if (settings.autoConnect !== undefined) {
+        shouldAutoConnect = settings.autoConnect
       }
     } catch (error) {
       console.error('[主窗口] 解析自动连接配置失败:', error)
+    }
+  }
+
+  if (shouldAutoConnect && !connectionStore.isConnected) {
+    console.log('[主窗口] 启动时自动连接')
+    const result = await connectionStore.connect()
+    if (result.success) {
+      console.log('[主窗口] 自动连接成功')
+    } else {
+      console.warn('[主窗口] 自动连接失败:', result.error)
     }
   }
 
@@ -1322,7 +1328,6 @@ onMounted(async () => {
   }
 
   // 自动注册全局快捷键
-  const advancedSettingsStr = localStorage.getItem('advancedSettings')
   if (advancedSettingsStr) {
     try {
       const settings = JSON.parse(advancedSettingsStr)

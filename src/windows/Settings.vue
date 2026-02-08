@@ -185,7 +185,7 @@ const appVersion = ref('')
 // 高级设置
 const advancedSettings = ref({
   recordingShortcut: 'Alt+R',
-  autoConnect: false
+  autoConnect: true
 })
 
 const shortcutRegistered = ref(false)
