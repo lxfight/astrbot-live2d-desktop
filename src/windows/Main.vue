@@ -96,6 +96,7 @@
         <div class="status-icon">
           <CheckCircle v-if="modelStatus.type === 'success'" :size="16" />
           <AlertCircle v-if="modelStatus.type === 'error'" :size="16" />
+          <AlertTriangle v-if="modelStatus.type === 'warning'" :size="16" />
           <Loader2 v-if="modelStatus.type === 'loading'" :size="16" class="spin" />
           <Info v-if="modelStatus.type === 'info'" :size="16" />
         </div>
@@ -175,7 +176,7 @@ import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
   Image as ImageIcon, Clipboard, Disc, Mic, X,
-  CheckCircle, AlertCircle, Loader2, Info
+  CheckCircle, AlertCircle, Loader2, Info, AlertTriangle
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
@@ -219,10 +220,10 @@ let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
 
 // 模型状态提示
-const modelStatus = ref<{ text: string; type: 'success' | 'error' | 'info' | 'loading' } | null>(null)
+const modelStatus = ref<{ text: string; type: 'success' | 'error' | 'info' | 'loading' | 'warning' } | null>(null)
 const modelStatusStyle = ref({ left: '0px', top: '0px' })
 
-function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loading' = 'info', duration = 3000) {
+function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loading' | 'warning' = 'info', duration = 3000) {
   modelStatus.value = { text, type }
   updateUIPositions()
 
@@ -456,7 +457,7 @@ async function handleImportModel() {
     }
 
     if (!result.success) {
-      message.error(`选择文件夹失败: ${result.error}`)
+      showModelStatus(`选择文件夹失败: ${result.error}`, 'error')
       return
     }
 
@@ -746,7 +747,7 @@ function handleSelectImage() {
 
     const file = files[0]
     if (file.size > 10 * 1024 * 1024) {
-      message.warning('图片大小不能超过 10MB')
+      showModelStatus('图片大小不能超过 10MB', 'warning')
       return
     }
 
@@ -785,9 +786,9 @@ function handlePaste() {
         }
       }
     }
-    message.warning('剪贴板中没有图片')
+    showModelStatus('剪贴板中没有图片', 'warning')
   }).catch(() => {
-    message.error('读取剪贴板失败')
+    showModelStatus('读取剪贴板失败', 'error')
   })
 }
 
@@ -844,7 +845,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 // 开始录音
 async function startRecording() {
   if (!AudioRecorder.isSupported()) {
-    message.error('您的浏览器不支持录音功能')
+    showModelStatus('您的浏览器不支持录音功能', 'error')
     return
   }
 
@@ -870,7 +871,7 @@ async function startRecording() {
 
     console.log('[主窗口] 开始录音')
   } catch (error: any) {
-    message.error(`录音失败: ${error.message}`)
+    showModelStatus(`录音失败: ${error.message}`, 'error')
     isRecording.value = false
   }
 }
@@ -892,13 +893,13 @@ async function stopRecording() {
 
     // 检查录音时长
     if (audioBlob.size < 1000) {
-      message.warning('录音时间太短')
+      showModelStatus('录音时间太短', 'warning')
       return
     }
 
     // 检查连接状态
     if (!connectionStore.isConnected) {
-      message.error('未连接到服务器')
+      showModelStatus('未连接到服务器', 'error')
       return
     }
 
@@ -906,7 +907,7 @@ async function stopRecording() {
     await sendAudioMessage(audioBlob)
 
   } catch (error: any) {
-    message.error(`停止录音失败: ${error.message}`)
+    showModelStatus(`停止录音失败: ${error.message}`, 'error')
     isRecording.value = false
     if (recordingTimer) {
       clearInterval(recordingTimer)
@@ -933,7 +934,7 @@ function cancelRecordingIfActive() {
 // 发送音频消息
 async function sendAudioMessage(audioBlob: Blob) {
   try {
-    message.info('正在发送语音...')
+    showModelStatus('正在发送语音...', 'info')
 
     // 转换为 base64
     const base64 = await blobToBase64(audioBlob)
@@ -957,7 +958,7 @@ async function sendAudioMessage(audioBlob: Blob) {
     })
 
     if (result.success) {
-      message.success('语音已发送')
+      showModelStatus('语音已发送', 'success')
 
       // 保存语音消息记录
       try {
@@ -976,10 +977,10 @@ async function sendAudioMessage(audioBlob: Blob) {
         console.error('[主窗口] 保存语音消息记录失败:', error)
       }
     } else {
-      message.error(`发送失败: ${result.error}`)
+      showModelStatus(`发送失败: ${result.error}`, 'error')
     }
   } catch (error: any) {
-    message.error(`发送失败: ${error.message}`)
+    showModelStatus(`发送失败: ${error.message}`, 'error')
   }
 }
 
@@ -999,7 +1000,7 @@ async function handleSendMessage() {
   if (!inputText.value.trim() && !selectedImage.value) return
 
   if (!connectionStore.isConnected) {
-    message.error('未连接到服务器')
+    showModelStatus('未连接到服务器', 'error')
     return
   }
 
@@ -1021,7 +1022,7 @@ async function handleSendMessage() {
         content.push({ type: 'image', inline: base64 })
       } else {
         // 大文件暂时也用 base64（后续实现资源上传）
-        message.info('正在处理图片...')
+        showModelStatus('正在处理图片...', 'info')
         const base64 = await fileToBase64(file)
         content.push({ type: 'image', inline: base64 })
       }
@@ -1035,7 +1036,7 @@ async function handleSendMessage() {
     })
 
     if (result.success) {
-      message.success('消息已发送')
+      showModelStatus('消息已发送', 'success')
       showInput.value = false
       inputText.value = ''
       selectedImage.value = null
@@ -1059,10 +1060,10 @@ async function handleSendMessage() {
         console.error('[主窗口] 保存消息记录失败:', error)
       }
     } else {
-      message.error(`发送失败: ${result.error}`)
+      showModelStatus(`发送失败: ${result.error}`, 'error')
     }
   } catch (error: any) {
-    message.error(`发送失败: ${error.message}`)
+    showModelStatus(`发送失败: ${error.message}`, 'error')
   }
 }
 
@@ -1234,7 +1235,7 @@ onMounted(async () => {
   })
 
   window.electron.bridge.onConnected((payload: any) => {
-    message.success('已连接到服务器')
+    showModelStatus('已连接到服务器', 'success')
     console.log('连接信息:', payload)
 
     // 更新连接状态
@@ -1248,7 +1249,7 @@ onMounted(async () => {
   })
 
   window.electron.bridge.onDisconnected((info: any) => {
-    message.warning('已断开连接')
+    showModelStatus('已断开连接', 'warning')
     console.log('断开信息:', info)
 
     // 更新连接状态
@@ -1258,7 +1259,7 @@ onMounted(async () => {
   })
 
   window.electron.bridge.onError((error: any) => {
-    message.error(`连接错误: ${error.message || error}`)
+    showModelStatus(`连接错误: ${error.message || error}`, 'error')
   })
 
   // 检查初始连接状态
@@ -1844,6 +1845,7 @@ onMounted(async () => {
 
   &.success { background: rgba(82, 196, 26, 0.9); }
   &.error { background: rgba(255, 77, 79, 0.9); }
+  &.warning { background: rgba(250, 173, 20, 0.9); }
   &.loading { background: rgba(24, 144, 255, 0.9); }
   &.info { background: rgba(0, 0, 0, 0.8); }
 
