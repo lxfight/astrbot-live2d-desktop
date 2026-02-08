@@ -633,7 +633,7 @@ function updateUIPositions() {
   if (currentBubble.value) {
     bubbleStyle.value = {
       left: `${modelPositionX}px`,
-      top: `${modelPositionY - 250}px`
+      bottom: `calc(100vh - ${modelPositionY - 200}px)`
     }
   }
 
@@ -1804,7 +1804,7 @@ onMounted(async () => {
 
 .bubble-enter-from, .bubble-leave-to {
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.9);
+  transform: translateX(-50%) translateY(20px) scale(0.9);
 }
 
 .input-enter-active, .input-leave-active {
