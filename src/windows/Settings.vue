@@ -77,6 +77,9 @@
         <div v-if="activeMenu === 'advanced'" class="panel">
           <h2>高级选项</h2>
           <n-form label-placement="left" label-width="140">
+            <n-form-item label="启动时自动连接">
+              <n-switch v-model:value="advancedSettings.autoConnect" />
+            </n-form-item>
             <n-form-item label="全局录音快捷键">
               <n-space>
                 <n-input
@@ -180,7 +183,8 @@ const modelList = ref<Array<{ name: string; path: string }>>([])
 
 // 高级设置
 const advancedSettings = ref({
-  recordingShortcut: 'Alt+R'
+  recordingShortcut: 'Alt+R',
+  autoConnect: false
 })
 
 const shortcutRegistered = ref(false)
@@ -233,7 +237,12 @@ function loadSettings() {
   // 从 localStorage 加载设置
   const savedAdvancedSettings = localStorage.getItem('advancedSettings')
   if (savedAdvancedSettings) {
-    advancedSettings.value = JSON.parse(savedAdvancedSettings)
+    try {
+      const parsed = JSON.parse(savedAdvancedSettings)
+      advancedSettings.value = { ...advancedSettings.value, ...parsed }
+    } catch (e) {
+      console.error('Failed to parse settings', e)
+    }
   }
 }
 

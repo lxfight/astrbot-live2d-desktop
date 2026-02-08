@@ -2,6 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
+import { getUserConfig } from '../database/schema'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -60,6 +61,17 @@ export function createMainWindow(): BrowserWindow {
     // 确保窗口透明
     if (mainWindow) {
       mainWindow.setBackgroundColor('#00000000')
+
+      // 重新应用置顶设置（因为某些情况下初始置顶可能失效）
+      try {
+        const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
+        // 默认为 true
+        const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
+        mainWindow.setAlwaysOnTop(isAlwaysOnTop)
+        console.log(`[主窗口] 重新应用置顶设置: ${isAlwaysOnTop}`)
+      } catch (error) {
+        console.error('[主窗口] 重新应用置顶设置失败:', error)
+      }
     }
   })
 
