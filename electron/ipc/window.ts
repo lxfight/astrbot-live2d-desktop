@@ -62,6 +62,20 @@ ipcMain.handle('window:getAlwaysOnTop', async () => {
 })
 
 /**
+ * 刷新窗口置顶状态（用于点击模型时确保置顶）
+ * 只有当配置为“始终置顶”时才执行操作
+ */
+ipcMain.handle('window:refreshAlwaysOnTop', async () => {
+  const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
+  const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
+  
+  if (isAlwaysOnTop) {
+    setAlwaysOnTop(true)
+  }
+  return { success: true }
+})
+
+/**
  * 设置鼠标穿透
  */
 ipcMain.handle('window:setIgnoreMouseEvents', async (_event, ignore: boolean) => {

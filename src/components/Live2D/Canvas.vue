@@ -167,6 +167,9 @@ function handleMouseDown(event: MouseEvent) {
 
   // 左键开始拖动
   if (event.button === 0 && hitModel) {
+    // 强制刷新置顶状态，确保窗口处于最前（仅在开启置顶时生效）
+    window.electron.window.refreshAlwaysOnTop()
+    
     isDragging = false // 先标记为未拖动，等移动超过阈值再标记
     isDragStartedOnModel = true // 标记拖动从模型上开始
     dragStartX = event.clientX
@@ -288,6 +291,8 @@ function handleResize() {
   }
 }
 
+let currentIgnoreMouseEvents = true // 当前穿透状态
+
 /**
  * 处理鼠标移动（用于动态设置穿透）
  */
@@ -313,10 +318,16 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
   // - options.forward: true = 将事件转发给下层窗口
   if (isOnModel) {
     // 鼠标在模型上：不穿透，不转发
-    window.electron.window.setIgnoreMouseEvents(false)
+    if (currentIgnoreMouseEvents) {
+      window.electron.window.setIgnoreMouseEvents(false)
+      currentIgnoreMouseEvents = false
+    }
   } else {
     // 鼠标不在模型上：穿透，转发给桌面
-    window.electron.window.setIgnoreMouseEvents(true)
+    if (!currentIgnoreMouseEvents) {
+      window.electron.window.setIgnoreMouseEvents(true)
+      currentIgnoreMouseEvents = true
+    }
   }
 }
 
@@ -325,7 +336,10 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
  */
 function disablePassThrough() {
   passThroughEnabled = false
-  window.electron.window.setIgnoreMouseEvents(false)
+  if (currentIgnoreMouseEvents) {
+    window.electron.window.setIgnoreMouseEvents(false)
+    currentIgnoreMouseEvents = false
+  }
 }
 
 /**
@@ -333,9 +347,7 @@ function disablePassThrough() {
  */
 function enablePassThrough() {
   passThroughEnabled = true
-  // 立即检查当前鼠标位置
-  const event = new MouseEvent('mousemove')
-  handleMouseMoveForPassThrough(event as any)
+  // 恢复动态穿透，等待下一次鼠标移动事件来更新状态
 }
 
 onMounted(() => {

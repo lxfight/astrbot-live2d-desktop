@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electron', {
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
     setAlwaysOnTop: (flag: boolean) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
     getAlwaysOnTop: () => ipcRenderer.invoke('window:getAlwaysOnTop'),
+    refreshAlwaysOnTop: () => ipcRenderer.invoke('window:refreshAlwaysOnTop'),
     setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
     setSize: (width: number, height: number) => ipcRenderer.invoke('window:setSize', width, height),
     resetSize: () => ipcRenderer.invoke('window:resetSize'),

@@ -83,6 +83,22 @@ export function createMainWindow(): BrowserWindow {
     mainWindow = null
   })
 
+  // 窗口获得焦点时重新应用置顶，防止被录屏遮挡
+  mainWindow.on('focus', () => {
+    // 使用 setTimeout 避开录屏软件可能的窗口钩子竞争
+    setTimeout(() => {
+      try {
+        const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
+        const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
+        if (isAlwaysOnTop) {
+          setAlwaysOnTop(true)
+        }
+      } catch (error) {
+        console.error('[主窗口] focus 时重新应用置顶失败:', error)
+      }
+    }, 200)
+  })
+
   return mainWindow
 }
 
@@ -117,7 +133,16 @@ export function hideMainWindow(): void {
  */
 export function setAlwaysOnTop(flag: boolean): void {
   if (mainWindow) {
-    mainWindow.setAlwaysOnTop(flag)
+    if (flag) {
+      // 强制刷新置顶状态：先取消再重新设置
+      // 这有助于解决部分录屏软件或全屏应用导致的层级失效问题
+      mainWindow.setAlwaysOnTop(false)
+      mainWindow.setAlwaysOnTop(true, 'screen-saver')
+      // 额外调用 moveTop 确保在最前
+      mainWindow.moveTop()
+    } else {
+      mainWindow.setAlwaysOnTop(false)
+    }
   }
 }
 
