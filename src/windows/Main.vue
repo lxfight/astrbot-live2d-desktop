@@ -205,6 +205,7 @@ let typewriterTimer: any = null
 const showInput = ref(false)
 const inputStyle = ref({ left: '0px', top: '0px' })
 const inputText = ref('')
+const currentUserName = ref('桌面用户')
 const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
 const isRecording = ref(false)
@@ -950,7 +951,7 @@ async function sendAudioMessage(audioBlob: Blob) {
 
     const result = await connectionStore.sendMessage(content, {
       userId: connectionStore.userId || 'desktop-user',
-      userName: '桌面用户',
+      userName: currentUserName.value || '桌面用户',
       sessionId: connectionStore.sessionId,
       messageType: 'friend'
     })
@@ -964,7 +965,7 @@ async function sendAudioMessage(audioBlob: Blob) {
           messageId: `msg_${Date.now()}`,
           sessionId: connectionStore.sessionId || 'default',
           userId: connectionStore.userId || 'desktop-user',
-          userName: '桌面用户',
+          userName: currentUserName.value || '桌面用户',
           messageType: 'friend',
           direction: 'outgoing',
           content: content,
@@ -1028,7 +1029,7 @@ async function handleSendMessage() {
 
     const result = await connectionStore.sendMessage(content, {
       userId: connectionStore.userId || 'desktop-user',
-      userName: '桌面用户',
+      userName: currentUserName.value || '桌面用户',
       sessionId: connectionStore.sessionId,
       messageType: 'friend'
     })
@@ -1047,7 +1048,7 @@ async function handleSendMessage() {
           messageId: `msg_${Date.now()}`,
           sessionId: connectionStore.sessionId || 'default',
           userId: connectionStore.userId || 'desktop-user',
-          userName: '桌面用户',
+          userName: currentUserName.value || '桌面用户',
           messageType: 'friend',
           direction: 'outgoing',
           content: content,
@@ -1067,6 +1068,16 @@ async function handleSendMessage() {
 
 // 监听表演指令
 onMounted(async () => {
+  // 获取用户名称
+  try {
+    const name = await window.electron.user.getUserName()
+    if (name) {
+      currentUserName.value = name
+    }
+  } catch (error) {
+    console.error('[主窗口] 获取用户名称失败:', error)
+  }
+
   // 监听全局快捷键录音
   window.electron.shortcut.onRecordingStart(() => {
     console.log('[主窗口] 全局快捷键：开始录音')
