@@ -1435,31 +1435,59 @@ function handleClose() {
 
 .text-content {
 
-  line-height: 1.7;
+
+
+  line-height: 1.6;
+
+
 
   font-size: 14px;
+
+
 
   white-space: pre-wrap;
 
 
 
+
+
+
+
   /* Markdown 样式优化 */
+
+
 
   :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
 
-    margin: 12px 0 8px 0;
+
+
+    margin: 10px 0 6px 0;
+
+
 
     font-weight: 700;
 
+
+
     line-height: 1.3;
+
+
 
   }
 
+
+
   
+
+
 
   :deep(p) {
 
-    margin: 6px 0;
+
+
+    margin: 4px 0;
+
+
 
   }
 
