@@ -106,7 +106,7 @@
 
     <!-- 全局录音提示 -->
     <Transition name="recording-toast">
-      <div v-if="isRecording" class="recording-toast" @click.stop>
+      <div v-if="isRecording" class="recording-toast" :style="recordingToastStyle" @click.stop>
         <div class="recording-toast-content">
           <span class="recording-dot"></span>
           <span class="recording-text">正在录音... {{ recordingDuration }}s</span>
@@ -228,6 +228,7 @@ let alwaysOnTopBeforeImport: boolean | null = null
 // 模型状态提示
 const modelStatus = ref<{ text: string; type: 'success' | 'error' | 'info' | 'loading' | 'warning' } | null>(null)
 const modelStatusStyle = ref({ left: '0px', top: '0px' })
+const recordingToastStyle = ref({ left: '0px', top: '0px' })
 
 function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loading' | 'warning' = 'info', duration = 3000) {
   modelStatus.value = { text, type }
@@ -649,6 +650,14 @@ function updateUIPositions() {
     modelStatusStyle.value = {
       left: `${modelPositionX}px`,
       top: `${modelPositionY - 280}px`
+    }
+  }
+
+  // 更新录音提示位置（模型头顶上方 330px）
+  if (isRecording.value) {
+    recordingToastStyle.value = {
+      left: `${modelPositionX}px`,
+      top: `${modelPositionY - 330}px`
     }
   }
 
@@ -1851,9 +1860,9 @@ onMounted(async () => {
 }
 
 .recording-toast {
-  position: fixed;
-  top: 20px;
-  left: 50%;
+  position: absolute;
+  /* top is controlled by inline style */
+  left: 50%; /* Initial center, also controlled by inline style */
   transform: translateX(-50%);
   z-index: 1000;
   pointer-events: none;
