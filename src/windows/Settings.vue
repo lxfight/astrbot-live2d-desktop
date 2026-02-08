@@ -129,7 +129,7 @@
             <n-space vertical :size="24">
               <div class="about-section">
                 <h3>AstrBot Live2D Desktop</h3>
-                <p>版本：<strong>v1.0.0-beta.1 (测试版)</strong></p>
+                <p>版本：<strong>v{{ appVersion }}</strong></p>
                 <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互、语音对话等功能。</p>
                 <p>作者：<strong>lxfight</strong></p>
               </div>
@@ -180,6 +180,7 @@ const activeMenu = ref('connection')
 const serverUrl = ref(connectionStore.serverUrl)
 const token = ref(connectionStore.token)
 const modelList = ref<Array<{ name: string; path: string }>>([])
+const appVersion = ref('')
 
 // 高级设置
 const advancedSettings = ref({
@@ -196,9 +197,12 @@ const menuItems = [
   { key: 'about', icon: Info, label: '关于' }
 ]
 
-onMounted(() => {
+onMounted(async () => {
   loadModelList()
   loadSettings()
+  
+  // 获取应用版本
+  appVersion.value = await window.electron.window.getAppVersion()
 
   // 检查快捷键是否已注册
   checkShortcutRegistration()

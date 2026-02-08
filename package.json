@@ -1,6 +1,6 @@
 {
   "name": "astrbot-live2d-desktop",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.4",
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",

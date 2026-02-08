@@ -30,6 +30,7 @@ declare global {
         getPassThroughMode: () => Promise<boolean>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>
+        getAppVersion: () => Promise<string>
       }
       user: {
         setUserName: (name: string) => Promise<{ success: boolean }>

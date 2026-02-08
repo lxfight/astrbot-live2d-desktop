@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron'
+import { ipcMain, shell, app } from 'electron'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
@@ -100,4 +100,11 @@ ipcMain.handle('window:resetSize', async () => {
 ipcMain.handle('window:openExternal', async (_event, url: string) => {
   await shell.openExternal(url)
   return { success: true }
+})
+
+/**
+ * 获取应用版本号
+ */
+ipcMain.handle('window:getAppVersion', async () => {
+  return app.getVersion()
 })
