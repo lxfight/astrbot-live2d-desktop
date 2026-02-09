@@ -180,7 +180,7 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
-  Image as ImageIcon, Clipboard, Disc, Mic, X,
+  Image as ImageIcon, Disc, Mic, X,
   CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
@@ -193,7 +193,6 @@ import 'katex/dist/katex.min.css'
 // @ts-ignore
 import ColorThief from 'colorthief'
 
-const message = useMessage()
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 
@@ -204,7 +203,7 @@ const menuStyle = ref({ left: '0px', top: '0px' })
 const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<any>(null)
-const bubbleStyle = ref({ left: '0px', top: '0px' })
+const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left: '0px', top: '0px' })
 const bubbleContentRef = ref<HTMLElement | null>(null)
 const displayedText = ref('')
 let typewriterTimer: any = null
@@ -781,33 +780,6 @@ function handleSelectImage() {
   }
 
   input.click()
-}
-
-// 粘贴图片
-function handlePaste() {
-  navigator.clipboard.read().then(items => {
-    for (const item of items) {
-      for (const type of item.types) {
-        if (type.startsWith('image/')) {
-          item.getType(type).then(blob => {
-            const file = new File([blob], 'pasted-image.png', { type })
-            const reader = new FileReader()
-            reader.onload = (e) => {
-              selectedImage.value = {
-                file,
-                preview: e.target?.result as string
-              }
-            }
-            reader.readAsDataURL(file)
-          })
-          return
-        }
-      }
-    }
-    showModelStatus('剪贴板中没有图片', 'warning')
-  }).catch(() => {
-    showModelStatus('读取剪贴板失败', 'error')
-  })
 }
 
 // 处理粘贴事件
@@ -1516,10 +1488,6 @@ onMounted(async () => {
 .radial-menu-enter-active,
 .radial-menu-leave-active {
   transition: opacity 0.3s;
-
-  .radial-menu-item {
-    /* 继承 item 自身的 transition，但在此处覆盖 transform */
-  }
 }
 
 .radial-menu-enter-from,

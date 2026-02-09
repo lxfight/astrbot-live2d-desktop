@@ -415,7 +415,8 @@ function handleResetSettings() {
     onPositiveClick: () => {
       localStorage.clear()
       advancedSettings.value = {
-        recordingShortcut: 'Alt+R'
+        recordingShortcut: 'Alt+R',
+        autoConnect: true
       }
       message.success('设置已重置')
     }
