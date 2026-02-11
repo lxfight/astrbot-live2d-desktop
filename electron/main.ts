@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, powerMonitor } from 'electron'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
 import { initDatabase, closeDatabase, getUserName } from './database/schema'
@@ -6,6 +6,8 @@ import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
 import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
+import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
+import { hideMainWindow, showMainWindow } from './windows/mainWindow'
 import './ipc/connection'
 import './ipc/window'
 import './ipc/history'
@@ -27,6 +29,10 @@ if (process.platform === 'win32') {
 
 // 全局 WebSocket 客户端实例
 export let bridgeClient: L2DBridgeClient | null = null
+
+// 锁屏前的状态，用于解锁后恢复
+let gameModeBeforeLock = false
+let isScreenLocked = false
 
 /**
  * 应用程序初始化
@@ -103,6 +109,33 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow()
+    }
+  })
+
+  // 锁屏时暂停所有后台活动
+  powerMonitor.on('lock-screen', () => {
+    console.log('[主进程] 屏幕已锁定，暂停活动')
+    isScreenLocked = true
+    gameModeBeforeLock = isGameModeActive()
+    stopAppLaunchWatcher()
+    if (gameModeBeforeLock) disableGameMode()
+    hideMainWindow()
+    if (bridgeClient) bridgeClient.disconnect()
+  })
+
+  // 解锁后恢复
+  powerMonitor.on('unlock-screen', () => {
+    console.log('[主进程] 屏幕已解锁，恢复活动')
+    isScreenLocked = false
+    showMainWindow()
+    if (gameModeBeforeLock) enableGameMode()
+    if (bridgeClient) {
+      const { url, token } = bridgeClient.getConnectionInfo()
+      if (url) {
+        bridgeClient.connect(url, token).catch((err) => {
+          console.error('[主进程] 解锁后重连失败:', err)
+        })
+      }
     }
   })
 })

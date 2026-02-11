@@ -376,6 +376,10 @@ export class L2DBridgeClient extends EventEmitter {
     }
   }
 
+  getConnectionInfo(): { url: string; token: string } {
+    return { url: this.url, token: this.token }
+  }
+
   /**
    * 处理窗口列表请求
    */
