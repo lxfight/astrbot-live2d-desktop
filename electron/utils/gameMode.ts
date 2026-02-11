@@ -59,7 +59,8 @@ function hasFullscreenApp(): boolean {
 
     // 排除截图工具、系统覆盖层等瞬态全屏窗口
     const ignoreTitles = ['截图工具覆盖', 'Snipping Tool', 'Snip & Sketch', 'Screenshot',
-      'QQ Screenshot', 'Xbox Game Bar', 'NVIDIA GeForce Overlay', 'GameViewer']
+      'QQ Screenshot', 'Xbox Game Bar', 'NVIDIA GeForce Overlay', 'GameViewer',
+      'Windows 默认锁屏界面', '锁屏', 'Lock Screen', 'LockApp']
     const lowerTitle = title.toLowerCase()
     if (ignoreTitles.some((t) => title === t || lowerTitle.includes(t.toLowerCase()))) {
       return false
