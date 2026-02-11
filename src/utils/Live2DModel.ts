@@ -162,8 +162,12 @@ export class Live2DModel {
   }
 
   /**
-   * 播放动作
+   * 让模型注视指定屏幕坐标
    */
+  focus(x: number, y: number): void {
+    if (!this.model) return
+    this.model.focus(x, y)
+  }
   motion(group: string, index: number = 0, priority?: number): void {
     if (!this.model) return
 

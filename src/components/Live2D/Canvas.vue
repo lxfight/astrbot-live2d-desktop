@@ -297,7 +297,12 @@ let currentIgnoreMouseEvents = true // 当前穿透状态
  * 处理鼠标移动（用于动态设置穿透）
  */
 function handleMouseMoveForPassThrough(event: MouseEvent) {
-  // 如果处于完全穿透模式，不处理
+  // 眼睛跟踪鼠标（不受穿透模式限制）
+  if (model) {
+    model.focus(event.clientX, event.clientY)
+  }
+
+  // 如果处于完全穿透模式，不处理穿透逻辑
   if (isFullPassThroughMode) return
 
   // 如果动态穿透被禁用（有 UI 显示），不处理
