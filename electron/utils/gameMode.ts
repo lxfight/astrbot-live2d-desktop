@@ -54,7 +54,14 @@ function hasFullscreenApp(): boolean {
 
     // 排除桌面窗口（Program Manager 是 Windows 桌面）
     if (title === 'Program Manager' || title === '' || title === 'Windows Shell Experience Host') {
-      console.log('[自动检测全屏] 检测到桌面窗口，不隐藏模型')
+      return false
+    }
+
+    // 排除截图工具、系统覆盖层等瞬态全屏窗口
+    const ignoreTitles = ['截图工具覆盖', 'Snipping Tool', 'Snip & Sketch', 'Screenshot',
+      'QQ Screenshot', 'Xbox Game Bar', 'NVIDIA GeForce Overlay', 'GameViewer']
+    const lowerTitle = title.toLowerCase()
+    if (ignoreTitles.some((t) => title === t || lowerTitle.includes(t.toLowerCase()))) {
       return false
     }
 

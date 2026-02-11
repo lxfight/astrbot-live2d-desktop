@@ -62,6 +62,9 @@ export function createMainWindow(): BrowserWindow {
     if (mainWindow) {
       mainWindow.setBackgroundColor('#00000000')
 
+      // 启用初始鼠标穿透（forward: true 让渲染进程仍能收到 mousemove）
+      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+
       // 重新应用置顶设置（因为某些情况下初始置顶可能失效）
       try {
         const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
