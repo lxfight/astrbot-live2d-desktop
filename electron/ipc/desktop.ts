@@ -213,6 +213,9 @@ export async function startAppLaunchWatcher() {
 
       if (newApps.length === 0) return
 
+      // 30% 概率静默，避免过于频繁打扰用户
+      if (Math.random() < 0.3) return
+
       const appList = newApps.map((a) => a.appName).join('、')
       bridgeClient.sendMessage({
         content: [
