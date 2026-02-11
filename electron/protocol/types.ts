@@ -45,6 +45,11 @@ export const OP = {
   STATE_CONFIG: 'state.config',
   STATE_MODEL: 'state.model', // 模型信息更新
 
+  // 桌面感知
+  DESKTOP_WINDOW_LIST: 'desktop.window.list',
+  DESKTOP_WINDOW_ACTIVE: 'desktop.window.active',
+  DESKTOP_CAPTURE_SCREENSHOT: 'desktop.capture.screenshot',
+
   // STT（语音转文字）
   STT_TRANSCRIBE: 'stt.transcribe',
   STT_RESULT: 'stt.result'
@@ -216,4 +221,40 @@ export interface StateModelPayload {
   name: string // 模型名称
   motionGroups: Record<string, Array<{ index: number; file: string }>> // 动作组及每个动作的详细信息
   expressions: string[] // 可用的表情列表
+}
+
+// 桌面感知 - 窗口信息
+export interface DesktopWindowInfo {
+  id: string
+  title: string
+  processName: string
+  isActive?: boolean
+  bounds?: { x: number; y: number; width: number; height: number }
+}
+
+// 桌面感知 - 窗口列表响应
+export interface DesktopWindowListPayload {
+  windows: DesktopWindowInfo[]
+}
+
+// 桌面感知 - 活跃窗口响应
+export interface DesktopWindowActivePayload {
+  window: DesktopWindowInfo | null
+}
+
+// 桌面感知 - 截图请求
+export interface DesktopCaptureRequestPayload {
+  target: 'desktop' | 'active' | 'window'
+  windowId?: string
+  format?: string
+  quality?: number
+  maxWidth?: number
+}
+
+// 桌面感知 - 截图响应
+export interface DesktopCaptureResponsePayload {
+  image: string // data:image/png;base64,...
+  window?: { id?: string; title: string; processName?: string }
+  width: number
+  height: number
 }

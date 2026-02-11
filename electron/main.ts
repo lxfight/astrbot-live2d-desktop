@@ -5,6 +5,7 @@ import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
+import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
 import './ipc/connection'
 import './ipc/window'
 import './ipc/history'
@@ -60,6 +61,8 @@ export function initBridgeClient() {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('bridge:connected', payload)
     })
+    // 启动应用启动监听
+    startAppLaunchWatcher()
   })
 
   bridgeClient.on('disconnected', (info) => {
@@ -120,6 +123,7 @@ app.on('before-quit', () => {
   if (bridgeClient) {
     bridgeClient.disconnect()
   }
+  stopAppLaunchWatcher()
   cleanupShortcuts()
   destroyTray()
   closeDatabase()

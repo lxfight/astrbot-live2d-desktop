@@ -1,6 +1,8 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
 import { EventEmitter } from 'events'
+import { createHash } from 'crypto'
+import http from 'http'
 import { getUserId } from '../database/schema'
 import type {
   BasePacket,
@@ -10,9 +12,10 @@ import type {
   PerformShowPayload,
   STTTranscribePayload,
   STTResultPayload,
-
+  DesktopCaptureRequestPayload,
 } from './types'
 import { OP as OPS } from './types'
+import { getWindowList, getActiveWindow, captureScreenshot } from '../ipc/desktop'
 
 /**
  * L2D-Bridge WebSocket 客户端
@@ -28,6 +31,12 @@ export class L2DBridgeClient extends EventEmitter {
   private reconnectAttempts: number = 0
   private maxReconnectAttempts: number = 5
   private isConnecting: boolean = false
+  private serverConfig: { resourceBaseUrl?: string; maxInlineBytes?: number } = {}
+  private pendingRequests: Map<string, {
+    resolve: (payload: any) => void
+    reject: (error: Error) => void
+    timer: NodeJS.Timeout
+  }> = new Map()
 
   constructor() {
     super()
@@ -94,6 +103,12 @@ export class L2DBridgeClient extends EventEmitter {
     this.stopHeartbeat()
     this.stopReconnect()
 
+    for (const [, pending] of this.pendingRequests) {
+      clearTimeout(pending.timer)
+      pending.reject(new Error('连接已断开'))
+    }
+    this.pendingRequests.clear()
+
     if (this.ws) {
       this.ws.close()
       this.ws = null
@@ -133,6 +148,19 @@ export class L2DBridgeClient extends EventEmitter {
       console.log('[L2D] 收到数据包:', packet.op, packet.payload)
     }
 
+    // 拦截等待中的请求响应（按 packet.id 匹配）
+    const pending = this.pendingRequests.get(packet.id)
+    if (pending) {
+      this.pendingRequests.delete(packet.id)
+      clearTimeout(pending.timer)
+      if (packet.error) {
+        pending.reject(new Error(packet.error.message))
+      } else {
+        pending.resolve(packet.payload)
+      }
+      return
+    }
+
     switch (packet.op) {
       case OPS.SYS_HANDSHAKE_ACK:
         this.handleHandshakeAck(packet.payload as HandshakeAckPayload)
@@ -158,6 +186,22 @@ export class L2DBridgeClient extends EventEmitter {
         this.emit('error', packet.error)
         break
 
+      case OPS.DESKTOP_WINDOW_LIST:
+        this.handleDesktopWindowList(packet)
+        break
+
+      case OPS.DESKTOP_WINDOW_ACTIVE:
+        this.handleDesktopWindowActive(packet)
+        break
+
+      case OPS.DESKTOP_CAPTURE_SCREENSHOT:
+        this.handleDesktopCaptureScreenshot(packet)
+        break
+
+      case OPS.STATE_READY:
+        // 服务器就绪通知，静默处理
+        break
+
       default:
         console.warn('[L2D] 未知操作码:', packet.op)
     }
@@ -177,6 +221,11 @@ export class L2DBridgeClient extends EventEmitter {
       userId: this.userId,
       capabilities: payload.capabilities
     })
+
+    this.serverConfig = {
+      resourceBaseUrl: payload.config?.resourceBaseUrl,
+      maxInlineBytes: payload.config?.maxInlineBytes,
+    }
 
     this.startHeartbeat()
 
@@ -325,5 +374,144 @@ export class L2DBridgeClient extends EventEmitter {
       sessionId: this.sessionId,
       userId: this.userId
     }
+  }
+
+  /**
+   * 处理窗口列表请求
+   */
+  private async handleDesktopWindowList(packet: BasePacket): Promise<void> {
+    try {
+      const result = await getWindowList()
+      this.send({
+        op: OPS.DESKTOP_WINDOW_LIST,
+        id: packet.id,
+        ts: Date.now(),
+        payload: result,
+      })
+    } catch (error) {
+      console.error('[L2D] 获取窗口列表失败:', error)
+      this.send({
+        op: OPS.SYS_ERROR,
+        id: packet.id,
+        ts: Date.now(),
+        error: { code: 5000, message: `获取窗口列表失败: ${error}` },
+      })
+    }
+  }
+
+  /**
+   * 处理活跃窗口请求
+   */
+  private async handleDesktopWindowActive(packet: BasePacket): Promise<void> {
+    try {
+      const result = await getActiveWindow()
+      this.send({
+        op: OPS.DESKTOP_WINDOW_ACTIVE,
+        id: packet.id,
+        ts: Date.now(),
+        payload: result,
+      })
+    } catch (error) {
+      console.error('[L2D] 获取活跃窗口失败:', error)
+      this.send({
+        op: OPS.SYS_ERROR,
+        id: packet.id,
+        ts: Date.now(),
+        error: { code: 5000, message: `获取活跃窗口失败: ${error}` },
+      })
+    }
+  }
+
+  /**
+   * 处理截图请求
+   */
+  private async handleDesktopCaptureScreenshot(packet: BasePacket): Promise<void> {
+    try {
+      const req = (packet.payload || {}) as DesktopCaptureRequestPayload
+      const uploadFn = this.serverConfig.resourceBaseUrl
+        ? (buf: Buffer, mime: string) => this.uploadResource(buf, mime)
+        : undefined
+      const result = await captureScreenshot(req, uploadFn)
+      this.send({
+        op: OPS.DESKTOP_CAPTURE_SCREENSHOT,
+        id: packet.id,
+        ts: Date.now(),
+        payload: result,
+      })
+    } catch (error) {
+      console.error('[L2D] 截图失败:', error)
+      this.send({
+        op: OPS.SYS_ERROR,
+        id: packet.id,
+        ts: Date.now(),
+        error: { code: 5000, message: `截图失败: ${error}` },
+      })
+    }
+  }
+
+  /**
+   * 发送数据包并等待同 ID 响应
+   */
+  private sendAndWait(packet: BasePacket, timeoutMs: number = 15000): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(packet.id)
+        reject(new Error('请求超时'))
+      }, timeoutMs)
+      this.pendingRequests.set(packet.id, { resolve, reject, timer })
+      this.send(packet)
+    })
+  }
+
+  /**
+   * 通过资源服务器上传文件，返回资源 URL
+   */
+  private async uploadResource(buf: Buffer, mime: string): Promise<string | null> {
+    try {
+      const sha256 = createHash('sha256').update(buf).digest('hex')
+      const packet: BasePacket = {
+        op: OPS.RESOURCE_PREPARE,
+        id: uuidv4(),
+        ts: Date.now(),
+        payload: { kind: 'image', mime, size: buf.length, sha256 },
+      }
+      const result = await this.sendAndWait(packet)
+      const uploadUrl = result?.upload?.url
+      if (!uploadUrl || !result?.rid) return null
+
+      const headers: Record<string, string> = { 'Content-Type': mime }
+      const authHeaders = result?.upload?.headers
+      if (authHeaders) Object.assign(headers, authHeaders)
+
+      const status = await this.httpPut(uploadUrl, buf, headers)
+      if (status >= 200 && status < 300) {
+        return result?.resource?.url || uploadUrl
+      }
+      console.error('[L2D] 资源上传 HTTP 失败:', status)
+      return null
+    } catch (error) {
+      console.error('[L2D] 资源上传失败:', error)
+      return null
+    }
+  }
+
+  private httpPut(url: string, body: Buffer, headers: Record<string, string> = {}): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url)
+      const options: http.RequestOptions = {
+        hostname: parsed.hostname,
+        port: parsed.port || 80,
+        path: parsed.pathname + parsed.search,
+        method: 'PUT',
+        headers: { ...headers, 'Content-Length': body.length.toString() },
+      }
+      const req = http.request(options, (res) => {
+        res.resume()
+        resolve(res.statusCode || 500)
+      })
+      req.on('error', reject)
+      req.write(body)
+      req.end()
+    })
   }
 }
