@@ -132,6 +132,7 @@ app.whenReady().then(() => {
     if (bridgeClient) {
       const { url, token } = bridgeClient.getConnectionInfo()
       if (url) {
+        bridgeClient.resetReconnect()
         bridgeClient.connect(url, token).catch((err) => {
           console.error('[主进程] 解锁后重连失败:', err)
         })

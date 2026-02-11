@@ -29,7 +29,7 @@ export class L2DBridgeClient extends EventEmitter {
   private heartbeatTimer: NodeJS.Timeout | null = null
   private reconnectTimer: NodeJS.Timeout | null = null
   private reconnectAttempts: number = 0
-  private maxReconnectAttempts: number = 5
+  private maxReconnectAttempts: number = 10
   private isConnecting: boolean = false
   private serverConfig: { resourceBaseUrl?: string; maxInlineBytes?: number } = {}
   private pendingRequests: Map<string, {
@@ -378,6 +378,11 @@ export class L2DBridgeClient extends EventEmitter {
 
   getConnectionInfo(): { url: string; token: string } {
     return { url: this.url, token: this.token }
+  }
+
+  resetReconnect(): void {
+    this.reconnectAttempts = 0
+    this.stopReconnect()
   }
 
   /**
