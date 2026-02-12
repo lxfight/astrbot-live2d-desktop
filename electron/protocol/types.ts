@@ -50,6 +50,9 @@ export const OP = {
   DESKTOP_WINDOW_ACTIVE: 'desktop.window.active',
   DESKTOP_CAPTURE_SCREENSHOT: 'desktop.capture.screenshot',
 
+  // 桌面工具调用
+  DESKTOP_TOOL_CALL: 'desktop.tool.call',
+
   // STT（语音转文字）
   STT_TRANSCRIBE: 'stt.transcribe',
   STT_RESULT: 'stt.result'
@@ -76,6 +79,7 @@ export interface HandshakePayload {
   version: string
   clientId: string
   token?: string
+  tools?: DesktopToolDeclaration[]
   model?: {
     name: string
     motionGroups: string[] // 可用的动作组列表
@@ -257,4 +261,31 @@ export interface DesktopCaptureResponsePayload {
   window?: { id?: string; title: string; processName?: string }
   width: number
   height: number
+}
+
+// 桌面工具声明（握手时由客户端发送）
+export interface DesktopToolParam {
+  name: string
+  type: string  // string | number | boolean | array | object
+  description: string
+  required?: boolean
+}
+
+export interface DesktopToolDeclaration {
+  name: string
+  description: string
+  parameters: DesktopToolParam[]
+}
+
+// 桌面工具调用（服务端 → 客户端请求）
+export interface DesktopToolCallPayload {
+  tool: string
+  args: Record<string, any>
+}
+
+// 桌面工具调用响应（客户端 → 服务端）
+export interface DesktopToolResultPayload {
+  tool: string
+  result?: any
+  error?: string
 }

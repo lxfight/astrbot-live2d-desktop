@@ -13,9 +13,11 @@ import type {
   STTTranscribePayload,
   STTResultPayload,
   DesktopCaptureRequestPayload,
+  DesktopToolDeclaration,
+  DesktopToolCallPayload,
 } from './types'
 import { OP as OPS } from './types'
-import { getWindowList, getActiveWindow, captureScreenshot } from '../ipc/desktop'
+import { getWindowList, getActiveWindow, captureScreenshot, getDesktopTools } from '../ipc/desktop'
 
 /**
  * L2D-Bridge WebSocket 客户端
@@ -122,13 +124,13 @@ export class L2DBridgeClient extends EventEmitter {
    * 发送握手请求
    */
   private sendHandshake(): void {
-    // 从数据库获取用户ID
     const userId = getUserId()
 
     const payload: HandshakePayload = {
       version: '1.0.0',
       clientId: userId,
-      token: this.token
+      token: this.token,
+      tools: getDesktopTools(),
     }
 
     this.send({
@@ -196,6 +198,10 @@ export class L2DBridgeClient extends EventEmitter {
 
       case OPS.DESKTOP_CAPTURE_SCREENSHOT:
         this.handleDesktopCaptureScreenshot(packet)
+        break
+
+      case OPS.DESKTOP_TOOL_CALL:
+        this.handleDesktopToolCall(packet)
         break
 
       case OPS.STATE_READY:
@@ -454,6 +460,31 @@ export class L2DBridgeClient extends EventEmitter {
         id: packet.id,
         ts: Date.now(),
         error: { code: 5000, message: `截图失败: ${error}` },
+      })
+    }
+  }
+
+  /**
+   * 处理通用桌面工具调用
+   */
+  private async handleDesktopToolCall(packet: BasePacket): Promise<void> {
+    const { tool, args } = (packet.payload || {}) as DesktopToolCallPayload
+    try {
+      const { handleToolCall } = await import('../ipc/desktop')
+      const result = await handleToolCall(tool, args || {})
+      this.send({
+        op: OPS.DESKTOP_TOOL_CALL,
+        id: packet.id,
+        ts: Date.now(),
+        payload: { tool, result },
+      })
+    } catch (error: any) {
+      console.error(`[L2D] 工具 ${tool} 调用失败:`, error)
+      this.send({
+        op: OPS.DESKTOP_TOOL_CALL,
+        id: packet.id,
+        ts: Date.now(),
+        payload: { tool, error: error?.message || String(error) },
       })
     }
   }

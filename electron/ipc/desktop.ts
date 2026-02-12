@@ -11,6 +11,7 @@ import type {
   DesktopCaptureResponsePayload,
   DesktopWindowListPayload,
   DesktopWindowActivePayload,
+  DesktopToolDeclaration,
 } from '../protocol/types'
 
 // active-win 是纯 ESM 包，动态导入
@@ -232,4 +233,51 @@ export function stopAppLaunchWatcher() {
     watchTimer = null
   }
   knownAppNames.clear()
+}
+
+// ──────── 工具声明与调用分发 ────────
+
+/**
+ * 返回桌面端暴露的工具声明列表，握手时发送给服务端
+ */
+export function getDesktopTools(): DesktopToolDeclaration[] {
+  return [
+    {
+      name: 'get_active_window',
+      description: '获取用户当前正在使用的活跃窗口信息（标题、进程名）。当需要了解用户正在做什么时调用。',
+      parameters: [],
+    },
+    {
+      name: 'capture_screenshot',
+      description: '截取用户桌面或特定窗口的屏幕截图。截图将作为图片附加到上下文供你分析。当需要查看用户屏幕内容、帮助用户解决问题、或对用户正在看的内容进行评论时调用。',
+      parameters: [
+        { name: 'target', type: 'string', description: '截图目标。"desktop"（全屏）、"active"（当前活跃窗口，默认）', required: false },
+      ],
+    },
+  ]
+}
+
+// 工具名 → 处理函数映射
+const toolHandlers: Record<string, (args: Record<string, any>) => Promise<any>> = {
+  get_active_window: async () => {
+    return await getActiveWindow()
+  },
+  capture_screenshot: async (args) => {
+    const req: DesktopCaptureRequestPayload = {
+      target: args.target || 'active',
+      quality: 80,
+      maxWidth: 1920,
+    }
+    // uploadFn 在此处不可用（需要 client 上下文），由 client.ts 注入
+    return await captureScreenshot(req)
+  },
+}
+
+/**
+ * 统一处理服务端发来的工具调用
+ */
+export async function handleToolCall(toolName: string, args: Record<string, any>): Promise<any> {
+  const handler = toolHandlers[toolName]
+  if (!handler) throw new Error(`未知工具: ${toolName}`)
+  return await handler(args)
 }
