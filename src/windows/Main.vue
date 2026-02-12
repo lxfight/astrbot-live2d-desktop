@@ -262,11 +262,12 @@ let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
 
 // 模型状态提示
-const modelStatus = ref<{ text: string; type: 'success' | 'error' | 'info' | 'loading' | 'warning' } | null>(null)
+type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
+const modelStatus = ref<{ text: string; type: ModelStatusType } | null>(null)
 const modelStatusStyle = ref({ left: '0px', top: '0px' })
 const recordingToastStyle = ref({ left: '0px', top: '0px' })
 
-function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loading' | 'warning' = 'info', duration = 3000) {
+function showModelStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
   modelStatus.value = { text, type }
   updateUIPositions()
 
@@ -277,6 +278,14 @@ function showModelStatus(text: string, type: 'success' | 'error' | 'info' | 'loa
       }
     }, duration)
   }
+}
+
+function showBaseEventStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
+  if (!advancedSettings.value.showBaseEventNotifications) {
+    return
+  }
+
+  showModelStatus(text, type, duration)
 }
 
 // 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
@@ -586,7 +595,7 @@ async function handleImportModel() {
     }
 
     if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
-      showModelStatus(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`, 'info')
+      showBaseEventStatus(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`, 'info')
     }
 
     // 加载模型，传入保存的位置（如果有）
@@ -607,7 +616,7 @@ async function handleImportModel() {
       modelPositionY = window.innerHeight / 2
     }
 
-    showModelStatus('模型导入成功', 'success')
+    showBaseEventStatus('模型导入成功', 'success')
   } catch (error: any) {
     showModelStatus(`导入模型失败: ${error.message}`, 'error')
   }
@@ -626,7 +635,7 @@ async function handleModelLoaded() {
     updateUIPositions()
   }
   
-  showModelStatus('模型加载成功', 'success')
+  showBaseEventStatus('模型加载成功', 'success')
 
   // 提取主题色
   try {
@@ -1001,7 +1010,7 @@ function startWakeWordListener() {
         return
       }
 
-      showModelStatus(`检测到唤醒词「${keyword}」，开始录音`, 'info', 2200)
+      showBaseEventStatus(`检测到唤醒词「${keyword}」，开始录音`, 'info', 2200)
       void startRecording({ source: 'wake-word' })
     },
     onStatusChange: handleWakeWordStatusChange,
@@ -1171,7 +1180,7 @@ function cancelRecordingIfActive() {
 
 async function sendAudioMessage(audioBlob: Blob) {
   try {
-    showModelStatus('正在发送语音...', 'info')
+    showBaseEventStatus('正在发送语音...', 'info')
 
     // 转换为 base64
     const base64 = await blobToBase64(audioBlob)
@@ -1195,7 +1204,7 @@ async function sendAudioMessage(audioBlob: Blob) {
     })
 
     if (result.success) {
-      showModelStatus('语音已发送', 'success')
+      showBaseEventStatus('语音已发送', 'success')
 
       // 保存语音消息记录
       try {
@@ -1259,7 +1268,7 @@ async function handleSendMessage() {
         content.push({ type: 'image', inline: base64 })
       } else {
         // 大文件暂时也用 base64（后续实现资源上传）
-        showModelStatus('正在处理图片...', 'info')
+        showBaseEventStatus('正在处理图片...', 'info')
         const base64 = await fileToBase64(file)
         content.push({ type: 'image', inline: base64 })
       }
@@ -1273,7 +1282,7 @@ async function handleSendMessage() {
     })
 
     if (result.success) {
-      showModelStatus('消息已发送', 'success')
+      showBaseEventStatus('消息已发送', 'success')
       showInput.value = false
       inputText.value = ''
       selectedImage.value = null
@@ -1475,7 +1484,7 @@ onMounted(async () => {
   })
 
   window.electron.bridge.onConnected((payload: any) => {
-    showModelStatus('已连接到服务器', 'success')
+    showBaseEventStatus('已连接到服务器', 'success')
     console.log('连接信息:', payload)
 
     // 更新连接状态
@@ -1489,7 +1498,7 @@ onMounted(async () => {
   })
 
   window.electron.bridge.onDisconnected((info: any) => {
-    showModelStatus('已断开连接', 'warning')
+    showBaseEventStatus('已断开连接', 'warning')
     console.log('断开信息:', info)
 
     // 更新连接状态

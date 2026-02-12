@@ -5,6 +5,7 @@ const MIN_RECORDING_SECONDS_LIMIT = 1
 export interface AdvancedSettings {
   recordingShortcut: string
   autoConnect: boolean
+  showBaseEventNotifications: boolean
   wakeWordEnabled: boolean
   wakeKeywords: string[]
   maxRecordingSeconds: number
@@ -13,6 +14,7 @@ export interface AdvancedSettings {
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
   autoConnect: true,
+  showBaseEventNotifications: true,
   wakeWordEnabled: false,
   wakeKeywords: ['小助手'],
   maxRecordingSeconds: 30
@@ -72,6 +74,9 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     autoConnect: typeof raw.autoConnect === 'boolean'
       ? raw.autoConnect
       : DEFAULT_ADVANCED_SETTINGS.autoConnect,
+    showBaseEventNotifications: typeof raw.showBaseEventNotifications === 'boolean'
+      ? raw.showBaseEventNotifications
+      : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
     wakeWordEnabled: typeof raw.wakeWordEnabled === 'boolean'
       ? raw.wakeWordEnabled
       : DEFAULT_ADVANCED_SETTINGS.wakeWordEnabled,

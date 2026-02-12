@@ -80,6 +80,9 @@
             <n-form-item label="启动时自动连接">
               <n-switch v-model:value="advancedSettings.autoConnect" />
             </n-form-item>
+            <n-form-item label="基础事件弹窗提示">
+              <n-switch v-model:value="advancedSettings.showBaseEventNotifications" />
+            </n-form-item>
             <n-form-item label="全局录音快捷键">
               <n-space>
                 <n-input
@@ -120,6 +123,7 @@
             <n-form-item>
               <n-alert type="info" :show-icon="false">
                 全局快捷键用于手动录音；语音唤醒会监听关键词，命中后自动录音并在静音或达到时长后发送。
+                关闭「基础事件弹窗提示」后，将不再显示模型上方的连接/发送成功等提示（错误/警告提示仍会保留）。
               </n-alert>
             </n-form-item>
             <n-form-item>
