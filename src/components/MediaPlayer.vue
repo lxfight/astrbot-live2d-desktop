@@ -33,6 +33,9 @@ const videoRef = ref<HTMLVideoElement>()
 const currentImage = ref<string>()
 const currentVideo = ref<string>()
 
+let isAudioActive = false
+let imageHideTimer: number | null = null
+
 // 定义 emit
 const emit = defineEmits<{
   audioStart: [audioElement: HTMLAudioElement]
@@ -46,6 +49,9 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
   if (!audioRef.value) return
 
   try {
+    stopAudio()
+
+    isAudioActive = true
     let audioUrl = urlOrData
 
     // 处理 inline base64
@@ -68,6 +74,10 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
     emit('audioStart', audioRef.value)
   } catch (error) {
     console.error('[媒体播放器] 音频播放失败:', error)
+    if (isAudioActive) {
+      isAudioActive = false
+      emit('audioEnd')
+    }
   }
 }
 
@@ -76,8 +86,15 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
  */
 function stopAudio() {
   if (!audioRef.value) return
+
+  const shouldEmit = isAudioActive
+  isAudioActive = false
+
   audioRef.value.pause()
   audioRef.value.currentTime = 0
+  if (shouldEmit) {
+    emit('audioEnd')
+  }
 }
 
 /**
@@ -99,8 +116,13 @@ function showImage(urlOrData: string, duration?: number) {
   console.log('[媒体播放器] 显示图片:', imageUrl)
   currentImage.value = imageUrl
 
-  if (duration) {
-    setTimeout(() => {
+  if (imageHideTimer !== null) {
+    clearTimeout(imageHideTimer)
+    imageHideTimer = null
+  }
+
+  if (duration && duration > 0) {
+    imageHideTimer = window.setTimeout(() => {
       hideImage()
     }, duration)
   }
@@ -110,6 +132,10 @@ function showImage(urlOrData: string, duration?: number) {
  * 隐藏图片
  */
 function hideImage() {
+  if (imageHideTimer !== null) {
+    clearTimeout(imageHideTimer)
+    imageHideTimer = null
+  }
   currentImage.value = undefined
 }
 
@@ -144,6 +170,7 @@ function hideVideo() {
  */
 function handleAudioEnded() {
   console.log('[媒体播放器] 音频播放结束')
+  isAudioActive = false
   emit('audioEnd')
 }
 

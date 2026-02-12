@@ -204,6 +204,14 @@ const modelStore = useModelStore()
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
+
+let audioEndResolvers: Array<() => void> = []
+
+function waitForNextAudioEnd(): Promise<void> {
+  return new Promise((resolve) => {
+    audioEndResolvers.push(resolve)
+  })
+}
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
 const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
@@ -545,7 +553,7 @@ const performQueue = new PerformanceQueue()
 
 // Register performance queue callbacks
 performQueue.onText((content, position, _duration) => {
-  void handleIncomingText(content, position)
+  return handleIncomingText(content, position)
 })
 
 performQueue.onMotion((group, index, priority) => {
@@ -557,7 +565,12 @@ performQueue.onExpression((id) => {
 })
 
 performQueue.onAudio((url, volume) => {
-  mediaPlayerRef.value?.playAudio(url, volume)
+  const mediaPlayer = mediaPlayerRef.value
+  if (!mediaPlayer) return
+
+  const audioEndPromise = waitForNextAudioEnd()
+  void mediaPlayer.playAudio(url, volume)
+  return audioEndPromise
 })
 
 performQueue.onImage((url, duration) => {
@@ -567,6 +580,25 @@ performQueue.onImage((url, duration) => {
 performQueue.onVideo((url) => {
   mediaPlayerRef.value?.playVideo(url)
 })
+
+function interruptPerformance() {
+  performQueue.interrupt()
+
+  // Reset text switching state, but keep the bubble content visible
+  pendingTextPayload = null
+  isSwitchingText = false
+  textTransitionVersion++
+
+  mediaPlayerRef.value?.stopAudio()
+  mediaPlayerRef.value?.hideImage()
+  mediaPlayerRef.value?.hideVideo()
+
+  // Ensure any awaiting audio tasks are released
+  while (audioEndResolvers.length > 0) {
+    const resolve = audioEndResolvers.shift()
+    if (resolve) resolve()
+  }
+}
 
 // 导入模型
 async function handleImportModel() {
@@ -1239,6 +1271,8 @@ function handleAudioStart(audioElement: HTMLAudioElement) {
 // 处理音频播放结束
 function handleAudioEnd() {
   console.log('[主窗口] 音频播放结束')
+  const resolve = audioEndResolvers.shift()
+  if (resolve) resolve()
 }
 
 // 发送消息
@@ -1380,6 +1414,10 @@ onMounted(async () => {
   window.electron.bridge.onPerformShow((payload: any) => {
     console.log('收到表演指令:', payload)
 
+    if (payload.interrupt) {
+      interruptPerformance()
+    }
+
     // 使用表演队列执行
     if (payload.sequence) {
       performQueue.enqueue({
@@ -1476,11 +1514,7 @@ onMounted(async () => {
 
   window.electron.bridge.onPerformInterrupt(() => {
     console.log('收到中断指令')
-    performQueue.interrupt()
-    currentBubble.value = null
-    mediaPlayerRef.value?.stopAudio()
-    mediaPlayerRef.value?.hideImage()
-    mediaPlayerRef.value?.hideVideo()
+    interruptPerformance()
   })
 
   window.electron.bridge.onConnected((payload: any) => {

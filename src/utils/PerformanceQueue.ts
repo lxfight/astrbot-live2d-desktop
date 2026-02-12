@@ -1,79 +1,248 @@
-/**
+﻿/**
  * 表演队列执行器
- * 按顺序执行表演序列中的各个元素
+ * - 不同类型指令并行执行
+ * - 同类型指令串行执行
  */
 
+export type PerformElementType =
+  | 'text'
+  | 'motion'
+  | 'expression'
+  | 'audio'
+  | 'tts'
+  | 'image'
+  | 'video'
+  | 'delay'
+  | 'wait'
+
 export interface PerformElement {
-  type: 'text' | 'motion' | 'expression' | 'audio' | 'image' | 'video' | 'delay'
+  type: PerformElementType | string
+
+  // 文字气泡
   content?: string
   position?: 'top' | 'center' | 'bottom'
   duration?: number
+
+  // 动作
   group?: string
   index?: number
   priority?: number
+
+  // 表情
   id?: string | number
+
+  // 媒体
   url?: string
+  inline?: string
+  rid?: string
+  text?: string
   volume?: number
 }
 
 export interface PerformSequence {
   sequence: PerformElement[]
+
+  /**
+   * 是否允许 perform.interrupt 中断当前序列（默认 true）
+   */
   interruptible?: boolean
 }
 
+type MaybePromise<T> = T | Promise<T>
+
+type TextCallback = (content: string, position: string, duration: number) => MaybePromise<void>
+
+type MotionCallback = (group: string, index: number, priority: number) => MaybePromise<void>
+
+type ExpressionCallback = (id: string | number) => MaybePromise<void>
+
+type AudioCallback = (source: string, volume: number) => MaybePromise<void>
+
+type ImageCallback = (source: string, duration: number) => MaybePromise<void>
+
+type VideoCallback = (source: string, duration?: number) => MaybePromise<void>
+
+function toNonNegativeInt(value: unknown, fallback: number): number {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) {
+    return fallback
+  }
+  return Math.max(0, Math.floor(num))
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  const duration = toNonNegativeInt(ms, 0)
+  if (duration <= 0) {
+    return Promise.resolve()
+  }
+  if (signal?.aborted) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      cleanup()
+      resolve()
+    }, duration)
+
+    const onAbort = () => {
+      cleanup()
+      resolve()
+    }
+
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+    }
+
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true })
+    }
+  })
+}
+
+async function withAbort<T>(promise: MaybePromise<T>, signal?: AbortSignal): Promise<T | undefined> {
+  if (!signal) {
+    return await promise
+  }
+
+  if (signal.aborted) {
+    return undefined
+  }
+
+  const abortPromise = new Promise<undefined>((resolve) => {
+    signal.addEventListener('abort', () => resolve(undefined), { once: true })
+  })
+
+  return await Promise.race([Promise.resolve(promise), abortPromise])
+}
+
+class SerialTaskQueue {
+  private tasks: Array<(signal: AbortSignal) => MaybePromise<void>> = []
+  private running = false
+  private controller: AbortController | null = null
+  private readonly name: string
+
+  constructor(name: string) {
+    this.name = name
+  }
+
+  enqueue(task: (signal: AbortSignal) => MaybePromise<void>) {
+    this.tasks.push(task)
+    void this.run()
+  }
+
+  interrupt() {
+    this.tasks = []
+
+    if (this.controller) {
+      this.controller.abort()
+      this.controller = null
+    }
+  }
+
+  clear() {
+    this.interrupt()
+  }
+
+  private async run() {
+    if (this.running) {
+      return
+    }
+
+    this.running = true
+
+    try {
+      while (this.tasks.length > 0) {
+        const task = this.tasks.shift()!
+        const controller = new AbortController()
+        this.controller = controller
+
+        try {
+          await withAbort(task(controller.signal), controller.signal)
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            console.error(`[表演队列] ${this.name} 任务执行失败:`, error)
+          }
+        } finally {
+          if (this.controller === controller) {
+            this.controller = null
+          }
+        }
+      }
+    } finally {
+      this.running = false
+    }
+  }
+
+  getStatus() {
+    return {
+      running: this.running,
+      queued: this.tasks.length,
+    }
+  }
+}
+
+/**
+ * 表演队列（不同类型并行，同类型串行）
+ */
 export class PerformanceQueue {
-  private queue: PerformElement[] = []
-  private isExecuting: boolean = false
-  private currentTimeout: number | null = null
+  private readonly dispatchQueue = new SerialTaskQueue('dispatch')
+  private readonly textQueue = new SerialTaskQueue('text')
+  private readonly motionQueue = new SerialTaskQueue('motion')
+  private readonly expressionQueue = new SerialTaskQueue('expression')
+  private readonly audioQueue = new SerialTaskQueue('audio')
+  private readonly imageQueue = new SerialTaskQueue('image')
+  private readonly videoQueue = new SerialTaskQueue('video')
+
   private interruptible: boolean = true
 
-  // 回调函数
-  private onTextCallback?: (content: string, position: string, duration: number) => void
-  private onMotionCallback?: (group: string, index: number, priority: number) => void
-  private onExpressionCallback?: (id: string | number) => void
-  private onAudioCallback?: (url: string, volume: number) => void
-  private onImageCallback?: (url: string, duration: number) => void
-  private onVideoCallback?: (url: string) => void
+  private onTextCallback?: TextCallback
+  private onMotionCallback?: MotionCallback
+  private onExpressionCallback?: ExpressionCallback
+  private onAudioCallback?: AudioCallback
+  private onImageCallback?: ImageCallback
+  private onVideoCallback?: VideoCallback
 
   /**
    * 设置文字显示回调
    */
-  onText(callback: (content: string, position: string, duration: number) => void) {
+  onText(callback: TextCallback) {
     this.onTextCallback = callback
   }
 
   /**
    * 设置动作播放回调
    */
-  onMotion(callback: (group: string, index: number, priority: number) => void) {
+  onMotion(callback: MotionCallback) {
     this.onMotionCallback = callback
   }
 
   /**
    * 设置表情设置回调
    */
-  onExpression(callback: (id: string | number) => void) {
+  onExpression(callback: ExpressionCallback) {
     this.onExpressionCallback = callback
   }
 
   /**
    * 设置音频播放回调
    */
-  onAudio(callback: (url: string, volume: number) => void) {
+  onAudio(callback: AudioCallback) {
     this.onAudioCallback = callback
   }
 
   /**
    * 设置图片显示回调
    */
-  onImage(callback: (url: string, duration: number) => void) {
+  onImage(callback: ImageCallback) {
     this.onImageCallback = callback
   }
 
   /**
    * 设置视频播放回调
    */
-  onVideo(callback: (url: string) => void) {
+  onVideo(callback: VideoCallback) {
     this.onVideoCallback = callback
   }
 
@@ -81,11 +250,10 @@ export class PerformanceQueue {
    * 添加表演序列到队列
    */
   enqueue(sequence: PerformSequence) {
-    this.queue.push(...sequence.sequence)
     this.interruptible = sequence.interruptible !== false
 
-    if (!this.isExecuting) {
-      this.execute()
+    for (const element of sequence.sequence) {
+      this.dispatchQueue.enqueue((signal) => this.dispatchElement(element, signal))
     }
   }
 
@@ -99,13 +267,14 @@ export class PerformanceQueue {
     }
 
     console.log('[表演队列] 中断表演')
-    this.queue = []
-    this.isExecuting = false
 
-    if (this.currentTimeout) {
-      clearTimeout(this.currentTimeout)
-      this.currentTimeout = null
-    }
+    this.dispatchQueue.interrupt()
+    this.textQueue.interrupt()
+    this.motionQueue.interrupt()
+    this.expressionQueue.interrupt()
+    this.audioQueue.interrupt()
+    this.imageQueue.interrupt()
+    this.videoQueue.interrupt()
   }
 
   /**
@@ -113,97 +282,139 @@ export class PerformanceQueue {
    */
   clear() {
     console.log('[表演队列] 清空队列')
-    this.queue = []
-    this.isExecuting = false
 
-    if (this.currentTimeout) {
-      clearTimeout(this.currentTimeout)
-      this.currentTimeout = null
-    }
+    this.dispatchQueue.clear()
+    this.textQueue.clear()
+    this.motionQueue.clear()
+    this.expressionQueue.clear()
+    this.audioQueue.clear()
+    this.imageQueue.clear()
+    this.videoQueue.clear()
   }
 
-  /**
-   * 执行队列中的表演
-   */
-  private async execute() {
-    if (this.isExecuting) return
-    this.isExecuting = true
-
-    while (this.queue.length > 0) {
-      const element = this.queue.shift()!
-      await this.executeElement(element)
+  private async dispatchElement(element: PerformElement, signal: AbortSignal): Promise<void> {
+    if (signal.aborted) {
+      return
     }
 
-    this.isExecuting = false
-    console.log('[表演队列] 队列执行完成')
-  }
+    const type = String(element.type)
 
-  /**
-   * 执行单个表演元素
-   */
-  private async executeElement(element: PerformElement): Promise<void> {
-    console.log('[表演队列] 执行元素:', element.type)
+    // wait/delay：阻塞调度队列，用于控制后续指令的派发时机
+    if (type === 'wait' || type === 'delay') {
+      const ms = toNonNegativeInt(element.duration, 1000)
+      await sleep(ms, signal)
+      return
+    }
 
-    switch (element.type) {
+    switch (type) {
       case 'text':
-        if (this.onTextCallback && element.content) {
-          this.onTextCallback(
-            element.content,
-            element.position || 'center',
-            element.duration || 3000
-          )
-          // 等待文字显示完成
-          await this.delay(element.duration || 3000)
-        }
+        this.textQueue.enqueue(async (taskSignal) => {
+          const content = element.content || ''
+          if (!content || !this.onTextCallback) {
+            return
+          }
+
+          const position = element.position || 'center'
+          const duration = element.duration ?? 3000
+
+          await withAbort(this.onTextCallback(content, position, duration), taskSignal)
+
+          // 文本默认按 duration 做串行节拍；duration=0 则不阻塞后续文本
+          if (duration > 0) {
+            await sleep(duration, taskSignal)
+          }
+        })
         break
 
       case 'motion':
-        if (this.onMotionCallback && element.group) {
-          this.onMotionCallback(
-            element.group,
-            element.index || 0,
-            element.priority || 2
+        this.motionQueue.enqueue(async (taskSignal) => {
+          if (!this.onMotionCallback || !element.group) {
+            return
+          }
+
+          await withAbort(
+            this.onMotionCallback(element.group, element.index ?? 0, element.priority ?? 2),
+            taskSignal
           )
-          // 动作播放不阻塞，立即继续
-        }
+        })
         break
 
       case 'expression':
-        if (this.onExpressionCallback && element.id !== undefined) {
-          this.onExpressionCallback(element.id)
-          // 表情设置不阻塞，立即继续
-        }
+        this.expressionQueue.enqueue(async (taskSignal) => {
+          if (!this.onExpressionCallback || element.id === undefined) {
+            return
+          }
+
+          await withAbort(this.onExpressionCallback(element.id), taskSignal)
+        })
         break
 
       case 'audio':
-        if (this.onAudioCallback && element.url) {
-          this.onAudioCallback(element.url, element.volume || 1.0)
-          // 音频播放不阻塞（除非指定 duration）
-          if (element.duration) {
-            await this.delay(element.duration)
+      case 'tts':
+        this.audioQueue.enqueue(async (taskSignal) => {
+          if (!this.onAudioCallback) {
+            return
           }
-        }
+
+          const source = element.url || element.inline || element.rid || ''
+          if (!source) {
+            return
+          }
+
+          const volume = typeof element.volume === 'number' ? element.volume : 1.0
+
+          await withAbort(this.onAudioCallback(source, volume), taskSignal)
+
+          // 兼容旧协议：若显式指定 duration，则额外等待该时长
+          if (element.duration !== undefined) {
+            const ms = toNonNegativeInt(element.duration, 0)
+            if (ms > 0) {
+              await sleep(ms, taskSignal)
+            }
+          }
+        })
         break
 
       case 'image':
-        if (this.onImageCallback && element.url) {
-          this.onImageCallback(element.url, element.duration || 3000)
-          await this.delay(element.duration || 3000)
-        }
+        this.imageQueue.enqueue(async (taskSignal) => {
+          if (!this.onImageCallback) {
+            return
+          }
+
+          const source = element.url || element.inline || element.rid || ''
+          if (!source) {
+            return
+          }
+
+          const duration = element.duration ?? 3000
+          await withAbort(this.onImageCallback(source, duration), taskSignal)
+
+          if (duration > 0) {
+            await sleep(duration, taskSignal)
+          }
+        })
         break
 
       case 'video':
-        if (this.onVideoCallback && element.url) {
-          this.onVideoCallback(element.url)
-          // 视频播放不阻塞（除非指定 duration）
-          if (element.duration) {
-            await this.delay(element.duration)
+        this.videoQueue.enqueue(async (taskSignal) => {
+          if (!this.onVideoCallback) {
+            return
           }
-        }
-        break
 
-      case 'delay':
-        await this.delay(element.duration || 1000)
+          const source = element.url || element.inline || element.rid || ''
+          if (!source) {
+            return
+          }
+
+          await withAbort(this.onVideoCallback(source, element.duration), taskSignal)
+
+          if (element.duration !== undefined) {
+            const ms = toNonNegativeInt(element.duration, 0)
+            if (ms > 0) {
+              await sleep(ms, taskSignal)
+            }
+          }
+        })
         break
 
       default:
@@ -212,25 +423,24 @@ export class PerformanceQueue {
   }
 
   /**
-   * 延迟执行
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.currentTimeout = window.setTimeout(() => {
-        this.currentTimeout = null
-        resolve()
-      }, ms)
-    })
-  }
-
-  /**
    * 获取队列状态
    */
   getStatus() {
+    const dispatch = this.dispatchQueue.getStatus()
+
     return {
-      isExecuting: this.isExecuting,
-      queueLength: this.queue.length,
-      interruptible: this.interruptible
+      isExecuting: dispatch.running,
+      queueLength: dispatch.queued,
+      interruptible: this.interruptible,
+      queues: {
+        dispatch,
+        text: this.textQueue.getStatus(),
+        motion: this.motionQueue.getStatus(),
+        expression: this.expressionQueue.getStatus(),
+        audio: this.audioQueue.getStatus(),
+        image: this.imageQueue.getStatus(),
+        video: this.videoQueue.getStatus(),
+      },
     }
   }
 }
