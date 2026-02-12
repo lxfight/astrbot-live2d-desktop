@@ -95,9 +95,31 @@
                 </n-button>
               </n-space>
             </n-form-item>
+            <n-form-item label="语音唤醒">
+              <n-switch v-model:value="advancedSettings.wakeWordEnabled" />
+            </n-form-item>
+            <n-form-item label="唤醒关键词">
+              <n-dynamic-tags
+                v-model:value="advancedSettings.wakeKeywords"
+                :disabled="!advancedSettings.wakeWordEnabled"
+                :max="10"
+              />
+            </n-form-item>
+            <n-form-item label="最长录音时长">
+              <n-space align="center">
+                <n-input-number
+                  v-model:value="recordingSecondsValue"
+                  :min="1"
+                  :max="60"
+                  :precision="0"
+                  :disabled="!advancedSettings.wakeWordEnabled"
+                />
+                <span>秒（上限 60 秒）</span>
+              </n-space>
+            </n-form-item>
             <n-form-item>
               <n-alert type="info" :show-icon="false">
-                按住快捷键开始录音，松开自动发送。建议使用 Ctrl/Alt/Shift + 字母键组合。
+                全局快捷键用于手动录音；语音唤醒会监听关键词，命中后自动录音并在静音或达到时长后发送。
               </n-alert>
             </n-form-item>
             <n-form-item>
@@ -167,10 +189,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { Globe, Drama, Settings, X, Info } from 'lucide-vue-next'
+import {
+  DEFAULT_ADVANCED_SETTINGS,
+  clampMaxRecordingSeconds,
+  loadAdvancedSettings,
+  normalizeAdvancedSettings,
+  saveAdvancedSettings as persistAdvancedSettings
+} from '@/utils/advancedSettings'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -184,8 +213,17 @@ const appVersion = ref('')
 
 // 高级设置
 const advancedSettings = ref({
-  recordingShortcut: 'Alt+R',
-  autoConnect: true
+  ...DEFAULT_ADVANCED_SETTINGS,
+  wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
+})
+
+const recordingSecondsValue = computed({
+  get: () => advancedSettings.value.maxRecordingSeconds,
+  set: (value: number | null) => {
+    advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(
+      value ?? DEFAULT_ADVANCED_SETTINGS.maxRecordingSeconds
+    )
+  }
 })
 
 const shortcutRegistered = ref(false)
@@ -238,16 +276,7 @@ async function checkShortcutRegistration() {
 }
 
 function loadSettings() {
-  // 从 localStorage 加载设置
-  const savedAdvancedSettings = localStorage.getItem('advancedSettings')
-  if (savedAdvancedSettings) {
-    try {
-      const parsed = JSON.parse(savedAdvancedSettings)
-      advancedSettings.value = { ...advancedSettings.value, ...parsed }
-    } catch (e) {
-      console.error('Failed to parse settings', e)
-    }
-  }
+  advancedSettings.value = loadAdvancedSettings()
 }
 
 async function loadModelList() {
@@ -319,7 +348,7 @@ async function handleDeleteModel(modelName: string) {
 }
 
 function saveAdvancedSettings() {
-  localStorage.setItem('advancedSettings', JSON.stringify(advancedSettings.value))
+  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
   message.success('高级设置已保存')
 }
 
@@ -414,10 +443,9 @@ function handleResetSettings() {
     negativeText: '取消',
     onPositiveClick: () => {
       localStorage.clear()
-      advancedSettings.value = {
-        recordingShortcut: 'Alt+R',
-        autoConnect: true
-      }
+      advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
+      persistAdvancedSettings(advancedSettings.value)
+      shortcutRegistered.value = false
       message.success('设置已重置')
     }
   })

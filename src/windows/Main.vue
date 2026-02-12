@@ -110,7 +110,7 @@
         <div class="recording-toast-content">
           <span class="recording-dot"></span>
           <span class="recording-text">正在录音... {{ recordingDuration }}s</span>
-          <span class="recording-hint">再次按下快捷键停止</span>
+          <span class="recording-hint">{{ recordingHintText }}</span>
         </div>
       </div>
     </Transition>
@@ -174,8 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import {
@@ -187,6 +186,13 @@ import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
 import { AudioRecorder } from '@/utils/AudioRecorder'
+import { WakeWordListener, type WakeWordStatus } from '@/utils/WakeWordListener'
+import {
+  ADVANCED_SETTINGS_KEY,
+  clampMaxRecordingSeconds,
+  loadAdvancedSettings,
+  type AdvancedSettings
+} from '@/utils/advancedSettings'
 import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
@@ -222,10 +228,33 @@ const inputText = ref('')
 const currentUserName = ref('桌面用户')
 const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
+type RecordingSource = 'manual' | 'shortcut' | 'wake-word'
+type StopReason = 'manual' | 'shortcut' | 'max-duration' | 'silence'
+
 const isRecording = ref(false)
 const recordingDuration = ref(0)
+const currentRecordingSource = ref<RecordingSource>('manual')
+const recordingHintText = computed(() => {
+  if (currentRecordingSource.value === 'wake-word') {
+    return '静音或达到时长后自动停止'
+  }
+
+  if (currentRecordingSource.value === 'shortcut') {
+    return '再次按下快捷键停止'
+  }
+
+  return '点击麦克风按钮停止'
+})
+
+const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
+const WAKE_WORD_SILENCE_DURATION_MS = 1500
+const WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS = 4000
+
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
+let isStoppingRecording = false
+let wakeWordListener: WakeWordListener | null = null
+let wakeWordUnsupportedNotified = false
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
@@ -910,95 +939,236 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 // 开始录音
-async function startRecording() {
+function clearRecordingTimer() {
+  if (recordingTimer) {
+    clearInterval(recordingTimer)
+    recordingTimer = null
+  }
+}
+
+function getMaxRecordingSeconds(): number {
+  return clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+}
+
+function getWakeKeywords(): string[] {
+  return advancedSettings.value.wakeKeywords
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword.length > 0)
+}
+
+function handleWakeWordStatusChange(status: WakeWordStatus) {
+  if (status === 'listening') {
+    console.log('[语音唤醒] 正在监听关键词')
+  }
+}
+
+function stopWakeWordListener() {
+  wakeWordListener?.stop()
+}
+
+function startWakeWordListener() {
+  if (!advancedSettings.value.wakeWordEnabled || isRecording.value) {
+    stopWakeWordListener()
+    return
+  }
+
+  const keywords = getWakeKeywords()
+  if (keywords.length === 0) {
+    stopWakeWordListener()
+    return
+  }
+
+  if (!WakeWordListener.isSupported()) {
+    if (!wakeWordUnsupportedNotified) {
+      wakeWordUnsupportedNotified = true
+      showModelStatus('当前环境不支持语音唤醒，请使用 Chromium 内核', 'warning', 5000)
+    }
+    return
+  }
+
+  wakeWordUnsupportedNotified = false
+
+  if (!wakeWordListener) {
+    wakeWordListener = new WakeWordListener()
+  } else {
+    wakeWordListener.stop()
+  }
+
+  wakeWordListener.start({
+    keywords,
+    onWakeWord: ({ keyword }) => {
+      if (isRecording.value || isStoppingRecording) {
+        return
+      }
+
+      showModelStatus(`检测到唤醒词「${keyword}」，开始录音`, 'info', 2200)
+      void startRecording({ source: 'wake-word' })
+    },
+    onStatusChange: handleWakeWordStatusChange,
+    onError: (message) => {
+      console.warn('[语音唤醒]', message)
+    }
+  })
+}
+
+function refreshAdvancedSettings() {
+  advancedSettings.value = loadAdvancedSettings()
+  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+  startWakeWordListener()
+}
+
+function handleStorageChange(event: StorageEvent) {
+  if (event.key && event.key !== ADVANCED_SETTINGS_KEY) {
+    return
+  }
+
+  refreshAdvancedSettings()
+}
+
+interface StartRecordingOptions {
+  source?: RecordingSource
+}
+
+interface StopRecordingOptions {
+  reason?: StopReason
+}
+
+async function startRecording(options: StartRecordingOptions | MouseEvent = {}) {
+  if (isRecording.value || isStoppingRecording) {
+    return
+  }
+
   if (!AudioRecorder.isSupported()) {
     showModelStatus('您的浏览器不支持录音功能', 'error')
     return
   }
 
+  const source = (typeof options === 'object' && options !== null && 'source' in options
+    ? (options as StartRecordingOptions).source
+    : 'manual') || 'manual'
+  const maxRecordingSeconds = getMaxRecordingSeconds()
+  const enableSilenceDetection = source === 'wake-word'
+
+  stopWakeWordListener()
+
   try {
     audioRecorder = new AudioRecorder({
       sampleRate: 16000,
-      channelCount: 1
+      channelCount: 1,
+      silenceDetection: enableSilenceDetection
+        ? {
+            enabled: true,
+            durationMs: WAKE_WORD_SILENCE_DURATION_MS,
+            initialSilenceTimeoutMs: WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS
+          }
+        : {
+            enabled: false
+          }
     })
+
+    if (enableSilenceDetection) {
+      audioRecorder.onSilenceDetected(() => {
+        if (!isRecording.value) {
+          return
+        }
+
+        void stopRecording({ reason: 'silence' })
+      })
+    }
 
     await audioRecorder.start()
     isRecording.value = true
+    currentRecordingSource.value = source
     recordingDuration.value = 0
 
-    // 更新录音时长
     recordingTimer = setInterval(() => {
-      recordingDuration.value = Math.floor(audioRecorder!.getDuration() / 1000)
+      if (!audioRecorder) {
+        return
+      }
 
-      // 最大录音时长 60 秒
-      if (recordingDuration.value >= 60) {
-        stopRecording()
+      recordingDuration.value = Math.floor(audioRecorder.getDuration() / 1000)
+      if (recordingDuration.value >= maxRecordingSeconds) {
+        void stopRecording({ reason: 'max-duration' })
       }
     }, 100)
 
-    console.log('[主窗口] 开始录音')
+    console.log('[主窗口] 开始录音，来源:', source)
   } catch (error: any) {
     showModelStatus(`录音失败: ${error.message}`, 'error')
     isRecording.value = false
+    recordingDuration.value = 0
+    currentRecordingSource.value = 'manual'
+    audioRecorder = null
+    clearRecordingTimer()
+    startWakeWordListener()
   }
 }
 
-// 停止录音并发送
-async function stopRecording() {
-  if (!audioRecorder || !isRecording.value) return
+// Stop recording and send
+async function stopRecording(options: StopRecordingOptions | MouseEvent = {}) {
+  if (!audioRecorder || !isRecording.value || isStoppingRecording) {
+    return
+  }
+
+  const reason = (typeof options === 'object' && options !== null && 'reason' in options
+    ? (options as StopRecordingOptions).reason
+    : 'manual') || 'manual'
+  const currentRecorder = audioRecorder
+  isStoppingRecording = true
 
   try {
-    const audioBlob = await audioRecorder.stop()
+    clearRecordingTimer()
+    const audioBlob = await currentRecorder.stop()
     isRecording.value = false
-
-    if (recordingTimer) {
-      clearInterval(recordingTimer)
-      recordingTimer = null
-    }
+    audioRecorder = null
 
     console.log('[主窗口] 录音完成，大小:', audioBlob.size, '字节')
 
-    // 检查录音时长
     if (audioBlob.size < 1000) {
-      showModelStatus('录音时间太短', 'warning')
+      if (reason === 'silence') {
+        showModelStatus('未检测到有效语音', 'warning')
+      } else {
+        showModelStatus('录音时间太短', 'warning')
+      }
       return
     }
 
-    // 检查连接状态
     if (!connectionStore.isConnected) {
       showModelStatus('未连接到服务器', 'error')
       return
     }
 
-    // 发送音频消息
     await sendAudioMessage(audioBlob)
-
   } catch (error: any) {
     showModelStatus(`停止录音失败: ${error.message}`, 'error')
+  } finally {
     isRecording.value = false
-    if (recordingTimer) {
-      clearInterval(recordingTimer)
-      recordingTimer = null
-    }
+    recordingDuration.value = 0
+    currentRecordingSource.value = 'manual'
+    audioRecorder = null
+    isStoppingRecording = false
+    startWakeWordListener()
   }
 }
 
-// 取消录音
+// Cancel recording
 function cancelRecordingIfActive() {
-  if (!audioRecorder || !isRecording.value) return
+  if (!audioRecorder || !isRecording.value) {
+    return
+  }
 
   audioRecorder.cancel()
   isRecording.value = false
-
-  if (recordingTimer) {
-    clearInterval(recordingTimer)
-    recordingTimer = null
-  }
+  recordingDuration.value = 0
+  currentRecordingSource.value = 'manual'
+  audioRecorder = null
+  isStoppingRecording = false
+  clearRecordingTimer()
 
   console.log('[主窗口] 录音已取消')
+  startWakeWordListener()
 }
 
-// 发送音频消息
 async function sendAudioMessage(audioBlob: Blob) {
   try {
     showModelStatus('正在发送语音...', 'info')
@@ -1147,14 +1317,17 @@ onMounted(async () => {
   }
 
   // 监听全局快捷键录音
+  refreshAdvancedSettings()
+  window.addEventListener('storage', handleStorageChange)
+
   window.electron.shortcut.onRecordingStart(() => {
     console.log('[主窗口] 全局快捷键：开始录音')
-    startRecording()
+    void startRecording({ source: 'shortcut' })
   })
 
   window.electron.shortcut.onRecordingStop(() => {
     console.log('[主窗口] 全局快捷键：停止录音')
-    stopRecording()
+    void stopRecording({ reason: 'shortcut' })
   })
 
   // 监听从设置页面加载模型的指令（只显示一次提示）
@@ -1333,31 +1506,16 @@ onMounted(async () => {
   await connectionStore.checkConnection()
 
   // 自动连接功能
-  const advancedSettingsStr = localStorage.getItem('advancedSettings')
-  let shouldAutoConnect = true // 默认为 true
-
-  if (advancedSettingsStr) {
-    try {
-      const settings = JSON.parse(advancedSettingsStr)
-      if (settings.autoConnect !== undefined) {
-        shouldAutoConnect = settings.autoConnect
-      }
-    } catch (error) {
-      console.error('[主窗口] 解析自动连接配置失败:', error)
-    }
-  }
-
-  if (shouldAutoConnect && !connectionStore.isConnected) {
-    console.log('[主窗口] 启动时自动连接')
+  if (advancedSettings.value.autoConnect && !connectionStore.isConnected) {
+    console.log('[Main] Auto connect on startup')
     const result = await connectionStore.connect()
     if (result.success) {
-      console.log('[主窗口] 自动连接成功')
+      console.log('[Main] Auto connect success')
     } else {
-      console.warn('[主窗口] 自动连接失败:', result.error)
+      console.warn('[Main] Auto connect failed:', result.error)
     }
   }
 
-  // 自动加载上次使用的模型
   const lastModelPath = modelStore.getLastModel()
   if (lastModelPath) {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
@@ -1386,23 +1544,28 @@ onMounted(async () => {
   }
 
   // 自动注册全局快捷键
-  if (advancedSettingsStr) {
-    try {
-      const settings = JSON.parse(advancedSettingsStr)
-      if (settings.recordingShortcut) {
-        // 转换为 Electron 格式（Ctrl -> CommandOrControl）
-        const electronFormat = settings.recordingShortcut.replace('Ctrl', 'CommandOrControl')
-        console.log('[主窗口] 注册全局快捷键:', electronFormat)
-        const result = await window.electron.shortcut.register(electronFormat)
-        if (result.success) {
-          console.log('[主窗口] 快捷键注册成功')
-        } else {
-          console.warn('[主窗口] 快捷键注册失败:', result.error)
-        }
-      }
-    } catch (error) {
-      console.error('[主窗口] 解析快捷键配置失败:', error)
+  if (advancedSettings.value.recordingShortcut) {
+    const electronFormat = advancedSettings.value.recordingShortcut.replace('Ctrl', 'CommandOrControl')
+    console.log('[Main] Register shortcut:', electronFormat)
+    const result = await window.electron.shortcut.register(electronFormat)
+    if (result.success) {
+      console.log('[Main] Shortcut register success')
+    } else {
+      console.warn('[Main] Shortcut register failed:', result.error)
     }
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', handleStorageChange)
+  stopWakeWordListener()
+  wakeWordListener?.destroy()
+  wakeWordListener = null
+  clearRecordingTimer()
+
+  if (audioRecorder && isRecording.value) {
+    audioRecorder.cancel()
+    audioRecorder = null
   }
 })
 </script>
