@@ -1,6 +1,6 @@
 /**
- * 桌面感知模块 - 应用启动监听 + 窗口枚举 + 截图采集
- * 全部使用 Electron desktopCapturer API，不依赖外部脚本
+ * 桌面感知模块 - 应用启动监听 + 活跃窗口 + 截图采集
+ * 窗口信息使用 active-win（跨平台），截图使用 Electron desktopCapturer
  */
 
 import { desktopCapturer, screen } from 'electron'
@@ -13,38 +13,42 @@ import type {
   DesktopWindowActivePayload,
 } from '../protocol/types'
 
-// ──────── 内部工具 ────────
-
-// 获取 desktopCapturer 窗口列表（最小缩略图，仅用于枚举）
-async function enumerateWindows(): Promise<DesktopWindowInfo[]> {
-  const sources = await desktopCapturer.getSources({
-    types: ['window'],
-    thumbnailSize: { width: 1, height: 1 },
-    fetchWindowIcons: false,
-  })
-  return sources.map((s, idx) => ({
-    id: s.id,
-    title: s.name,
-    processName: '',
-    isActive: idx === 0, // desktopCapturer 按 z-order 返回，第一个是前台窗口
-  }))
+// active-win 是纯 ESM 包，动态导入
+let activeWinFn: (() => Promise<any>) | null = null
+async function getActiveWin(): Promise<any> {
+  if (!activeWinFn) {
+    const mod = await import('active-win')
+    activeWinFn = mod.default
+  }
+  return activeWinFn()
 }
 
-// 从窗口标题提取应用名称（取 " - " 分隔的最后一段）
-function extractAppName(title: string): string {
-  const parts = title.split(' - ')
-  return parts[parts.length - 1].trim() || title
+// ──────── 内部工具 ────────
+
+function toWindowInfo(win: any): DesktopWindowInfo {
+  return {
+    id: String(win.id ?? ''),
+    title: win.title ?? '',
+    processName: win.owner?.name ?? '',
+    isActive: true,
+  }
+}
+
+// 从进程名或窗口标题提取应用名称
+function extractAppName(win: any): string {
+  return win.owner?.name || win.title || ''
 }
 
 // ──────── 公开 API（供 client.ts 调用）────────
 
 export async function getWindowList(): Promise<DesktopWindowListPayload> {
-  return { windows: await enumerateWindows() }
+  const win = await getActiveWin()
+  return { windows: win ? [toWindowInfo(win)] : [] }
 }
 
 export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
-  const windows = await enumerateWindows()
-  return { window: windows.length > 0 ? windows[0] : null }
+  const win = await getActiveWin()
+  return { window: win ? toWindowInfo(win) : null }
 }
 
 /**
@@ -79,12 +83,10 @@ export async function captureScreenshot(
   if (target === 'window' && req.windowId) {
     src = sources.find((s) => s.id === req.windowId || s.id.includes(req.windowId!)) || src
   }
-  // active / desktop 直接用第一个
 
   const size = src.thumbnail.getSize()
   const jpegBuf = src.thumbnail.toJPEG(req.quality || 80)
 
-  // 阈值：512KB 以下内联，超过走资源上传
   const INLINE_THRESHOLD = 512 * 1024
   let image: string
 
@@ -149,7 +151,6 @@ const FREQ_WINDOW_MS = 3 * 60 * 60 * 1000
 function shouldIgnore(appName: string): boolean {
   if (BUILTIN_IGNORE.has(appName)) return true
   if (appName.length <= 2) return true
-  // 模糊匹配：包含这些关键词的窗口标题也忽略
   const lc = appName.toLowerCase()
   const ignoreKeywords = ['隐私', 'privacy', 'monitor', 'overlay', 'gameviewer', 'screenshot', '截图', 'snip']
   if (ignoreKeywords.some((kw) => lc.includes(kw))) return true
@@ -176,53 +177,40 @@ function recordLaunch(appName: string) {
 }
 
 export async function startAppLaunchWatcher() {
-  // 建立基线
+  // 建立基线：记录当前活跃应用
   try {
-    const baseline = await enumerateWindows()
-    knownAppNames = new Set(baseline.map((w) => extractAppName(w.title)))
+    const win = await getActiveWin()
+    if (win) {
+      const name = extractAppName(win)
+      if (name) knownAppNames.add(name)
+    }
   } catch {
-    knownAppNames = new Set()
+    // 忽略
   }
 
+  // 5 秒轮询活跃窗口，检测新应用切换
   watchTimer = setInterval(async () => {
     if (!bridgeClient?.isConnected()) return
 
     try {
-      const windows = await enumerateWindows()
-      const currentApps = new Map<string, string>()
-      for (const w of windows) {
-        const app = extractAppName(w.title)
-        if (!currentApps.has(app)) {
-          currentApps.set(app, w.title)
-        }
-      }
+      const win = await getActiveWin()
+      if (!win) return
 
-      const newApps: Array<{ appName: string; title: string }> = []
-      for (const [app, title] of currentApps) {
-        if (knownAppNames.has(app)) continue
-        knownAppNames.add(app)
-        if (shouldIgnore(app)) continue
-        recordLaunch(app)
-        newApps.push({ appName: app, title })
-      }
+      const appName = extractAppName(win)
+      if (!appName) return
 
-      // 清理已关闭的应用
-      for (const app of knownAppNames) {
-        if (!currentApps.has(app)) knownAppNames.delete(app)
-      }
+      if (knownAppNames.has(appName)) return
 
-      if (newApps.length === 0) return
+      knownAppNames.add(appName)
+      if (shouldIgnore(appName)) return
+      recordLaunch(appName)
 
-      // 30% 概率静默，避免过于频繁打扰用户
-      if (Math.random() < 0.3) return
-
-      const appList = newApps.map((a) => a.appName).join('、')
       bridgeClient.sendMessage({
         content: [
           {
             type: 'text',
             text:
-              `[desktop_event] 用户刚刚打开了新应用: ${appList}\n` +
+              `[desktop_event] 用户刚刚打开了新应用: ${appName}\n` +
               `你可以选择：1) 忽略 2) 对此发表评论或打招呼 3) 调用 capture_screenshot 工具查看屏幕内容后再互动`,
           },
         ],
@@ -235,7 +223,7 @@ export async function startAppLaunchWatcher() {
     } catch {
       // 静默失败
     }
-  }, 30000)
+  }, 5000)
 }
 
 export function stopAppLaunchWatcher() {
@@ -243,4 +231,5 @@ export function stopAppLaunchWatcher() {
     clearInterval(watchTimer)
     watchTimer = null
   }
+  knownAppNames.clear()
 }
