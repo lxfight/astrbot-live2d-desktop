@@ -207,6 +207,14 @@ const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left:
 const bubbleContentRef = ref<HTMLElement | null>(null)
 const displayedText = ref('')
 let typewriterTimer: any = null
+let typewriterTargetText = ''
+let isSwitchingText = false
+let pendingTextPayload: { content: string; position: string } | null = null
+let textTransitionVersion = 0
+
+const NORMAL_TYPEWRITER_INTERVAL = 50
+const FAST_TYPEWRITER_INTERVAL = 8
+const MESSAGE_SWITCH_DELAY = 1000
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref({ left: '0px', top: '0px' })
@@ -281,6 +289,10 @@ watch(currentBubble, (val) => {
       typewriterTimer = null
     }
     displayedText.value = ''
+    typewriterTargetText = ''
+    pendingTextPayload = null
+    isSwitchingText = false
+    textTransitionVersion++
   }
 })
 
@@ -385,52 +397,117 @@ function startBubbleHideTimer(delay: number) {
 }
 
 // 打字机效果
-function typewriter(text: string) {
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function isTypewriterRunning(): boolean {
+  return Boolean(typewriterTimer) && displayedText.value.length < typewriterTargetText.length
+}
+
+function isContinuationText(text: string): boolean {
+  if (!text) return false
+  if (typewriterTargetText && text.startsWith(typewriterTargetText)) return true
+  if (displayedText.value && text.startsWith(displayedText.value)) return true
+  return false
+}
+
+function runTypewriter(text: string, intervalMs: number = NORMAL_TYPEWRITER_INTERVAL): Promise<void> {
   if (typewriterTimer) {
     clearInterval(typewriterTimer)
     typewriterTimer = null
   }
-  
-  // 检查是否是续写（例如流式传输）
+
+  typewriterTargetText = text
+
   let startIdx = 0
   if (text.startsWith(displayedText.value) && displayedText.value.length > 0) {
     startIdx = displayedText.value.length
   } else {
     displayedText.value = ''
   }
-  
+
   let i = startIdx
   const len = text.length
-  
-  // 如果已经是完整文本，就不需要打字了
-  if (i >= len) return
 
-  typewriterTimer = setInterval(() => {
-    if (i < len) {
-      displayedText.value += text.charAt(i)
-      i++
-    } else {
-      clearInterval(typewriterTimer)
-      typewriterTimer = null
-    }
-  }, 50) // 50ms per char
+  if (i >= len) {
+    displayedText.value = text
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    typewriterTimer = setInterval(() => {
+      if (i < len) {
+        displayedText.value += text.charAt(i)
+        i++
+        return
+      }
+
+      if (typewriterTimer) {
+        clearInterval(typewriterTimer)
+        typewriterTimer = null
+      }
+      resolve()
+    }, intervalMs)
+  })
 }
 
-// 创建表演队列
-const performQueue = new PerformanceQueue()
+async function fastForwardCurrentText(): Promise<void> {
+  if (!isTypewriterRunning() || !typewriterTargetText) {
+    return
+  }
+  await runTypewriter(typewriterTargetText, FAST_TYPEWRITER_INTERVAL)
+}
 
-// 设置表演队列回调
-performQueue.onText((content, position, _duration) => {
+function showBubbleText(content: string, position: string) {
   currentBubble.value = { content, position }
   updateUIPositions()
-  
-  // 启动打字机效果
-  typewriter(content)
-  
-  // 启动自动隐藏定时器（默认 5 秒后隐藏，或者根据文本长度延长）
+  void runTypewriter(content)
+
   const autoHideDelay = Math.max(5000, content.length * 100)
   startBubbleHideTimer(autoHideDelay)
-  // 文字会在队列中自动等待 duration 后继续
+}
+
+async function handleIncomingText(content: string, position: string) {
+  if (isContinuationText(content) || !isTypewriterRunning()) {
+    showBubbleText(content, position)
+    return
+  }
+
+  pendingTextPayload = { content, position }
+  if (isSwitchingText) {
+    return
+  }
+
+  isSwitchingText = true
+  const versionAtStart = textTransitionVersion
+
+  try {
+    await fastForwardCurrentText()
+    if (versionAtStart !== textTransitionVersion) return
+
+    await wait(MESSAGE_SWITCH_DELAY)
+    if (versionAtStart !== textTransitionVersion) return
+  } finally {
+    isSwitchingText = false
+  }
+
+  const nextPayload = pendingTextPayload
+  pendingTextPayload = null
+
+  if (nextPayload) {
+    showBubbleText(nextPayload.content, nextPayload.position)
+  }
+}
+
+// Create performance queue
+const performQueue = new PerformanceQueue()
+
+// Register performance queue callbacks
+performQueue.onText((content, position, _duration) => {
+  void handleIncomingText(content, position)
 })
 
 performQueue.onMotion((group, index, priority) => {
