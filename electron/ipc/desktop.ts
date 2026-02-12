@@ -5,7 +5,6 @@
 
 import { desktopCapturer, screen } from 'electron'
 import { bridgeClient } from '../main'
-import { getMainWindow } from '../windows/mainWindow'
 import type {
   DesktopWindowInfo,
   DesktopCaptureRequestPayload,
@@ -33,35 +32,41 @@ async function safeGetActiveWin(): Promise<any | null> {
   }
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function normalizeToken(value: unknown): string {
+  return String(value || '').trim().toLowerCase()
 }
 
-async function withMainWindowCaptureProtected<T>(runner: () => Promise<T>): Promise<T> {
-  const mainWindow = getMainWindow()
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return await runner()
-  }
+function getWindowTokens(win: any): string[] {
+  return [
+    normalizeToken(win?.owner?.name),
+    normalizeToken(win?.owner?.path),
+    normalizeToken(win?.title),
+    normalizeToken(win?.bundleId),
+    normalizeToken(win?.platform),
+  ].filter(Boolean)
+}
 
-  const windowForCapture = mainWindow as any
-  const canSetContentProtection = typeof windowForCapture.setContentProtection === 'function'
-  const wasContentProtected =
-    typeof windowForCapture.isContentProtected === 'function'
-      ? Boolean(windowForCapture.isContentProtected())
-      : false
+function hasKeyword(tokens: string[], keywords: string[]): boolean {
+  return keywords.some((kw) => tokens.some((token) => token.includes(kw)))
+}
 
-  if (!wasContentProtected && canSetContentProtection) {
-    windowForCapture.setContentProtection(true)
-    await sleep(32)
-  }
+const CAPTURE_BYPASS_KEYWORDS = [
+  'astrbot',
+  'live2d',
+  'overlay',
+  'screenshot',
+  'snipping tool',
+  'snip & sketch',
+  'screenclippinghost',
+  'clipping',
+  '截图',
+  '截屏',
+]
 
-  try {
-    return await runner()
-  } finally {
-    if (!mainWindow.isDestroyed() && !wasContentProtected && canSetContentProtection) {
-      windowForCapture.setContentProtection(false)
-    }
-  }
+function shouldBypassActiveWindowCapture(activeWin: any): boolean {
+  const tokens = getWindowTokens(activeWin)
+  if (!tokens.length) return false
+  return hasKeyword(tokens, CAPTURE_BYPASS_KEYWORDS)
 }
 
 function getDisplayFromActiveWindow(win: any): Electron.Display {
@@ -132,7 +137,22 @@ function toWindowInfo(win: any): DesktopWindowInfo {
 
 // 从进程名或窗口标题提取应用名称
 function extractAppName(win: any): string {
-  return win.owner?.name || win.title || ''
+  const ownerName = String(win?.owner?.name || '').trim()
+  const ownerPath = normalizeToken(win?.owner?.path)
+  const title = String(win?.title || '').trim()
+  const ownerNameLc = ownerName.toLowerCase()
+
+  if (
+    ownerNameLc.includes('explorer') || ownerPath.endsWith('explorer.exe')
+  ) {
+    return 'Windows Explorer'
+  }
+
+  if (ownerNameLc.includes('screenclippinghost') || ownerNameLc.includes('snippingtool')) {
+    return 'Snipping Tool'
+  }
+
+  return ownerName || title || ''
 }
 
 // ──────── 公开 API（供 client.ts 调用）────────
@@ -157,64 +177,97 @@ export async function captureScreenshot(
   options: CaptureScreenshotOptions = {}
 ): Promise<DesktopCaptureResponsePayload> {
   const target = req.target || 'active'
-  const activeWin = target === 'active' || target === 'desktop' ? await safeGetActiveWin() : null
+  const activeWin = await safeGetActiveWin()
   const maxWidth = Math.min(req.maxWidth || 1280, 1920)
   const thumbSize = { width: maxWidth, height: Math.round(maxWidth * 0.5625) }
+  const inlineThreshold = Math.max(64 * 1024, options.maxInlineBytes ?? 512 * 1024)
+  const quality = req.quality || 80
 
-  return await withMainWindowCaptureProtected(async () => {
-    let sources: Electron.DesktopCapturerSource[]
-    let src: Electron.DesktopCapturerSource | undefined
+  const getDesktopSource = async (): Promise<Electron.DesktopCapturerSource> => {
+    const targetDisplay = getDisplayFromActiveWindow(activeWin)
+    const desktopSources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: targetDisplay.size,
+    })
+    const desktopSource = pickDesktopSource(desktopSources, targetDisplay)
+    if (!desktopSource) {
+      throw new Error('无法获取桌面截图源')
+    }
+    return desktopSource
+  }
 
-    if (target === 'desktop') {
-      const targetDisplay = getDisplayFromActiveWindow(activeWin)
-      sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: targetDisplay.size,
-      })
-      src = pickDesktopSource(sources, targetDisplay)
+  let src: Electron.DesktopCapturerSource
+
+  if (target === 'desktop') {
+    src = await getDesktopSource()
+  } else {
+    const shouldFallbackToDesktop = target === 'active' && shouldBypassActiveWindowCapture(activeWin)
+
+    if (shouldFallbackToDesktop) {
+      src = await getDesktopSource()
     } else {
-      sources = await desktopCapturer.getSources({
+      const windowSources = await desktopCapturer.getSources({
         types: ['window'],
         thumbnailSize: thumbSize,
       })
-      src = pickWindowSource(sources, target, req.windowId, activeWin)
+      src = pickWindowSource(windowSources, target, req.windowId, activeWin)
+
+      const candidateSize = src?.thumbnail?.getSize?.()
+      const invalidWindowSource = !candidateSize || candidateSize.width <= 16 || candidateSize.height <= 16
+      if (invalidWindowSource) {
+        src = await getDesktopSource()
+      }
     }
+  }
 
-    if (!src) throw new Error('无法获取截图源')
+  let size = src.thumbnail.getSize()
+  let jpegBuf = src.thumbnail.toJPEG(quality)
 
-    const size = src.thumbnail.getSize()
-    const jpegBuf = src.thumbnail.toJPEG(req.quality || 80)
-    const inlineThreshold = Math.max(64 * 1024, options.maxInlineBytes ?? 512 * 1024)
+  const invalidCapture = size.width <= 16 || size.height <= 16 || jpegBuf.length < 2048
+  if (invalidCapture && target !== 'desktop') {
+    src = await getDesktopSource()
+    size = src.thumbnail.getSize()
+    jpegBuf = src.thumbnail.toJPEG(quality)
+  }
 
-    let image: string
-    if (!uploadFn || jpegBuf.length <= inlineThreshold) {
-      image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
-    } else {
-      const url = await uploadFn(jpegBuf, 'image/jpeg')
-      image = url || `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
-    }
+  if (size.width <= 16 || size.height <= 16) {
+    throw new Error('截图源不可捕获，请稍后重试')
+  }
 
-    return {
-      image,
-      width: size.width,
-      height: size.height,
-      window: {
-        id: src.id,
-        title: src.name,
-        processName: activeWin?.owner?.name,
-      },
-    }
-  })
+  let image: string
+  if (!uploadFn || jpegBuf.length <= inlineThreshold) {
+    image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+  } else {
+    const url = await uploadFn(jpegBuf, 'image/jpeg')
+    image = url || `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+  }
+
+  return {
+    image,
+    width: size.width,
+    height: size.height,
+    window: {
+      id: src.id,
+      title: src.name,
+      processName: activeWin?.owner?.name,
+    },
+  }
 }
 
 // ──────── 应用启动监听器 ────────
 
-let knownAppNames: Set<string> = new Set()
+let knownAppKeys: Set<string> = new Set()
 let launchFrequency: Map<string, { count: number; firstSeen: number }> = new Map()
 let watchTimer: NodeJS.Timeout | null = null
 
 const BUILTIN_IGNORE: Set<string> = new Set([
   'Program Manager',
+  'explorer.exe',
+  'Explorer',
+  'Windows Explorer',
+  'File Explorer',
+  '资源管理器',
+  '文件资源管理器',
   'Windows Input Experience',
   'Settings',
   'Task Manager',
@@ -228,6 +281,9 @@ const BUILTIN_IGNORE: Set<string> = new Set([
   'Desktop Window Manager',
   'GameViewer',
   'Snipping Tool',
+  'SnippingTool.exe',
+  'ScreenClippingHost',
+  'ScreenClippingHost.exe',
   'Screenshot',
   'QQ Screenshot',
   'Snip & Sketch',
@@ -243,20 +299,55 @@ const BUILTIN_IGNORE: Set<string> = new Set([
   'Input Indicator',
 ])
 
+const BUILTIN_IGNORE_LOWER = new Set(Array.from(BUILTIN_IGNORE).map((name) => name.toLowerCase()))
+
 const FREQ_THRESHOLD = 3
 const FREQ_WINDOW_MS = 3 * 60 * 60 * 1000
+const IGNORE_KEYWORDS = [
+  '隐私',
+  'privacy',
+  'monitor',
+  'overlay',
+  'gameviewer',
+  'screenshot',
+  '截图',
+  'snip',
+  'snippingtool',
+  'screenclippinghost',
+  'screen clipping',
+  'clipping',
+  'explorer',
+  'windows explorer',
+  'file explorer',
+  '资源管理器',
+  '文件资源管理器',
+]
 
-function shouldIgnore(appName: string): boolean {
-  if (BUILTIN_IGNORE.has(appName)) return true
-  if (appName.length <= 2) return true
-  const lc = appName.toLowerCase()
-  const ignoreKeywords = ['隐私', 'privacy', 'monitor', 'overlay', 'gameviewer', 'screenshot', '截图', 'snip']
-  if (ignoreKeywords.some((kw) => lc.includes(kw))) return true
+function toAppKey(appName: string): string {
+  return appName.trim().toLowerCase()
+}
+
+function seedKnownAppName(appName: string) {
+  const key = toAppKey(appName)
+  if (key) knownAppKeys.add(key)
+}
+
+function shouldIgnore(appName: string, win: any): boolean {
+  const normalized = appName.trim()
+  if (!normalized) return true
+  if (normalized.length <= 2) return true
+
+  const appKey = toAppKey(normalized)
+  if (BUILTIN_IGNORE.has(normalized) || BUILTIN_IGNORE_LOWER.has(appKey)) return true
+
+  const tokens = [appKey, ...getWindowTokens(win)]
+  if (hasKeyword(tokens, IGNORE_KEYWORDS)) return true
+
   const now = Date.now()
-  const freq = launchFrequency.get(appName)
+  const freq = launchFrequency.get(appKey)
   if (freq) {
     if (now - freq.firstSeen > FREQ_WINDOW_MS) {
-      launchFrequency.set(appName, { count: 1, firstSeen: now })
+      launchFrequency.set(appKey, { count: 1, firstSeen: now })
       return false
     }
     if (freq.count >= FREQ_THRESHOLD) return true
@@ -265,28 +356,39 @@ function shouldIgnore(appName: string): boolean {
 }
 
 function recordLaunch(appName: string) {
+  const appKey = toAppKey(appName)
+  if (!appKey) return
+
   const now = Date.now()
-  const freq = launchFrequency.get(appName)
+  const freq = launchFrequency.get(appKey)
   if (freq && now - freq.firstSeen <= FREQ_WINDOW_MS) {
     freq.count++
   } else {
-    launchFrequency.set(appName, { count: 1, firstSeen: now })
+    launchFrequency.set(appKey, { count: 1, firstSeen: now })
   }
 }
 
 export async function startAppLaunchWatcher() {
-  // 建立基线：记录当前活跃应用
+  // Seed common shell windows to avoid false 'new app' events
+  seedKnownAppName('explorer.exe')
+  seedKnownAppName('Explorer')
+  seedKnownAppName('Windows Explorer')
+  seedKnownAppName('File Explorer')
+  seedKnownAppName('资源管理器')
+  seedKnownAppName('文件资源管理器')
+
+  // Build baseline from current active app
   try {
     const win = await getActiveWin()
     if (win) {
       const name = extractAppName(win)
-      if (name) knownAppNames.add(name)
+      if (name) seedKnownAppName(name)
     }
   } catch {
-    // 忽略
+    // ignore
   }
 
-  // 5 秒轮询活跃窗口，检测新应用切换
+  // Poll active window every 5s to detect app switches
   watchTimer = setInterval(async () => {
     if (!bridgeClient?.isConnected()) return
 
@@ -297,10 +399,13 @@ export async function startAppLaunchWatcher() {
       const appName = extractAppName(win)
       if (!appName) return
 
-      if (knownAppNames.has(appName)) return
+      const appKey = toAppKey(appName)
+      if (!appKey) return
 
-      knownAppNames.add(appName)
-      if (shouldIgnore(appName)) return
+      if (knownAppKeys.has(appKey)) return
+
+      knownAppKeys.add(appKey)
+      if (shouldIgnore(appName, win)) return
       recordLaunch(appName)
 
       bridgeClient.sendMessage({
@@ -319,7 +424,7 @@ export async function startAppLaunchWatcher() {
         },
       })
     } catch {
-      // 静默失败
+      // silent fail
     }
   }, 5000)
 }
@@ -329,7 +434,7 @@ export function stopAppLaunchWatcher() {
     clearInterval(watchTimer)
     watchTimer = null
   }
-  knownAppNames.clear()
+  knownAppKeys.clear()
 }
 
 // ──────── 工具声明与调用分发 ────────
