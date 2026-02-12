@@ -260,6 +260,10 @@ export async function captureScreenshot(
 let knownAppKeys: Set<string> = new Set()
 let launchFrequency: Map<string, { count: number; firstSeen: number }> = new Map()
 let watchTimer: NodeJS.Timeout | null = null
+let recentSwitchTimestamps: number[] = []
+let lastObservedAppKey = ''
+let suppressAppEventUntil = 0
+let lastAppEventTs = 0
 
 const BUILTIN_IGNORE: Set<string> = new Set([
   'Program Manager',
@@ -304,6 +308,10 @@ const BUILTIN_IGNORE_LOWER = new Set(Array.from(BUILTIN_IGNORE).map((name) => na
 
 const FREQ_THRESHOLD = 3
 const FREQ_WINDOW_MS = 3 * 60 * 60 * 1000
+const APP_SWITCH_DEBOUNCE_WINDOW_MS = 20 * 1000
+const APP_SWITCH_DEBOUNCE_THRESHOLD = 4
+const APP_SWITCH_SUPPRESS_MS = 15 * 1000
+const APP_EVENT_MIN_INTERVAL_MS = 4 * 1000
 const IGNORE_KEYWORDS = [
   '隐私',
   'privacy',
@@ -369,6 +377,42 @@ function recordLaunch(appName: string) {
   }
 }
 
+function resetAppSwitchDebounceState() {
+  recentSwitchTimestamps = []
+  lastObservedAppKey = ''
+  suppressAppEventUntil = 0
+  lastAppEventTs = 0
+}
+
+function trackAppSwitch(appKey: string, now: number) {
+  if (lastObservedAppKey && lastObservedAppKey !== appKey) {
+    recentSwitchTimestamps.push(now)
+  }
+
+  lastObservedAppKey = appKey
+
+  const cutoff = now - APP_SWITCH_DEBOUNCE_WINDOW_MS
+  recentSwitchTimestamps = recentSwitchTimestamps.filter((ts) => ts >= cutoff)
+}
+
+function shouldDebounceAppLaunchEvent(appKey: string, now: number): boolean {
+  trackAppSwitch(appKey, now)
+
+  if (recentSwitchTimestamps.length >= APP_SWITCH_DEBOUNCE_THRESHOLD) {
+    suppressAppEventUntil = Math.max(suppressAppEventUntil, now + APP_SWITCH_SUPPRESS_MS)
+    recentSwitchTimestamps = []
+    return true
+  }
+
+  if (now < suppressAppEventUntil) return true
+  if (lastAppEventTs > 0 && now - lastAppEventTs < APP_EVENT_MIN_INTERVAL_MS) return true
+
+  return false
+}
+
+function markAppEventSent(now: number) {
+  lastAppEventTs = now
+}
 
 function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): string {
   return [
@@ -385,6 +429,13 @@ function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): s
 }
 
 export async function startAppLaunchWatcher() {
+  if (watchTimer) {
+    clearInterval(watchTimer)
+    watchTimer = null
+  }
+
+  resetAppSwitchDebounceState()
+
   // Seed common shell windows to avoid false 'new app' events
   seedKnownAppName('explorer.exe')
   seedKnownAppName('Explorer')
@@ -418,11 +469,18 @@ export async function startAppLaunchWatcher() {
       const appKey = toAppKey(appName)
       if (!appKey) return
 
+      const now = Date.now()
+      if (shouldDebounceAppLaunchEvent(appKey, now)) return
+
       if (knownAppKeys.has(appKey)) return
 
-      knownAppKeys.add(appKey)
-      if (shouldIgnore(appName, win)) return
+      if (shouldIgnore(appName, win)) {
+        knownAppKeys.add(appKey)
+        return
+      }
+
       recordLaunch(appName)
+      knownAppKeys.add(appKey)
 
       const session = bridgeClient.getSession()
       const userName = getUserName()?.trim() || 'Desktop User'
@@ -441,6 +499,8 @@ export async function startAppLaunchWatcher() {
           messageType: 'notify',
         },
       })
+
+      markAppEventSent(now)
     } catch {
       // silent fail
     }
@@ -452,6 +512,8 @@ export function stopAppLaunchWatcher() {
     clearInterval(watchTimer)
     watchTimer = null
   }
+
+  resetAppSwitchDebounceState()
   knownAppKeys.clear()
 }
 
