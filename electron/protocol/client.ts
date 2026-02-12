@@ -446,7 +446,9 @@ export class L2DBridgeClient extends EventEmitter {
       const uploadFn = this.serverConfig.resourceBaseUrl
         ? (buf: Buffer, mime: string) => this.uploadResource(buf, mime)
         : undefined
-      const result = await captureScreenshot(req, uploadFn)
+      const result = await captureScreenshot(req, uploadFn, {
+        maxInlineBytes: this.serverConfig.maxInlineBytes,
+      })
       this.send({
         op: OPS.DESKTOP_CAPTURE_SCREENSHOT,
         id: packet.id,
@@ -471,7 +473,13 @@ export class L2DBridgeClient extends EventEmitter {
     const { tool, args } = (packet.payload || {}) as DesktopToolCallPayload
     try {
       const { handleToolCall } = await import('../ipc/desktop')
-      const result = await handleToolCall(tool, args || {})
+      const uploadFn = this.serverConfig.resourceBaseUrl
+        ? (buf: Buffer, mime: string) => this.uploadResource(buf, mime)
+        : undefined
+      const result = await handleToolCall(tool, args || {}, {
+        uploadFn,
+        maxInlineBytes: this.serverConfig.maxInlineBytes,
+      })
       this.send({
         op: OPS.DESKTOP_TOOL_CALL,
         id: packet.id,

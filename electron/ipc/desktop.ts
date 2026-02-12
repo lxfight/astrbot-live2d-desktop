@@ -5,6 +5,7 @@
 
 import { desktopCapturer, screen } from 'electron'
 import { bridgeClient } from '../main'
+import { getMainWindow } from '../windows/mainWindow'
 import type {
   DesktopWindowInfo,
   DesktopCaptureRequestPayload,
@@ -22,6 +23,100 @@ async function getActiveWin(): Promise<any> {
     activeWinFn = mod.default
   }
   return activeWinFn()
+}
+
+async function safeGetActiveWin(): Promise<any | null> {
+  try {
+    return await getActiveWin()
+  } catch {
+    return null
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function withMainWindowCaptureProtected<T>(runner: () => Promise<T>): Promise<T> {
+  const mainWindow = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return await runner()
+  }
+
+  const windowForCapture = mainWindow as any
+  const canSetContentProtection = typeof windowForCapture.setContentProtection === 'function'
+  const wasContentProtected =
+    typeof windowForCapture.isContentProtected === 'function'
+      ? Boolean(windowForCapture.isContentProtected())
+      : false
+
+  if (!wasContentProtected && canSetContentProtection) {
+    windowForCapture.setContentProtection(true)
+    await sleep(32)
+  }
+
+  try {
+    return await runner()
+  } finally {
+    if (!mainWindow.isDestroyed() && !wasContentProtected && canSetContentProtection) {
+      windowForCapture.setContentProtection(false)
+    }
+  }
+}
+
+function getDisplayFromActiveWindow(win: any): Electron.Display {
+  if (win?.bounds) {
+    const center = {
+      x: Math.round(win.bounds.x + win.bounds.width / 2),
+      y: Math.round(win.bounds.y + win.bounds.height / 2),
+    }
+    return screen.getDisplayNearestPoint(center)
+  }
+  return screen.getPrimaryDisplay()
+}
+
+function pickDesktopSource(
+  sources: Electron.DesktopCapturerSource[],
+  display: Electron.Display
+): Electron.DesktopCapturerSource {
+  const displayId = String(display.id)
+  return (
+    sources.find((s) => s.display_id === displayId) ||
+    sources.find((s) => !s.display_id || s.display_id === '0') ||
+    sources[0]
+  )
+}
+
+function pickWindowSource(
+  sources: Electron.DesktopCapturerSource[],
+  target: DesktopCaptureRequestPayload['target'],
+  reqWindowId: string | undefined,
+  activeWin: any
+): Electron.DesktopCapturerSource {
+  const activeId = String(activeWin?.id || '')
+  const activeTitle = String(activeWin?.title || '').trim()
+
+  return (
+    (target === 'window' && reqWindowId
+      ? sources.find((s) => s.id === reqWindowId || s.id.includes(reqWindowId))
+      : undefined) ||
+    (target === 'active' && activeId
+      ? sources.find((s) => s.id === activeId || s.id.includes(activeId))
+      : undefined) ||
+    (target === 'active' && activeTitle
+      ? sources.find((s) => s.name === activeTitle || s.name.includes(activeTitle))
+      : undefined) ||
+    sources[0]
+  )
+}
+
+interface CaptureScreenshotOptions {
+  maxInlineBytes?: number
+}
+
+export interface ToolCallContext {
+  uploadFn?: (jpegBuf: Buffer, mime: string) => Promise<string | null>
+  maxInlineBytes?: number
 }
 
 // ──────── 内部工具 ────────
@@ -58,56 +153,58 @@ export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
  */
 export async function captureScreenshot(
   req: DesktopCaptureRequestPayload,
-  uploadFn?: (jpegBuf: Buffer, mime: string) => Promise<string | null>
+  uploadFn?: (jpegBuf: Buffer, mime: string) => Promise<string | null>,
+  options: CaptureScreenshotOptions = {}
 ): Promise<DesktopCaptureResponsePayload> {
   const target = req.target || 'active'
+  const activeWin = target === 'active' || target === 'desktop' ? await safeGetActiveWin() : null
   const maxWidth = Math.min(req.maxWidth || 1280, 1920)
   const thumbSize = { width: maxWidth, height: Math.round(maxWidth * 0.5625) }
 
-  let sources: Electron.DesktopCapturerSource[]
-  if (target === 'desktop') {
-    const display = screen.getPrimaryDisplay()
-    sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: display.workAreaSize,
-    })
-  } else {
-    sources = await desktopCapturer.getSources({
-      types: ['window'],
-      thumbnailSize: thumbSize,
-    })
-  }
+  return await withMainWindowCaptureProtected(async () => {
+    let sources: Electron.DesktopCapturerSource[]
+    let src: Electron.DesktopCapturerSource | undefined
 
-  let src = sources[0]
-  if (!src) throw new Error('无法获取截图源')
-
-  if (target === 'window' && req.windowId) {
-    src = sources.find((s) => s.id === req.windowId || s.id.includes(req.windowId!)) || src
-  }
-
-  const size = src.thumbnail.getSize()
-  const jpegBuf = src.thumbnail.toJPEG(req.quality || 80)
-
-  const INLINE_THRESHOLD = 512 * 1024
-  let image: string
-
-  if (jpegBuf.length <= INLINE_THRESHOLD || !uploadFn) {
-    image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
-  } else {
-    const url = await uploadFn(jpegBuf, 'image/jpeg')
-    if (url) {
-      image = url
+    if (target === 'desktop') {
+      const targetDisplay = getDisplayFromActiveWindow(activeWin)
+      sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: targetDisplay.size,
+      })
+      src = pickDesktopSource(sources, targetDisplay)
     } else {
-      image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+      sources = await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize: thumbSize,
+      })
+      src = pickWindowSource(sources, target, req.windowId, activeWin)
     }
-  }
 
-  return {
-    image,
-    width: size.width,
-    height: size.height,
-    window: { title: src.name },
-  }
+    if (!src) throw new Error('无法获取截图源')
+
+    const size = src.thumbnail.getSize()
+    const jpegBuf = src.thumbnail.toJPEG(req.quality || 80)
+    const inlineThreshold = Math.max(64 * 1024, options.maxInlineBytes ?? 512 * 1024)
+
+    let image: string
+    if (!uploadFn || jpegBuf.length <= inlineThreshold) {
+      image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+    } else {
+      const url = await uploadFn(jpegBuf, 'image/jpeg')
+      image = url || `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+    }
+
+    return {
+      image,
+      width: size.width,
+      height: size.height,
+      window: {
+        id: src.id,
+        title: src.name,
+        processName: activeWin?.owner?.name,
+      },
+    }
+  })
 }
 
 // ──────── 应用启动监听器 ────────
@@ -258,26 +355,29 @@ export function getDesktopTools(): DesktopToolDeclaration[] {
 }
 
 // 工具名 → 处理函数映射
-const toolHandlers: Record<string, (args: Record<string, any>) => Promise<any>> = {
+const toolHandlers: Record<string, (args: Record<string, any>, ctx: ToolCallContext) => Promise<any>> = {
   get_active_window: async () => {
     return await getActiveWindow()
   },
-  capture_screenshot: async (args) => {
+  capture_screenshot: async (args, ctx) => {
     const req: DesktopCaptureRequestPayload = {
       target: args.target || 'active',
       quality: 80,
       maxWidth: 1920,
     }
-    // uploadFn 在此处不可用（需要 client 上下文），由 client.ts 注入
-    return await captureScreenshot(req)
+    return await captureScreenshot(req, ctx.uploadFn, { maxInlineBytes: ctx.maxInlineBytes })
   },
 }
 
 /**
  * 统一处理服务端发来的工具调用
  */
-export async function handleToolCall(toolName: string, args: Record<string, any>): Promise<any> {
+export async function handleToolCall(
+  toolName: string,
+  args: Record<string, any>,
+  ctx: ToolCallContext = {}
+): Promise<any> {
   const handler = toolHandlers[toolName]
   if (!handler) throw new Error(`未知工具: ${toolName}`)
-  return await handler(args)
+  return await handler(args, ctx)
 }
