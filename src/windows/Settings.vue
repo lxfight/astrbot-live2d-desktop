@@ -175,6 +175,9 @@
                   <n-button text tag="a" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
                     本项目仓库 (Github)
                   </n-button>
+                  <n-button text tag="a" @click="handleOpenLink('https://github.com/lxfight/astrbot_plugin_live2d_adapter')">
+                    AstrBot 平台适配器插件 (Github)
+                  </n-button>
                 </n-space>
               </div>
 
