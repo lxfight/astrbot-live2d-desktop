@@ -294,6 +294,22 @@ function handleResize() {
 let currentIgnoreMouseEvents = true // 当前穿透状态
 
 /**
+ * 检查鼠标是否在需要交互的 UI 元素上（气泡、菜单、输入框等）
+ */
+function isPointOnInteractiveUI(clientX: number, clientY: number): boolean {
+  const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+  if (!element) return false
+
+  return Boolean(
+    element.closest('.bubble') ||
+    element.closest('.radial-menu-container') ||
+    element.closest('.input-panel-container') ||
+    element.closest('.recording-toast') ||
+    element.closest('.empty-state')
+  )
+}
+
+/**
  * 处理鼠标移动（用于动态设置穿透）
  */
 function handleMouseMoveForPassThrough(event: MouseEvent) {
@@ -316,19 +332,22 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
 
   // 检查鼠标是否在模型上
   const isOnModel = isPointInModel(x, y)
+  // 检查鼠标是否在需要交互的 UI 元素上（如消息气泡）
+  const isOnInteractiveUI = isPointOnInteractiveUI(event.clientX, event.clientY)
+  const shouldCaptureMouse = isOnModel || isOnInteractiveUI
 
   // 动态设置窗口穿透
   // 参数说明：
   // - ignore: true = 穿透，false = 不穿透
   // - options.forward: true = 将事件转发给下层窗口
-  if (isOnModel) {
-    // 鼠标在模型上：不穿透，不转发
+  if (shouldCaptureMouse) {
+    // 鼠标在模型或交互 UI 上：不穿透，不转发
     if (currentIgnoreMouseEvents) {
       window.electron.window.setIgnoreMouseEvents(false)
       currentIgnoreMouseEvents = false
     }
   } else {
-    // 鼠标不在模型上：穿透，转发给桌面
+    // 鼠标不在模型和交互 UI 上：穿透，转发给桌面
     if (!currentIgnoreMouseEvents) {
       window.electron.window.setIgnoreMouseEvents(true)
       currentIgnoreMouseEvents = true
