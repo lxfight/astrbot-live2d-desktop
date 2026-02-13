@@ -9,6 +9,54 @@ let checkInterval: NodeJS.Timeout | null = null
 let isHiddenByGameMode = false
 let windowManager: any = null
 
+const MESSENGER_OVERLAY_TITLES = new Set([
+  'qq',
+  '腾讯qq',
+  'wechat',
+  'weixin',
+  '微信',
+  'tim',
+])
+
+const MESSENGER_PROCESS_KEYWORDS = [
+  'qq.exe',
+  'wechat.exe',
+  'weixin.exe',
+  'tim.exe',
+]
+
+function normalizeToken(value: unknown): string {
+  return String(value || '').trim().toLowerCase()
+}
+
+function isLikelyMessengerScreenshotOverlay(
+  title: string,
+  processPath: string,
+  bounds: { x: number; y: number; width: number; height: number },
+  screenWidth: number,
+  screenHeight: number
+): boolean {
+  const normalizedTitle = normalizeToken(title).replace(/\s+/g, '')
+  if (!MESSENGER_OVERLAY_TITLES.has(normalizedTitle)) {
+    return false
+  }
+
+  const normalizedPath = normalizeToken(processPath)
+  if (
+    normalizedPath &&
+    !MESSENGER_PROCESS_KEYWORDS.some((keyword) => normalizedPath.includes(keyword))
+  ) {
+    return false
+  }
+
+  const nearOrigin = Math.abs(bounds.x) <= 2 && Math.abs(bounds.y) <= 2
+  const nearScreenSize =
+    Math.abs(bounds.width - screenWidth) <= 2 &&
+    Math.abs(bounds.height - screenHeight) <= 2
+
+  return nearOrigin && nearScreenSize
+}
+
 /**
  * 初始化窗口管理器
  */
@@ -51,6 +99,7 @@ function hasFullscreenApp(): boolean {
 
     // 获取窗口标题
     const title = activeWindow.getTitle()
+    const processPath = String(activeWindow.path || '')
 
     // 排除桌面窗口（Program Manager 是 Windows 桌面）
     if (title === 'Program Manager' || title === '' || title === 'Windows Shell Experience Host') {
@@ -81,6 +130,18 @@ function hasFullscreenApp(): boolean {
       bounds.height >= screenHeight - 20 &&
       bounds.x <= 10 &&
       bounds.y <= 10
+
+    if (
+      isFullscreen &&
+      isLikelyMessengerScreenshotOverlay(title, processPath, bounds, screenWidth, screenHeight)
+    ) {
+      console.log('[自动检测全屏] 忽略聊天软件截图覆盖层:', {
+        title,
+        processPath,
+        bounds,
+      })
+      return false
+    }
 
     if (isFullscreen) {
       console.log('[自动检测全屏] 检测到全屏应用:', {
