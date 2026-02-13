@@ -267,6 +267,7 @@ let wakeWordListener: WakeWordListener | null = null
 let wakeWordUnsupportedNotified = false
 let wakeWordPermissionGranted = false
 let wakeWordPermissionChecking = false
+let wakeWordMicrophoneStream: MediaStream | null = null
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
@@ -890,6 +891,7 @@ async function toggleWakeWordFromMenu() {
 
   if (!nextEnabled) {
     stopWakeWordListener()
+    releaseWakeWordMicrophoneStream()
     showModelStatus('语音唤醒已关闭', 'info', 2200)
     return
   }
@@ -898,6 +900,16 @@ async function toggleWakeWordFromMenu() {
   if (advancedSettings.value.wakeWordEnabled) {
     showModelStatus('语音唤醒已开启', 'success', 2200)
   }
+}
+
+function releaseWakeWordMicrophoneStream() {
+  if (!wakeWordMicrophoneStream) {
+    return
+  }
+
+  wakeWordMicrophoneStream.getTracks().forEach((track) => track.stop())
+  wakeWordMicrophoneStream = null
+  wakeWordPermissionGranted = false
 }
 
 // 菜单配置
@@ -1041,7 +1053,11 @@ function stopWakeWordListener() {
 }
 
 async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
-  if (wakeWordPermissionGranted) {
+  if (
+    wakeWordPermissionGranted &&
+    wakeWordMicrophoneStream &&
+    wakeWordMicrophoneStream.getTracks().some((track) => track.readyState === 'live')
+  ) {
     return true
   }
 
@@ -1058,8 +1074,14 @@ async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
   showModelStatus(WAKE_WORD_SECURITY_NOTICE, 'warning', 7000)
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    stream.getTracks().forEach((track) => track.stop())
+    wakeWordMicrophoneStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    })
     wakeWordPermissionGranted = true
     return true
   } catch (error) {
@@ -1069,6 +1091,7 @@ async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
       ...advancedSettings.value,
       wakeWordEnabled: false
     })
+    releaseWakeWordMicrophoneStream()
     return false
   } finally {
     wakeWordPermissionChecking = false
@@ -1076,7 +1099,13 @@ async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
 }
 
 async function startWakeWordListener() {
-  if (!advancedSettings.value.wakeWordEnabled || isRecording.value) {
+  if (!advancedSettings.value.wakeWordEnabled) {
+    stopWakeWordListener()
+    releaseWakeWordMicrophoneStream()
+    return
+  }
+
+  if (isRecording.value) {
     stopWakeWordListener()
     return
   }
@@ -1084,6 +1113,7 @@ async function startWakeWordListener() {
   const keywords = getWakeKeywords()
   if (keywords.length === 0) {
     stopWakeWordListener()
+    releaseWakeWordMicrophoneStream()
     return
   }
 
@@ -1092,6 +1122,7 @@ async function startWakeWordListener() {
       wakeWordUnsupportedNotified = true
       showModelStatus('当前环境不支持语音唤醒，请使用 Chromium 内核', 'warning', 5000)
     }
+    releaseWakeWordMicrophoneStream()
     return
   }
 
@@ -1116,6 +1147,7 @@ async function startWakeWordListener() {
 
   wakeWordListener.start({
     keywords,
+    audioStream: wakeWordMicrophoneStream,
     onWakeWord: ({ keyword }) => {
       if (isRecording.value || isStoppingRecording) {
         return
@@ -1127,6 +1159,7 @@ async function startWakeWordListener() {
     onStatusChange: handleWakeWordStatusChange,
     onError: (message) => {
       console.warn('[语音唤醒]', message)
+      showModelStatus(message, 'warning', 6000)
     }
   })
 }
@@ -1690,6 +1723,7 @@ onBeforeUnmount(() => {
   stopWakeWordListener()
   wakeWordListener?.destroy()
   wakeWordListener = null
+  releaseWakeWordMicrophoneStream()
   clearRecordingTimer()
 
   if (audioRecorder && isRecording.value) {
