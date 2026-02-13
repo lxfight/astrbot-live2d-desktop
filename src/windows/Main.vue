@@ -179,7 +179,7 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
-  Image as ImageIcon, Disc, Mic, X,
+  Image as ImageIcon, Disc, Mic, MicOff, X,
   CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
@@ -877,12 +877,41 @@ function openInput() {
   })
 }
 
+async function toggleWakeWordFromMenu() {
+  showMenu.value = false
+  clearMenuAutoCloseTimer()
+
+  const nextEnabled = !advancedSettings.value.wakeWordEnabled
+
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: nextEnabled
+  })
+
+  if (!nextEnabled) {
+    stopWakeWordListener()
+    showModelStatus('语音唤醒已关闭', 'info', 2200)
+    return
+  }
+
+  await startWakeWordListener()
+  if (advancedSettings.value.wakeWordEnabled) {
+    showModelStatus('语音唤醒已开启', 'success', 2200)
+  }
+}
+
 // 菜单配置
-const menuItems = [
+const menuItems = computed(() => [
   { key: 'history', icon: ChartColumn, label: '历史', action: openHistory },
+  {
+    key: 'wake-word-toggle',
+    icon: advancedSettings.value.wakeWordEnabled ? Mic : MicOff,
+    label: advancedSettings.value.wakeWordEnabled ? '唤醒:开' : '唤醒:关',
+    action: toggleWakeWordFromMenu
+  },
   { key: 'settings', icon: Settings, label: '设置', action: openSettings },
   { key: 'talk', icon: MessageCircle, label: '对话', action: openInput }
-]
+])
 
 const MENU_RADIUS = 100
 
