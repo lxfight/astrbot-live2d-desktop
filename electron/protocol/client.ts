@@ -13,10 +13,9 @@ import type {
   STTTranscribePayload,
   STTResultPayload,
   DesktopCaptureRequestPayload,
-  DesktopToolDeclaration,
   DesktopToolCallPayload,
 } from './types'
-import { OP as OPS } from './types'
+import { OP as OPS, ERROR_CODE } from './types'
 import { getWindowList, getActiveWindow, captureScreenshot, getDesktopTools } from '../ipc/desktop'
 
 /**
@@ -33,6 +32,7 @@ export class L2DBridgeClient extends EventEmitter {
   private reconnectAttempts: number = 0
   private maxReconnectAttempts: number = 10
   private isConnecting: boolean = false
+  private shouldReconnect: boolean = true
   private serverConfig: { resourceBaseUrl?: string; maxInlineBytes?: number } = {}
   private pendingRequests: Map<string, {
     resolve: (payload: any) => void
@@ -52,9 +52,15 @@ export class L2DBridgeClient extends EventEmitter {
       return
     }
 
+    const normalizedToken = (token || '').trim()
+    if (!normalizedToken) {
+      throw new Error('认证密钥不能为空，请在设置中填写后再连接')
+    }
+
     this.url = url
-    this.token = token || ''
+    this.token = normalizedToken
     this.isConnecting = true
+    this.shouldReconnect = true
 
     return new Promise((resolve, reject) => {
       try {
@@ -82,7 +88,9 @@ export class L2DBridgeClient extends EventEmitter {
           this.isConnecting = false
           this.stopHeartbeat()
           this.emit('disconnected', { code, reason: reason.toString() })
-          this.scheduleReconnect()
+          if (this.shouldReconnect) {
+            this.scheduleReconnect()
+          }
         })
 
         this.ws.on('error', (error) => {
@@ -104,6 +112,7 @@ export class L2DBridgeClient extends EventEmitter {
   disconnect(): void {
     this.stopHeartbeat()
     this.stopReconnect()
+    this.shouldReconnect = false
 
     for (const [, pending] of this.pendingRequests) {
       clearTimeout(pending.timer)
@@ -185,6 +194,17 @@ export class L2DBridgeClient extends EventEmitter {
         break
 
       case OPS.SYS_ERROR:
+        if (
+          packet.error?.code === ERROR_CODE.AUTH_FAILED
+          || packet.error?.code === ERROR_CODE.VERSION_MISMATCH
+        ) {
+          this.shouldReconnect = false
+          console.error('[L2D] 握手失败（认证或版本不匹配），已停止自动重连')
+
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.close(1008, packet.error?.message || '握手失败')
+          }
+        }
         this.emit('error', packet.error)
         break
 
@@ -232,6 +252,7 @@ export class L2DBridgeClient extends EventEmitter {
       resourceBaseUrl: payload.config?.resourceBaseUrl,
       maxInlineBytes: payload.config?.maxInlineBytes,
     }
+    this.shouldReconnect = true
 
     this.startHeartbeat()
 
@@ -273,6 +294,10 @@ export class L2DBridgeClient extends EventEmitter {
    * 安排重连
    */
   private scheduleReconnect(): void {
+    if (!this.shouldReconnect) {
+      return
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log('[L2D] 达到最大重连次数，停止重连')
       return

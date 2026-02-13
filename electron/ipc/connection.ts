@@ -12,7 +12,20 @@ ipcMain.handle('bridge:connect', async (_event, url: string, token?: string) => 
       throw new Error('客户端未初始化')
     }
 
-    await client.connect(url, token)
+    const targetUrl = (url || '').trim()
+    if (!targetUrl) {
+      throw new Error('服务器地址不能为空')
+    }
+    if (!/^wss?:\/\//i.test(targetUrl)) {
+      throw new Error('服务器地址必须以 ws:// 或 wss:// 开头')
+    }
+
+    const authToken = (token || '').trim()
+    if (!authToken) {
+      throw new Error('认证密钥不能为空，请在设置中填写后再连接')
+    }
+
+    await client.connect(targetUrl, authToken)
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 连接失败:', error)

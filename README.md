@@ -97,8 +97,9 @@ desktop/
 
 在设置窗口中配置 WebSocket 连接：
 
-1. 填写服务器地址（如 `ws://localhost:6185`）。
-2. 可选填写认证令牌。
+1. 填写服务器地址（如 `ws://127.0.0.1:9090/astrbot/live2d`）。
+2. 必填认证令牌（需与 AstrBot 适配器 `auth_token` 一致）。
+   - 若适配器未手动配置 token，会自动生成随机密钥并写入 `live2d_auth_token.txt`。
 3. 点击"连接"按钮。
 
 ### 3. 查看历史记录

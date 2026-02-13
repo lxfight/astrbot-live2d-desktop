@@ -32,11 +32,21 @@
               <n-input v-model:value="serverUrl" placeholder="ws://127.0.0.1:9090/astrbot/live2d" />
             </n-form-item>
             <n-form-item label="认证令牌">
-              <n-input v-model:value="token" type="password" placeholder="可选" />
+              <n-input
+                v-model:value="token"
+                type="password"
+                show-password-on="click"
+                placeholder="必填，需与 AstrBot 适配器 auth_token 一致"
+              />
+            </n-form-item>
+            <n-form-item>
+              <n-alert type="warning" :show-icon="false">
+                为保障通讯安全，连接密钥为必填项。若适配器未手动配置，会自动生成随机密钥（见插件日志或 live2d_auth_token.txt）。
+              </n-alert>
             </n-form-item>
             <n-form-item>
               <n-space>
-                <n-button type="primary" @click="handleConnect" :disabled="connectionStore.isConnected">
+                <n-button type="primary" @click="handleConnect" :disabled="connectionStore.isConnected || !token.trim()">
                   {{ connectionStore.isConnected ? '已连接' : '连接' }}
                 </n-button>
                 <n-button @click="handleDisconnect" :disabled="!connectionStore.isConnected">
@@ -200,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { Globe, Drama, Settings, X, Info } from 'lucide-vue-next'
@@ -246,6 +256,10 @@ const menuItems = [
   { key: 'advanced', icon: Settings, label: '高级' },
   { key: 'about', icon: Info, label: '关于' }
 ]
+
+watch([serverUrl, token], ([nextUrl, nextToken]) => {
+  connectionStore.setConnectionConfig(nextUrl, nextToken)
+})
 
 onMounted(async () => {
   loadModelList()
@@ -299,7 +313,21 @@ async function loadModelList() {
 }
 
 async function handleConnect() {
-  const result = await connectionStore.connect(serverUrl.value, token.value)
+  const targetUrl = serverUrl.value.trim()
+  const authToken = token.value.trim()
+
+  if (!authToken) {
+    message.error('请先填写认证密钥')
+    return
+  }
+
+  if (authToken.length < 16) {
+    message.error('认证密钥长度至少 16 位')
+    return
+  }
+
+  token.value = authToken
+  const result = await connectionStore.connect(targetUrl, authToken)
   if (result.success) {
     message.success('连接成功')
   } else {
@@ -479,12 +507,14 @@ function handleClearCache() {
       // 清除 localStorage 中的缓存数据（保留设置）
       const lastModelPath = localStorage.getItem('lastModelPath')
       const advancedSettingsStr = localStorage.getItem('advancedSettings')
+      const connectionSettingsStr = localStorage.getItem('connectionSettings')
 
       localStorage.clear()
 
       // 恢复设置
       if (lastModelPath) localStorage.setItem('lastModelPath', lastModelPath)
       if (advancedSettingsStr) localStorage.setItem('advancedSettings', advancedSettingsStr)
+      if (connectionSettingsStr) localStorage.setItem('connectionSettings', connectionSettingsStr)
 
       message.success('缓存已清除')
     }
