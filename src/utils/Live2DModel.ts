@@ -6,7 +6,7 @@
 /// <reference types="pixi.js" />
 
 import * as PIXI from 'pixi.js'
-import { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
+import { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display/cubism4'
 
 // 将 PIXI 挂载到 window，供 pixi-live2d-display 使用
 if (typeof window !== 'undefined') {
@@ -50,6 +50,12 @@ export class Live2DModel {
    */
   async load(modelPath: string): Promise<void> {
     this.modelPath = modelPath
+    const normalizedPath = modelPath.toLowerCase()
+    const isCubism2Model = normalizedPath.endsWith('.model.json') && !normalizedPath.endsWith('.model3.json')
+
+    if (isCubism2Model) {
+      throw new Error('当前版本已停用 Cubism 2（.model.json）模型，请导入 .model3.json 模型。')
+    }
 
     try {
       this.model = await PixiLive2DModel.from(modelPath, {
@@ -500,4 +506,3 @@ export class Live2DModel {
     }
   }
 }
-

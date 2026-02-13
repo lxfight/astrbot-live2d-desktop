@@ -1,6 +1,7 @@
 /**
  * 下载 Cubism Core 文件
  * 在构建时执行，不将 Core 文件提交到仓库
+ * 当前仅保留 Cubism 4 Core（停用 Cubism 2 live2d.min.js）
  */
 
 import https from 'https'
@@ -19,13 +20,8 @@ if (!fs.existsSync(PUBLIC_LIB_DIR)) {
   fs.mkdirSync(PUBLIC_LIB_DIR, { recursive: true })
 }
 
-// 需要下载的文件
+// 需要下载的文件（仅 Cubism 4）
 const files = [
-  {
-    name: 'live2d.min.js',
-    url: 'https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js',
-    description: 'Cubism 2 Core'
-  },
   {
     name: 'live2dcubismcore.min.js',
     url: 'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
@@ -79,6 +75,13 @@ function downloadFile(url, dest) {
  */
 async function main() {
   console.log('[Cubism Core] 开始下载...\n')
+
+  // 清理已停用的 Cubism 2 Core 文件，避免被打包再分发
+  const deprecatedCorePath = path.join(PUBLIC_LIB_DIR, 'live2d.min.js')
+  if (fs.existsSync(deprecatedCorePath)) {
+    fs.unlinkSync(deprecatedCorePath)
+    console.log('[清理] 已移除停用文件: live2d.min.js')
+  }
 
   for (const file of files) {
     const destPath = path.join(PUBLIC_LIB_DIR, file.name)

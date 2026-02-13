@@ -4,7 +4,6 @@
 
 ## 支持的格式
 
-- Cubism 2.1 (.moc / .model.json)
 - Cubism 3.0+ (.moc3 / .model3.json)
 - Cubism 4.0+ (.moc3 / .model3.json)
 

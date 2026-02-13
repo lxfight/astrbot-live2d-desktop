@@ -33,7 +33,31 @@ function findModelJsonFiles(rootDir: string): string[] {
       if (!entry.isFile()) continue
 
       const lower = entry.name.toLowerCase()
-      if (lower.endsWith('.model3.json') || lower.endsWith('.model.json')) {
+      if (lower.endsWith('.model3.json')) {
+        results.push(fullPath)
+      }
+    }
+  }
+
+  walk(rootDir)
+  return results
+}
+
+function findCubism2ModelJsonFiles(rootDir: string): string[] {
+  const results: string[] = []
+
+  function walk(currentDir: string) {
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name)
+      if (entry.isDirectory()) {
+        walk(fullPath)
+        continue
+      }
+      if (!entry.isFile()) continue
+
+      const lower = entry.name.toLowerCase()
+      if (lower.endsWith('.model.json') && !lower.endsWith('.model3.json')) {
         results.push(fullPath)
       }
     }
@@ -50,11 +74,10 @@ function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {
     const rel = path.relative(rootDir, filePath)
     const depth = rel.split(path.sep).length - 1
     const base = path.basename(filePath).toLowerCase()
-    const isModel3 = base.endsWith('.model3.json')
-    const name = base.replace(/\.model3\.json$|\.model\.json$/i, '')
+    const name = base.replace(/\.model3\.json$/i, '')
 
     let s = 0
-    s += isModel3 ? 200 : 100
+    s += 200
     s += Math.max(0, 30 - depth * 10) // 越靠近根目录越优先
 
     if (name === rootName) s += 60
@@ -111,10 +134,14 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       return { success: false, error: '请选择有效的模型文件夹' }
     }
 
-    // 自动识别模型文件（支持一个文件夹内存在多个 .model3.json / .model.json）
+    // 自动识别模型文件（仅支持 .model3.json）
     const modelFiles = findModelJsonFiles(sourceDir)
     if (modelFiles.length === 0) {
-      return { success: false, error: '该文件夹内未找到 .model3.json 或 .model.json 模型文件' }
+      const cubism2Files = findCubism2ModelJsonFiles(sourceDir)
+      if (cubism2Files.length > 0) {
+        return { success: false, error: '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 模型。' }
+      }
+      return { success: false, error: '该文件夹内未找到 .model3.json 模型文件' }
     }
     const chosenModelFile = pickBestModelFile(sourceDir, modelFiles)
 
