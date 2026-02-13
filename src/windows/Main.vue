@@ -259,6 +259,13 @@ const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
 const WAKE_WORD_SILENCE_DURATION_MS = 1500
 const WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS = 4000
 const WAKE_WORD_SECURITY_NOTICE = '安全提示：语音唤醒会持续监听麦克风，可能采集到周围人员对话内容。请仅在可信环境启用。'
+let messageIdSequence = 0
+
+function generateMessageId(prefix = 'msg'): string {
+  messageIdSequence += 1
+  const randomSegment = Math.random().toString(36).slice(2, 10)
+  return `${prefix}_${Date.now()}_${messageIdSequence}_${randomSegment}`
+}
 
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
@@ -1360,7 +1367,7 @@ async function sendAudioMessage(audioBlob: Blob) {
       // 保存语音消息记录
       try {
         await window.electron.history.saveMessage({
-          messageId: `msg_${Date.now()}`,
+          messageId: generateMessageId(),
           sessionId: connectionStore.sessionId || 'default',
           userId: connectionStore.userId || 'desktop-user',
           userName: currentUserName.value || '桌面用户',
@@ -1445,7 +1452,7 @@ async function handleSendMessage() {
       // 保存消息记录
       try {
         await window.electron.history.saveMessage({
-          messageId: `msg_${Date.now()}`,
+          messageId: generateMessageId(),
           sessionId: connectionStore.sessionId || 'default',
           userId: connectionStore.userId || 'desktop-user',
           userName: currentUserName.value || '桌面用户',
@@ -1550,7 +1557,7 @@ onMounted(async () => {
         const date = new Date(timestamp)
         const dateStr = date.toISOString().split('T')[0]
         const hour = date.getHours()
-        const performanceId = `perf_${timestamp}`
+        const performanceId = generateMessageId('perf')
 
         // 先保存一条incoming消息记录（服务器发来的表演）
         window.electron.history.saveMessage({

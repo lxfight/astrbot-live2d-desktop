@@ -162,6 +162,15 @@ export function saveMessage(record: MessageRecord): void {
       message_id, session_id, user_id, user_name,
       message_type, direction, content, raw_text, timestamp
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(message_id) DO UPDATE SET
+      session_id = excluded.session_id,
+      user_id = excluded.user_id,
+      user_name = excluded.user_name,
+      message_type = excluded.message_type,
+      direction = excluded.direction,
+      content = excluded.content,
+      raw_text = excluded.raw_text,
+      timestamp = excluded.timestamp
   `)
 
   stmt.run(
