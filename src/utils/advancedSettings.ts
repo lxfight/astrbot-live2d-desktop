@@ -11,6 +11,10 @@ export interface AdvancedSettings {
   maxRecordingSeconds: number
 }
 
+export interface LoadAdvancedSettingsOptions {
+  forceWakeWordDisabled?: boolean
+}
+
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
   autoConnect: true,
@@ -87,24 +91,35 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
   }
 }
 
-export function loadAdvancedSettings(): AdvancedSettings {
+export function loadAdvancedSettings(options: LoadAdvancedSettingsOptions = {}): AdvancedSettings {
+  const applyStartupRules = (settings: AdvancedSettings): AdvancedSettings => {
+    if (!options.forceWakeWordDisabled) {
+      return settings
+    }
+
+    return {
+      ...settings,
+      wakeWordEnabled: false
+    }
+  }
+
   const rawValue = localStorage.getItem(ADVANCED_SETTINGS_KEY)
   if (!rawValue) {
-    return {
+    return applyStartupRules({
       ...DEFAULT_ADVANCED_SETTINGS,
       wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
-    }
+    })
   }
 
   try {
     const parsed = JSON.parse(rawValue)
-    return normalizeAdvancedSettings(parsed)
+    return applyStartupRules(normalizeAdvancedSettings(parsed))
   } catch (error) {
     console.error('[高级设置] 解析失败，使用默认配置:', error)
-    return {
+    return applyStartupRules({
       ...DEFAULT_ADVANCED_SETTINGS,
       wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
-    }
+    })
   }
 }
 

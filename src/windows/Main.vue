@@ -191,6 +191,7 @@ import {
   ADVANCED_SETTINGS_KEY,
   clampMaxRecordingSeconds,
   loadAdvancedSettings,
+  saveAdvancedSettings as persistAdvancedSettings,
   type AdvancedSettings
 } from '@/utils/advancedSettings'
 import { marked } from 'marked'
@@ -257,12 +258,15 @@ const recordingHintText = computed(() => {
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
 const WAKE_WORD_SILENCE_DURATION_MS = 1500
 const WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS = 4000
+const WAKE_WORD_SECURITY_NOTICE = '安全提示：语音唤醒会持续监听麦克风，可能采集到周围人员对话内容。请仅在可信环境启用。'
 
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
 let isStoppingRecording = false
 let wakeWordListener: WakeWordListener | null = null
 let wakeWordUnsupportedNotified = false
+let wakeWordPermissionGranted = false
+let wakeWordPermissionChecking = false
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
@@ -1007,7 +1011,42 @@ function stopWakeWordListener() {
   wakeWordListener?.stop()
 }
 
-function startWakeWordListener() {
+async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
+  if (wakeWordPermissionGranted) {
+    return true
+  }
+
+  if (wakeWordPermissionChecking) {
+    return false
+  }
+
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    showModelStatus('当前环境不支持麦克风权限请求', 'warning', 5000)
+    return false
+  }
+
+  wakeWordPermissionChecking = true
+  showModelStatus(WAKE_WORD_SECURITY_NOTICE, 'warning', 7000)
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach((track) => track.stop())
+    wakeWordPermissionGranted = true
+    return true
+  } catch (error) {
+    console.warn('[语音唤醒] 麦克风权限申请失败:', error)
+    showModelStatus('未授予麦克风权限，语音唤醒已关闭', 'warning', 5000)
+    advancedSettings.value = persistAdvancedSettings({
+      ...advancedSettings.value,
+      wakeWordEnabled: false
+    })
+    return false
+  } finally {
+    wakeWordPermissionChecking = false
+  }
+}
+
+async function startWakeWordListener() {
   if (!advancedSettings.value.wakeWordEnabled || isRecording.value) {
     stopWakeWordListener()
     return
@@ -1024,6 +1063,17 @@ function startWakeWordListener() {
       wakeWordUnsupportedNotified = true
       showModelStatus('当前环境不支持语音唤醒，请使用 Chromium 内核', 'warning', 5000)
     }
+    return
+  }
+
+  const hasMicrophonePermission = await ensureWakeWordMicrophonePermission()
+  if (!hasMicrophonePermission) {
+    stopWakeWordListener()
+    return
+  }
+
+  if (!advancedSettings.value.wakeWordEnabled || isRecording.value) {
+    stopWakeWordListener()
     return
   }
 
@@ -1052,10 +1102,17 @@ function startWakeWordListener() {
   })
 }
 
+function initializeAdvancedSettingsForSession() {
+  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
+  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
+  void startWakeWordListener()
+}
+
 function refreshAdvancedSettings() {
   advancedSettings.value = loadAdvancedSettings()
   advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
-  startWakeWordListener()
+  void startWakeWordListener()
 }
 
 function handleStorageChange(event: StorageEvent) {
@@ -1141,7 +1198,7 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
     currentRecordingSource.value = 'manual'
     audioRecorder = null
     clearRecordingTimer()
-    startWakeWordListener()
+    void startWakeWordListener()
   }
 }
 
@@ -1188,7 +1245,7 @@ async function stopRecording(options: StopRecordingOptions | MouseEvent = {}) {
     currentRecordingSource.value = 'manual'
     audioRecorder = null
     isStoppingRecording = false
-    startWakeWordListener()
+    void startWakeWordListener()
   }
 }
 
@@ -1207,7 +1264,7 @@ function cancelRecordingIfActive() {
   clearRecordingTimer()
 
   console.log('[主窗口] 录音已取消')
-  startWakeWordListener()
+  void startWakeWordListener()
 }
 
 async function sendAudioMessage(audioBlob: Blob) {
@@ -1360,7 +1417,7 @@ onMounted(async () => {
   }
 
   // 监听全局快捷键录音
-  refreshAdvancedSettings()
+  initializeAdvancedSettingsForSession()
   window.addEventListener('storage', handleStorageChange)
 
   window.electron.shortcut.onRecordingStart(() => {
