@@ -1924,7 +1924,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius);
   font-size: 14px;
   max-width: 450px;
-  max-height: 30vh;
+  max-height: 15vh;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
