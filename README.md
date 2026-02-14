@@ -34,11 +34,21 @@
 
 ## 用户快速开始
 
-### 1) 准备服务端
+### 1) 下载应用
+
+从 [Releases](https://github.com/lxfight/astrbot-live2d-desktop/releases) 页面下载对应平台的安装包：
+
+- Windows: `AstrBot-Live2D-x.x.x-win-x64.exe` (安装版) 或 `AstrBot-Live2D-x.x.x-portable-x64.exe` (便携版)
+- macOS: `AstrBot-Live2D-x.x.x-mac.dmg`
+- Linux: `AstrBot-Live2D-x.x.x-linux.AppImage`
+
+> 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
+
+### 2) 准备服务端
 
 在 AstrBot 中安装并启用 `astrbot-live2d-adapter`，确保服务端已运行。
 
-### 2) 配置连接
+### 3) 配置连接
 
 在桌面端「设置 -> 连接」填写：
 
@@ -48,7 +58,7 @@
 
 > 认证令牌会保存到本地，重启后无需重复输入。
 
-### 3) 导入模型
+### 4) 导入模型
 
 首次启动导入 Live2D 模型目录（`.model3.json`），即可开始对话与互动。
 
@@ -71,7 +81,7 @@ npm install
 # 开发
 npm run dev
 
-# 构建
+# 构建（不包含 SDK，用户首次启动时自动下载）
 npm run build
 npm run build:win
 npm run build:mac
@@ -81,6 +91,8 @@ npm run build:dir
 # 类型检查
 npm run typecheck
 ```
+
+> 注意：构建产物不包含 Live2D Cubism SDK，应用首次启动时会提示用户下载。
 
 ## 项目结构
 
@@ -120,6 +132,10 @@ astrbot-live2d-desktop/
 
 - 受 Cubism Core 版本影响，部分较新 moc3 版本可能不兼容
 - 某些环境下透明窗口与 GPU 驱动组合存在兼容差异
+
+## 版权说明
+
+本项目不包含 Live2D Cubism SDK，应用首次启动时会提示用户从 Live2D 官方网站下载。Live2D Cubism SDK 的使用需遵守 [Live2D 官方许可协议](https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html)。
 
 ## 相关项目
 
