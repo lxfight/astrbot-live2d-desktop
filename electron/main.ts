@@ -8,6 +8,7 @@ import { cleanupShortcuts } from './ipc/shortcut'
 import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
 import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
+import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } from './utils/downloadCubismCore'
 import './ipc/connection'
 import './ipc/window'
 import './ipc/history'
@@ -40,6 +41,25 @@ let isScreenLocked = false
 async function initialize() {
   // 初始化数据库
   initDatabase()
+
+  // 检查 Cubism Core 是否存在
+  if (!checkCubismCoreExists()) {
+    console.log('[主进程] Live2D SDK 不存在，提示用户下载')
+    const userConfirmed = await showDownloadDialog()
+
+    if (userConfirmed) {
+      const downloadSuccess = await downloadWithProgress()
+      if (!downloadSuccess) {
+        console.error('[主进程] SDK 下载失败，应用退出')
+        app.quit()
+        return
+      }
+    } else {
+      console.log('[主进程] 用户取消下载，应用退出')
+      app.quit()
+      return
+    }
+  }
 
   // 检查是否是首次启动（没有用户名）
   const userName = getUserName()

@@ -13,19 +13,18 @@
     "astrbot"
   ],
   "scripts": {
-    "dev": "npm run download:cubism && vite",
+    "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
-    "build": "npm run download:cubism && npm run typecheck && vite build && electron-builder --publish never",
-    "build:dir": "npm run download:cubism && npm run typecheck && vite build && electron-builder --dir --publish never",
-    "build:win": "npm run download:cubism && npm run typecheck && vite build && electron-builder --win --publish never",
-    "build:fast": "npm run download:cubism && vite build && electron-builder --dir --publish never",
+    "build": "npm run typecheck && vite build && electron-builder --publish never",
+    "build:dir": "npm run typecheck && vite build && electron-builder --dir --publish never",
+    "build:win": "npm run typecheck && vite build && electron-builder --win --publish never",
+    "build:fast": "vite build && electron-builder --dir --publish never",
     "rebuild": "electron-builder install-app-deps",
     "postinstall": "electron-builder install-app-deps",
-    "download:cubism": "node scripts/download-cubism-core.js",
-    "build:mac": "npm run download:cubism && npm run typecheck && vite build && electron-builder --mac --publish never",
-    "build:linux": "npm run download:cubism && npm run typecheck && vite build && electron-builder --linux --publish never"
+    "build:mac": "npm run typecheck && vite build && electron-builder --mac --publish never",
+    "build:linux": "npm run typecheck && vite build && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
