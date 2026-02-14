@@ -33,7 +33,6 @@ export let bridgeClient: L2DBridgeClient | null = null
 
 // 锁屏前的状态，用于解锁后恢复
 let gameModeBeforeLock = false
-let isScreenLocked = false
 
 /**
  * 应用程序初始化
@@ -135,7 +134,6 @@ app.whenReady().then(() => {
   // 锁屏时暂停所有后台活动
   powerMonitor.on('lock-screen', () => {
     console.log('[主进程] 屏幕已锁定，暂停活动')
-    isScreenLocked = true
     gameModeBeforeLock = isGameModeActive()
     stopAppLaunchWatcher()
     if (gameModeBeforeLock) disableGameMode()
@@ -146,7 +144,6 @@ app.whenReady().then(() => {
   // 解锁后恢复
   powerMonitor.on('unlock-screen', () => {
     console.log('[主进程] 屏幕已解锁，恢复活动')
-    isScreenLocked = false
     showMainWindow()
     if (gameModeBeforeLock) enableGameMode()
     if (bridgeClient) {

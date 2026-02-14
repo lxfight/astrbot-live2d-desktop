@@ -167,9 +167,6 @@ function handleMouseDown(event: MouseEvent) {
 
   // 左键开始拖动
   if (event.button === 0 && hitModel) {
-    // 强制刷新置顶状态，确保窗口处于最前（仅在开启置顶时生效）
-    window.electron.window.refreshAlwaysOnTop()
-    
     isDragging = false // 先标记为未拖动，等移动超过阈值再标记
     isDragStartedOnModel = true // 标记拖动从模型上开始
     dragStartX = event.clientX
