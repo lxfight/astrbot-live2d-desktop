@@ -70,6 +70,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get previous tag
+        id: previoustag
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${{ github.ref_name }}$" | head -n 1)
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREVIOUS_TAG"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ -z "${{ steps.previoustag.outputs.tag }}" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ github.ref_name }})
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ steps.previoustag.outputs.tag }}..${{ github.ref_name }})
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -79,6 +103,25 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## 更新内容
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## 下载说明
+
+            - Windows: 下载 `.exe` 文件（安装版或便携版）
+            - macOS: 下载 `.dmg` 文件
+            - Linux: 下载 `.AppImage` 文件
+
+            > 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
+
+            ## 相关链接
+
+            - [使用教程](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/USAGE_TUTORIAL.zh-CN.md)
+            - [AstrBot Live2D 适配器](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: artifacts/**/*
