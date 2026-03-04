@@ -142,6 +142,17 @@ contextBridge.exposeInMainWorld('electron', {
     openDirectory: () => ipcRenderer.invoke('log:openDirectory'),
     setLevel: (level: 'info' | 'debug') => ipcRenderer.invoke('log:setLevel', level),
     getConfig: () => ipcRenderer.invoke('log:getConfig')
+  },
+
+  // 自动更新
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    getState: () => ipcRenderer.invoke('update:getState'),
+    quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
+    onStateChanged: (callback: (state: any) => void) => {
+      ipcRenderer.removeAllListeners('update:stateChanged')
+      ipcRenderer.on('update:stateChanged', (_event: any, state: any) => callback(state))
+    }
   }
 })
 

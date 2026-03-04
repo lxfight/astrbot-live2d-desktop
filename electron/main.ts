@@ -10,6 +10,7 @@ import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameM
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } from './utils/downloadCubismCore'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
+import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
 import './ipc/window'
 import './ipc/history'
@@ -17,6 +18,7 @@ import './ipc/model'
 import './ipc/shortcut'
 import './ipc/user'
 import './ipc/log'
+import './ipc/update'
 
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
@@ -159,6 +161,7 @@ export function initBridgeClient() {
  * 应用程序就绪
  */
 app.whenReady().then(() => {
+  initializeAutoUpdater()
   initialize()
 
   app.on('activate', () => {

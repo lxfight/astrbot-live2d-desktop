@@ -64,6 +64,7 @@
     "date-fns": "^3.0.0",
     "echarts": "^5.4.0",
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.8.3",
     "howler": "^2.2.3",
     "katex": "^0.16.28",
     "lucide-vue-next": "^0.563.0",
@@ -117,6 +118,13 @@
       "node_modules/node-window-manager/**"
     ],
     "artifactName": "astrbot-live2d-desktop-v${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lxfight",
+        "repo": "astrbot-live2d-desktop"
+      }
+    ],
     "win": {
       "icon": "icon.ico",
       "target": [

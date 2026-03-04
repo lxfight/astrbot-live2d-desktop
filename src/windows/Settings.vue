@@ -182,6 +182,15 @@
               <div class="about-section">
                 <h3>AstrBot Live2D Desktop</h3>
                 <p>版本：<strong>v{{ appVersion }}</strong></p>
+                <n-space align="center">
+                  <n-button :loading="checkingUpdate" @click="handleCheckUpdates">
+                    检查更新
+                  </n-button>
+                  <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">
+                    重启并安装
+                  </n-button>
+                </n-space>
+                <p class="update-status-text">更新状态：{{ updateStatusLabel }}</p>
                 <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互、语音对话等功能。</p>
                 <p>作者：<strong>lxfight</strong></p>
               </div>
@@ -244,6 +253,8 @@ const token = ref(connectionStore.token)
 const modelList = ref<Array<{ name: string; path: string }>>([])
 const appVersion = ref('')
 const platformCapabilities = ref<PlatformCapabilities | null>(null)
+const updateState = ref<UpdateState | null>(null)
+const checkingUpdate = ref(false)
 
 // 高级设置
 const advancedSettings = ref({
@@ -312,6 +323,20 @@ const alwaysOnTopLevelLabel = computed(() => {
     : 'default'
 })
 
+const updateStatusLabel = computed(() => {
+  if (!updateState.value) {
+    return '更新状态未知'
+  }
+
+  if (updateState.value.status === 'downloading' && typeof updateState.value.progress === 'number') {
+    return `${updateState.value.message}（${Math.round(updateState.value.progress)}%）`
+  }
+
+  return updateState.value.message
+})
+
+const canInstallUpdate = computed(() => updateState.value?.status === 'downloaded')
+
 watch([serverUrl, token], ([nextUrl, nextToken]) => {
   connectionStore.setConnectionConfig(nextUrl, nextToken)
 })
@@ -328,6 +353,16 @@ onMounted(async () => {
   
   // 获取应用版本
   appVersion.value = await window.electron.window.getAppVersion()
+
+  try {
+    updateState.value = await window.electron.update.getState()
+  } catch {
+    updateState.value = null
+  }
+
+  window.electron.update.onStateChanged((state: UpdateState) => {
+    updateState.value = state
+  })
 
   // 检查快捷键是否已注册
   checkShortcutRegistration()
@@ -541,6 +576,33 @@ async function handleOpenLogs() {
   message.error(`打开日志目录失败: ${result.error || '未知错误'}`)
 }
 
+async function handleCheckUpdates() {
+  checkingUpdate.value = true
+  try {
+    const result = await window.electron.update.check()
+    if (result.success) {
+      message.info(result.message)
+    } else {
+      message.warning(result.message)
+    }
+  } catch (error: any) {
+    message.error(`检查更新失败: ${error?.message || String(error)}`)
+  } finally {
+    checkingUpdate.value = false
+  }
+}
+
+async function handleInstallUpdate() {
+  try {
+    const result = await window.electron.update.quitAndInstall()
+    if (!result.success) {
+      message.warning(result.message)
+    }
+  } catch (error: any) {
+    message.error(`安装更新失败: ${error?.message || String(error)}`)
+  }
+}
+
 function handleClearCache() {
   dialog.warning({
     title: '清除缓存',
@@ -710,6 +772,10 @@ function handleOpenLink(url: string) {
     .copyright-text {
       font-size: 12px;
       opacity: 0.8;
+    }
+
+    .update-status-text {
+      margin-top: 8px;
     }
   }
 

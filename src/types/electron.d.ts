@@ -1,5 +1,20 @@
 // TypeScript 类型声明
 declare global {
+  interface UpdateState {
+    status: 'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
+    message: string
+    currentVersion: string
+    latestVersion?: string
+    progress?: number
+    releaseDate?: string
+  }
+
+  interface UpdateCheckResult {
+    success: boolean
+    message: string
+    state: UpdateState
+  }
+
   interface PlatformCapabilities {
     platform: string
     linuxSessionType: 'x11' | 'wayland' | 'unknown' | 'n/a'
@@ -88,6 +103,12 @@ declare global {
         openDirectory: () => Promise<{ success: boolean; path: string; error?: string }>
         setLevel: (level: 'info' | 'debug') => Promise<{ success: boolean; level: 'info' | 'debug' }>
         getConfig: () => Promise<{ level: 'info' | 'debug'; retentionDays: number }>
+      }
+      update: {
+        check: () => Promise<UpdateCheckResult>
+        getState: () => Promise<UpdateState>
+        quitAndInstall: () => Promise<{ success: boolean; message: string }>
+        onStateChanged: (callback: (state: UpdateState) => void) => void
       }
     }
   }
