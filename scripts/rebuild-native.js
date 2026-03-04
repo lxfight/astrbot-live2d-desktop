@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 const optional = process.argv.includes('--optional')
+const skip = process.env.NATIVE_REBUILD_SKIP === '1'
 
 function runInstallAppDeps() {
   const cliPath = path.join(process.cwd(), 'node_modules', 'electron-builder', 'cli.js')
@@ -75,10 +76,15 @@ function printFailureHint() {
   console.error('[native-rebuild] failed to rebuild native dependencies for Electron.')
   console.error('[native-rebuild] if better-sqlite3 fails on Windows, install VS Build Tools and retry:')
   console.error('[native-rebuild] 1) Install: Visual Studio 2022 Build Tools (Desktop development with C++)')
-  console.error('[native-rebuild] 2) Run: npm run rebuild')
+  console.error('[native-rebuild] 2) Run: pnpm run rebuild')
 }
 
 function main() {
+  if (skip) {
+    console.warn('[native-rebuild] skipped because NATIVE_REBUILD_SKIP=1')
+    return
+  }
+
   let result = runInstallAppDeps()
   if (result.status === 0) return
 
