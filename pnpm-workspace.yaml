@@ -1,0 +1,10 @@
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - active-win
+  - better-sqlite3
+  - electron
+  - esbuild
+  - extract-file-icon
+  - node-window-manager
+  - sharp
+  - vue-demi
