@@ -10,10 +10,21 @@ import path from 'node:path'
 
 const optional = process.argv.includes('--optional')
 const skip = process.env.NATIVE_REBUILD_SKIP === '1'
+const platformArg = process.argv.find((arg) => arg.startsWith('--platform='))
+const archArg = process.argv.find((arg) => arg.startsWith('--arch='))
 
 function runInstallAppDeps() {
   const cliPath = path.join(process.cwd(), 'node_modules', 'electron-builder', 'cli.js')
-  const result = spawnSync(process.execPath, [cliPath, 'install-app-deps'], {
+  const cliArgs = [cliPath, 'install-app-deps']
+
+  if (platformArg) {
+    cliArgs.push(platformArg)
+  }
+  if (archArg) {
+    cliArgs.push(archArg)
+  }
+
+  const result = spawnSync(process.execPath, cliArgs, {
     cwd: process.cwd(),
     env: process.env,
     encoding: 'utf8',

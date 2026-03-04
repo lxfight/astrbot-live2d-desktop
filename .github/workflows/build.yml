@@ -24,29 +24,64 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            script: build:ci:win
-            artifact_name: release-windows
+            target: win
+            electron_platform: win32
+            arch: x64
+            artifact_name: release-windows-x64
             files: |
-              release/astrbot-live2d-desktop-v*-win-*.exe
-              release/astrbot-live2d-desktop-v*-portable-*.exe
+              release/astrbot-live2d-desktop-v*-win-x64.exe
+              release/astrbot-live2d-desktop-v*-portable-x64.exe
+              release/*.blockmap
+              release/latest.yml
+          - os: windows-latest
+            target: win
+            electron_platform: win32
+            arch: arm64
+            artifact_name: release-windows-arm64
+            files: |
+              release/astrbot-live2d-desktop-v*-win-arm64.exe
+              release/astrbot-live2d-desktop-v*-portable-arm64.exe
+              release/*.blockmap
+          - os: macos-13
+            target: mac
+            electron_platform: darwin
+            arch: x64
+            artifact_name: release-macos-x64
+            files: |
+              release/astrbot-live2d-desktop-v*-mac-x64.dmg
+              release/astrbot-live2d-desktop-v*-mac-x64.zip
               release/*.blockmap
               release/latest*.yml
           - os: macos-latest
-            script: build:ci:mac
-            artifact_name: release-macos
+            target: mac
+            electron_platform: darwin
+            arch: arm64
+            artifact_name: release-macos-arm64
             files: |
-              release/astrbot-live2d-desktop-v*-mac-*.dmg
-              release/astrbot-live2d-desktop-v*-mac-*.zip
+              release/astrbot-live2d-desktop-v*-mac-arm64.dmg
+              release/astrbot-live2d-desktop-v*-mac-arm64.zip
               release/*.blockmap
+          - os: ubuntu-latest
+            target: linux
+            electron_platform: linux
+            arch: x64
+            artifact_name: release-linux-x64
+            files: |
+              release/astrbot-live2d-desktop-v*-linux-x86_64.AppImage
+              release/astrbot-live2d-desktop-v*-linux-amd64.deb
+              release/astrbot-live2d-desktop-v*-linux-x86_64.rpm
               release/latest*.yml
           - os: ubuntu-latest
-            script: build:ci:linux
-            artifact_name: release-linux
+            target: linux
+            electron_platform: linux
+            arch: arm64
+            artifact_name: release-linux-arm64
             files: |
-              release/astrbot-live2d-desktop-v*-linux-*.AppImage
-              release/astrbot-live2d-desktop-v*-linux-*.deb
-              release/astrbot-live2d-desktop-v*-linux-*.rpm
-              release/latest*.yml
+              release/astrbot-live2d-desktop-v*-linux-*arm64*.AppImage
+              release/astrbot-live2d-desktop-v*-linux-*aarch64*.AppImage
+              release/astrbot-live2d-desktop-v*-linux-*arm64*.deb
+              release/astrbot-live2d-desktop-v*-linux-*arm64*.rpm
+              release/astrbot-live2d-desktop-v*-linux-*aarch64*.rpm
 
     runs-on: ${{ matrix.os }}
 
@@ -76,8 +111,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm run ${{ matrix.script }}
+      - name: Build Frontend and Electron Bundles
+        run: pnpm run build:prepare
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Rebuild Native Dependencies (${{ matrix.electron_platform }}-${{ matrix.arch }})
+        run: pnpm run rebuild -- --platform=${{ matrix.electron_platform }} --arch=${{ matrix.arch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package (${{ matrix.target }}-${{ matrix.arch }})
+        run: pnpm exec electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -137,9 +184,9 @@ jobs:
 
             ## 下载说明
 
-            - Windows: `*-win-x64.exe`（安装版）或 `*-portable-x64.exe`（便携版）
-            - macOS: `*.dmg`
-            - Linux: `*.AppImage` / `*.deb` / `*.rpm`
+            - Windows: `*-win-x64.exe` / `*-win-arm64.exe`（安装版），或 `*-portable-x64.exe` / `*-portable-arm64.exe`（便携版）
+            - macOS: `*-mac-x64.dmg` / `*-mac-arm64.dmg`
+            - Linux: `x86_64` / `arm64` 的 `AppImage`、`deb`、`rpm`
 
             > 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
 
