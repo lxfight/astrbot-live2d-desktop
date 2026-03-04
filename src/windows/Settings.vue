@@ -108,19 +108,6 @@
                 </n-button>
               </n-space>
             </n-form-item>
-            <n-form-item label="语音唤醒">
-              <n-switch
-                :value="advancedSettings.wakeWordEnabled"
-                @update:value="handleWakeWordSwitchChange"
-              />
-            </n-form-item>
-            <n-form-item label="唤醒关键词">
-              <n-dynamic-tags
-                v-model:value="advancedSettings.wakeKeywords"
-                :disabled="!advancedSettings.wakeWordEnabled"
-                :max="10"
-              />
-            </n-form-item>
             <n-form-item label="最长录音时长">
               <n-space align="center">
                 <n-input-number
@@ -128,15 +115,13 @@
                   :min="1"
                   :max="60"
                   :precision="0"
-                  :disabled="!advancedSettings.wakeWordEnabled"
                 />
                 <span>秒（上限 60 秒）</span>
               </n-space>
             </n-form-item>
             <n-form-item>
               <n-alert type="warning" :show-icon="false">
-                全局快捷键用于手动录音；语音唤醒会持续监听麦克风并检测关键词，命中后自动录音并在静音或达到时长后发送。
-                启用时会申请麦克风权限，请仅在可信环境使用；该功能每次重启默认关闭，需重新手动开启。
+                全局快捷键用于手动录音；语音唤醒功能已暂时移除。
                 关闭「基础事件弹窗提示」后，将不再显示模型上方的连接/发送成功等提示（错误/警告提示仍会保留）。
               </n-alert>
             </n-form-item>
@@ -263,7 +248,6 @@ const recordingSecondsValue = computed({
 })
 
 const shortcutRegistered = ref(false)
-const WAKE_WORD_SECURITY_NOTICE = '启用后会持续监听麦克风，可能采集到周围对话内容，请确认使用环境安全。'
 
 const menuItems = [
   { key: 'connection', icon: Globe, label: '连接' },
@@ -366,7 +350,11 @@ async function checkShortcutRegistration() {
 }
 
 function loadSettings() {
-  advancedSettings.value = loadAdvancedSettings()
+  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: false
+  })
 }
 
 async function loadModelList() {
@@ -452,52 +440,11 @@ async function handleDeleteModel(modelName: string) {
 }
 
 function saveAdvancedSettings() {
-  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
-  message.success('高级设置已保存')
-}
-
-async function requestWakeWordMicrophonePermission(): Promise<boolean> {
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    message.warning('当前环境不支持麦克风权限请求')
-    return false
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    stream.getTracks().forEach((track) => track.stop())
-    return true
-  } catch (error) {
-    console.warn('[设置] 麦克风权限申请失败:', error)
-    return false
-  }
-}
-
-function handleWakeWordSwitchChange(enabled: boolean) {
-  if (!enabled) {
-    advancedSettings.value.wakeWordEnabled = false
-    return
-  }
-
-  dialog.warning({
-    title: '语音唤醒安全提示',
-    content: `${WAKE_WORD_SECURITY_NOTICE} 该功能每次重启默认关闭，开启时会再次申请麦克风权限。`,
-    positiveText: '我已了解并开启',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      const granted = await requestWakeWordMicrophonePermission()
-      if (!granted) {
-        advancedSettings.value.wakeWordEnabled = false
-        message.warning('未授予麦克风权限，语音唤醒未开启')
-        return
-      }
-
-      advancedSettings.value.wakeWordEnabled = true
-      message.success('语音唤醒已开启，请记得点击“保存设置”')
-    },
-    onNegativeClick: () => {
-      advancedSettings.value.wakeWordEnabled = false
-    }
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: false
   })
+  message.success('高级设置已保存')
 }
 
 // 处理快捷键输入

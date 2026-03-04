@@ -179,14 +179,13 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
-  Image as ImageIcon, Disc, Mic, MicOff, X,
+  Image as ImageIcon, Disc, Mic, X,
   CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
 import { AudioRecorder } from '@/utils/AudioRecorder'
-import { WakeWordListener, type WakeWordStatus } from '@/utils/WakeWordListener'
 import {
   ADVANCED_SETTINGS_KEY,
   clampMaxRecordingSeconds,
@@ -258,7 +257,6 @@ const recordingHintText = computed(() => {
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
 const WAKE_WORD_SILENCE_DURATION_MS = 1500
 const WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS = 4000
-const WAKE_WORD_SECURITY_NOTICE = '安全提示：语音唤醒会持续监听麦克风，可能采集到周围人员对话内容。请仅在可信环境启用。'
 let messageIdSequence = 0
 
 function generateMessageId(prefix = 'msg'): string {
@@ -270,11 +268,6 @@ function generateMessageId(prefix = 'msg'): string {
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
 let isStoppingRecording = false
-let wakeWordListener: WakeWordListener | null = null
-let wakeWordUnsupportedNotified = false
-let wakeWordPermissionGranted = false
-let wakeWordPermissionChecking = false
-let wakeWordMicrophoneStream: MediaStream | null = null
 let bubbleHoverTimer: NodeJS.Timeout | null = null
 const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
@@ -685,7 +678,7 @@ async function handleModelLoaded() {
   try {
     const img = live2dCanvasRef.value?.getTextureSource()
     if (img) {
-      const colorThief = new ColorThief()
+      const colorThief = new (ColorThief as any)()
       // 确保图片已加载
       if (img.complete) {
         const color = colorThief.getColor(img)
@@ -885,49 +878,13 @@ function openInput() {
   })
 }
 
-async function toggleWakeWordFromMenu() {
-  showMenu.value = false
-  clearMenuAutoCloseTimer()
-
-  const nextEnabled = !advancedSettings.value.wakeWordEnabled
-
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: nextEnabled
-  })
-
-  if (!nextEnabled) {
-    stopWakeWordListener()
-    releaseWakeWordMicrophoneStream()
-    showModelStatus('语音唤醒已关闭', 'info', 2200)
-    return
-  }
-
-  await startWakeWordListener()
-  if (advancedSettings.value.wakeWordEnabled) {
-    showModelStatus('语音唤醒已开启', 'success', 2200)
-  }
-}
-
 function releaseWakeWordMicrophoneStream() {
-  if (!wakeWordMicrophoneStream) {
-    return
-  }
-
-  wakeWordMicrophoneStream.getTracks().forEach((track) => track.stop())
-  wakeWordMicrophoneStream = null
-  wakeWordPermissionGranted = false
+  // 语音唤醒功能已停用，保留占位方法以兼容现有调用链。
 }
 
 // 菜单配置
 const menuItems = computed(() => [
   { key: 'history', icon: ChartColumn, label: '历史', action: openHistory },
-  {
-    key: 'wake-word-toggle',
-    icon: advancedSettings.value.wakeWordEnabled ? Mic : MicOff,
-    label: advancedSettings.value.wakeWordEnabled ? '唤醒:开' : '唤醒:关',
-    action: toggleWakeWordFromMenu
-  },
   { key: 'settings', icon: Settings, label: '设置', action: openSettings },
   { key: 'talk', icon: MessageCircle, label: '对话', action: openInput }
 ])
@@ -1043,144 +1000,41 @@ function getMaxRecordingSeconds(): number {
   return clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
 }
 
-function getWakeKeywords(): string[] {
-  return advancedSettings.value.wakeKeywords
-    .map((keyword) => keyword.trim())
-    .filter((keyword) => keyword.length > 0)
-}
-
-function handleWakeWordStatusChange(status: WakeWordStatus) {
-  if (status === 'listening') {
-    console.log('[语音唤醒] 正在监听关键词')
-  }
-}
-
 function stopWakeWordListener() {
-  wakeWordListener?.stop()
-}
-
-async function ensureWakeWordMicrophonePermission(): Promise<boolean> {
-  if (
-    wakeWordPermissionGranted &&
-    wakeWordMicrophoneStream &&
-    wakeWordMicrophoneStream.getTracks().some((track) => track.readyState === 'live')
-  ) {
-    return true
-  }
-
-  if (wakeWordPermissionChecking) {
-    return false
-  }
-
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    showModelStatus('当前环境不支持麦克风权限请求', 'warning', 5000)
-    return false
-  }
-
-  wakeWordPermissionChecking = true
-  showModelStatus(WAKE_WORD_SECURITY_NOTICE, 'warning', 7000)
-
-  try {
-    wakeWordMicrophoneStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    })
-    wakeWordPermissionGranted = true
-    return true
-  } catch (error) {
-    console.warn('[语音唤醒] 麦克风权限申请失败:', error)
-    showModelStatus('未授予麦克风权限，语音唤醒已关闭', 'warning', 5000)
-    advancedSettings.value = persistAdvancedSettings({
-      ...advancedSettings.value,
-      wakeWordEnabled: false
-    })
-    releaseWakeWordMicrophoneStream()
-    return false
-  } finally {
-    wakeWordPermissionChecking = false
-  }
+  // 语音唤醒功能已停用，保留占位方法以兼容现有调用链。
 }
 
 async function startWakeWordListener() {
   if (!advancedSettings.value.wakeWordEnabled) {
-    stopWakeWordListener()
-    releaseWakeWordMicrophoneStream()
     return
   }
 
-  if (isRecording.value) {
-    stopWakeWordListener()
-    return
-  }
-
-  const keywords = getWakeKeywords()
-  if (keywords.length === 0) {
-    stopWakeWordListener()
-    releaseWakeWordMicrophoneStream()
-    return
-  }
-
-  if (!WakeWordListener.isSupported()) {
-    if (!wakeWordUnsupportedNotified) {
-      wakeWordUnsupportedNotified = true
-      showModelStatus('当前环境不支持语音唤醒，请使用 Chromium 内核', 'warning', 5000)
-    }
-    releaseWakeWordMicrophoneStream()
-    return
-  }
-
-  const hasMicrophonePermission = await ensureWakeWordMicrophonePermission()
-  if (!hasMicrophonePermission) {
-    stopWakeWordListener()
-    return
-  }
-
-  if (!advancedSettings.value.wakeWordEnabled || isRecording.value) {
-    stopWakeWordListener()
-    return
-  }
-
-  wakeWordUnsupportedNotified = false
-
-  if (!wakeWordListener) {
-    wakeWordListener = new WakeWordListener()
-  } else {
-    wakeWordListener.stop()
-  }
-
-  wakeWordListener.start({
-    keywords,
-    audioStream: wakeWordMicrophoneStream,
-    onWakeWord: ({ keyword }) => {
-      if (isRecording.value || isStoppingRecording) {
-        return
-      }
-
-      showBaseEventStatus(`检测到唤醒词「${keyword}」，开始录音`, 'info', 2200)
-      void startRecording({ source: 'wake-word' })
-    },
-    onStatusChange: handleWakeWordStatusChange,
-    onError: (message) => {
-      console.warn('[语音唤醒]', message)
-      showModelStatus(message, 'warning', 6000)
-    }
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: false
   })
+  stopWakeWordListener()
+  releaseWakeWordMicrophoneStream()
+  showModelStatus('语音唤醒功能已暂时移除，请使用全局录音快捷键', 'info', 2600)
 }
 
 function initializeAdvancedSettingsForSession() {
   advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
   advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
-  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: false
+  })
   void startWakeWordListener()
 }
 
 function refreshAdvancedSettings() {
-  advancedSettings.value = loadAdvancedSettings()
+  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
   advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+  advancedSettings.value = persistAdvancedSettings({
+    ...advancedSettings.value,
+    wakeWordEnabled: false
+  })
   void startWakeWordListener()
 }
 
@@ -1728,8 +1582,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
   stopWakeWordListener()
-  wakeWordListener?.destroy()
-  wakeWordListener = null
   releaseWakeWordMicrophoneStream()
   clearRecordingTimer()
 

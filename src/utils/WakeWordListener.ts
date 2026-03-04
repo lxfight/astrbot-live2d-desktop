@@ -3,4 +3,4 @@ export {
   type WakeWordDetectedPayload,
   type WakeWordListenerOptions,
   type WakeWordStatus,
-} from './WakeWordListenerPorcupine'
+} from './WakeWordListenerWebSpeech'
