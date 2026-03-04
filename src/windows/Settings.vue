@@ -93,6 +93,14 @@
             <n-form-item label="基础事件弹窗提示">
               <n-switch v-model:value="advancedSettings.showBaseEventNotifications" />
             </n-form-item>
+            <n-form-item label="日志级别">
+              <n-radio-group v-model:value="advancedSettings.logLevel">
+                <n-space>
+                  <n-radio-button value="info">Info（默认）</n-radio-button>
+                  <n-radio-button value="debug">Debug（调试）</n-radio-button>
+                </n-space>
+              </n-radio-group>
+            </n-form-item>
             <n-form-item label="全局录音快捷键">
               <n-space>
                 <n-input
@@ -122,6 +130,8 @@
             <n-form-item>
               <n-alert type="warning" :show-icon="false">
                 全局快捷键用于手动录音；语音唤醒功能已暂时移除。
+                日志默认保留 info/warn/error，切换到 debug 可记录更详细调试信息。
+                日志文件会自动清理 14 天前的旧文件。
                 关闭「基础事件弹窗提示」后，将不再显示模型上方的连接/发送成功等提示（错误/警告提示仍会保留）。
               </n-alert>
             </n-form-item>
@@ -352,12 +362,21 @@ async function checkShortcutRegistration() {
   }
 }
 
+async function applyLogLevelSetting(level: 'info' | 'debug') {
+  try {
+    await window.electron.log.setLevel(level)
+  } catch (error) {
+    console.warn('[设置] 应用日志级别失败:', error)
+  }
+}
+
 function loadSettings() {
   advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
   advancedSettings.value = persistAdvancedSettings({
     ...advancedSettings.value,
     wakeWordEnabled: false
   })
+  void applyLogLevelSetting(advancedSettings.value.logLevel)
 }
 
 async function loadModelList() {
@@ -442,11 +461,12 @@ async function handleDeleteModel(modelName: string) {
   }
 }
 
-function saveAdvancedSettings() {
+async function saveAdvancedSettings() {
   advancedSettings.value = persistAdvancedSettings({
     ...advancedSettings.value,
     wakeWordEnabled: false
   })
+  await applyLogLevelSetting(advancedSettings.value.logLevel)
   message.success('高级设置已保存')
 }
 
@@ -503,9 +523,9 @@ async function handleRegisterShortcut() {
 
   if (result.success) {
     shortcutRegistered.value = true
-    message.success('快捷键注册成功')
     // 保存设置
-    saveAdvancedSettings()
+    await saveAdvancedSettings()
+    message.success('快捷键注册成功')
   } else {
     message.error(`注册失败: ${result.error}`)
   }
@@ -555,6 +575,7 @@ function handleResetSettings() {
       localStorage.clear()
       advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
       persistAdvancedSettings(advancedSettings.value)
+      void applyLogLevelSetting(advancedSettings.value.logLevel)
       shortcutRegistered.value = false
       message.success('设置已重置')
     }

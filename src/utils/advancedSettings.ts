@@ -2,6 +2,8 @@ export const ADVANCED_SETTINGS_KEY = 'advancedSettings'
 export const MAX_RECORDING_SECONDS_LIMIT = 60
 const MIN_RECORDING_SECONDS_LIMIT = 1
 
+export type AppLogLevel = 'info' | 'debug'
+
 export interface AdvancedSettings {
   recordingShortcut: string
   autoConnect: boolean
@@ -9,6 +11,7 @@ export interface AdvancedSettings {
   wakeWordEnabled: boolean
   wakeKeywords: string[]
   maxRecordingSeconds: number
+  logLevel: AppLogLevel
 }
 
 export interface LoadAdvancedSettingsOptions {
@@ -21,7 +24,12 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   showBaseEventNotifications: true,
   wakeWordEnabled: false,
   wakeKeywords: ['小助手'],
-  maxRecordingSeconds: 30
+  maxRecordingSeconds: 30,
+  logLevel: 'info'
+}
+
+export function normalizeAppLogLevel(value: unknown): AppLogLevel {
+  return value === 'debug' ? 'debug' : 'info'
 }
 
 export function normalizeWakeKeywords(value: unknown): string[] {
@@ -87,7 +95,8 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     wakeKeywords: wakeKeywords.length > 0
       ? wakeKeywords
       : [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords],
-    maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds)
+    maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds),
+    logLevel: normalizeAppLogLevel(raw.logLevel)
   }
 }
 

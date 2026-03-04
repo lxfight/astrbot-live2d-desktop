@@ -4,15 +4,33 @@ import path from 'node:path'
 import util from 'node:util'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LogOutputLevel = 'debug' | 'info'
 
 const LOG_FILE_PREFIX = 'astrbot-live2d'
 const LOG_DIRECTORY_NAME = 'logs'
+const LOG_RETENTION_DAYS = 14
+const LOG_RETENTION_MS = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
+const LOG_FILE_NAME_PATTERN = new RegExp(`^${LOG_FILE_PREFIX}-(\\d{4}-\\d{2}-\\d{2})\\.log$`)
+
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40
+}
+
+const OUTPUT_LEVEL_PRIORITY: Record<LogOutputLevel, number> = {
+  debug: 10,
+  info: 20
+}
 
 let logDirPath: string | null = null
 let currentDateKey = ''
 let logStream: fs.WriteStream | null = null
 let consolePatched = false
 let processErrorHookInstalled = false
+let activeLogLevel: LogOutputLevel = 'info'
+let lastCleanupDateKey = ''
 
 const originalConsole = {
   debug: console.debug.bind(console),
@@ -47,6 +65,21 @@ function formatDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function parseDateKeyFromFileName(fileName: string): number | null {
+  const match = fileName.match(LOG_FILE_NAME_PATTERN)
+  if (!match) {
+    return null
+  }
+
+  const parsed = new Date(`${match[1]}T00:00:00`)
+  const timestamp = parsed.getTime()
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function shouldWriteLevel(level: LogLevel): boolean {
+  return LOG_LEVEL_PRIORITY[level] >= OUTPUT_LEVEL_PRIORITY[activeLogLevel]
 }
 
 function resolveLogFilePath(date: Date): string {
@@ -135,6 +168,90 @@ export function normalizeLogLevel(level: string | undefined | null): LogLevel {
   }
 }
 
+export function normalizeLogOutputLevel(level: string | undefined | null): LogOutputLevel {
+  return (level || '').toLowerCase() === 'debug' ? 'debug' : 'info'
+}
+
+export function getLogRetentionDays(): number {
+  return LOG_RETENTION_DAYS
+}
+
+export function getActiveLogLevel(): LogOutputLevel {
+  return activeLogLevel
+}
+
+export function setActiveLogLevel(level: string | undefined | null): LogOutputLevel {
+  const normalizedLevel = normalizeLogOutputLevel(level)
+  const changed = activeLogLevel !== normalizedLevel
+  activeLogLevel = normalizedLevel
+
+  if (changed) {
+    writeLogEntry('info', 'main', `日志级别已切换为: ${normalizedLevel}`)
+  }
+
+  return activeLogLevel
+}
+
+function cleanupExpiredLogs(now: Date = new Date()): void {
+  const cleanupDateKey = formatDateKey(now)
+  if (lastCleanupDateKey === cleanupDateKey) {
+    return
+  }
+
+  lastCleanupDateKey = cleanupDateKey
+  const threshold = now.getTime() - LOG_RETENTION_MS
+  const logDirectory = getLogDirectoryPath()
+
+  let entries: fs.Dirent[] = []
+  try {
+    entries = fs.readdirSync(logDirectory, { withFileTypes: true })
+  } catch (error) {
+    writeInternalError(`[logger] failed to read log directory for cleanup: ${error instanceof Error ? error.message : String(error)}`)
+    return
+  }
+
+  let removedCount = 0
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue
+    }
+
+    const fileName = entry.name
+    if (!LOG_FILE_NAME_PATTERN.test(fileName)) {
+      continue
+    }
+
+    const filePath = path.join(logDirectory, fileName)
+    let shouldDelete = false
+
+    try {
+      const stat = fs.statSync(filePath)
+      shouldDelete = stat.mtimeMs < threshold
+    } catch {
+      const fallbackTimestamp = parseDateKeyFromFileName(fileName)
+      if (fallbackTimestamp !== null) {
+        shouldDelete = fallbackTimestamp < threshold
+      }
+    }
+
+    if (!shouldDelete) {
+      continue
+    }
+
+    try {
+      fs.unlinkSync(filePath)
+      removedCount += 1
+    } catch (error) {
+      writeInternalError(`[logger] failed to delete expired log file (${fileName}): ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  if (removedCount > 0) {
+    writeInternalError(`[logger] cleaned up ${removedCount} expired log file(s), retention=${LOG_RETENTION_DAYS}d`)
+  }
+}
+
 export function getLogDirectoryPath(): string {
   if (!logDirPath) {
     logDirPath = path.join(resolveUserDataPath(), LOG_DIRECTORY_NAME)
@@ -145,10 +262,15 @@ export function getLogDirectoryPath(): string {
 }
 
 export function writeLogEntry(level: LogLevel, source: string, ...args: unknown[]): void {
+  if (!shouldWriteLevel(level)) {
+    return
+  }
+
   const now = new Date()
   const line = toLogLine(level, source, args, now)
 
   try {
+    cleanupExpiredLogs(now)
     const stream = ensureLogStream(now)
     stream.write(`${line}\n`)
   } catch (error) {
@@ -162,6 +284,7 @@ export function initializeMainLogger(): void {
   }
 
   ensureDirectory(getLogDirectoryPath())
+  cleanupExpiredLogs()
   patchConsoleMethod('debug', 'debug')
   patchConsoleMethod('log', 'info')
   patchConsoleMethod('info', 'info')
@@ -169,7 +292,11 @@ export function initializeMainLogger(): void {
   patchConsoleMethod('error', 'error')
   consolePatched = true
 
-  writeLogEntry('info', 'main', `日志系统已初始化，日志目录: ${getLogDirectoryPath()}`)
+  writeLogEntry(
+    'info',
+    'main',
+    `日志系统已初始化，日志目录: ${getLogDirectoryPath()}，级别: ${activeLogLevel}，保留天数: ${LOG_RETENTION_DAYS}`
+  )
 }
 
 export function installMainProcessErrorHandlers(): void {
@@ -189,16 +316,15 @@ export function installMainProcessErrorHandlers(): void {
 }
 
 export function shutdownMainLogger(): void {
-  if (!logStream) {
-    return
-  }
-
-  try {
-    logStream.end()
-  } catch {
-    // ignore stream close errors
+  if (logStream) {
+    try {
+      logStream.end()
+    } catch {
+      // ignore stream close errors
+    }
   }
 
   logStream = null
   currentDateKey = ''
+  lastCleanupDateKey = ''
 }

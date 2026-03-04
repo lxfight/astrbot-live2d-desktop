@@ -139,7 +139,9 @@ contextBridge.exposeInMainWorld('electron', {
     warn: (...args: any[]) => sendRendererLog('warn', args),
     error: (...args: any[]) => sendRendererLog('error', args),
     getDirectory: () => ipcRenderer.invoke('log:getDirectory'),
-    openDirectory: () => ipcRenderer.invoke('log:openDirectory')
+    openDirectory: () => ipcRenderer.invoke('log:openDirectory'),
+    setLevel: (level: 'info' | 'debug') => ipcRenderer.invoke('log:setLevel', level),
+    getConfig: () => ipcRenderer.invoke('log:getConfig')
   }
 })
 

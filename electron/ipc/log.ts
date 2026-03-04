@@ -1,5 +1,12 @@
 import { ipcMain, shell } from 'electron'
-import { getLogDirectoryPath, normalizeLogLevel, writeLogEntry } from '../utils/logger'
+import {
+  getActiveLogLevel,
+  getLogDirectoryPath,
+  getLogRetentionDays,
+  normalizeLogLevel,
+  setActiveLogLevel,
+  writeLogEntry
+} from '../utils/logger'
 
 interface RendererLogPayload {
   level?: string
@@ -49,5 +56,20 @@ ipcMain.handle('log:openDirectory', async () => {
   return {
     success: true,
     path: logDir
+  }
+})
+
+ipcMain.handle('log:setLevel', async (_event, level: string | undefined) => {
+  const normalizedLevel = setActiveLogLevel(level)
+  return {
+    success: true,
+    level: normalizedLevel
+  }
+})
+
+ipcMain.handle('log:getConfig', async () => {
+  return {
+    level: getActiveLogLevel(),
+    retentionDays: getLogRetentionDays()
   }
 })

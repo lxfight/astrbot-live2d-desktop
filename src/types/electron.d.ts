@@ -86,6 +86,8 @@ declare global {
         error: (...args: any[]) => void
         getDirectory: () => Promise<string>
         openDirectory: () => Promise<{ success: boolean; path: string; error?: string }>
+        setLevel: (level: 'info' | 'debug') => Promise<{ success: boolean; level: 'info' | 'debug' }>
+        getConfig: () => Promise<{ level: 'info' | 'debug'; retentionDays: number }>
       }
     }
   }

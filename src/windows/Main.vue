@@ -1004,6 +1004,14 @@ function stopWakeWordListener() {
   // 语音唤醒功能已停用，保留占位方法以兼容现有调用链。
 }
 
+async function applyLogLevelFromAdvancedSettings() {
+  try {
+    await window.electron.log.setLevel(advancedSettings.value.logLevel)
+  } catch (error) {
+    console.warn('[主窗口] 应用日志级别失败:', error)
+  }
+}
+
 async function startWakeWordListener() {
   if (!advancedSettings.value.wakeWordEnabled) {
     return
@@ -1025,6 +1033,7 @@ function initializeAdvancedSettingsForSession() {
     ...advancedSettings.value,
     wakeWordEnabled: false
   })
+  void applyLogLevelFromAdvancedSettings()
   void startWakeWordListener()
 }
 
@@ -1035,6 +1044,7 @@ function refreshAdvancedSettings() {
     ...advancedSettings.value,
     wakeWordEnabled: false
   })
+  void applyLogLevelFromAdvancedSettings()
   void startWakeWordListener()
 }
 
