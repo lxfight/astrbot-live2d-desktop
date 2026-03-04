@@ -4,7 +4,7 @@
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
-  "author": "",
+  "author": "lxfight <1686540385@qq.com>",
   "license": "MIT",
   "keywords": [
     "electron",
@@ -169,6 +169,7 @@
         "rpm"
       ],
       "category": "Utility",
+      "maintainer": "lxfight <1686540385@qq.com>",
       "desktop": {
         "StartupNotify": "true"
       }
