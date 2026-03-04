@@ -30,6 +30,14 @@ function resolveGameModeCapability(
   linuxSessionType: LinuxSessionType
 ): PlatformCapabilities['gameMode'] {
   if (platform === 'win32') {
+    if (process.arch === 'arm64') {
+      return {
+        supported: false,
+        mode: 'disabled',
+        reason: 'Windows ARM64 暂不支持稳定的原生全屏窗口检测',
+      }
+    }
+
     return {
       supported: true,
       mode: 'native-window-manager',

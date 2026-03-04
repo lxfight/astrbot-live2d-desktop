@@ -159,12 +159,12 @@ function extractAppName(win: any): string {
 // ──────── 公开 API（供 client.ts 调用）────────
 
 export async function getWindowList(): Promise<DesktopWindowListPayload> {
-  const win = await getActiveWin()
+  const win = await safeGetActiveWin()
   return { windows: win ? [toWindowInfo(win)] : [] }
 }
 
 export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
-  const win = await getActiveWin()
+  const win = await safeGetActiveWin()
   return { window: win ? toWindowInfo(win) : null }
 }
 
