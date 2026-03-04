@@ -11,12 +11,11 @@ const CUBISM_CORE_FILENAME = 'live2dcubismcore.min.js'
  * 获取 Cubism Core 文件路径
  */
 export function getCubismCorePath(): string {
-  const isDev = !app.isPackaged
-  if (isDev) {
+  if (!app.isPackaged) {
     return path.join(process.cwd(), 'public', 'lib', CUBISM_CORE_FILENAME)
-  } else {
-    return path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'lib', CUBISM_CORE_FILENAME)
   }
+  // 打包后静态资源位于 app.asar/dist/lib 下；asar 虚拟路径可直接读取
+  return path.join(app.getAppPath(), 'dist', 'lib', CUBISM_CORE_FILENAME)
 }
 
 /**
