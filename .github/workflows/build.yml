@@ -9,6 +9,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.28.2'
+
 jobs:
   build:
     strategy:
@@ -16,26 +24,29 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            script: build:win
+            script: build:ci:win
             artifact_name: release-windows
             files: |
-              release/*.exe
+              release/astrbot-live2d-desktop-v*-win-*.exe
+              release/astrbot-live2d-desktop-v*-portable-*.exe
               release/*.blockmap
-              release/latest.yml
+              release/latest*.yml
           - os: macos-latest
-            script: build:mac
+            script: build:ci:mac
             artifact_name: release-macos
             files: |
-              release/*.dmg
-              release/*.zip
+              release/astrbot-live2d-desktop-v*-mac-*.dmg
+              release/astrbot-live2d-desktop-v*-mac-*.zip
               release/*.blockmap
-              release/latest-mac.yml
+              release/latest*.yml
           - os: ubuntu-latest
-            script: build:linux
+            script: build:ci:linux
             artifact_name: release-linux
             files: |
-              release/*.AppImage
-              release/latest-linux.yml
+              release/astrbot-live2d-desktop-v*-linux-*.AppImage
+              release/astrbot-live2d-desktop-v*-linux-*.deb
+              release/astrbot-live2d-desktop-v*-linux-*.rpm
+              release/latest*.yml
 
     runs-on: ${{ matrix.os }}
 
@@ -43,11 +54,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -58,19 +74,20 @@ jobs:
         run: pip install setuptools
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run ${{ matrix.script }}
+        run: pnpm run ${{ matrix.script }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.files }}
-          if-no-files-found: warn
+          if-no-files-found: error
 
   release:
     needs: build
@@ -87,7 +104,7 @@ jobs:
         id: previoustag
         run: |
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${{ github.ref_name }}$" | head -n 1)
-          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
           echo "Previous tag: $PREVIOUS_TAG"
 
       - name: Generate changelog
@@ -98,9 +115,9 @@ jobs:
           else
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ steps.previoustag.outputs.tag }}..${{ github.ref_name }})
           fi
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -120,9 +137,9 @@ jobs:
 
             ## 下载说明
 
-            - Windows: 下载 `.exe` 文件（安装版或便携版）
-            - macOS: 下载 `.dmg` 文件
-            - Linux: 下载 `.AppImage` 文件
+            - Windows: `*-win-x64.exe`（安装版）或 `*-portable-x64.exe`（便携版）
+            - macOS: `*.dmg`
+            - Linux: `*.AppImage` / `*.deb` / `*.rpm`
 
             > 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
 
