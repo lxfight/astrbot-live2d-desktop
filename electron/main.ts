@@ -33,6 +33,37 @@ export let bridgeClient: L2DBridgeClient | null = null
 
 // 锁屏前的状态，用于解锁后恢复
 let gameModeBeforeLock = false
+let isBackgroundPaused = false
+
+function pauseBackgroundActivities(reason: string): void {
+  if (isBackgroundPaused) return
+  isBackgroundPaused = true
+
+  console.log(`[主进程] 暂停后台活动: ${reason}`)
+  gameModeBeforeLock = isGameModeActive()
+  stopAppLaunchWatcher()
+  if (gameModeBeforeLock) disableGameMode()
+  hideMainWindow()
+  if (bridgeClient) bridgeClient.disconnect()
+}
+
+function resumeBackgroundActivities(reason: string): void {
+  if (!isBackgroundPaused) return
+  isBackgroundPaused = false
+
+  console.log(`[主进程] 恢复后台活动: ${reason}`)
+  showMainWindow()
+  if (gameModeBeforeLock) enableGameMode()
+  if (bridgeClient) {
+    const { url, token } = bridgeClient.getConnectionInfo()
+    if (url) {
+      bridgeClient.resetReconnect()
+      bridgeClient.connect(url, token).catch((err) => {
+        console.error('[主进程] 恢复后重连失败:', err)
+      })
+    }
+  }
+}
 
 /**
  * 应用程序初始化
@@ -133,28 +164,21 @@ app.whenReady().then(() => {
 
   // 锁屏时暂停所有后台活动
   powerMonitor.on('lock-screen', () => {
-    console.log('[主进程] 屏幕已锁定，暂停活动')
-    gameModeBeforeLock = isGameModeActive()
-    stopAppLaunchWatcher()
-    if (gameModeBeforeLock) disableGameMode()
-    hideMainWindow()
-    if (bridgeClient) bridgeClient.disconnect()
+    pauseBackgroundActivities('lock-screen')
   })
 
   // 解锁后恢复
   powerMonitor.on('unlock-screen', () => {
-    console.log('[主进程] 屏幕已解锁，恢复活动')
-    showMainWindow()
-    if (gameModeBeforeLock) enableGameMode()
-    if (bridgeClient) {
-      const { url, token } = bridgeClient.getConnectionInfo()
-      if (url) {
-        bridgeClient.resetReconnect()
-        bridgeClient.connect(url, token).catch((err) => {
-          console.error('[主进程] 解锁后重连失败:', err)
-        })
-      }
-    }
+    resumeBackgroundActivities('unlock-screen')
+  })
+
+  // 部分 Linux 桌面环境下 lock/unlock 事件可能不稳定，使用 suspend/resume 兜底
+  powerMonitor.on('suspend', () => {
+    pauseBackgroundActivities('suspend')
+  })
+
+  powerMonitor.on('resume', () => {
+    resumeBackgroundActivities('resume')
   })
 })
 

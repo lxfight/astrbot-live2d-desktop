@@ -46,7 +46,9 @@ function loadTrayConfig(): void {
 /**
  * 创建系统托盘
  */
-export function createTray(): Tray {
+export function createTray(): Tray | null {
+  if (tray) return tray
+
   // 创建托盘图标（使用默认图标）
   const iconPath = resolveAppIconPath()
   let icon: Electron.NativeImage
@@ -61,7 +63,14 @@ export function createTray(): Tray {
     icon = nativeImage.createEmpty()
   }
 
-  tray = new Tray(icon)
+  try {
+    tray = new Tray(icon)
+  } catch (error) {
+    console.warn('[系统托盘] 创建失败，已降级为无托盘模式:', error)
+    tray = null
+    return null
+  }
+
   tray.setToolTip('AstrBot Live2D')
 
   // 加载保存的配置
