@@ -150,6 +150,20 @@
           <n-divider />
 
           <n-space vertical>
+            <h3>平台能力</h3>
+            <n-alert type="info" :show-icon="false">
+              <div class="capability-list">
+                <p>当前平台：{{ platformDisplayName }}</p>
+                <p>自动检测全屏应用：{{ gameModeCapabilityLabel }}</p>
+                <p>动态穿透（事件转发）：{{ passThroughCapabilityLabel }}</p>
+                <p>置顶层级策略：{{ alwaysOnTopLevelLabel }}</p>
+              </div>
+            </n-alert>
+          </n-space>
+
+          <n-divider />
+
+          <n-space vertical>
             <h3>数据管理</h3>
             <n-space>
               <n-button @click="handleClearCache">
@@ -231,6 +245,7 @@ const serverUrl = ref(connectionStore.serverUrl)
 const token = ref(connectionStore.token)
 const modelList = ref<Array<{ name: string; path: string }>>([])
 const appVersion = ref('')
+const platformCapabilities = ref<PlatformCapabilities | null>(null)
 
 // 高级设置
 const advancedSettings = ref({
@@ -257,6 +272,49 @@ const menuItems = [
   { key: 'about', icon: Info, label: '关于' }
 ]
 
+const platformDisplayName = computed(() => {
+  const capabilities = platformCapabilities.value
+  if (!capabilities) return '未知'
+
+  if (capabilities.platform === 'win32') return 'Windows'
+  if (capabilities.platform === 'darwin') return 'macOS'
+  if (capabilities.platform === 'linux') {
+    return capabilities.linuxSessionType === 'n/a'
+      ? 'Linux'
+      : `Linux (${capabilities.linuxSessionType})`
+  }
+
+  return capabilities.platform
+})
+
+const gameModeCapabilityLabel = computed(() => {
+  const capabilities = platformCapabilities.value
+  if (!capabilities) return '未知'
+  if (!capabilities.gameMode.supported) {
+    return `不可用（${capabilities.gameMode.reason || '当前平台暂不支持'}）`
+  }
+
+  return capabilities.gameMode.mode === 'native-window-manager'
+    ? '可用（原生窗口管理器）'
+    : '可用（活跃窗口启发式）'
+})
+
+const passThroughCapabilityLabel = computed(() => {
+  const capabilities = platformCapabilities.value
+  if (!capabilities) return '未知'
+  return capabilities.mousePassthroughForward
+    ? '支持（完整动态穿透）'
+    : '降级（仅基础穿透，不启用动态穿透）'
+})
+
+const alwaysOnTopLevelLabel = computed(() => {
+  const capabilities = platformCapabilities.value
+  if (!capabilities) return '未知'
+  return capabilities.alwaysOnTopLevel === 'screen-saver'
+    ? 'screen-saver'
+    : 'default'
+})
+
 watch([serverUrl, token], ([nextUrl, nextToken]) => {
   connectionStore.setConnectionConfig(nextUrl, nextToken)
 })
@@ -264,6 +322,12 @@ watch([serverUrl, token], ([nextUrl, nextToken]) => {
 onMounted(async () => {
   loadModelList()
   loadSettings()
+
+  try {
+    platformCapabilities.value = await window.electron.window.getPlatformCapabilities()
+  } catch {
+    platformCapabilities.value = null
+  }
   
   // 获取应用版本
   appVersion.value = await window.electron.window.getAppVersion()
@@ -665,6 +729,17 @@ function handleOpenLink(url: string) {
     .copyright-text {
       font-size: 12px;
       opacity: 0.8;
+    }
+  }
+
+  .capability-list {
+    p {
+      margin: 0 0 6px;
+      color: var(--color-text-secondary);
+    }
+
+    p:last-child {
+      margin-bottom: 0;
     }
   }
 }

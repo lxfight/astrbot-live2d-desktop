@@ -89,8 +89,24 @@ function setExpression(expressionId: string | number) {
  * 播放随机动作
  */
 function playRandomMotion() {
-  // TODO: 实现随机动作
-  console.log('[Live2D] 播放随机动作')
+  if (!model) return
+
+  const info = model.getModelInfo()
+  const groupNames = Object.keys(info.motionGroups).filter((group) => {
+    const motions = info.motionGroups[group]
+    return Array.isArray(motions) && motions.length > 0
+  })
+
+  if (groupNames.length === 0) {
+    console.warn('[Live2D] 当前模型没有可用动作组')
+    return
+  }
+
+  const group = groupNames[Math.floor(Math.random() * groupNames.length)]
+  const motions = info.motionGroups[group]
+  const motion = motions[Math.floor(Math.random() * motions.length)]
+
+  model.motion(group, motion.index)
 }
 
 /**
@@ -124,6 +140,7 @@ let modelOffsetY = 0
 const DRAG_THRESHOLD = 5 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
 let isFullPassThroughMode = false // 是否处于完全穿透模式
+let supportsDynamicPassThrough = true
 
 /**
  * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
@@ -320,6 +337,7 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
 
   // 如果动态穿透被禁用（有 UI 显示），不处理
   if (!passThroughEnabled) return
+  if (!supportsDynamicPassThrough) return
 
   if (!canvasRef.value || !model) return
 
@@ -356,6 +374,7 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
  * 禁用动态穿透（当有 UI 元素显示时）
  */
 function disablePassThrough() {
+  if (!supportsDynamicPassThrough) return
   passThroughEnabled = false
   if (currentIgnoreMouseEvents) {
     window.electron.window.setIgnoreMouseEvents(false)
@@ -367,6 +386,7 @@ function disablePassThrough() {
  * 启用动态穿透
  */
 function enablePassThrough() {
+  if (!supportsDynamicPassThrough) return
   passThroughEnabled = true
   // 恢复动态穿透，等待下一次鼠标移动事件来更新状态
 }
@@ -388,6 +408,19 @@ onMounted(() => {
 
     // 监听窗口大小变化
     window.addEventListener('resize', handleResize)
+
+    // 初始化平台能力（不支持 forward 时关闭动态穿透，避免窗口卡死在穿透态）
+    window.electron.window.getPlatformCapabilities().then((capabilities: PlatformCapabilities) => {
+      supportsDynamicPassThrough = capabilities.mousePassthroughForward
+      if (!supportsDynamicPassThrough) {
+        passThroughEnabled = false
+        currentIgnoreMouseEvents = false
+        window.electron.window.setIgnoreMouseEvents(false)
+        console.warn('[Live2D] 当前平台不支持穿透事件转发，已禁用动态穿透')
+      }
+    }).catch(() => {
+      // 获取失败时保持默认行为
+    })
 
     // 监听完全穿透模式变化
     window.electron.window.onPassThroughModeChanged((enabled: boolean) => {

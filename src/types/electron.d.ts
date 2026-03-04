@@ -1,5 +1,17 @@
 // TypeScript 类型声明
 declare global {
+  interface PlatformCapabilities {
+    platform: string
+    linuxSessionType: 'x11' | 'wayland' | 'unknown' | 'n/a'
+    mousePassthroughForward: boolean
+    alwaysOnTopLevel: 'default' | 'screen-saver'
+    gameMode: {
+      supported: boolean
+      mode: 'native-window-manager' | 'active-window-heuristic' | 'disabled'
+      reason?: string
+    }
+  }
+
   interface Window {
     electron: {
       bridge: {
@@ -31,6 +43,7 @@ declare global {
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>
         getAppVersion: () => Promise<string>
+        getPlatformCapabilities: () => Promise<PlatformCapabilities>
       }
       user: {
         setUserName: (name: string) => Promise<{ success: boolean }>

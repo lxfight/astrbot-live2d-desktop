@@ -51,7 +51,8 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
     },
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
-    getAppVersion: () => ipcRenderer.invoke('window:getAppVersion')
+    getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
+    getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities')
   },
 
   // 用户配置

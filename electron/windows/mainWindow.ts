@@ -3,11 +3,28 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
 import { getUserConfig } from '../database/schema'
+import { getPlatformCapabilities } from '../utils/platformCapabilities'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
+const platformCapabilities = getPlatformCapabilities()
+
+function applyIgnoreMouseEvents(ignore: boolean): void {
+  if (!mainWindow) return
+
+  if (!ignore) {
+    mainWindow.setIgnoreMouseEvents(false)
+    return
+  }
+
+  if (platformCapabilities.mousePassthroughForward) {
+    mainWindow.setIgnoreMouseEvents(true, { forward: true })
+  } else {
+    mainWindow.setIgnoreMouseEvents(true)
+  }
+}
 
 /**
  * 创建 Live2D 显示窗口
@@ -62,8 +79,8 @@ export function createMainWindow(): BrowserWindow {
     if (mainWindow) {
       mainWindow.setBackgroundColor('#00000000')
 
-      // 启用初始鼠标穿透（forward: true 让渲染进程仍能收到 mousemove）
-      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+      // 初始化鼠标穿透：不支持 forward 的平台默认不启用动态穿透
+      applyIgnoreMouseEvents(platformCapabilities.mousePassthroughForward)
 
       // 重新应用置顶设置（因为某些情况下初始置顶可能失效）
       try {
@@ -140,7 +157,11 @@ export function setAlwaysOnTop(flag: boolean): void {
       // 强制刷新置顶状态：先取消再重新设置
       // 这有助于解决部分录屏软件或全屏应用导致的层级失效问题
       mainWindow.setAlwaysOnTop(false)
-      mainWindow.setAlwaysOnTop(true, 'screen-saver')
+      if (platformCapabilities.alwaysOnTopLevel === 'screen-saver') {
+        mainWindow.setAlwaysOnTop(true, 'screen-saver')
+      } else {
+        mainWindow.setAlwaysOnTop(true)
+      }
       // 额外调用 moveTop 确保在最前
       mainWindow.moveTop()
     } else {
@@ -154,7 +175,7 @@ export function setAlwaysOnTop(flag: boolean): void {
  */
 export function setIgnoreMouseEvents(ignore: boolean): void {
   if (mainWindow) {
-    mainWindow.setIgnoreMouseEvents(ignore, { forward: true })
+    applyIgnoreMouseEvents(ignore)
   }
 }
 
@@ -165,11 +186,11 @@ export function setMousePassThrough(enable: boolean): void {
   if (mainWindow) {
     if (enable) {
       // 完全穿透模式：整个窗口都穿透
-      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+      applyIgnoreMouseEvents(true)
       console.log('[主窗口] 已启用完全穿透模式')
     } else {
       // 非穿透模式：窗口不穿透（但可以通过 CSS pointer-events 控制局部穿透）
-      mainWindow.setIgnoreMouseEvents(false)
+      applyIgnoreMouseEvents(false)
       console.log('[主窗口] 已禁用完全穿透模式')
     }
   }

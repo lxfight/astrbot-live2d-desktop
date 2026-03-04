@@ -5,10 +5,12 @@ import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
 import { getUserConfig, setUserConfig } from '../database/schema'
 import { resolveAppIconPath } from './icon'
+import { getPlatformCapabilities } from './platformCapabilities'
 
 let tray: Tray | null = null
 let isPassThroughMode = false // 穿透模式状态
 let isAlwaysOnTop = true // 窗口置顶状态，默认为 true
+const platformCapabilities = getPlatformCapabilities()
 
 /**
  * 加载托盘配置
@@ -36,7 +38,7 @@ function loadTrayConfig(): void {
   }
 
   // 恢复游戏模式
-  if (gameModeConfig === 'true' && !isGameModeActive()) {
+  if (platformCapabilities.gameMode.supported && gameModeConfig === 'true' && !isGameModeActive()) {
     enableGameMode()
   }
 }
@@ -128,10 +130,15 @@ function updateTrayMenu(): void {
       }
     },
     {
-      label: '自动检测全屏应用',
+      label: platformCapabilities.gameMode.supported
+        ? '自动检测全屏应用'
+        : `自动检测全屏应用（不可用：${platformCapabilities.gameMode.reason || '当前平台暂不支持'}）`,
       type: 'checkbox',
-      checked: isGameModeActive(),
+      checked: platformCapabilities.gameMode.supported && isGameModeActive(),
+      enabled: platformCapabilities.gameMode.supported,
       click: () => {
+        if (!platformCapabilities.gameMode.supported) return
+
         if (isGameModeActive()) {
           disableGameMode()
           setUserConfig('tray_game_mode', 'false')

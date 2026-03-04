@@ -1,13 +1,17 @@
 import { screen } from 'electron'
 import { getMainWindow, hideMainWindow, showMainWindow } from '../windows/mainWindow'
 import { createRequire } from 'module'
+import { getPlatformCapabilities } from './platformCapabilities'
 
 const require = createRequire(import.meta.url)
+const platformCapabilities = getPlatformCapabilities()
 
 let isGameModeEnabled = false
 let checkInterval: NodeJS.Timeout | null = null
 let isHiddenByGameMode = false
 let windowManager: any = null
+let activeWinFn: (() => Promise<any>) | null = null
+let hasLoggedUnsupportedReason = false
 
 const MESSENGER_OVERLAY_TITLES = new Set([
   'qq',
@@ -23,6 +27,23 @@ const MESSENGER_PROCESS_KEYWORDS = [
   'wechat.exe',
   'weixin.exe',
   'tim.exe',
+]
+
+const IGNORE_FULLSCREEN_TITLES = [
+  '截图工具覆盖',
+  'Snipping Tool',
+  'Snip & Sketch',
+  'Screenshot',
+  'QQ Screenshot',
+  'Xbox Game Bar',
+  'NVIDIA GeForce Overlay',
+  'GameViewer',
+  'Windows 默认锁屏界面',
+  '锁屏',
+  'Lock Screen',
+  'LockApp',
+  'ScreenClippingHost',
+  'screen clipping',
 ]
 
 function normalizeToken(value: unknown): string {
@@ -57,14 +78,39 @@ function isLikelyMessengerScreenshotOverlay(
   return nearOrigin && nearScreenSize
 }
 
+async function getActiveWin(): Promise<any> {
+  if (!activeWinFn) {
+    const mod = await import('active-win')
+    activeWinFn = mod.default
+  }
+  return activeWinFn()
+}
+
+async function safeGetActiveWin(): Promise<any | null> {
+  try {
+    return await getActiveWin()
+  } catch {
+    return null
+  }
+}
+
+function shouldIgnoreTransientFullscreen(title: string): boolean {
+  const lowerTitle = normalizeToken(title)
+  return IGNORE_FULLSCREEN_TITLES.some((item) => {
+    const normalizedItem = normalizeToken(item)
+    return lowerTitle === normalizedItem || lowerTitle.includes(normalizedItem)
+  })
+}
+
 /**
  * 初始化窗口管理器
  */
 function initWindowManager() {
+  if (platformCapabilities.platform !== 'win32') return null
   if (windowManager) return windowManager
 
   try {
-    // 动态导入 node-window-manager
+    // 动态导入 node-window-manager（仅 Windows 使用）
     const { windowManager: wm } = require('node-window-manager')
     windowManager = wm
     return windowManager
@@ -74,10 +120,7 @@ function initWindowManager() {
   }
 }
 
-/**
- * 检测是否有全屏应用
- */
-function hasFullscreenApp(): boolean {
+function hasFullscreenAppByWindowManager(): boolean {
   try {
     const mainWindow = getMainWindow()
     if (!mainWindow) return false
@@ -107,11 +150,7 @@ function hasFullscreenApp(): boolean {
     }
 
     // 排除截图工具、系统覆盖层等瞬态全屏窗口
-    const ignoreTitles = ['截图工具覆盖', 'Snipping Tool', 'Snip & Sketch', 'Screenshot',
-      'QQ Screenshot', 'Xbox Game Bar', 'NVIDIA GeForce Overlay', 'GameViewer',
-      'Windows 默认锁屏界面', '锁屏', 'Lock Screen', 'LockApp']
-    const lowerTitle = title.toLowerCase()
-    if (ignoreTitles.some((t) => title === t || lowerTitle.includes(t.toLowerCase()))) {
+    if (shouldIgnoreTransientFullscreen(title)) {
       return false
     }
 
@@ -145,8 +184,8 @@ function hasFullscreenApp(): boolean {
 
     if (isFullscreen) {
       console.log('[自动检测全屏] 检测到全屏应用:', {
-        title: title,
-        bounds: bounds,
+        title,
+        bounds,
         screen: { width: screenWidth, height: screenHeight }
       })
       return true
@@ -159,16 +198,71 @@ function hasFullscreenApp(): boolean {
   }
 }
 
+async function hasFullscreenAppByActiveWindow(): Promise<boolean> {
+  try {
+    const mainWindow = getMainWindow()
+    if (!mainWindow) return false
+
+    const activeWindow = await safeGetActiveWin()
+    if (!activeWindow?.bounds) return false
+
+    const title = String(activeWindow.title || '').trim()
+    if (!title || shouldIgnoreTransientFullscreen(title)) return false
+
+    const mainWindowTitle = mainWindow.getTitle()
+    if (title.includes(mainWindowTitle) || title.includes('DevTools')) return false
+
+    const bounds = activeWindow.bounds as { x: number; y: number; width: number; height: number }
+    const center = {
+      x: Math.round(bounds.x + bounds.width / 2),
+      y: Math.round(bounds.y + bounds.height / 2),
+    }
+    const display = screen.getDisplayNearestPoint(center)
+    const displayBounds = display.bounds
+
+    const closeToDisplayOrigin =
+      Math.abs(bounds.x - displayBounds.x) <= 16 &&
+      Math.abs(bounds.y - displayBounds.y) <= 16
+    const closeToDisplaySize =
+      Math.abs(bounds.width - displayBounds.width) <= 32 &&
+      Math.abs(bounds.height - displayBounds.height) <= 32
+
+    return closeToDisplayOrigin && closeToDisplaySize
+  } catch (error) {
+    console.error('[自动检测全屏] 活跃窗口检测失败:', error)
+    return false
+  }
+}
+
+/**
+ * 检测是否有全屏应用
+ */
+async function hasFullscreenApp(): Promise<boolean> {
+  if (!platformCapabilities.gameMode.supported) {
+    if (!hasLoggedUnsupportedReason && platformCapabilities.gameMode.reason) {
+      console.warn(`[自动检测全屏] 当前平台不支持: ${platformCapabilities.gameMode.reason}`)
+      hasLoggedUnsupportedReason = true
+    }
+    return false
+  }
+
+  if (platformCapabilities.gameMode.mode === 'native-window-manager') {
+    return hasFullscreenAppByWindowManager()
+  }
+
+  return hasFullscreenAppByActiveWindow()
+}
+
 /**
  * 检查游戏模式
  */
-function checkGameMode(): void {
+async function checkGameMode(): Promise<void> {
   if (!isGameModeEnabled) return
 
   const mainWindow = getMainWindow()
   if (!mainWindow) return
 
-  const hasFullscreen = hasFullscreenApp()
+  const hasFullscreen = await hasFullscreenApp()
 
   if (hasFullscreen && !isHiddenByGameMode) {
     // 有全屏应用，隐藏主窗口
@@ -188,16 +282,21 @@ function checkGameMode(): void {
  */
 export function enableGameMode(): void {
   if (isGameModeEnabled) return
+  if (!platformCapabilities.gameMode.supported) return
 
   console.log('[自动检测全屏] 已启用')
   isGameModeEnabled = true
 
-  // 初始化窗口管理器
-  initWindowManager()
+  if (platformCapabilities.gameMode.mode === 'native-window-manager') {
+    initWindowManager()
+  }
+
+  // 先执行一次，避免等待下一个轮询周期
+  void checkGameMode()
 
   // 每 2 秒检查一次
   checkInterval = setInterval(() => {
-    checkGameMode()
+    void checkGameMode()
   }, 2000)
 }
 

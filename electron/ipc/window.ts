@@ -4,6 +4,7 @@ import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
 import { getUserConfig } from '../database/schema'
+import { getPlatformCapabilities } from '../utils/platformCapabilities'
 
 /**
  * 打开设置窗口
@@ -121,4 +122,11 @@ ipcMain.handle('window:openExternal', async (_event, url: string) => {
  */
 ipcMain.handle('window:getAppVersion', async () => {
   return app.getVersion()
+})
+
+/**
+ * 获取当前平台能力
+ */
+ipcMain.handle('window:getPlatformCapabilities', async () => {
+  return getPlatformCapabilities()
 })
