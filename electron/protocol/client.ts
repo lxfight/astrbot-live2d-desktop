@@ -16,7 +16,13 @@ import type {
   DesktopToolCallPayload,
 } from './types'
 import { OP as OPS, ERROR_CODE } from './types'
-import { getWindowList, getActiveWindow, captureScreenshot, getDesktopTools } from '../ipc/desktop'
+import {
+  getWindowList,
+  getActiveWindow,
+  captureScreenshot,
+  getDesktopTools,
+  handleToolCall,
+} from '../ipc/desktop'
 
 /**
  * L2D-Bridge WebSocket 客户端
@@ -497,7 +503,6 @@ export class L2DBridgeClient extends EventEmitter {
   private async handleDesktopToolCall(packet: BasePacket): Promise<void> {
     const { tool, args } = (packet.payload || {}) as DesktopToolCallPayload
     try {
-      const { handleToolCall } = await import('../ipc/desktop')
       const uploadFn = this.serverConfig.resourceBaseUrl
         ? (buf: Buffer, mime: string) => this.uploadResource(buf, mime)
         : undefined

@@ -83,6 +83,9 @@ npm install
 # 开发
 npm run dev
 
+# 重建 Electron 原生依赖（better-sqlite3 / active-win 等）
+npm run rebuild
+
 # 构建（不包含 SDK，用户首次启动时自动下载）
 npm run build
 npm run build:win
@@ -95,6 +98,14 @@ npm run typecheck
 ```
 
 > 注意：构建产物不包含 Live2D Cubism SDK，应用首次启动时会提示用户下载。
+
+### 原生依赖构建说明（Windows）
+
+若 `better-sqlite3` 重建失败，请先安装 **Visual Studio 2022 Build Tools**（勾选 `Desktop development with C++`），然后执行：
+
+```bash
+npm run rebuild
+```
 
 ## 项目结构
 
