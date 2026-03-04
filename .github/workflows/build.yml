@@ -42,7 +42,7 @@ jobs:
               release/astrbot-live2d-desktop-v*-win-arm64.exe
               release/astrbot-live2d-desktop-v*-portable-arm64.exe
               release/*.blockmap
-          - os: macos-13
+          - os: macos-latest
             target: mac
             electron_platform: darwin
             arch: x64
