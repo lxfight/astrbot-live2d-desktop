@@ -7,7 +7,10 @@ import MainWindow from './windows/Main.vue'
 import SettingsWindow from './windows/Settings.vue'
 import HistoryWindow from './windows/History.vue'
 import WelcomeWindow from './windows/Welcome.vue'
+import { setupRendererLogging } from './utils/rendererLogger'
 import './styles/global.scss'
+
+setupRendererLogging()
 
 // 创建路由
 const router = createRouter({

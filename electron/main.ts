@@ -9,12 +9,14 @@ import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
 import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } from './utils/downloadCubismCore'
+import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import './ipc/connection'
 import './ipc/window'
 import './ipc/history'
 import './ipc/model'
 import './ipc/shortcut'
 import './ipc/user'
+import './ipc/log'
 
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
@@ -30,6 +32,9 @@ if (process.platform === 'win32') {
 
 // 全局 WebSocket 客户端实例
 export let bridgeClient: L2DBridgeClient | null = null
+
+initializeMainLogger()
+installMainProcessErrorHandlers()
 
 // 锁屏前的状态，用于解锁后恢复
 let gameModeBeforeLock = false
@@ -202,6 +207,7 @@ app.on('before-quit', () => {
   cleanupShortcuts()
   destroyTray()
   closeDatabase()
+  shutdownMainLogger()
 })
 
 /**

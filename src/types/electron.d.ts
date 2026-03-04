@@ -79,6 +79,14 @@ declare global {
         onRecordingStart: (callback: () => void) => void
         onRecordingStop: (callback: () => void) => void
       }
+      log: {
+        debug: (...args: any[]) => void
+        info: (...args: any[]) => void
+        warn: (...args: any[]) => void
+        error: (...args: any[]) => void
+        getDirectory: () => Promise<string>
+        openDirectory: () => Promise<{ success: boolean; path: string; error?: string }>
+      }
     }
   }
 }

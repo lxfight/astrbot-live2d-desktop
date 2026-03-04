@@ -151,6 +151,9 @@
           <n-space vertical>
             <h3>数据管理</h3>
             <n-space>
+              <n-button @click="handleOpenLogs">
+                打开日志目录
+              </n-button>
               <n-button @click="handleClearCache">
                 清除缓存
               </n-button>
@@ -506,6 +509,16 @@ async function handleRegisterShortcut() {
   } else {
     message.error(`注册失败: ${result.error}`)
   }
+}
+
+async function handleOpenLogs() {
+  const result = await window.electron.log.openDirectory()
+  if (result.success) {
+    message.success(`已打开日志目录: ${result.path}`)
+    return
+  }
+
+  message.error(`打开日志目录失败: ${result.error || '未知错误'}`)
 }
 
 function handleClearCache() {

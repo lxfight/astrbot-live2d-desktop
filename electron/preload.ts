@@ -1,5 +1,36 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+function normalizeRendererLogArg(arg: any): string {
+  if (typeof arg === 'string') {
+    return arg
+  }
+
+  if (arg instanceof Error) {
+    return arg.stack || `${arg.name}: ${arg.message}`
+  }
+
+  try {
+    return JSON.stringify(arg)
+  } catch {
+    return String(arg)
+  }
+}
+
+function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]): void {
+  try {
+    const sourceLabel = window.location.hash
+      ? `renderer${window.location.hash}`
+      : 'renderer'
+    ipcRenderer.send('log:renderer', {
+      level,
+      source: sourceLabel,
+      args: args.map((item) => normalizeRendererLogArg(item))
+    })
+  } catch {
+    // ignore ipc log failure to avoid affecting business flow
+  }
+}
+
 /**
  * 暴露给渲染进程的 API
  */
@@ -99,6 +130,16 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.removeAllListeners('shortcut:recording-stop')
       ipcRenderer.on('shortcut:recording-stop', () => callback())
     }
+  },
+
+  // 日志
+  log: {
+    debug: (...args: any[]) => sendRendererLog('debug', args),
+    info: (...args: any[]) => sendRendererLog('info', args),
+    warn: (...args: any[]) => sendRendererLog('warn', args),
+    error: (...args: any[]) => sendRendererLog('error', args),
+    getDirectory: () => ipcRenderer.invoke('log:getDirectory'),
+    openDirectory: () => ipcRenderer.invoke('log:openDirectory')
   }
 })
 
