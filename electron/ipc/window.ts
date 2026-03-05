@@ -6,6 +6,29 @@ import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, res
 import { getUserConfig } from '../database/schema'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+
+function toSafeExternalUrl(rawUrl: unknown): string | null {
+  if (typeof rawUrl !== 'string') {
+    return null
+  }
+
+  const trimmedUrl = rawUrl.trim()
+  if (!trimmedUrl) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(trimmedUrl)
+    if (!ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
 /**
  * 打开设置窗口
  */
@@ -113,7 +136,12 @@ ipcMain.handle('window:resetSize', async () => {
  * 打开外部链接
  */
 ipcMain.handle('window:openExternal', async (_event, url: string) => {
-  await shell.openExternal(url)
+  const safeUrl = toSafeExternalUrl(url)
+  if (!safeUrl) {
+    return { success: false, error: '仅支持打开 http/https/mailto 协议链接' }
+  }
+
+  await shell.openExternal(safeUrl)
   return { success: true }
 })
 
