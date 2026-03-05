@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { EventEmitter } from 'events'
 import { createHash } from 'crypto'
 import http from 'http'
+import https from 'https'
 import { getUserId } from '../database/schema'
 import type {
   BasePacket,
@@ -576,14 +577,17 @@ export class L2DBridgeClient extends EventEmitter {
   private httpPut(url: string, body: Buffer, headers: Record<string, string> = {}): Promise<number> {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url)
+      const isHttps = parsed.protocol === 'https:'
+      const requestClient = isHttps ? https : http
       const options: http.RequestOptions = {
+        protocol: parsed.protocol,
         hostname: parsed.hostname,
-        port: parsed.port || 80,
+        port: parsed.port || (isHttps ? 443 : 80),
         path: parsed.pathname + parsed.search,
         method: 'PUT',
         headers: { ...headers, 'Content-Length': body.length.toString() },
       }
-      const req = http.request(options, (res) => {
+      const req = requestClient.request(options, (res) => {
         res.resume()
         resolve(res.statusCode || 500)
       })
