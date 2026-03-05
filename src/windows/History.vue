@@ -364,6 +364,23 @@ const motionRankRef = ref<HTMLElement>()
 const expressionRankRef = ref<HTMLElement>()
 
 let charts: echarts.ECharts[] = []
+const MARKDOWN_CACHE_LIMIT = 500
+const CONTENT_CACHE_LIMIT = 1000
+const PREVIEW_CACHE_LIMIT = 500
+const markdownRenderCache = new Map<string, string>()
+const messageContentCache = new Map<string, any[]>()
+const performancePreviewCache = new Map<string, string>()
+
+function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
+  if (!cache.has(key) && cache.size >= limit) {
+    const oldestKey = cache.keys().next().value as string | undefined
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey)
+    }
+  }
+  cache.set(key, value)
+  return value
+}
 
 onMounted(async () => {
   await loadMessages()
@@ -381,13 +398,15 @@ onUnmounted(() => {
   // 清理图表
   charts.forEach(chart => chart.dispose())
   charts = []
+  markdownRenderCache.clear()
+  messageContentCache.clear()
+  performancePreviewCache.clear()
 
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('focus', handleWindowFocus)
 })
 
 function handleWindowFocus() {
-  console.log('[历史窗口] 窗口获得焦点，自动刷新数据')
   loadMessages()
   loadStatistics()
   loadAnalysisData()
@@ -435,15 +454,12 @@ async function loadStatistics() {
     const result = await window.electron.history.getStatistics(startDate, endDate)
 
     if (result.success && result.data) {
-      console.log('[History] 统计数据:', result.data)
       statisticsData.value = result.data
       await nextTick()
       renderCharts(result.data)
-    } else {
-      console.warn('[History] 统计数据为空')
     }
   } catch (error: any) {
-    console.error('[History] 加载统计数据失败:', error)
+    console.error('[历史窗口] 加载统计数据失败:', error)
     message.error(`加载统计数据失败: ${error.message}`)
   }
 }
@@ -478,14 +494,11 @@ async function loadAnalysisData() {
 }
 
 function renderCharts(data: any[]) {
-  console.log('[History] 开始渲染图表，数据:', data)
-
   // 清理旧图表
   charts.forEach(chart => chart.dispose())
   charts = []
 
   if (!data || data.length === 0) {
-    console.warn('[History] 数据为空，无法渲染图表')
     return
   }
 
@@ -524,7 +537,6 @@ function renderCharts(data: any[]) {
 
   // 消息趋势图
   if (messageTrendRef.value) {
-    console.log('[History] 渲染消息趋势图')
     const chart = echarts.init(messageTrendRef.value)
     chart.setOption({
       ...commonOption,
@@ -562,13 +574,10 @@ function renderCharts(data: any[]) {
       }]
     })
     charts.push(chart)
-  } else {
-    console.warn('[History] messageTrendRef 未找到')
   }
 
   // 表演元素使用量（柱状图）
   if (performElementRef.value) {
-    console.log('[History] 渲染表演元素使用量图')
     const chart = echarts.init(performElementRef.value)
     const totalData = data.reduce((acc, d) => {
       acc.text += d.text_count || 0
@@ -603,13 +612,10 @@ function renderCharts(data: any[]) {
       }]
     })
     charts.push(chart)
-  } else {
-    console.warn('[History] performElementRef 未找到')
   }
 
   // 活跃时段（热力图风格柱状图）
   if (activeHoursRef.value) {
-    console.log('[History] 渲染活跃时段图')
     const chart = echarts.init(activeHoursRef.value)
     const hourData = new Array(24).fill(0)
 
@@ -644,13 +650,10 @@ function renderCharts(data: any[]) {
       }]
     })
     charts.push(chart)
-  } else {
-    console.warn('[History] activeHoursRef 未找到')
   }
 
   // 动作使用排行
   if (motionRankRef.value) {
-    console.log('[History] 渲染动作使用排行图')
     const chart = echarts.init(motionRankRef.value)
     const motionData = aggregateMotionUsage(data)
 
@@ -684,13 +687,10 @@ function renderCharts(data: any[]) {
       }]
     })
     charts.push(chart)
-  } else {
-    console.warn('[History] motionRankRef 未找到')
   }
 
   // 表情使用排行
   if (expressionRankRef.value) {
-    console.log('[History] 渲染表情使用排行图')
     const chart = echarts.init(expressionRankRef.value)
     const expressionData = aggregateExpressionUsage(data)
 
@@ -724,11 +724,7 @@ function renderCharts(data: any[]) {
       }]
     })
     charts.push(chart)
-  } else {
-    console.warn('[History] expressionRankRef 未找到')
   }
-
-  console.log('[History] 图表渲染完成，共', charts.length, '个图表')
 }
 
 function aggregateMotionUsage(data: any[]) {
@@ -814,12 +810,18 @@ function formatTimestamp(timestamp: number): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
+  const cached = markdownRenderCache.get(text)
+  if (cached !== undefined) {
+    return cached
+  }
+
   try {
     const renderedHtml = marked.parse(text) as string
-    return DOMPurify.sanitize(renderedHtml, {
+    const sanitized = DOMPurify.sanitize(renderedHtml, {
       USE_PROFILES: { html: true },
       ALLOW_DATA_ATTR: false
     }).trim()
+    return setCacheEntry(markdownRenderCache, text, sanitized, MARKDOWN_CACHE_LIMIT)
   } catch (error) {
     console.error('[History] Markdown渲染失败:', error)
     return text
@@ -827,14 +829,18 @@ function renderMarkdown(text: string): string {
 }
 
 function parseContent(content: string): any[] {
+  const cached = messageContentCache.get(content)
+  if (cached) {
+    return cached
+  }
+
   try {
     const parsed = JSON.parse(content)
     const result = Array.isArray(parsed) ? parsed : [parsed]
-    console.log('[History] parseContent 结果:', result)
-    return result
+    return setCacheEntry(messageContentCache, content, result, CONTENT_CACHE_LIMIT)
   } catch (error) {
-    console.error('[History] parseContent 失败:', error, 'content:', content)
-    return [{ type: 'text', text: String(content) }]
+    const fallback = [{ type: 'text', text: String(content) }]
+    return setCacheEntry(messageContentCache, content, fallback, CONTENT_CACHE_LIMIT)
   }
 }
 
@@ -843,8 +849,13 @@ function isPerformanceMessage(msg: any): boolean {
 }
 
 function getPerformanceTextPreview(content: string): string {
+  const cached = performancePreviewCache.get(content)
+  if (cached !== undefined) {
+    return cached
+  }
+
   try {
-    const parsed = JSON.parse(content)
+    const parsed = parseContent(content)
     if (!Array.isArray(parsed)) return ''
 
     // 提取所有文本和TTS内容
@@ -857,9 +868,9 @@ function getPerformanceTextPreview(content: string): string {
       }
     })
 
-    return textParts.join('\n\n')
+    return setCacheEntry(performancePreviewCache, content, textParts.join('\n\n'), PREVIEW_CACHE_LIMIT)
   } catch {
-    return ''
+    return setCacheEntry(performancePreviewCache, content, '', PREVIEW_CACHE_LIMIT)
   }
 }
 

@@ -3,10 +3,6 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import naive from 'naive-ui'
 import App from './App.vue'
-import MainWindow from './windows/Main.vue'
-import SettingsWindow from './windows/Settings.vue'
-import HistoryWindow from './windows/History.vue'
-import WelcomeWindow from './windows/Welcome.vue'
 import { setupRendererLogging } from './utils/rendererLogger'
 import './styles/global.scss'
 
@@ -17,10 +13,10 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: '/', redirect: '/main' },
-    { path: '/main', component: MainWindow },
-    { path: '/settings', component: SettingsWindow },
-    { path: '/history', component: HistoryWindow },
-    { path: '/welcome', component: WelcomeWindow }
+    { path: '/main', component: () => import('./windows/Main.vue') },
+    { path: '/settings', component: () => import('./windows/Settings.vue') },
+    { path: '/history', component: () => import('./windows/History.vue') },
+    { path: '/welcome', component: () => import('./windows/Welcome.vue') }
   ]
 })
 
