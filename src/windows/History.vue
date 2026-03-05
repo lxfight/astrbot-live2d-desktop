@@ -233,6 +233,7 @@ import { useMessage, useDialog } from 'naive-ui'
 import * as echarts from 'echarts'
 import { format } from 'date-fns'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { 
@@ -813,13 +814,12 @@ function formatTimestamp(timestamp: number): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  console.log('[History] renderMarkdown 输入:', text)
   try {
-    const result = marked.parse(text) as string
-    // 移除末尾的换行符（marked 会在末尾添加 \n）
-    const trimmed = result.trim()
-    console.log('[History] renderMarkdown 输出:', trimmed)
-    return trimmed
+    const renderedHtml = marked.parse(text) as string
+    return DOMPurify.sanitize(renderedHtml, {
+      USE_PROFILES: { html: true },
+      ALLOW_DATA_ATTR: false
+    }).trim()
   } catch (error) {
     console.error('[History] Markdown渲染失败:', error)
     return text

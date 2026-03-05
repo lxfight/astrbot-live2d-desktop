@@ -194,6 +194,7 @@ import {
   type AdvancedSettings
 } from '@/utils/advancedSettings'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 // @ts-ignore
@@ -409,7 +410,11 @@ marked.use({
 function renderBubbleMarkdown(text: string): string {
   if (!text) return ''
   try {
-    return marked.parse(text) as string
+    const renderedHtml = marked.parse(text) as string
+    return DOMPurify.sanitize(renderedHtml, {
+      USE_PROFILES: { html: true },
+      ALLOW_DATA_ATTR: false
+    })
   } catch (error) {
     console.error('[Main] Markdown渲染失败:', error)
     return text
