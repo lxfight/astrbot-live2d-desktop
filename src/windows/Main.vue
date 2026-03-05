@@ -1272,7 +1272,8 @@ function handleAudioEnd() {
 
 // 发送消息
 async function handleSendMessage() {
-  if (!inputText.value.trim() && !selectedImage.value) return
+  const rawTextToStore = inputText.value.trim()
+  if (!rawTextToStore && !selectedImage.value) return
 
   if (!connectionStore.isConnected) {
     showModelStatus('未连接到服务器', 'error')
@@ -1283,8 +1284,8 @@ async function handleSendMessage() {
     const content: any[] = []
 
     // 添加文本
-    if (inputText.value.trim()) {
-      content.push({ type: 'text', text: inputText.value.trim() })
+    if (rawTextToStore) {
+      content.push({ type: 'text', text: rawTextToStore })
     }
 
     // 添加图片
@@ -1328,7 +1329,7 @@ async function handleSendMessage() {
           messageType: 'friend',
           direction: 'outgoing',
           content: content,
-          rawText: inputText.value,
+          rawText: rawTextToStore,
           timestamp: Date.now()
         })
       } catch (error) {
