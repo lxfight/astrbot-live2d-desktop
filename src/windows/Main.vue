@@ -1496,8 +1496,8 @@ onMounted(async () => {
           imageCount: imageCount,
           audioCount: audioCount,
           videoCount: videoCount,
-          motionUsage: JSON.stringify(motionUsage),
-          expressionUsage: JSON.stringify(expressionUsage)
+          motionUsage,
+          expressionUsage
         }).catch((error: any) => {
           console.error('[主窗口] 更新统计数据失败:', error)
         })
