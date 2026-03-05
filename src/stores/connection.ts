@@ -83,6 +83,9 @@ export const useConnectionStore = defineStore('connection', () => {
 
       if (result.success) {
         isConnected.value = true
+        const session = await window.electron.bridge.getSession()
+        sessionId.value = session?.sessionId || ''
+        userId.value = session?.userId || ''
         return { success: true }
       } else {
         return { success: false, error: result.error }

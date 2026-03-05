@@ -2,6 +2,55 @@ import { ipcMain } from 'electron'
 import { getBridgeClient } from '../main'
 import type { InputMessagePayload } from '../protocol/types'
 
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return String(error)
+}
+
+function waitForBridgeReady(client: NonNullable<ReturnType<typeof getBridgeClient>>, timeoutMs: number = 8000): Promise<void> {
+  if (client.isConnected()) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(new Error('连接已建立但握手未完成，请检查服务端状态与认证配置'))
+    }, timeoutMs)
+
+    const onConnected = () => {
+      cleanup()
+      resolve()
+    }
+
+    const onDisconnected = (info: any) => {
+      cleanup()
+      reject(new Error(`连接在握手阶段断开: ${info?.reason || info?.code || 'unknown'}`))
+    }
+
+    const onError = (error: unknown) => {
+      cleanup()
+      reject(new Error(toErrorMessage(error)))
+    }
+
+    const cleanup = () => {
+      clearTimeout(timeout)
+      client.off('connected', onConnected)
+      client.off('disconnected', onDisconnected)
+      client.off('error', onError)
+    }
+
+    client.on('connected', onConnected)
+    client.on('disconnected', onDisconnected)
+    client.on('error', onError)
+  })
+}
+
 /**
  * 连接到服务器
  */
@@ -26,6 +75,7 @@ ipcMain.handle('bridge:connect', async (_event, url: string, token?: string) => 
     }
 
     await client.connect(targetUrl, authToken)
+    await waitForBridgeReady(client)
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 连接失败:', error)
