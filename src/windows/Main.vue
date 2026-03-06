@@ -267,6 +267,7 @@ const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
+const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 
 // 模型状态提示
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
@@ -293,6 +294,35 @@ function showBaseEventStatus(text: string, type: ModelStatusType = 'info', durat
   }
 
   showModelStatus(text, type, duration)
+}
+
+function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void {
+  if (sessionStorage.getItem(PLATFORM_COMPATIBILITY_HINT_KEY) === '1') {
+    return
+  }
+
+  let hint: { text: string; type: ModelStatusType; duration: number } | null = null
+
+  if (capabilities.platform === 'linux') {
+    hint = capabilities.linuxSessionType === 'wayland'
+      ? {
+          text: '当前为 Linux Wayland 会话：动态穿透已禁用，自动检测全屏应用不可用。',
+          type: 'warning',
+          duration: 5200,
+        }
+      : {
+          text: '当前为 Linux 会话：动态穿透已降级为基础穿透，自动更新需手动下载。',
+          type: 'info',
+          duration: 4800,
+        }
+  }
+
+  if (!hint) {
+    return
+  }
+
+  sessionStorage.setItem(PLATFORM_COMPATIBILITY_HINT_KEY, '1')
+  showModelStatus(hint.text, hint.type, hint.duration)
 }
 
 // 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
@@ -1282,6 +1312,13 @@ onMounted(async () => {
   // 监听全局快捷键录音
   initializeAdvancedSettingsForSession()
   window.addEventListener('storage', handleStorageChange)
+
+  try {
+    const platformCapabilities = await window.electron.window.getPlatformCapabilities()
+    showPlatformCompatibilityHint(platformCapabilities)
+  } catch {
+    // ignore capability lookup failures in startup flow
+  }
 
   window.electron.shortcut.onRecordingStart(() => {
     console.log('[主窗口] 全局快捷键：开始录音')

@@ -154,6 +154,9 @@
                 <p>置顶层级策略：{{ alwaysOnTopLevelLabel }}</p>
               </div>
             </n-alert>
+            <n-alert v-if="platformCompatibilityNotice" :type="platformCompatibilityNotice.type" :show-icon="false">
+              {{ platformCompatibilityNotice.text }}
+            </n-alert>
           </n-space>
 
           <n-divider />
@@ -320,6 +323,34 @@ const alwaysOnTopLevelLabel = computed(() => {
   return capabilities.alwaysOnTopLevel === 'screen-saver'
     ? 'screen-saver'
     : 'default'
+})
+
+const platformCompatibilityNotice = computed<null | { type: 'info' | 'warning'; text: string }>(() => {
+  const capabilities = platformCapabilities.value
+  if (!capabilities) return null
+
+  if (capabilities.platform === 'linux') {
+    if (capabilities.linuxSessionType === 'wayland') {
+      return {
+        type: 'warning',
+        text: 'Wayland 会话下将关闭动态穿透，并禁用自动检测全屏应用；建议在支持 X11 的环境中使用以获得更完整体验。'
+      }
+    }
+
+    return {
+      type: 'info',
+      text: 'Linux 会话下动态穿透会降级为基础穿透，自动更新需通过 Releases 手动下载。'
+    }
+  }
+
+  if (capabilities.platform === 'win32' && !capabilities.gameMode.supported) {
+    return {
+      type: 'info',
+      text: `当前 Windows 平台已关闭自动检测全屏应用：${capabilities.gameMode.reason || '能力不可用'}`
+    }
+  }
+
+  return null
 })
 
 const updateStatusLabel = computed(() => {
