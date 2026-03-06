@@ -20,9 +20,6 @@ importers:
       better-sqlite3:
         specifier: ^9.2.0
         version: 9.6.0
-      bindings:
-        specifier: ^1.5.0
-        version: 1.5.0
       colorthief:
         specifier: ^2.6.0
         version: 2.7.0
@@ -41,9 +38,6 @@ importers:
       electron-updater:
         specifier: ^6.8.3
         version: 6.8.3
-      file-uri-to-path:
-        specifier: ^1.0.0
-        version: 1.0.0
       howler:
         specifier: ^2.2.3
         version: 2.2.4

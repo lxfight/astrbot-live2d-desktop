@@ -3,10 +3,13 @@ import { app } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs'
+import { createRequire } from 'module'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 import { buildMessageKeywordSearchCondition } from './messageSearch'
+import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
 
 let db: Database.Database | null = null
+const require = createRequire(import.meta.url)
 
 function ensureMessageSearchIndex(database: Database.Database): void {
   database.exec(`
@@ -71,7 +74,11 @@ export function initDatabase(): Database.Database {
     console.log('[数据库] 标准模式,使用路径:', dbPath)
   }
 
-  db = new Database(dbPath)
+  const betterSqlitePackageJsonPath = require.resolve('better-sqlite3/package.json')
+  const nativeBindingPath = resolveBetterSqliteNativeBindingPath(betterSqlitePackageJsonPath)
+  db = fs.existsSync(nativeBindingPath)
+    ? new Database(dbPath, { nativeBinding: nativeBindingPath })
+    : new Database(dbPath)
 
   // 启用 WAL 模式以提升性能
   db.pragma('journal_mode = WAL')
