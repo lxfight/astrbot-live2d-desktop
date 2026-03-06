@@ -11,6 +11,7 @@
 ## 快速入口
 
 - 详细使用教程：[`docs/USAGE_TUTORIAL.zh-CN.md`](./docs/USAGE_TUTORIAL.zh-CN.md)
+- 平台支持矩阵：[`docs/PLATFORM_SUPPORT.zh-CN.md`](./docs/PLATFORM_SUPPORT.zh-CN.md)
 - 协议文档：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/API.md`
 - 适配器部署教程：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/TUTORIAL.zh-CN.md`
 
