@@ -8,7 +8,7 @@ import { cleanupShortcuts } from './ipc/shortcut'
 import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
 import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
-import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } from './utils/downloadCubismCore'
+import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
@@ -161,6 +161,7 @@ export function initBridgeClient() {
  * 应用程序就绪
  */
 app.whenReady().then(() => {
+  registerCubismCoreProtocol()
   initializeAutoUpdater()
   initialize()
 
@@ -219,3 +220,4 @@ app.on('before-quit', () => {
 export function getBridgeClient(): L2DBridgeClient | null {
   return bridgeClient
 }
+
