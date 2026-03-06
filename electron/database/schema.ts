@@ -3,6 +3,7 @@ import { app } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs'
+import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 
 let db: Database.Database | null = null
 
@@ -128,7 +129,7 @@ export interface MessageRecord {
   userId: string
   userName?: string
   messageType: 'friend' | 'group' | 'notify'
-  direction: 'input' | 'output'
+  direction: MessageDirection | 'input' | 'output'
   content: any
   rawText?: string
   timestamp: number
@@ -158,6 +159,11 @@ export interface StatisticsData {
  */
 export function saveMessage(record: MessageRecord): void {
   const db = getDatabase()
+  const normalizedDirection = normalizeMessageDirection(record.direction)
+  if (!normalizedDirection) {
+    throw new Error(`无效的消息方向: ${record.direction}`)
+  }
+
   const stmt = db.prepare(`
     INSERT INTO messages (
       message_id, session_id, user_id, user_name,
@@ -180,7 +186,7 @@ export function saveMessage(record: MessageRecord): void {
     record.userId,
     record.userName || null,
     record.messageType,
-    record.direction,
+    normalizedDirection,
     JSON.stringify(record.content),
     record.rawText || null,
     record.timestamp
@@ -237,8 +243,12 @@ export function getMessages(options: {
   }
 
   if (options.direction) {
+    const normalizedDirection = normalizeMessageDirection(options.direction)
+    if (!normalizedDirection) {
+      return []
+    }
     sql += ' AND direction = ?'
-    params.push(options.direction)
+    params.push(normalizedDirection)
   }
 
   if (options.keyword) {
@@ -372,8 +382,12 @@ export function getMessagesCount(options: {
   }
 
   if (options.direction) {
+    const normalizedDirection = normalizeMessageDirection(options.direction)
+    if (!normalizedDirection) {
+      return 0
+    }
     sql += ' AND direction = ?'
-    params.push(options.direction)
+    params.push(normalizedDirection)
   }
 
   if (options.keyword) {
