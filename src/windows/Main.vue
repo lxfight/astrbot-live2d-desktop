@@ -190,7 +190,6 @@ import {
   ADVANCED_SETTINGS_KEY,
   clampMaxRecordingSeconds,
   loadAdvancedSettings,
-  saveAdvancedSettings as persistAdvancedSettings,
   type AdvancedSettings
 } from '@/utils/advancedSettings'
 import { marked } from 'marked'
@@ -237,17 +236,13 @@ const inputText = ref('')
 const currentUserName = ref('桌面用户')
 const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
-type RecordingSource = 'manual' | 'shortcut' | 'wake-word'
-type StopReason = 'manual' | 'shortcut' | 'max-duration' | 'silence'
+type RecordingSource = 'manual' | 'shortcut'
+type StopReason = 'manual' | 'shortcut' | 'max-duration'
 
 const isRecording = ref(false)
 const recordingDuration = ref(0)
 const currentRecordingSource = ref<RecordingSource>('manual')
 const recordingHintText = computed(() => {
-  if (currentRecordingSource.value === 'wake-word') {
-    return '静音或达到时长后自动停止'
-  }
-
   if (currentRecordingSource.value === 'shortcut') {
     return '再次按下快捷键停止'
   }
@@ -256,8 +251,6 @@ const recordingHintText = computed(() => {
 })
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
-const WAKE_WORD_SILENCE_DURATION_MS = 1500
-const WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS = 4000
 let messageIdSequence = 0
 
 function generateMessageId(prefix = 'msg'): string {
@@ -883,10 +876,6 @@ function openInput() {
   })
 }
 
-function releaseWakeWordMicrophoneStream() {
-  // 语音唤醒功能已停用，保留占位方法以兼容现有调用链。
-}
-
 // 菜单配置
 const menuItems = computed(() => [
   { key: 'history', icon: ChartColumn, label: '历史', action: openHistory },
@@ -1005,10 +994,6 @@ function getMaxRecordingSeconds(): number {
   return clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
 }
 
-function stopWakeWordListener() {
-  // 语音唤醒功能已停用，保留占位方法以兼容现有调用链。
-}
-
 async function applyLogLevelFromAdvancedSettings() {
   try {
     await window.electron.log.setLevel(advancedSettings.value.logLevel)
@@ -1017,40 +1002,16 @@ async function applyLogLevelFromAdvancedSettings() {
   }
 }
 
-async function startWakeWordListener() {
-  if (!advancedSettings.value.wakeWordEnabled) {
-    return
-  }
-
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: false
-  })
-  stopWakeWordListener()
-  releaseWakeWordMicrophoneStream()
-  showModelStatus('语音唤醒功能已暂时移除，请使用全局录音快捷键', 'info', 2600)
-}
-
 function initializeAdvancedSettingsForSession() {
-  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
+  advancedSettings.value = loadAdvancedSettings()
   advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: false
-  })
   void applyLogLevelFromAdvancedSettings()
-  void startWakeWordListener()
 }
 
 function refreshAdvancedSettings() {
-  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
+  advancedSettings.value = loadAdvancedSettings()
   advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: false
-  })
   void applyLogLevelFromAdvancedSettings()
-  void startWakeWordListener()
 }
 
 function handleStorageChange(event: StorageEvent) {
@@ -1083,34 +1044,15 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
     ? (options as StartRecordingOptions).source
     : 'manual') || 'manual'
   const maxRecordingSeconds = getMaxRecordingSeconds()
-  const enableSilenceDetection = source === 'wake-word'
-
-  stopWakeWordListener()
 
   try {
     audioRecorder = new AudioRecorder({
       sampleRate: 16000,
       channelCount: 1,
-      silenceDetection: enableSilenceDetection
-        ? {
-            enabled: true,
-            durationMs: WAKE_WORD_SILENCE_DURATION_MS,
-            initialSilenceTimeoutMs: WAKE_WORD_INITIAL_SILENCE_TIMEOUT_MS
-          }
-        : {
-            enabled: false
-          }
+      silenceDetection: {
+        enabled: false
+      }
     })
-
-    if (enableSilenceDetection) {
-      audioRecorder.onSilenceDetected(() => {
-        if (!isRecording.value) {
-          return
-        }
-
-        void stopRecording({ reason: 'silence' })
-      })
-    }
 
     await audioRecorder.start()
     isRecording.value = true
@@ -1136,19 +1078,15 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
     currentRecordingSource.value = 'manual'
     audioRecorder = null
     clearRecordingTimer()
-    void startWakeWordListener()
   }
 }
 
 // Stop recording and send
-async function stopRecording(options: StopRecordingOptions | MouseEvent = {}) {
+async function stopRecording(_options: StopRecordingOptions | MouseEvent = {}) {
   if (!audioRecorder || !isRecording.value || isStoppingRecording) {
     return
   }
 
-  const reason = (typeof options === 'object' && options !== null && 'reason' in options
-    ? (options as StopRecordingOptions).reason
-    : 'manual') || 'manual'
   const currentRecorder = audioRecorder
   isStoppingRecording = true
 
@@ -1161,11 +1099,7 @@ async function stopRecording(options: StopRecordingOptions | MouseEvent = {}) {
     console.log('[主窗口] 录音完成，大小:', audioBlob.size, '字节')
 
     if (audioBlob.size < 1000) {
-      if (reason === 'silence') {
-        showModelStatus('未检测到有效语音', 'warning')
-      } else {
-        showModelStatus('录音时间太短', 'warning')
-      }
+      showModelStatus('录音时间太短', 'warning')
       return
     }
 
@@ -1177,14 +1111,13 @@ async function stopRecording(options: StopRecordingOptions | MouseEvent = {}) {
     await sendAudioMessage(audioBlob)
   } catch (error: any) {
     showModelStatus(`停止录音失败: ${error.message}`, 'error')
-  } finally {
-    isRecording.value = false
-    recordingDuration.value = 0
-    currentRecordingSource.value = 'manual'
-    audioRecorder = null
-    isStoppingRecording = false
-    void startWakeWordListener()
-  }
+    } finally {
+      isRecording.value = false
+      recordingDuration.value = 0
+      currentRecordingSource.value = 'manual'
+      audioRecorder = null
+      isStoppingRecording = false
+    }
 }
 
 // Cancel recording
@@ -1202,7 +1135,6 @@ function cancelRecordingIfActive() {
   clearRecordingTimer()
 
   console.log('[主窗口] 录音已取消')
-  void startWakeWordListener()
 }
 
 async function sendAudioMessage(audioBlob: Blob) {
@@ -1588,8 +1520,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
-  stopWakeWordListener()
-  releaseWakeWordMicrophoneStream()
   clearRecordingTimer()
 
   if (audioRecorder && isRecording.value) {

@@ -8,56 +8,20 @@ export interface AdvancedSettings {
   recordingShortcut: string
   autoConnect: boolean
   showBaseEventNotifications: boolean
-  wakeWordEnabled: boolean
-  wakeKeywords: string[]
   maxRecordingSeconds: number
   logLevel: AppLogLevel
-}
-
-export interface LoadAdvancedSettingsOptions {
-  forceWakeWordDisabled?: boolean
 }
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
   autoConnect: true,
   showBaseEventNotifications: true,
-  wakeWordEnabled: false,
-  wakeKeywords: ['小助手'],
   maxRecordingSeconds: 30,
   logLevel: 'info'
 }
 
 export function normalizeAppLogLevel(value: unknown): AppLogLevel {
   return value === 'debug' ? 'debug' : 'info'
-}
-
-export function normalizeWakeKeywords(value: unknown): string[] {
-  const rawKeywords = Array.isArray(value)
-    ? value
-    : typeof value === 'string'
-      ? value.split(/[,，\n]/)
-      : []
-
-  const normalized: string[] = []
-
-  for (const item of rawKeywords) {
-    if (typeof item !== 'string') {
-      continue
-    }
-
-    const keyword = item.trim()
-    if (!keyword || normalized.includes(keyword)) {
-      continue
-    }
-
-    normalized.push(keyword)
-    if (normalized.length >= 10) {
-      break
-    }
-  }
-
-  return normalized
 }
 
 export function clampMaxRecordingSeconds(value: unknown): number {
@@ -77,8 +41,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     ? (value as Record<string, unknown>)
     : {}
 
-  const wakeKeywords = normalizeWakeKeywords(raw.wakeKeywords)
-
   return {
     recordingShortcut: typeof raw.recordingShortcut === 'string'
       ? raw.recordingShortcut
@@ -89,46 +51,23 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     showBaseEventNotifications: typeof raw.showBaseEventNotifications === 'boolean'
       ? raw.showBaseEventNotifications
       : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
-    wakeWordEnabled: typeof raw.wakeWordEnabled === 'boolean'
-      ? raw.wakeWordEnabled
-      : DEFAULT_ADVANCED_SETTINGS.wakeWordEnabled,
-    wakeKeywords: wakeKeywords.length > 0
-      ? wakeKeywords
-      : [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords],
     maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds),
     logLevel: normalizeAppLogLevel(raw.logLevel)
   }
 }
 
-export function loadAdvancedSettings(options: LoadAdvancedSettingsOptions = {}): AdvancedSettings {
-  const applyStartupRules = (settings: AdvancedSettings): AdvancedSettings => {
-    if (!options.forceWakeWordDisabled) {
-      return settings
-    }
-
-    return {
-      ...settings,
-      wakeWordEnabled: false
-    }
-  }
-
+export function loadAdvancedSettings(): AdvancedSettings {
   const rawValue = localStorage.getItem(ADVANCED_SETTINGS_KEY)
   if (!rawValue) {
-    return applyStartupRules({
-      ...DEFAULT_ADVANCED_SETTINGS,
-      wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
-    })
+    return { ...DEFAULT_ADVANCED_SETTINGS }
   }
 
   try {
     const parsed = JSON.parse(rawValue)
-    return applyStartupRules(normalizeAdvancedSettings(parsed))
+    return normalizeAdvancedSettings(parsed)
   } catch (error) {
     console.error('[高级设置] 解析失败，使用默认配置:', error)
-    return applyStartupRules({
-      ...DEFAULT_ADVANCED_SETTINGS,
-      wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
-    })
+    return { ...DEFAULT_ADVANCED_SETTINGS }
   }
 }
 

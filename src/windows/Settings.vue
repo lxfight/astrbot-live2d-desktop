@@ -258,8 +258,7 @@ const checkingUpdate = ref(false)
 
 // 高级设置
 const advancedSettings = ref({
-  ...DEFAULT_ADVANCED_SETTINGS,
-  wakeKeywords: [...DEFAULT_ADVANCED_SETTINGS.wakeKeywords]
+  ...DEFAULT_ADVANCED_SETTINGS
 })
 
 const recordingSecondsValue = computed({
@@ -399,11 +398,7 @@ async function applyLogLevelSetting(level: 'info' | 'debug') {
 }
 
 function loadSettings() {
-  advancedSettings.value = loadAdvancedSettings({ forceWakeWordDisabled: true })
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: false
-  })
+  advancedSettings.value = loadAdvancedSettings()
   void applyLogLevelSetting(advancedSettings.value.logLevel)
 }
 
@@ -490,10 +485,7 @@ async function handleDeleteModel(modelName: string) {
 }
 
 async function saveAdvancedSettings() {
-  advancedSettings.value = persistAdvancedSettings({
-    ...advancedSettings.value,
-    wakeWordEnabled: false
-  })
+  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
   await applyLogLevelSetting(advancedSettings.value.logLevel)
   message.success('高级设置已保存')
 }
