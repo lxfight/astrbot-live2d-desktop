@@ -56,11 +56,15 @@ export function createTray(): Tray | null {
   try {
     icon = nativeImage.createFromPath(iconPath)
     if (icon.isEmpty()) {
-      // 如果图标不存在，创建一个简单的图标
-      icon = nativeImage.createEmpty()
+      console.warn(`[系统托盘] 图标加载失败，路径无效: ${iconPath}`)
+      icon = nativeImage.createFromPath(process.execPath)
     }
   } catch {
     icon = nativeImage.createEmpty()
+  }
+
+  if (!icon.isEmpty() && process.platform === 'win32') {
+    icon = icon.resize({ width: 16, height: 16 })
   }
 
   try {

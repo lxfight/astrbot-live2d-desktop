@@ -97,6 +97,16 @@
       "output": "release",
       "buildResources": "resources"
     },
+    "extraResources": [
+      {
+        "from": "resources/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      }
+    ],
     "asar": true,
     "npmRebuild": false,
     "files": [
