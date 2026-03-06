@@ -70,11 +70,14 @@
     "echarts": "^5.4.0",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.8.3",
+    "extract-file-icon": "^0.3.2",
     "howler": "^2.2.3",
     "katex": "^0.16.28",
     "lucide-vue-next": "^0.563.0",
     "marked": "^17.0.1",
     "naive-ui": "^2.37.0",
+    "node-addon-api": "^2.0.0",
+    "node-gyp-build": "^4.8.4",
     "pinia": "^2.1.0",
     "pixi-live2d-display": "^0.4.0",
     "pixi.js": "^7.4.3",
@@ -99,7 +102,17 @@
     "files": [
       "dist/**",
       "dist-electron/**",
-      "node_modules/better-sqlite3/**",
+      "node_modules/better-sqlite3/package.json",
+      "node_modules/better-sqlite3/lib/**",
+      "node_modules/better-sqlite3/build/Release/*.node",
+      "node_modules/node-window-manager/package.json",
+      "node_modules/node-window-manager/dist/**",
+      "node_modules/node-window-manager/build/Release/*.node",
+      "node_modules/extract-file-icon/package.json",
+      "node_modules/extract-file-icon/dist/**",
+      "node_modules/extract-file-icon/build/Release/*.node",
+      "node_modules/node-gyp-build/**",
+      "node_modules/node-addon-api/**",
       "package.json",
       "!dist/models/**/.git/**",
       "!dist/models/**/.svn/**",
@@ -119,9 +132,7 @@
       "!**/node_modules/.cache/**"
     ],
     "asarUnpack": [
-      "**/*.node",
-      "node_modules/better-sqlite3/**",
-      "node_modules/node-window-manager/**"
+      "**/*.node"
     ],
     "artifactName": "astrbot-live2d-desktop-v${version}-${os}-${arch}.${ext}",
     "publish": [
