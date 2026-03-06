@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
@@ -44,6 +45,7 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "@vue/language-core": "^3.2.4",
     "concurrently": "^8.2.0",
     "electron": "^28.3.3",

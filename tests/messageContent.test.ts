@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { decodeInlineDataUrl, prepareMessageContentForTransport } from '../electron/protocol/messageContent'
+import { decodeBinaryPayload, decodeInlineDataUrl, prepareMessageContentForTransport } from '../electron/protocol/messageContent'
 
 describe('messageContent', () => {
   it('decodes valid inline data URLs', () => {
@@ -13,6 +13,28 @@ describe('messageContent', () => {
     const content = [{ type: 'image', inline: 'data:text/plain;base64,aGVsbG8=' }]
 
     await expect(prepareMessageContentForTransport(content, { maxInlineBytes: 2048 })).resolves.toEqual(content)
+  })
+
+  it('decodes binary payloads from ipc transport', () => {
+    const decoded = decodeBinaryPayload({
+      type: 'audio',
+      mime: 'audio/webm',
+      bytes: new Uint8Array([1, 2, 3])
+    })
+
+    expect(decoded?.mime).toBe('audio/webm')
+    expect(Array.from(decoded?.buffer || [])).toEqual([1, 2, 3])
+  })
+
+  it('inlines small binary payloads in the main process', async () => {
+    const prepared = await prepareMessageContentForTransport(
+      [{ type: 'audio', bytes: new Uint8Array([104, 105]), mime: 'text/plain', name: 'tiny.txt' }],
+      { maxInlineBytes: 1024 }
+    )
+
+    expect(prepared).toEqual([
+      { type: 'audio', inline: 'data:text/plain;base64,aGk=', name: 'tiny.txt', bytes: undefined, mime: undefined }
+    ])
   })
 
   it('uploads oversized inline payloads when uploader is available', async () => {

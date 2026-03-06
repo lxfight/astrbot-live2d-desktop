@@ -10,6 +10,18 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts']
+    include: ['tests/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      all: true,
+      include: [
+        'electron/protocol/messageContent.ts',
+        'electron/database/messageDirection.ts',
+        'electron/database/messageSearch.ts',
+        'electron/database/nativeBinding.ts',
+        'src/utils/advancedSettings.ts'
+      ]
+    }
   }
 })
