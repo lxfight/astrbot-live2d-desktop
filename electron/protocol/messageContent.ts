@@ -5,6 +5,8 @@ export interface PreparedInlineResource {
   buffer: Buffer
 }
 
+const DEFAULT_INLINE_LIMIT_BYTES = 256 * 1024
+
 export interface PrepareMessageContentOptions {
   maxInlineBytes?: number
   uploadInlineResource?: (buffer: Buffer, mime: string) => Promise<string | null>
@@ -16,6 +18,30 @@ function normalizeInlineLimit(maxInlineBytes: number | undefined): number | null
   }
 
   return Math.max(1024, Math.floor(maxInlineBytes as number))
+}
+
+function encodeInlineDataUrl(buffer: Buffer, mime: string): string {
+  return `data:${mime};base64,${buffer.toString('base64')}`
+}
+
+export function decodeBinaryPayload(item: MessageContent): PreparedInlineResource | null {
+  const bytes = item.bytes
+  if (!bytes) {
+    return null
+  }
+
+  try {
+    const buffer = bytes instanceof ArrayBuffer
+      ? Buffer.from(bytes)
+      : Buffer.from(bytes as Uint8Array | number[])
+
+    return {
+      mime: item.mime || 'application/octet-stream',
+      buffer,
+    }
+  } catch {
+    return null
+  }
 }
 
 export function decodeInlineDataUrl(inline: string): PreparedInlineResource | null {
@@ -42,17 +68,27 @@ export async function prepareMessageContentForTransport(
   content: MessageContent[],
   options: PrepareMessageContentOptions = {}
 ): Promise<MessageContent[]> {
-  const inlineLimit = normalizeInlineLimit(options.maxInlineBytes)
-  if (!inlineLimit) {
-    return content
-  }
+  const inlineLimit = normalizeInlineLimit(options.maxInlineBytes) ?? DEFAULT_INLINE_LIMIT_BYTES
 
   const preparedContent: MessageContent[] = []
 
   for (const item of content) {
-    const decodedInline = item.inline ? decodeInlineDataUrl(item.inline) : null
-    if (!decodedInline || decodedInline.buffer.length <= inlineLimit) {
+    const preparedResource = item.inline
+      ? decodeInlineDataUrl(item.inline)
+      : decodeBinaryPayload(item)
+
+    if (!preparedResource) {
       preparedContent.push(item)
+      continue
+    }
+
+    if (preparedResource.buffer.length <= inlineLimit) {
+      preparedContent.push({
+        ...item,
+        inline: item.inline || encodeInlineDataUrl(preparedResource.buffer, preparedResource.mime),
+        bytes: undefined,
+        mime: undefined,
+      })
       continue
     }
 
@@ -60,7 +96,7 @@ export async function prepareMessageContentForTransport(
       throw new Error(`附件大小超过内联限制 (${inlineLimit} bytes)，且服务端未提供资源上传能力`)
     }
 
-    const uploadedUrl = await options.uploadInlineResource(decodedInline.buffer, decodedInline.mime)
+    const uploadedUrl = await options.uploadInlineResource(preparedResource.buffer, preparedResource.mime)
     if (!uploadedUrl) {
       throw new Error('资源上传失败，无法发送大附件')
     }
@@ -70,6 +106,8 @@ export async function prepareMessageContentForTransport(
       url: uploadedUrl,
       inline: undefined,
       rid: undefined,
+      bytes: undefined,
+      mime: undefined,
     })
   }
 

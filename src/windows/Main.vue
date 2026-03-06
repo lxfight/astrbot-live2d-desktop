@@ -972,16 +972,6 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-// Blob 转 base64
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
 // 开始录音
 function clearRecordingTimer() {
   if (recordingTimer) {
@@ -1141,16 +1131,14 @@ async function sendAudioMessage(audioBlob: Blob) {
   try {
     showBaseEventStatus('正在发送语音...', 'info')
 
-    // 转换为 base64
-    const base64 = await blobToBase64(audioBlob)
-
     // 获取音频格式
     const format = audioBlob.type.split('/')[1] || 'webm'
 
     const content: any[] = [
       {
         type: 'audio',
-        inline: base64,
+        bytes: new Uint8Array(await audioBlob.arrayBuffer()),
+        mime: audioBlob.type || 'audio/webm',
         name: `voice.${format}`
       }
     ]
@@ -1174,7 +1162,7 @@ async function sendAudioMessage(audioBlob: Blob) {
           userName: currentUserName.value || '桌面用户',
           messageType: 'friend',
           direction: 'outgoing',
-          content: content,
+          content: result.content || content,
           rawText: '[语音消息]',
           timestamp: Date.now()
         })
@@ -1230,10 +1218,13 @@ async function handleSendMessage() {
         const base64 = await fileToBase64(file)
         content.push({ type: 'image', inline: base64 })
       } else {
-        // 大文件暂时也用 base64（后续实现资源上传）
         showBaseEventStatus('正在处理图片...', 'info')
-        const base64 = await fileToBase64(file)
-        content.push({ type: 'image', inline: base64 })
+        content.push({
+          type: 'image',
+          bytes: new Uint8Array(await file.arrayBuffer()),
+          mime: file.type || 'image/png',
+          name: file.name,
+        })
       }
     }
 
@@ -1261,7 +1252,7 @@ async function handleSendMessage() {
           userName: currentUserName.value || '桌面用户',
           messageType: 'friend',
           direction: 'outgoing',
-          content: content,
+          content: result.content || content,
           rawText: rawTextToStore,
           timestamp: Date.now()
         })

@@ -113,6 +113,8 @@ export interface MessageContent {
   inline?: string
   rid?: string
   name?: string
+  mime?: string
+  bytes?: Uint8Array | ArrayBuffer | number[]
 }
 
 // 输入消息载荷

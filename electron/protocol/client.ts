@@ -339,7 +339,7 @@ export class L2DBridgeClient extends EventEmitter {
   /**
    * 发送消息
    */
-  async sendMessage(payload: InputMessagePayload): Promise<void> {
+  async sendMessage(payload: InputMessagePayload): Promise<MessageContent[]> {
     const preparedContent = await this.prepareMessageContent(payload.content)
     this.send({
       op: OPS.INPUT_MESSAGE,
@@ -350,6 +350,8 @@ export class L2DBridgeClient extends EventEmitter {
         content: preparedContent,
       }
     })
+
+    return preparedContent
   }
 
   /**

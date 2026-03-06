@@ -43,7 +43,7 @@ declare global {
         disconnect: () => Promise<{ success: boolean; error?: string }>
         isConnected: () => Promise<boolean>
         getSession: () => Promise<BridgeSessionState | null>
-        sendMessage: (payload: any) => Promise<{ success: boolean; error?: string }>
+        sendMessage: (payload: any) => Promise<{ success: boolean; error?: string; content?: any[] }>
         sendTouch: (x: number, y: number, action: string) => Promise<{ success: boolean; error?: string }>
         sendState: (op: string, payload: any) => Promise<{ success: boolean; error?: string }>
         onConnected: (callback: (payload: any) => void) => void
