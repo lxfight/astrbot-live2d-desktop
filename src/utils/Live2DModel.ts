@@ -28,6 +28,12 @@ export class Live2DModel {
   private static app: any = null  // 共享的 PIXI Application
   private model: any = null
   private modelPath: string = ''
+  private lipSyncContext: AudioContext | null = null
+  private lipSyncAnalyser: AnalyserNode | null = null
+  private lipSyncSource: MediaElementAudioSourceNode | null = null
+  private lipSyncAudioElement: HTMLAudioElement | null = null
+  private lipSyncFrameId: number | null = null
+  private lipSyncEndedHandler: (() => void) | null = null
 
   /**
    * 获取内部 PIXI Live2DModel 实例
@@ -205,6 +211,8 @@ export class Live2DModel {
   startLipSync(audioElement: HTMLAudioElement): void {
     if (!this.model) return
 
+    this.stopLipSync()
+
     try {
       // 检查模型是否支持口型同步
       const internalModel = this.model.internalModel
@@ -213,17 +221,32 @@ export class Live2DModel {
         return
       }
 
-      // 创建音频上下文和分析器
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const analyser = audioContext.createAnalyser()
-      analyser.fftSize = 256
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioContextCtor) {
+        console.warn('[Live2D] 当前环境不支持 AudioContext，无法进行口型同步')
+        return
+      }
+
+      if (!this.lipSyncContext || !this.lipSyncAnalyser || this.lipSyncAudioElement !== audioElement) {
+        this.destroyLipSyncPipeline()
+        this.lipSyncContext = new AudioContextCtor()
+        this.lipSyncAnalyser = this.lipSyncContext.createAnalyser()
+        this.lipSyncAnalyser.fftSize = 256
+        this.lipSyncSource = this.lipSyncContext.createMediaElementSource(audioElement)
+        this.lipSyncSource.connect(this.lipSyncAnalyser)
+        this.lipSyncAnalyser.connect(this.lipSyncContext.destination)
+        this.lipSyncAudioElement = audioElement
+      }
+
+      if (this.lipSyncContext.state === 'suspended') {
+        void this.lipSyncContext.resume().catch(() => {
+          // ignore resume failure
+        })
+      }
+
+      const analyser = this.lipSyncAnalyser
       const bufferLength = analyser.frequencyBinCount
       const dataArray = new Uint8Array(bufferLength)
-
-      // 连接音频源
-      const source = audioContext.createMediaElementSource(audioElement)
-      source.connect(analyser)
-      analyser.connect(audioContext.destination)
 
       // 口型同步参数名称（不同模型可能不同）
       const lipSyncParams = [
@@ -234,14 +257,14 @@ export class Live2DModel {
       ]
 
       // 找到模型支持的口型参数
-      let lipSyncParamIndex = -1
+      let hasLipSyncParam = false
       for (const paramName of lipSyncParams) {
         try {
           if (internalModel.coreModel) {
             // Cubism 4
             const paramIndex = internalModel.coreModel.getParameterIndex(paramName)
             if (paramIndex >= 0) {
-              lipSyncParamIndex = paramIndex
+              hasLipSyncParam = true
               console.log(`[Live2D] 使用口型参数: ${paramName}`)
               break
             }
@@ -249,7 +272,7 @@ export class Live2DModel {
             // Cubism 2
             const paramIndex = internalModel.getParamIndex(paramName)
             if (paramIndex >= 0) {
-              lipSyncParamIndex = paramIndex
+              hasLipSyncParam = true
               console.log(`[Live2D] 使用口型参数: ${paramName}`)
               break
             }
@@ -259,7 +282,7 @@ export class Live2DModel {
         }
       }
 
-      if (lipSyncParamIndex < 0) {
+      if (!hasLipSyncParam) {
         console.warn('[Live2D] 未找到口型参数，无法进行口型同步')
         return
       }
@@ -289,23 +312,67 @@ export class Live2DModel {
         this.setLipSyncValue(lipSyncValue)
 
         // 继续下一帧
-        requestAnimationFrame(updateLipSync)
+        this.lipSyncFrameId = requestAnimationFrame(updateLipSync)
       }
 
       // 开始口型同步
       console.log('[Live2D] 开始口型同步')
       updateLipSync()
 
-      // 音频结束时清理
-      audioElement.addEventListener('ended', () => {
-        this.setLipSyncValue(0)
-        audioContext.close()
+      this.lipSyncEndedHandler = () => {
+        this.stopLipSync()
         console.log('[Live2D] 口型同步结束')
-      }, { once: true })
+      }
+      audioElement.addEventListener('ended', this.lipSyncEndedHandler)
 
     } catch (error) {
       console.error('[Live2D] 口型同步初始化失败:', error)
     }
+  }
+
+  stopLipSync(): void {
+    if (this.lipSyncFrameId !== null) {
+      cancelAnimationFrame(this.lipSyncFrameId)
+      this.lipSyncFrameId = null
+    }
+
+    if (this.lipSyncAudioElement && this.lipSyncEndedHandler) {
+      this.lipSyncAudioElement.removeEventListener('ended', this.lipSyncEndedHandler)
+    }
+
+    this.lipSyncEndedHandler = null
+    this.setLipSyncValue(0)
+  }
+
+  private destroyLipSyncPipeline(): void {
+    this.stopLipSync()
+
+    if (this.lipSyncSource) {
+      try {
+        this.lipSyncSource.disconnect()
+      } catch {
+        // ignore disconnect failure
+      }
+      this.lipSyncSource = null
+    }
+
+    if (this.lipSyncAnalyser) {
+      try {
+        this.lipSyncAnalyser.disconnect()
+      } catch {
+        // ignore disconnect failure
+      }
+      this.lipSyncAnalyser = null
+    }
+
+    if (this.lipSyncContext) {
+      void this.lipSyncContext.close().catch(() => {
+        // ignore close failure
+      })
+      this.lipSyncContext = null
+    }
+
+    this.lipSyncAudioElement = null
   }
 
   /**
@@ -467,6 +534,7 @@ export class Live2DModel {
    */
   destroy(): void {
     console.log('[Live2D] 移除模型...')
+    this.destroyLipSyncPipeline()
 
     // 从舞台移除模型
     if (this.model && Live2DModel.app && Live2DModel.app.stage) {

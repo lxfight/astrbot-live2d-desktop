@@ -1198,6 +1198,7 @@ function handleAudioStart(audioElement: HTMLAudioElement) {
 // 处理音频播放结束
 function handleAudioEnd() {
   console.log('[主窗口] 音频播放结束')
+  live2dCanvasRef.value?.stopLipSync()
   const resolve = audioEndResolvers.shift()
   if (resolve) resolve()
 }

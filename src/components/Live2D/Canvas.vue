@@ -484,6 +484,9 @@ defineExpose({
     if (model) {
       model.startLipSync(audioElement)
     }
+  },
+  stopLipSync: () => {
+    model?.stopLipSync()
   }
 })
 </script>
