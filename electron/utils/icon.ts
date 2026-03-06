@@ -26,22 +26,27 @@ function resolveFirstExisting(basePath: string, candidates: string[]): string | 
 /**
  * Resolve an icon path that works in both dev and packaged builds.
  *
- * Packaged: <resources>/app.asar/resources/icon.(ico|png)
+ * Packaged: <process.resourcesPath>/icon.(ico|png)
  * Dev:      <projectRoot>/resources/icon.(ico|png)
  */
 export function resolveAppIconPath(): string {
   const candidates = getIconCandidates()
 
-  // Packaged: included in app.asar by build.files
-  const packagedBase = path.join(app.getAppPath(), 'resources')
-  const packagedPath = resolveFirstExisting(packagedBase, candidates)
-  if (packagedPath) return packagedPath
+  if (app.isPackaged) {
+    const resourcesBase = process.resourcesPath
+    const resourcesPath = resolveFirstExisting(resourcesBase, candidates)
+    if (resourcesPath) return resourcesPath
 
-  // Dev: project root
+    const legacyPackagedBase = path.join(app.getAppPath(), 'resources')
+    const legacyPackagedPath = resolveFirstExisting(legacyPackagedBase, candidates)
+    if (legacyPackagedPath) return legacyPackagedPath
+
+    return path.join(resourcesBase, candidates[0])
+  }
+
   const devBase = path.join(process.cwd(), 'resources')
   const devPath = resolveFirstExisting(devBase, candidates)
   if (devPath) return devPath
 
-  // Fallback (should rarely happen)
-  return path.join(packagedBase, candidates[0])
+  return path.join(devBase, candidates[0])
 }

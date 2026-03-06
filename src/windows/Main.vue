@@ -332,6 +332,8 @@ watch(hasModel, async (value) => {
       if (alwaysOnTopBeforeImport === null) {
         alwaysOnTopBeforeImport = await window.electron.window.getAlwaysOnTop()
       }
+      await window.electron.window.setIgnoreMouseEvents(false)
+      live2dCanvasRef.value?.disablePassThrough()
       await window.electron.window.setAlwaysOnTop(false)
       await window.electron.window.setSize(600, 500)
       return
@@ -341,6 +343,8 @@ watch(hasModel, async (value) => {
       await window.electron.window.setAlwaysOnTop(alwaysOnTopBeforeImport)
       alwaysOnTopBeforeImport = null
     }
+    await window.electron.window.setIgnoreMouseEvents(false)
+    live2dCanvasRef.value?.enablePassThrough()
     await window.electron.window.resetSize()
   } catch (error) {
     console.warn('[主窗口] 设置窗口置顶/大小状态失败:', error)
@@ -2186,3 +2190,4 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(10px);
 }
 </style>
+
