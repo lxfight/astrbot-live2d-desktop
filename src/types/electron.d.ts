@@ -80,6 +80,7 @@ declare global {
         savePerformance: (record: any) => Promise<{ success: boolean; error?: string }>
         updateStatistics: (data: any) => Promise<{ success: boolean; error?: string }>
         getStatistics: (startDate: string, endDate: string) => Promise<{ success: boolean; data?: any[]; error?: string }>
+        getAverageResponseTime: (startDate: number, endDate: number) => Promise<{ success: boolean; data?: number; error?: string }>
         clearHistory: () => Promise<{ success: boolean; error?: string }>
       }
       model: {

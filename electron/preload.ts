@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld('electron', {
     savePerformance: (record: any) => ipcRenderer.invoke('history:savePerformance', record),
     updateStatistics: (data: any) => ipcRenderer.invoke('history:updateStatistics', data),
     getStatistics: (startDate: string, endDate: string) => ipcRenderer.invoke('history:getStatistics', startDate, endDate),
+    getAverageResponseTime: (startDate: number, endDate: number) => ipcRenderer.invoke('history:getAverageResponseTime', startDate, endDate),
     clearHistory: () => ipcRenderer.invoke('history:clearHistory')
   },
 

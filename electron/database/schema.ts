@@ -63,6 +63,7 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type);
+    CREATE INDEX IF NOT EXISTS idx_messages_session_direction_timestamp ON messages(session_id, direction, timestamp DESC);
 
     -- 表演记录表
     CREATE TABLE IF NOT EXISTS performances (
@@ -310,6 +311,38 @@ export function getStatistics(startDate: string, endDate: string): any[] {
 }
 
 /**
+ * 获取平均响应时长（毫秒）
+ */
+export function getAverageResponseTime(startDate: number, endDate: number): number {
+  const db = getDatabase()
+  const stmt = db.prepare(`
+    SELECT AVG(
+      incoming.timestamp - (
+        SELECT MAX(outgoing.timestamp)
+        FROM messages outgoing
+        WHERE outgoing.session_id = incoming.session_id
+          AND outgoing.direction = 'outgoing'
+          AND outgoing.timestamp <= incoming.timestamp
+      )
+    ) AS avg_response_time
+    FROM messages incoming
+    WHERE incoming.direction = 'incoming'
+      AND incoming.timestamp BETWEEN ? AND ?
+      AND EXISTS (
+        SELECT 1
+        FROM messages outgoing
+        WHERE outgoing.session_id = incoming.session_id
+          AND outgoing.direction = 'outgoing'
+          AND outgoing.timestamp <= incoming.timestamp
+      )
+  `)
+
+  const result = stmt.get(startDate, endDate) as { avg_response_time?: number | null } | undefined
+  const average = result?.avg_response_time
+  return Number.isFinite(average) ? Math.round(average as number) : 0
+}
+
+/**
  * 获取消息总数
  */
 export function getMessagesCount(options: {
@@ -436,4 +469,3 @@ export function clearUserConfig(): void {
   db.exec('DELETE FROM user_config')
   console.log('[数据库] 用户配置已清空')
 }
-

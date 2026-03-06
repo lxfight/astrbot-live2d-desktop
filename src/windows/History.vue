@@ -231,7 +231,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import * as echarts from 'echarts'
-import { format } from 'date-fns'
+import { endOfDay, format, startOfDay } from 'date-fns'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
@@ -486,8 +486,13 @@ async function loadAnalysisData() {
       }, 0)
     }
 
-    // 平均响应速度（模拟数据，实际需要记录时间戳）
-    avgResponseTime.value = Math.floor(Math.random() * 500) + 200
+    const averageResult = await window.electron.history.getAverageResponseTime(
+      startOfDay(new Date(start)).getTime(),
+      endOfDay(new Date(end)).getTime()
+    )
+    if (averageResult.success) {
+      avgResponseTime.value = averageResult.data || 0
+    }
   } catch (error: any) {
     console.error('加载分析数据失败:', error)
   }

@@ -6,6 +6,7 @@ import {
   savePerformance,
   updateStatistics,
   getStatistics,
+  getAverageResponseTime,
   clearHistory,
   type MessageRecord,
   type PerformanceRecord,
@@ -82,6 +83,16 @@ ipcMain.handle('history:getStatistics', async (_event, startDate: string, endDat
     return { success: true, data: statistics }
   } catch (error: any) {
     console.error('[IPC] 获取统计数据失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('history:getAverageResponseTime', async (_event, startDate: number, endDate: number) => {
+  try {
+    const averageResponseTime = getAverageResponseTime(startDate, endDate)
+    return { success: true, data: averageResponseTime }
+  } catch (error: any) {
+    console.error('[IPC] 获取平均响应时长失败:', error)
     return { success: false, error: error.message }
   }
 })
