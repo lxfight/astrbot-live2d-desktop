@@ -129,7 +129,7 @@ ipcMain.handle('bridge:sendMessage', async (_event, payload: InputMessagePayload
       throw new Error('未连接到服务器')
     }
 
-    client.sendMessage(payload)
+    await client.sendMessage(payload)
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 发送消息失败:', error)

@@ -370,18 +370,11 @@ onMounted(async () => {
   // 监听连接状态变化
   window.electron.bridge.onConnected((payload: any) => {
     connectionStore.isConnected = true
-    if (payload.sessionId) {
-      connectionStore.sessionId = payload.sessionId
-    }
-    if (payload.userId) {
-      connectionStore.userId = payload.userId
-    }
+    connectionStore.applySessionState(payload)
   })
 
   window.electron.bridge.onDisconnected(() => {
-    connectionStore.isConnected = false
-    connectionStore.sessionId = ''
-    connectionStore.userId = ''
+    connectionStore.resetSessionState()
   })
 
   // 检查初始连接状态

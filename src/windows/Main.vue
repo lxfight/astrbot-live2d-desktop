@@ -1517,24 +1517,15 @@ onMounted(async () => {
     showBaseEventStatus('已连接到服务器', 'success')
     console.log('连接信息:', payload)
 
-    // 更新连接状态
     connectionStore.isConnected = true
-    if (payload.sessionId) {
-      connectionStore.sessionId = payload.sessionId
-    }
-    if (payload.userId) {
-      connectionStore.userId = payload.userId
-    }
+    connectionStore.applySessionState(payload)
   })
 
   window.electron.bridge.onDisconnected((info: any) => {
     showBaseEventStatus('已断开连接', 'warning')
     console.log('断开信息:', info)
 
-    // 更新连接状态
-    connectionStore.isConnected = false
-    connectionStore.sessionId = ''
-    connectionStore.userId = ''
+    connectionStore.resetSessionState()
   })
 
   window.electron.bridge.onError((error: any) => {

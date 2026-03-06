@@ -1,5 +1,14 @@
 // TypeScript 类型声明
 declare global {
+  interface BridgeSessionState {
+    sessionId: string
+    userId: string
+    config: {
+      resourceBaseUrl?: string
+      maxInlineBytes?: number
+    }
+  }
+
   interface UpdateState {
     status: 'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
     message: string
@@ -33,7 +42,7 @@ declare global {
         connect: (url: string, token?: string) => Promise<{ success: boolean; error?: string }>
         disconnect: () => Promise<{ success: boolean; error?: string }>
         isConnected: () => Promise<boolean>
-        getSession: () => Promise<{ sessionId: string; userId: string } | null>
+        getSession: () => Promise<BridgeSessionState | null>
         sendMessage: (payload: any) => Promise<{ success: boolean; error?: string }>
         sendTouch: (x: number, y: number, action: string) => Promise<{ success: boolean; error?: string }>
         sendState: (op: string, payload: any) => Promise<{ success: boolean; error?: string }>

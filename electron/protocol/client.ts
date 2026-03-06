@@ -10,6 +10,7 @@ import type {
   HandshakePayload,
   HandshakeAckPayload,
   InputMessagePayload,
+  MessageContent,
   PerformShowPayload,
   STTTranscribePayload,
   STTResultPayload,
@@ -17,6 +18,7 @@ import type {
   DesktopToolCallPayload,
 } from './types'
 import { OP as OPS, ERROR_CODE } from './types'
+import { prepareMessageContentForTransport } from './messageContent'
 import {
   getWindowList,
   getActiveWindow,
@@ -134,6 +136,7 @@ export class L2DBridgeClient extends EventEmitter {
 
     this.sessionId = ''
     this.userId = ''
+    this.serverConfig = {}
   }
 
   /**
@@ -336,12 +339,16 @@ export class L2DBridgeClient extends EventEmitter {
   /**
    * 发送消息
    */
-  sendMessage(payload: InputMessagePayload): void {
+  async sendMessage(payload: InputMessagePayload): Promise<void> {
+    const preparedContent = await this.prepareMessageContent(payload.content)
     this.send({
       op: OPS.INPUT_MESSAGE,
       id: uuidv4(),
       ts: Date.now(),
-      payload
+      payload: {
+        ...payload,
+        content: preparedContent,
+      }
     })
   }
 
@@ -407,10 +414,15 @@ export class L2DBridgeClient extends EventEmitter {
   /**
    * 获取会话信息
    */
-  getSession(): { sessionId: string; userId: string } {
+  getSession(): {
+    sessionId: string
+    userId: string
+    config: { resourceBaseUrl?: string; maxInlineBytes?: number }
+  } {
     return {
       sessionId: this.sessionId,
-      userId: this.userId
+      userId: this.userId,
+      config: { ...this.serverConfig }
     }
   }
 
@@ -539,6 +551,15 @@ export class L2DBridgeClient extends EventEmitter {
       }, timeoutMs)
       this.pendingRequests.set(packet.id, { resolve, reject, timer })
       this.send(packet)
+    })
+  }
+
+  private async prepareMessageContent(content: MessageContent[]): Promise<MessageContent[]> {
+    return await prepareMessageContentForTransport(content, {
+      maxInlineBytes: this.serverConfig.maxInlineBytes,
+      uploadInlineResource: this.serverConfig.resourceBaseUrl
+        ? (buffer, mime) => this.uploadResource(buffer, mime)
+        : undefined,
     })
   }
 

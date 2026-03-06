@@ -27,14 +27,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useConnectionStore } from '@/stores/connection'
 
 const audioRef = ref<HTMLAudioElement>()
 const videoRef = ref<HTMLVideoElement>()
 const currentImage = ref<string>()
 const currentVideo = ref<string>()
+const connectionStore = useConnectionStore()
 
 let isAudioActive = false
 let imageHideTimer: number | null = null
+
+function resolveResourceBaseUrl(): string {
+  return connectionStore.resourceBaseUrl || 'http://localhost:9091'
+}
 
 // 定义 emit
 const emit = defineEmits<{
@@ -60,9 +66,7 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
     }
     // 处理 RID（需要从资源服务器获取）
     else if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://')) {
-      // 假设是 RID，从配置的资源服务器获取
-      const resourceBaseUrl = (window as any).resourceBaseUrl || 'http://localhost:9091'
-      audioUrl = `${resourceBaseUrl}/resources/${urlOrData}`
+      audioUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
     }
 
     console.log('[媒体播放器] 播放音频:', audioUrl)
@@ -109,8 +113,7 @@ function showImage(urlOrData: string, duration?: number) {
   }
   // 处理 RID
   else if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://')) {
-    const resourceBaseUrl = (window as any).resourceBaseUrl || 'http://localhost:9091'
-    imageUrl = `${resourceBaseUrl}/resources/${urlOrData}`
+    imageUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
   }
 
   console.log('[媒体播放器] 显示图片:', imageUrl)
@@ -147,8 +150,7 @@ function playVideo(urlOrData: string) {
 
   // 处理 RID
   if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://') && !urlOrData.startsWith('data:')) {
-    const resourceBaseUrl = (window as any).resourceBaseUrl || 'http://localhost:9091'
-    videoUrl = `${resourceBaseUrl}/resources/${urlOrData}`
+    videoUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
   }
 
   console.log('[媒体播放器] 播放视频:', videoUrl)

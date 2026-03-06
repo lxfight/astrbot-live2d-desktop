@@ -48,8 +48,24 @@ export const useConnectionStore = defineStore('connection', () => {
   const isConnected = ref(false)
   const sessionId = ref('')
   const userId = ref('')
+  const resourceBaseUrl = ref('')
+  const maxInlineBytes = ref<number | null>(null)
   const serverUrl = ref(initialSettings.serverUrl)
   const token = ref(initialSettings.token)
+
+  function applySessionState(session: BridgeSessionState | null | undefined) {
+    sessionId.value = session?.sessionId || ''
+    userId.value = session?.userId || ''
+    resourceBaseUrl.value = session?.config?.resourceBaseUrl || ''
+    maxInlineBytes.value = typeof session?.config?.maxInlineBytes === 'number'
+      ? session.config.maxInlineBytes
+      : null
+  }
+
+  function resetSessionState() {
+    isConnected.value = false
+    applySessionState(null)
+  }
 
   function setConnectionConfig(url: string, authToken: string) {
     const normalizedUrl = (url || '').trim() || DEFAULT_SERVER_URL
@@ -84,8 +100,7 @@ export const useConnectionStore = defineStore('connection', () => {
       if (result.success) {
         isConnected.value = true
         const session = await window.electron.bridge.getSession()
-        sessionId.value = session?.sessionId || ''
-        userId.value = session?.userId || ''
+        applySessionState(session)
         return { success: true }
       } else {
         return { success: false, error: result.error }
@@ -99,9 +114,7 @@ export const useConnectionStore = defineStore('connection', () => {
   async function disconnect() {
     try {
       await window.electron.bridge.disconnect()
-      isConnected.value = false
-      sessionId.value = ''
-      userId.value = ''
+      resetSessionState()
       return { success: true }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -115,10 +128,9 @@ export const useConnectionStore = defineStore('connection', () => {
 
     if (connected) {
       const session = await window.electron.bridge.getSession()
-      if (session) {
-        sessionId.value = session.sessionId || ''
-        userId.value = session.userId || ''
-      }
+      applySessionState(session)
+    } else {
+      applySessionState(null)
     }
 
     return connected
@@ -138,8 +150,12 @@ export const useConnectionStore = defineStore('connection', () => {
     isConnected,
     sessionId,
     userId,
+    resourceBaseUrl,
+    maxInlineBytes,
     serverUrl,
     token,
+    applySessionState,
+    resetSessionState,
     setConnectionConfig,
     connect,
     disconnect,
