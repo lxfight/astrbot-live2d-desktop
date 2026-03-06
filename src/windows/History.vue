@@ -230,6 +230,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
+import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
 import { endOfDay, format, startOfDay } from 'date-fns'
 import { marked } from 'marked'
@@ -364,6 +365,9 @@ const motionRankRef = ref<HTMLElement>()
 const expressionRankRef = ref<HTMLElement>()
 
 let charts: echarts.ECharts[] = []
+const debouncedLoadMessages = useDebounceFn(() => {
+  void loadMessages()
+}, 250)
 const MARKDOWN_CACHE_LIMIT = 500
 const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
@@ -772,7 +776,7 @@ function aggregateExpressionUsage(data: any[]) {
 
 function handleSearch() {
   currentPage.value = 1
-  loadMessages()
+  debouncedLoadMessages()
 }
 
 function handlePageSizeChange(size: number) {
