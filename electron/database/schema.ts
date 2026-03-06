@@ -4,8 +4,47 @@ import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
+import { buildMessageKeywordSearchCondition } from './messageSearch'
 
 let db: Database.Database | null = null
+
+function ensureMessageSearchIndex(database: Database.Database): void {
+  database.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+      raw_text,
+      content='messages',
+      content_rowid='id',
+      tokenize='trigram'
+    );
+
+    CREATE TRIGGER IF NOT EXISTS messages_fts_ai AFTER INSERT ON messages BEGIN
+      INSERT INTO messages_fts(rowid, raw_text)
+      VALUES (new.id, COALESCE(new.raw_text, ''));
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS messages_fts_ad AFTER DELETE ON messages BEGIN
+      INSERT INTO messages_fts(messages_fts, rowid, raw_text)
+      VALUES ('delete', old.id, COALESCE(old.raw_text, ''));
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS messages_fts_au AFTER UPDATE ON messages BEGIN
+      INSERT INTO messages_fts(messages_fts, rowid, raw_text)
+      VALUES ('delete', old.id, COALESCE(old.raw_text, ''));
+      INSERT INTO messages_fts(rowid, raw_text)
+      VALUES (new.id, COALESCE(new.raw_text, ''));
+    END;
+  `)
+
+  const messageCount = (database.prepare('SELECT COUNT(*) AS count FROM messages').get() as { count?: number } | undefined)?.count || 0
+  if (messageCount === 0) {
+    return
+  }
+
+  const indexCount = (database.prepare('SELECT COUNT(*) AS count FROM messages_fts').get() as { count?: number } | undefined)?.count || 0
+  if (indexCount !== messageCount) {
+    database.prepare("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')").run()
+  }
+}
 
 /**
  * 初始化数据库
@@ -96,6 +135,8 @@ export function initDatabase(): Database.Database {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_statistics_date_hour ON statistics(date, hour);
   `)
+
+  ensureMessageSearchIndex(db)
 
   console.log('[数据库] 初始化完成:', dbPath)
   return db
@@ -252,8 +293,9 @@ export function getMessages(options: {
   }
 
   if (options.keyword) {
-    sql += ' AND raw_text LIKE ?'
-    params.push(`%${options.keyword}%`)
+    const searchCondition = buildMessageKeywordSearchCondition(options.keyword)
+    sql += searchCondition.clause
+    params.push(...searchCondition.params)
   }
 
   sql += ' ORDER BY timestamp ASC'
@@ -391,8 +433,9 @@ export function getMessagesCount(options: {
   }
 
   if (options.keyword) {
-    sql += ' AND raw_text LIKE ?'
-    params.push(`%${options.keyword}%`)
+    const searchCondition = buildMessageKeywordSearchCondition(options.keyword)
+    sql += searchCondition.clause
+    params.push(...searchCondition.params)
   }
 
   const stmt = db.prepare(sql)
