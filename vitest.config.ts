@@ -14,7 +14,6 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
-      all: true,
       include: [
         'electron/protocol/messageContent.ts',
         'electron/database/messageDirection.ts',
