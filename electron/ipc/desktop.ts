@@ -3,7 +3,7 @@
  * 窗口信息使用 active-win（跨平台），截图使用 Electron desktopCapturer
  */
 
-import { desktopCapturer, screen } from 'electron'
+import { BrowserWindow, desktopCapturer, screen } from 'electron'
 import { bridgeClient } from '../main'
 import { getUserName } from '../database/schema'
 import type {
@@ -49,6 +49,39 @@ function getWindowTokens(win: any): string[] {
 
 function hasKeyword(tokens: string[], keywords: string[]): boolean {
   return keywords.some((kw) => tokens.some((token) => token.includes(kw)))
+}
+
+function isOwnWindow(win: any): boolean {
+  if (!win) return false
+
+  const ownerPath = normalizeToken(win?.owner?.path)
+  const ownerName = normalizeToken(win?.owner?.name)
+  const title = String(win?.title || '').trim()
+  const currentExecPath = normalizeToken(process.execPath)
+
+  if (ownerPath && currentExecPath && ownerPath === currentExecPath) {
+    return true
+  }
+
+  if (ownerName === 'electron' || ownerName === 'astrbot live2d desktop') {
+    return true
+  }
+
+  if (!title) return false
+
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    if (browserWindow.isDestroyed()) continue
+    const windowTitle = String(browserWindow.getTitle() || '').trim()
+    if (windowTitle && (title === windowTitle || title.includes(windowTitle))) {
+      return true
+    }
+  }
+
+  if (title.includes('AstrBot Live2D') || title.includes('DevTools')) {
+    return true
+  }
+
+  return false
 }
 
 const CAPTURE_BYPASS_KEYWORDS = [
@@ -160,12 +193,18 @@ function extractAppName(win: any): string {
 
 export async function getWindowList(): Promise<DesktopWindowListPayload> {
   const win = await safeGetActiveWin()
-  return { windows: win ? [toWindowInfo(win)] : [] }
+  if (!win || isOwnWindow(win)) {
+    return { windows: [] }
+  }
+  return { windows: [toWindowInfo(win)] }
 }
 
 export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
   const win = await safeGetActiveWin()
-  return { window: win ? toWindowInfo(win) : null }
+  if (!win || isOwnWindow(win)) {
+    return { window: null }
+  }
+  return { window: toWindowInfo(win) }
 }
 
 /**
@@ -462,6 +501,7 @@ export async function startAppLaunchWatcher() {
     try {
       const win = await getActiveWin()
       if (!win) return
+      if (isOwnWindow(win)) return
 
       const appName = extractAppName(win)
       if (!appName) return
