@@ -74,6 +74,7 @@
       <div
         v-if="currentBubble"
         class="bubble"
+        ref="bubbleRef"
         :style="bubbleStyle"
         @click.stop
         @mouseenter="handleBubbleMouseEnter"
@@ -218,6 +219,7 @@ const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<any>(null)
 const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left: '0px', top: '0px' })
+const bubbleRef = ref<HTMLElement | null>(null)
 const bubbleContentRef = ref<HTMLElement | null>(null)
 const displayedText = ref('')
 let typewriterTimer: any = null
@@ -229,6 +231,9 @@ let textTransitionVersion = 0
 const NORMAL_TYPEWRITER_INTERVAL = 50
 const FAST_TYPEWRITER_INTERVAL = 8
 const MESSAGE_SWITCH_DELAY = 1000
+const BUBBLE_MAX_WIDTH = 450
+const BUBBLE_EDGE_PADDING = 16
+const BUBBLE_VERTICAL_OFFSET = 200
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref({ left: '0px', top: '0px' })
@@ -354,6 +359,7 @@ watch(hasModel, async (value) => {
 // 监听气泡内容变化，自动滚动到底部
 watch(displayedText, () => {
   nextTick(() => {
+    updateBubblePosition()
     if (bubbleContentRef.value) {
       bubbleContentRef.value.scrollTop = bubbleContentRef.value.scrollHeight
     }
@@ -362,6 +368,13 @@ watch(displayedText, () => {
 
 // 监听气泡关闭，重置打字机
 watch(currentBubble, (val) => {
+  if (val) {
+    nextTick(() => {
+      updateBubblePosition()
+    })
+    return
+  }
+
   if (!val) {
     if (typewriterTimer) {
       clearInterval(typewriterTimer)
@@ -547,6 +560,9 @@ async function fastForwardCurrentText(): Promise<void> {
 function showBubbleText(content: string, position: string) {
   currentBubble.value = { content, position }
   updateUIPositions()
+  nextTick(() => {
+    updateBubblePosition()
+  })
   void runTypewriter(content)
 
   const autoHideDelay = Math.max(5000, content.length * 100)
@@ -582,6 +598,42 @@ async function handleIncomingText(content: string, position: string) {
 
   if (nextPayload) {
     showBubbleText(nextPayload.content, nextPayload.position)
+  }
+}
+
+function updateBubblePosition() {
+  if (!currentBubble.value) {
+    return
+  }
+
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const maxBubbleWidth = Math.max(0, Math.min(BUBBLE_MAX_WIDTH, viewportWidth - BUBBLE_EDGE_PADDING * 2))
+  const renderedWidth = bubbleRef.value?.offsetWidth ?? 0
+  const bubbleWidth = Math.max(0, Math.min(renderedWidth || maxBubbleWidth, maxBubbleWidth))
+  const bubbleHeight = bubbleRef.value?.offsetHeight ?? 0
+  const halfWidth = bubbleWidth / 2
+  const minLeft = BUBBLE_EDGE_PADDING + halfWidth
+  const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfWidth
+  const clampedLeft = maxLeft < minLeft
+    ? viewportWidth / 2
+    : Math.min(Math.max(modelPositionX, minLeft), maxLeft)
+
+  const anchorY = modelPositionY - BUBBLE_VERTICAL_OFFSET
+  const preferredTop = anchorY - bubbleHeight
+  const belowTop = anchorY + BUBBLE_EDGE_PADDING
+  const minTop = BUBBLE_EDGE_PADDING
+  const maxTop = Math.max(BUBBLE_EDGE_PADDING, viewportHeight - BUBBLE_EDGE_PADDING - bubbleHeight)
+
+  let resolvedTop = preferredTop
+  if (preferredTop < minTop && belowTop + bubbleHeight <= viewportHeight - BUBBLE_EDGE_PADDING) {
+    resolvedTop = belowTop
+  }
+  resolvedTop = Math.min(Math.max(resolvedTop, minTop), maxTop)
+
+  bubbleStyle.value = {
+    left: `${clampedLeft}px`,
+    top: `${resolvedTop}px`
   }
 }
 
@@ -822,10 +874,7 @@ function handleModelPositionChanged(position: { x: number; y: number }) {
 function updateUIPositions() {
   // 更新气泡位置（模型头顶上方 250px，避免遮挡模型）
   if (currentBubble.value) {
-    bubbleStyle.value = {
-      left: `${modelPositionX}px`,
-      bottom: `calc(100vh - ${modelPositionY - 200}px)`
-    }
+    updateBubblePosition()
   }
 
   // 更新状态提示位置（模型头顶上方 280px）
@@ -1316,6 +1365,7 @@ onMounted(async () => {
   // 监听全局快捷键录音
   initializeAdvancedSettingsForSession()
   window.addEventListener('storage', handleStorageChange)
+  window.addEventListener('resize', updateUIPositions)
 
   try {
     const platformCapabilities = await window.electron.window.getPlatformCapabilities()
@@ -1553,6 +1603,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
+  window.removeEventListener('resize', updateUIPositions)
   clearRecordingTimer()
 
   if (audioRecorder && isRecording.value) {
@@ -1745,7 +1796,8 @@ onBeforeUnmount(() => {
   padding: 12px 16px;
   border-radius: var(--radius);
   font-size: 14px;
-  max-width: 450px;
+  width: max-content;
+  max-width: min(450px, calc(100vw - 32px));
   max-height: 15vh;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
@@ -1753,6 +1805,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   transform: translateX(-50%);
 }
 
