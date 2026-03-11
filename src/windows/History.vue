@@ -124,9 +124,21 @@
                                 {{ formatElement(element) }}
                               </n-tag>
                             </div>
-                            <!-- 显示文本内容预览 -->
-                            <div v-if="getPerformanceTextPreview(msg.content)" class="performance-text-preview">
-                              <div class="text-content" v-html="renderMarkdown(getPerformanceTextPreview(msg.content))"></div>
+                            <div v-if="getPerformancePreviewItems(msg.content).length" class="performance-text-preview">
+                              <div
+                                v-for="(item, previewIdx) in getPerformancePreviewItems(msg.content)"
+                                :key="previewIdx"
+                                class="content-item performance-preview-item"
+                              >
+                                <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                                <div v-else class="image-content performance-image-content">
+                                  <n-image
+                                    :src="item.src"
+                                    width="200"
+                                    object-fit="cover"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -138,8 +150,8 @@
                             <!-- 图片 -->
                             <div v-else-if="item.type === 'image'" class="image-content">
                               <n-image
-                                v-if="item.url"
-                                :src="item.url"
+                                v-if="resolveMessageImageSource(item)"
+                                :src="resolveMessageImageSource(item) || undefined"
                                 width="200"
                                 object-fit="cover"
                               />
@@ -237,6 +249,11 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import {
+  buildHistoryRenderableItems,
+  resolveHistoryImageSource,
+  type HistoryRenderableItem,
+} from '@/utils/historyContent'
 import { 
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video, 
   MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn
@@ -373,7 +390,8 @@ const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
 const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, any[]>()
-const performancePreviewCache = new Map<string, string>()
+const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
+const historyResourceBaseUrl = ref('')
 
 function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
   if (!cache.has(key) && cache.size >= limit) {
@@ -387,6 +405,7 @@ function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: n
 }
 
 onMounted(async () => {
+  await syncHistoryResourceBaseUrl()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
@@ -411,9 +430,20 @@ onUnmounted(() => {
 })
 
 function handleWindowFocus() {
+  void syncHistoryResourceBaseUrl()
   loadMessages()
   loadStatistics()
   loadAnalysisData()
+}
+
+async function syncHistoryResourceBaseUrl() {
+  try {
+    const session = await window.electron.bridge.getSession()
+    historyResourceBaseUrl.value = session?.config?.resourceBaseUrl || ''
+  } catch (error) {
+    console.warn('[历史窗口] 获取资源基础地址失败:', error)
+    historyResourceBaseUrl.value = ''
+  }
 }
 
 function handleResize() {
@@ -857,30 +887,27 @@ function isPerformanceMessage(msg: any): boolean {
   return msg.raw_text === '[表演序列]' || msg.user_id === 'server'
 }
 
-function getPerformanceTextPreview(content: string): string {
-  const cached = performancePreviewCache.get(content)
+function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
+  const cacheKey = `${historyResourceBaseUrl.value}::${content}`
+  const cached = performancePreviewCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
   }
 
   try {
     const parsed = parseContent(content)
-    if (!Array.isArray(parsed)) return ''
-
-    // 提取所有文本和TTS内容
-    const textParts: string[] = []
-    parsed.forEach((element: any) => {
-      if (element.type === 'text' && element.content) {
-        textParts.push(element.content)
-      } else if (element.type === 'tts' && element.text) {
-        textParts.push(element.text)
-      }
+    const items = buildHistoryRenderableItems(parsed, {
+      includeTtsText: true,
+      resourceBaseUrl: historyResourceBaseUrl.value,
     })
-
-    return setCacheEntry(performancePreviewCache, content, textParts.join('\n\n'), PREVIEW_CACHE_LIMIT)
+    return setCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
   } catch {
-    return setCacheEntry(performancePreviewCache, content, '', PREVIEW_CACHE_LIMIT)
+    return setCacheEntry(performancePreviewCache, cacheKey, [], PREVIEW_CACHE_LIMIT)
   }
+}
+
+function resolveMessageImageSource(item: any): string | null {
+  return resolveHistoryImageSource(item, historyResourceBaseUrl.value)
 }
 
 function formatElement(element: any): string {
@@ -1820,6 +1847,18 @@ function handleClose() {
     color: rgba(255, 255, 255, 0.8);
 
   }
+
+}
+
+.performance-preview-item + .performance-preview-item {
+
+  margin-top: 10px;
+
+}
+
+.performance-image-content {
+
+  margin-top: 0;
 
 }
 
