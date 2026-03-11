@@ -131,12 +131,26 @@
                                 class="content-item performance-preview-item"
                               >
                                 <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-                                <div v-else class="image-content performance-image-content">
+                                <div v-else-if="item.type === 'image'" class="image-content performance-image-content">
                                   <n-image
                                     :src="item.src"
                                     width="200"
                                     object-fit="cover"
                                   />
+                                </div>
+                                <div v-else-if="item.type === 'audio'" class="audio-content performance-audio-content">
+                                  <div class="media-content-header">
+                                    <n-icon size="18"><Mic /></n-icon>
+                                    <span>{{ item.label }}</span>
+                                  </div>
+                                  <audio class="audio-player" :src="item.src" controls preload="metadata" @click.stop></audio>
+                                </div>
+                                <div v-else-if="item.type === 'video'" class="video-content performance-video-content">
+                                  <div class="media-content-header">
+                                    <n-icon size="18"><Video /></n-icon>
+                                    <span>{{ item.label }}</span>
+                                  </div>
+                                  <video class="video-player" :src="item.src" controls preload="metadata" playsinline @click.stop></video>
                                 </div>
                               </div>
                             </div>
@@ -162,13 +176,44 @@
                             </div>
                             <!-- 语音 -->
                             <div v-else-if="item.type === 'audio'" class="audio-content">
-                              <n-icon size="20"><Mic /></n-icon>
-                              <span>语音消息</span>
+                              <template v-if="resolveMessageAudioSource(item)">
+                                <div class="media-content-header">
+                                  <n-icon size="18"><Mic /></n-icon>
+                                  <span>{{ item.name || '语音消息' }}</span>
+                                </div>
+                                <audio
+                                  class="audio-player"
+                                  :src="resolveMessageAudioSource(item) || undefined"
+                                  controls
+                                  preload="metadata"
+                                  @click.stop
+                                ></audio>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><Mic /></n-icon>
+                                <span>语音消息</span>
+                              </div>
                             </div>
                             <!-- 视频 -->
                             <div v-else-if="item.type === 'video'" class="video-content">
-                              <n-icon size="20"><Video /></n-icon>
-                              <span>视频</span>
+                              <template v-if="resolveMessageVideoSource(item)">
+                                <div class="media-content-header">
+                                  <n-icon size="18"><Video /></n-icon>
+                                  <span>{{ item.name || '视频' }}</span>
+                                </div>
+                                <video
+                                  class="video-player"
+                                  :src="resolveMessageVideoSource(item) || undefined"
+                                  controls
+                                  preload="metadata"
+                                  playsinline
+                                  @click.stop
+                                ></video>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><Video /></n-icon>
+                                <span>视频</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -251,6 +296,7 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import {
   buildHistoryRenderableItems,
+  resolveHistoryMediaSource,
   resolveHistoryImageSource,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
@@ -908,6 +954,14 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
 
 function resolveMessageImageSource(item: any): string | null {
   return resolveHistoryImageSource(item, historyResourceBaseUrl.value)
+}
+
+function resolveMessageAudioSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+}
+
+function resolveMessageVideoSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
 }
 
 function formatElement(element: any): string {
@@ -1726,7 +1780,9 @@ function handleClose() {
 
   display: flex;
 
-  align-items: center;
+  flex-direction: column;
+
+  align-items: stretch;
 
   gap: 10px;
 
@@ -1737,8 +1793,6 @@ function handleClose() {
   border-radius: 8px;
 
   font-size: 14px;
-
-  cursor: pointer;
 
   transition: background 0.2s;
 
@@ -1847,6 +1901,54 @@ function handleClose() {
     color: rgba(255, 255, 255, 0.8);
 
   }
+
+}
+
+
+
+.media-content-header,
+
+.media-placeholder {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+}
+
+
+
+.audio-player,
+
+.video-player {
+
+  width: min(320px, 100%);
+
+  max-width: 100%;
+
+  border-radius: 8px;
+
+  background: rgba(0, 0, 0, 0.15);
+
+}
+
+
+
+.video-player {
+
+  max-height: 240px;
+
+}
+
+
+
+.performance-audio-content,
+
+.performance-video-content {
+
+  margin-top: 0;
 
 }
 

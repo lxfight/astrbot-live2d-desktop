@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildHistoryRenderableItems,
+  resolveHistoryMediaSource,
   resolveHistoryImageSource,
 } from '../src/utils/historyContent'
 
@@ -27,12 +28,24 @@ describe('historyContent', () => {
     ])
   })
 
+  it('resolves audio and video sources from rid or inline data', () => {
+    expect(resolveHistoryMediaSource({ rid: 'audio_001' }, 'http://127.0.0.1:9091')).toBe(
+      'http://127.0.0.1:9091/resources/audio_001'
+    )
+
+    expect(resolveHistoryMediaSource({ inline: 'data:video/mp4;base64,abcd' })).toBe(
+      'data:video/mp4;base64,abcd'
+    )
+  })
+
   it('includes performance text and images when tts preview is enabled', () => {
     const items = buildHistoryRenderableItems(
       [
         { type: 'text', content: '段落一' },
         { type: 'tts', text: '旁白' },
         { type: 'image', rid: 'img_002' },
+        { type: 'audio', rid: 'audio_002', name: 'voice.wav' },
+        { type: 'video', inline: 'data:video/mp4;base64,efgh', name: 'clip.mp4' },
       ],
       { includeTtsText: true, resourceBaseUrl: 'http://127.0.0.1:9091' }
     )
@@ -44,6 +57,16 @@ describe('historyContent', () => {
         type: 'image',
         src: 'http://127.0.0.1:9091/resources/img_002',
         alt: 'History message image',
+      },
+      {
+        type: 'audio',
+        src: 'http://127.0.0.1:9091/resources/audio_002',
+        label: 'voice.wav',
+      },
+      {
+        type: 'video',
+        src: 'data:video/mp4;base64,efgh',
+        label: 'clip.mp4',
       },
     ])
   })

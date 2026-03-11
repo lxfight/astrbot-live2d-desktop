@@ -7,17 +7,27 @@ export interface HistoryContentElement {
   url?: string
   inline?: string
   rid?: string
+  name?: string
 }
 
 export type HistoryRenderableItem =
   | { type: 'text'; text: string }
   | { type: 'image'; src: string; alt: string }
+  | { type: 'audio'; src: string; label: string }
+  | { type: 'video'; src: string; label: string }
+
+export function resolveHistoryMediaSource(
+  element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
+  resourceBaseUrl?: string
+): string | null {
+  return resolvePerformMediaSource(element, resourceBaseUrl)
+}
 
 export function resolveHistoryImageSource(
   element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
   resourceBaseUrl?: string
 ): string | null {
-  return resolvePerformMediaSource(element, resourceBaseUrl)
+  return resolveHistoryMediaSource(element, resourceBaseUrl)
 }
 
 export function buildHistoryRenderableItems(
@@ -46,6 +56,22 @@ export function buildHistoryRenderableItems(
       const src = resolveHistoryImageSource(element, options.resourceBaseUrl)
       if (src) {
         items.push({ type: 'image', src, alt: 'History message image' })
+      }
+      continue
+    }
+
+    if (type === 'audio') {
+      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      if (src) {
+        items.push({ type: 'audio', src, label: element.name || '语音消息' })
+      }
+      continue
+    }
+
+    if (type === 'video') {
+      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      if (src) {
+        items.push({ type: 'video', src, label: element.name || '视频' })
       }
     }
   }
