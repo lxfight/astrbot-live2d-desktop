@@ -1,4 +1,5 @@
-import { ipcMain, globalShortcut, BrowserWindow } from 'electron'
+import { ipcMain, globalShortcut } from 'electron'
+import { getMainWindow } from '../windows/mainWindow'
 
 let currentShortcut: string | null = null
 let isRecording = false
@@ -61,8 +62,8 @@ ipcMain.handle('shortcut:isRegistered', async (_event, accelerator: string) => {
  * 处理快捷键按下（切换模式）
  */
 function handleShortcutPressed() {
-  const mainWindow = BrowserWindow.getAllWindows().find(win => !win.isDestroyed())
-  if (!mainWindow) return
+  const mainWindow = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) return
 
   if (!isRecording) {
     // 开始录音

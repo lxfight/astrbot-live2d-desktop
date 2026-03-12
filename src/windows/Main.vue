@@ -69,13 +69,36 @@
       </div>
     </Transition>
 
+    <!-- 旧气泡（上移淡出） -->
+    <Transition name="bubble-old">
+      <div
+        v-if="oldBubble"
+        class="bubble bubble-old"
+        :style="{ ...oldBubbleStyle, '--bubble-offset-x': (oldBubble.offsetX ?? 0) + 'px' }"
+        @click.stop
+      >
+        <div class="bubble-content">
+          <div
+            v-for="item in oldBubble.items || []"
+            :key="item.id"
+            :class="['bubble-item', `bubble-item-${item.type}`]"
+          >
+            <div v-if="item.type === 'text'" class="bubble-text" v-html="renderBubbleMarkdown(item.renderedText)"></div>
+            <div v-else-if="item.type === 'image'" class="bubble-image">
+              <img :src="item.src" :alt="item.alt" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 文字气泡 -->
     <Transition name="bubble">
       <div
         v-if="currentBubble"
         class="bubble"
         ref="bubbleRef"
-        :style="bubbleStyle"
+        :style="{ ...bubbleStyle, '--bubble-offset-x': (currentBubble?.offsetX ?? 0) + 'px' }"
         @click.stop
         @mouseenter="handleBubbleMouseEnter"
         @mouseleave="handleBubbleMouseLeave"
@@ -238,6 +261,7 @@ type BubbleItem = BubbleTextItem | BubbleImageItem
 type BubbleState = {
   position: string
   items: BubbleItem[]
+  offsetX?: number  // 随机水平偏移 px
 }
 
 const connectionStore = useConnectionStore()
@@ -258,7 +282,11 @@ const menuStyle = ref({ left: '0px', top: '0px' })
 const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
 const currentBubble = ref<BubbleState | null>(null)
+const oldBubble = ref<BubbleState | null>(null)
 const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left: '0px', top: '0px' })
+const oldBubbleStyle = ref<{ left: string; top: string }>({ left: '0px', top: '0px' })
+let oldBubbleHideTimer: number | null = null
+let lastPerformReceiveTime = 0
 const bubbleRef = ref<HTMLElement | null>(null)
 const bubbleContentRef = ref<HTMLElement | null>(null)
 let typewriterTimer: number | null = null
@@ -272,6 +300,8 @@ const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_MAX_WIDTH = 450
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
+const OLD_BUBBLE_ABOVE_OFFSET = 130  // 旧气泡在当前气泡锚点上方的额外偏移 px
+const FOLLOW_UP_WINDOW_MS = 4000    // 视为同一轮回复的时间窗口 ms
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref({ left: '0px', top: '0px' })
@@ -630,10 +660,42 @@ async function ensureBubbleTyping(version: number = bubbleSequenceVersion) {
   }
 }
 
+function updateOldBubblePosition() {
+  if (!oldBubble.value) return
+  const offsetX = oldBubble.value.offsetX ?? 0
+  const viewportWidth = window.innerWidth
+  const halfWidth = 180  // 旧气泡宽度估算
+  const minLeft = BUBBLE_EDGE_PADDING + halfWidth
+  const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfWidth
+  const rawLeft = modelPositionX + offsetX
+  const clampedLeft = Math.min(Math.max(rawLeft, minLeft), maxLeft)
+  oldBubbleStyle.value = {
+    left: `${clampedLeft}px`,
+    top: `${modelPositionY - BUBBLE_VERTICAL_OFFSET - OLD_BUBBLE_ABOVE_OFFSET}px`,
+  }
+}
+
+function startOldBubbleHideTimer() {
+  if (oldBubbleHideTimer) clearTimeout(oldBubbleHideTimer)
+  oldBubbleHideTimer = window.setTimeout(() => {
+    oldBubble.value = null
+    oldBubbleHideTimer = null
+  }, 8000)
+}
+
+function clearOldBubble() {
+  if (oldBubbleHideTimer) {
+    clearTimeout(oldBubbleHideTimer)
+    oldBubbleHideTimer = null
+  }
+  oldBubble.value = null
+}
+
 function showPerformBubble(
   bubbleItems: BubbleRenderableItem[],
   position: string,
-  interrupt: boolean
+  interrupt: boolean,
+  isFollowUp: boolean = false
 ) {
   if (!bubbleItems.length) {
     return
@@ -641,11 +703,22 @@ function showPerformBubble(
 
   const runtimeItems = createBubbleItems(bubbleItems)
 
-  if (interrupt || !currentBubble.value) {
+  if (isFollowUp && currentBubble.value) {
+    // 多气泡模式：当前气泡上移成旧气泡，新气泡从下方出现
+    const offsetX = Math.round((Math.random() - 0.5) * 60)  // ±30px
+    oldBubble.value = { ...currentBubble.value, offsetX }
+    updateOldBubblePosition()
+    startOldBubbleHideTimer()
+    resetBubbleTypingState()
+    const newOffsetX = Math.round((Math.random() - 0.5) * 30)  // ±15px
+    currentBubble.value = { position, items: runtimeItems, offsetX: newOffsetX }
+  } else if (interrupt || !currentBubble.value) {
+    clearOldBubble()
     resetBubbleTypingState()
     currentBubble.value = {
       position,
       items: runtimeItems,
+      offsetX: 0,
     }
   } else {
     currentBubble.value.position = currentBubble.value.position || position
@@ -973,6 +1046,11 @@ function updateUIPositions() {
     updateBubblePosition()
   }
 
+  // 同步旧气泡位置（跟随模型移动）
+  if (oldBubble.value) {
+    updateOldBubblePosition()
+  }
+
   // 更新状态提示位置（模型头顶上方 280px）
   if (modelStatus.value) {
     modelStatusStyle.value = {
@@ -1225,6 +1303,7 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
 
     await audioRecorder.start()
     isRecording.value = true
+    updateUIPositions()
     currentRecordingSource.value = source
     recordingDuration.value = 0
 
@@ -1521,7 +1600,12 @@ onMounted(async () => {
   window.electron.bridge.onPerformShow((payload: any) => {
     console.log('收到表演指令:', payload)
 
-    const shouldInterrupt = payload.interrupt !== false
+    const now = Date.now()
+    // 同一轮回复（4s 窗口内）的追加消息不中断，做旧气泡上移效果
+    const isFollowUp = currentBubble.value !== null && (now - lastPerformReceiveTime) < FOLLOW_UP_WINDOW_MS
+    lastPerformReceiveTime = now
+
+    const shouldInterrupt = payload.interrupt !== false && !isFollowUp
 
     if (shouldInterrupt) {
       interruptPerformance()
@@ -1539,7 +1623,7 @@ onMounted(async () => {
       )
 
       if (bubbleItems.length > 0) {
-        showPerformBubble(bubbleItems, position, shouldInterrupt)
+        showPerformBubble(bubbleItems, position, shouldInterrupt, isFollowUp)
       }
 
       if (remainingSequence.length > 0) {
@@ -1718,6 +1802,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
   clearRecordingTimer()
+  clearOldBubble()
 
   if (audioRecorder && isRecording.value) {
     audioRecorder.cancel()
@@ -1919,7 +2004,34 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
+}
+
+.bubble-old {
+  z-index: 99;
+  opacity: 0.6;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.92);
+  filter: blur(0.4px);
+  pointer-events: auto;
+  cursor: default;
+  max-height: min(40vh, calc(100vh - 32px));
+}
+
+.bubble-old-enter-active {
+  transition: opacity 0.35s ease, transform 0.35s ease-out;
+}
+
+.bubble-old-enter-from {
+  opacity: 0;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.9) translateY(15px);
+}
+
+.bubble-old-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.bubble-old-leave-to {
+  opacity: 0;
 }
 
 .bubble-content {
@@ -2325,7 +2437,7 @@ onBeforeUnmount(() => {
 
 .bubble-enter-from, .bubble-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(20px) scale(0.9);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(20px) scale(0.9);
 }
 
 .input-enter-active, .input-leave-active {
