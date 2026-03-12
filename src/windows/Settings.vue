@@ -47,22 +47,28 @@
             <n-form-item>
               <n-collapse>
                 <n-collapse-item title="高级资源设置（通常无需填写）" name="resource-advanced">
-                  <n-space vertical :size="12" style="width: 100%;">
-                    <n-input
-                      v-model:value="resourceServerUrl"
-                      placeholder="可选，留空时自动跟随连接地址；如需覆盖可填写 http://203.0.113.10:9090"
-                    />
-                    <n-input
-                      v-model:value="resourceServerPath"
-                      placeholder="可选，默认沿用握手路径或 /resources"
-                    />
-                    <n-input
-                      v-model:value="resourceAccessToken"
-                      type="password"
-                      show-password-on="click"
-                      placeholder="可选，留空时复用 WebSocket 认证令牌"
-                    />
-                  </n-space>
+                  <n-form label-placement="left" label-width="120">
+                    <n-form-item label="资源服务地址">
+                      <n-input
+                        v-model:value="resourceServerUrl"
+                        placeholder="留空时自动跟随连接地址；如需覆盖可填写 http://203.0.113.10:9090"
+                      />
+                    </n-form-item>
+                    <n-form-item label="资源路径">
+                      <n-input
+                        v-model:value="resourceServerPath"
+                        placeholder="默认沿用握手路径或 /resources"
+                      />
+                    </n-form-item>
+                    <n-form-item label="资源访问令牌">
+                      <n-input
+                        v-model:value="resourceAccessToken"
+                        type="password"
+                        show-password-on="click"
+                        placeholder="留空时复用 WebSocket 认证令牌"
+                      />
+                    </n-form-item>
+                  </n-form>
                 </n-collapse-item>
               </n-collapse>
             </n-form-item>

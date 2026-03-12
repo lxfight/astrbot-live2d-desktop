@@ -1,23 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { deriveHttpBaseUrlFromWsUrl } from '../../electron/utils/urlNormalize'
 
 function buildDefaultLocalServerUrl(): string {
   const url = new URL('http://127.0.0.1:9090/astrbot/live2d')
   url.protocol = 'ws:'
   return url.toString()
-}
-
-function deriveResourceBaseUrlFromServerUrl(rawUrl: string): string {
-  try {
-    const parsedUrl = new URL(rawUrl)
-    parsedUrl.protocol = parsedUrl.protocol === 'wss:' ? 'https:' : 'http:'
-    parsedUrl.pathname = ''
-    parsedUrl.search = ''
-    parsedUrl.hash = ''
-    return parsedUrl.toString().replace(/\/$/, '')
-  } catch {
-    return 'http://127.0.0.1:9090'
-  }
 }
 
 const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
@@ -142,7 +130,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return sessionValue
     }
 
-    return deriveResourceBaseUrlFromServerUrl(serverUrl.value)
+    return deriveHttpBaseUrlFromWsUrl(serverUrl.value)
   })
 
   const resourcePath = computed(() => {

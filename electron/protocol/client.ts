@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import http from 'http'
 import https from 'https'
 import { getUserId } from '../database/schema'
+import { resolveHttpUrl } from '../utils/urlNormalize'
 import type {
   BasePacket,
   HandshakePayload,
@@ -567,14 +568,7 @@ export class L2DBridgeClient extends EventEmitter {
   }
 
   private resolveHttpResourceUrl(rawUrl: string): string {
-    try {
-      return new URL(rawUrl).toString()
-    } catch {
-      const connectionUrl = this.getConnectionInfo().url
-      const parsedConnectionUrl = new URL(connectionUrl)
-      parsedConnectionUrl.protocol = parsedConnectionUrl.protocol === 'wss:' ? 'https:' : 'http:'
-      return new URL(rawUrl, parsedConnectionUrl.toString()).toString()
-    }
+    return resolveHttpUrl(rawUrl, this.getConnectionInfo().url)
   }
 
   /**
@@ -613,7 +607,7 @@ export class L2DBridgeClient extends EventEmitter {
 
   private httpPut(url: string, body: Buffer, headers: Record<string, string> = {}): Promise<number> {
     return new Promise((resolve, reject) => {
-      const parsed = new URL(this.resolveHttpResourceUrl(url))
+      const parsed = new URL(url)
       const isHttps = parsed.protocol === 'https:'
       const requestClient = isHttps ? https : http
       const options: http.RequestOptions = {
