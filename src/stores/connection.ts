@@ -7,15 +7,22 @@ function buildDefaultLocalServerUrl(): string {
   return url.toString()
 }
 
+function deriveResourceBaseUrlFromServerUrl(rawUrl: string): string {
+  try {
+    const parsedUrl = new URL(rawUrl)
+    parsedUrl.protocol = parsedUrl.protocol === 'wss:' ? 'https:' : 'http:'
+    parsedUrl.pathname = ''
+    parsedUrl.search = ''
+    parsedUrl.hash = ''
+    return parsedUrl.toString().replace(/\/$/, '')
+  } catch {
+    return 'http://127.0.0.1:9090'
+  }
+}
+
 const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
 const DEFAULT_RESOURCE_PATH = '/resources'
 const CONNECTION_SETTINGS_KEY = 'connectionSettings'
-const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1'])
-
-function isLoopbackHostname(hostname: string): boolean {
-  const normalizedHostname = hostname.trim().toLowerCase()
-  return LOOPBACK_HOSTNAMES.has(normalizedHostname) || normalizedHostname.startsWith('127.')
-}
 
 function getBridgeUrlValidationError(rawUrl: string): string | null {
   let parsedUrl: URL
@@ -28,10 +35,6 @@ function getBridgeUrlValidationError(rawUrl: string): string | null {
 
   if (parsedUrl.protocol !== 'ws:' && parsedUrl.protocol !== 'wss:') {
     return '服务器地址必须使用 ws 或 wss 协议'
-  }
-
-  if (parsedUrl.protocol === 'ws:' && !isLoopbackHostname(parsedUrl.hostname)) {
-    return '远程服务器请使用加密 WebSocket（wss），仅本机 localhost 或 127.0.0.1 允许使用非加密连接'
   }
 
   return null
@@ -134,7 +137,12 @@ export const useConnectionStore = defineStore('connection', () => {
       return overrideValue
     }
 
-    return sessionResourceBaseUrl.value.trim()
+    const sessionValue = sessionResourceBaseUrl.value.trim()
+    if (sessionValue) {
+      return sessionValue
+    }
+
+    return deriveResourceBaseUrlFromServerUrl(serverUrl.value)
   })
 
   const resourcePath = computed(() => {

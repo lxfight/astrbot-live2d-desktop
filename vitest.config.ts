@@ -8,6 +8,9 @@ export default defineConfig({
       '@electron': resolve(__dirname, 'electron')
     }
   },
+  server: {
+    host: '127.0.0.1'
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
