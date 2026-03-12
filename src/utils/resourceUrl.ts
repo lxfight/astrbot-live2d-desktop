@@ -1,6 +1,7 @@
 export interface ResourceUrlConfig {
   resourceBaseUrl?: string
   resourcePath?: string
+  resourceToken?: string
 }
 
 export interface ResourceLike {
@@ -23,9 +24,35 @@ export function normalizeResourcePath(resourcePath?: string): string {
   return normalized ? `/${normalized}` : DEFAULT_RESOURCE_PATH
 }
 
+function normalizeResourceToken(resourceToken?: string): string {
+  return (resourceToken || '').trim()
+}
+
+function shouldPreferRidUrl(config: ResourceUrlConfig): boolean {
+  const baseUrl = (config.resourceBaseUrl || '').trim()
+  const path = (config.resourcePath || '').trim()
+  return Boolean(baseUrl || (path && normalizeResourcePath(path) !== DEFAULT_RESOURCE_PATH))
+}
+
+function withResourceToken(url: string, resourceToken?: string): string {
+  const token = normalizeResourceToken(resourceToken)
+  if (!token) {
+    return url
+  }
+
+  try {
+    const parsed = new URL(url)
+    parsed.searchParams.set('token', token)
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
 export function resolveResourceRidUrl(rid: string, config: ResourceUrlConfig = {}): string {
-  const normalizedRid = rid.trim()
-  return `${normalizeResourceBaseUrl(config.resourceBaseUrl)}${normalizeResourcePath(config.resourcePath)}/${normalizedRid}`
+  const normalizedRid = encodeURIComponent(rid.trim())
+  const baseUrl = `${normalizeResourceBaseUrl(config.resourceBaseUrl)}${normalizeResourcePath(config.resourcePath)}/${normalizedRid}`
+  return withResourceToken(baseUrl, config.resourceToken)
 }
 
 export function resolveResourceSource(resource: ResourceLike, config: ResourceUrlConfig = {}): string | null {
@@ -34,12 +61,16 @@ export function resolveResourceSource(resource: ResourceLike, config: ResourceUr
     return inline
   }
 
+  const rid = typeof resource.rid === 'string' ? resource.rid.trim() : ''
+  if (rid && shouldPreferRidUrl(config)) {
+    return resolveResourceRidUrl(rid, config)
+  }
+
   const url = typeof resource.url === 'string' ? resource.url.trim() : ''
   if (url) {
     return url
   }
 
-  const rid = typeof resource.rid === 'string' ? resource.rid.trim() : ''
   if (!rid) {
     return null
   }

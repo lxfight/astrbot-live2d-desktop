@@ -733,6 +733,7 @@ performQueue.onImage((url, _duration) => {
     : resolvePerformMediaSource({ rid: url }, {
         resourceBaseUrl: connectionStore.resourceBaseUrl,
         resourcePath: connectionStore.resourcePath,
+        resourceToken: connectionStore.resourceToken,
       })
 
   if (!resolvedSrc) {
@@ -1512,6 +1513,7 @@ onMounted(async () => {
         {
           resourceBaseUrl: connectionStore.resourceBaseUrl,
           resourcePath: connectionStore.resourcePath,
+          resourceToken: connectionStore.resourceToken,
         }
       )
 

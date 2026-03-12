@@ -1,19 +1,37 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const DEFAULT_SERVER_URL = 'ws://127.0.0.1:9090/astrbot/live2d'
+const DEFAULT_RESOURCE_PATH = '/resources'
 const CONNECTION_SETTINGS_KEY = 'connectionSettings'
 
-function loadConnectionSettings(): { serverUrl: string; token: string; resourceBaseUrl: string; resourcePath: string } {
+type ConnectionSettings = {
+  serverUrl: string
+  token: string
+  resourceBaseUrl: string
+  resourcePath: string
+  resourceOverrideBaseUrl: string
+  resourceOverridePath: string
+  resourceToken: string
+}
+
+function getDefaultConnectionSettings(): ConnectionSettings {
+  return {
+    serverUrl: DEFAULT_SERVER_URL,
+    token: '',
+    resourceBaseUrl: '',
+    resourcePath: DEFAULT_RESOURCE_PATH,
+    resourceOverrideBaseUrl: '',
+    resourceOverridePath: '',
+    resourceToken: '',
+  }
+}
+
+function loadConnectionSettings(): ConnectionSettings {
   try {
     const raw = localStorage.getItem(CONNECTION_SETTINGS_KEY)
     if (!raw) {
-      return {
-        serverUrl: DEFAULT_SERVER_URL,
-        token: '',
-        resourceBaseUrl: '',
-        resourcePath: '/resources'
-      }
+      return getDefaultConnectionSettings()
     }
 
     const parsed = JSON.parse(raw) as {
@@ -21,40 +39,46 @@ function loadConnectionSettings(): { serverUrl: string; token: string; resourceB
       token?: unknown
       resourceBaseUrl?: unknown
       resourcePath?: unknown
+      resourceOverrideBaseUrl?: unknown
+      resourceOverridePath?: unknown
+      resourceToken?: unknown
     }
-    const serverUrl = typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
-      ? parsed.serverUrl.trim()
-      : DEFAULT_SERVER_URL
-    const token = typeof parsed.token === 'string'
-      ? parsed.token.trim()
-      : ''
-    const resourceBaseUrl = typeof parsed.resourceBaseUrl === 'string'
-      ? parsed.resourceBaseUrl.trim()
-      : ''
-    const resourcePath = typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
-      ? parsed.resourcePath.trim()
-      : '/resources'
+    const defaults = getDefaultConnectionSettings()
 
-    return { serverUrl, token, resourceBaseUrl, resourcePath }
-  } catch (error) {
-    console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
     return {
-      serverUrl: DEFAULT_SERVER_URL,
-      token: '',
-      resourceBaseUrl: '',
-      resourcePath: '/resources'
+      serverUrl: typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
+        ? parsed.serverUrl.trim()
+        : defaults.serverUrl,
+      token: typeof parsed.token === 'string'
+        ? parsed.token.trim()
+        : defaults.token,
+      resourceBaseUrl: typeof parsed.resourceBaseUrl === 'string'
+        ? parsed.resourceBaseUrl.trim()
+        : defaults.resourceBaseUrl,
+      resourcePath: typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
+        ? parsed.resourcePath.trim()
+        : defaults.resourcePath,
+      resourceOverrideBaseUrl: typeof parsed.resourceOverrideBaseUrl === 'string'
+        ? parsed.resourceOverrideBaseUrl.trim()
+        : defaults.resourceOverrideBaseUrl,
+      resourceOverridePath: typeof parsed.resourceOverridePath === 'string'
+        ? parsed.resourceOverridePath.trim()
+        : defaults.resourceOverridePath,
+      resourceToken: typeof parsed.resourceToken === 'string'
+        ? parsed.resourceToken.trim()
+        : defaults.resourceToken,
     }
+  } catch (error) {
+    console.warn('[ConnectionStore] ??????????????:', error)
+    return getDefaultConnectionSettings()
   }
 }
 
-function saveConnectionSettings(serverUrl: string, token: string, resourceBaseUrl: string, resourcePath: string) {
+function saveConnectionSettings(settings: ConnectionSettings) {
   try {
-    localStorage.setItem(
-      CONNECTION_SETTINGS_KEY,
-      JSON.stringify({ serverUrl, token, resourceBaseUrl, resourcePath })
-    )
+    localStorage.setItem(CONNECTION_SETTINGS_KEY, JSON.stringify(settings))
   } catch (error) {
-    console.warn('[ConnectionStore] 保存连接配置失败:', error)
+    console.warn('[ConnectionStore] ????????:', error)
   }
 }
 
@@ -63,25 +87,82 @@ export const useConnectionStore = defineStore('connection', () => {
   const isConnected = ref(false)
   const sessionId = ref('')
   const userId = ref('')
-  const resourceBaseUrl = ref(initialSettings.resourceBaseUrl)
-  const resourcePath = ref(initialSettings.resourcePath)
+  const sessionResourceBaseUrl = ref(initialSettings.resourceBaseUrl)
+  const sessionResourcePath = ref(initialSettings.resourcePath)
   const maxInlineBytes = ref<number | null>(null)
   const serverUrl = ref(initialSettings.serverUrl)
   const token = ref(initialSettings.token)
+  const customResourceBaseUrl = ref(initialSettings.resourceOverrideBaseUrl)
+  const customResourcePath = ref(initialSettings.resourceOverridePath)
+  const customResourceToken = ref(initialSettings.resourceToken)
+
+  const resourceBaseUrl = computed(() => {
+    const overrideValue = customResourceBaseUrl.value.trim()
+    if (overrideValue) {
+      return overrideValue
+    }
+
+    return sessionResourceBaseUrl.value.trim()
+  })
+
+  const resourcePath = computed(() => {
+    const overrideValue = customResourcePath.value.trim()
+    if (overrideValue) {
+      return overrideValue
+    }
+
+    const sessionValue = sessionResourcePath.value.trim()
+    return sessionValue || DEFAULT_RESOURCE_PATH
+  })
+
+  const resourceToken = computed(() => {
+    const overrideValue = customResourceToken.value.trim()
+    if (overrideValue) {
+      return overrideValue
+    }
+
+    return token.value.trim()
+  })
+
+  function persistSettings() {
+    saveConnectionSettings({
+      serverUrl: serverUrl.value,
+      token: token.value,
+      resourceBaseUrl: sessionResourceBaseUrl.value,
+      resourcePath: sessionResourcePath.value,
+      resourceOverrideBaseUrl: customResourceBaseUrl.value,
+      resourceOverridePath: customResourcePath.value,
+      resourceToken: customResourceToken.value,
+    })
+  }
+
+  function applyPersistedSettings(settings: ConnectionSettings) {
+    serverUrl.value = settings.serverUrl
+    token.value = settings.token
+    sessionResourceBaseUrl.value = settings.resourceBaseUrl
+    sessionResourcePath.value = settings.resourcePath
+    customResourceBaseUrl.value = settings.resourceOverrideBaseUrl
+    customResourcePath.value = settings.resourceOverridePath
+    customResourceToken.value = settings.resourceToken
+  }
+
+  function reloadPersistedSettings() {
+    applyPersistedSettings(loadConnectionSettings())
+  }
 
   function applySessionState(session: BridgeSessionState | null | undefined) {
     sessionId.value = session?.sessionId || ''
     userId.value = session?.userId || ''
     if (session?.config?.resourceBaseUrl) {
-      resourceBaseUrl.value = session.config.resourceBaseUrl
+      sessionResourceBaseUrl.value = session.config.resourceBaseUrl
     }
     if (session?.config?.resourcePath) {
-      resourcePath.value = session.config.resourcePath
+      sessionResourcePath.value = session.config.resourcePath
     }
     maxInlineBytes.value = typeof session?.config?.maxInlineBytes === 'number'
       ? session.config.maxInlineBytes
       : null
-    saveConnectionSettings(serverUrl.value, token.value, resourceBaseUrl.value, resourcePath.value)
+    persistSettings()
   }
 
   function resetSessionState() {
@@ -92,30 +173,34 @@ export const useConnectionStore = defineStore('connection', () => {
   }
 
   function setConnectionConfig(url: string, authToken: string) {
-    const normalizedUrl = (url || '').trim() || DEFAULT_SERVER_URL
-    const normalizedToken = (authToken || '').trim()
-    serverUrl.value = normalizedUrl
-    token.value = normalizedToken
-    saveConnectionSettings(normalizedUrl, normalizedToken, resourceBaseUrl.value, resourcePath.value)
+    serverUrl.value = (url || '').trim() || DEFAULT_SERVER_URL
+    token.value = (authToken || '').trim()
+    persistSettings()
   }
 
-  // 连接到服务器
+  function setResourceConfig(baseUrl: string, path: string, accessToken: string) {
+    customResourceBaseUrl.value = (baseUrl || '').trim()
+    customResourcePath.value = (path || '').trim()
+    customResourceToken.value = (accessToken || '').trim()
+    persistSettings()
+  }
+
   async function connect(url?: string, authToken?: string) {
     try {
       const targetUrl = (url || serverUrl.value || '').trim()
       const normalizedToken = (authToken ?? token.value ?? '').trim()
 
       if (!targetUrl) {
-        return { success: false, error: '服务器地址不能为空' }
+        return { success: false, error: '?????????' }
       }
       if (!/^wss?:\/\//i.test(targetUrl)) {
-        return { success: false, error: '服务器地址必须以 ws:// 或 wss:// 开头' }
+        return { success: false, error: '???????? ws:// ? wss:// ??' }
       }
       if (!normalizedToken) {
-        return { success: false, error: '认证密钥不能为空，请在设置中填写后再连接' }
+        return { success: false, error: '????????????????????' }
       }
       if (normalizedToken.length < 16) {
-        return { success: false, error: '认证密钥长度至少 16 位' }
+        return { success: false, error: '???????? 16 ?' }
       }
 
       setConnectionConfig(targetUrl, normalizedToken)
@@ -126,15 +211,14 @@ export const useConnectionStore = defineStore('connection', () => {
         const session = await window.electron.bridge.getSession()
         applySessionState(session)
         return { success: true }
-      } else {
-        return { success: false, error: result.error }
       }
+
+      return { success: false, error: result.error }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
   }
 
-  // 断开连接
   async function disconnect() {
     try {
       await window.electron.bridge.disconnect()
@@ -145,8 +229,8 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
-  // 检查连接状态
   async function checkConnection() {
+    reloadPersistedSettings()
     const connected = await window.electron.bridge.isConnected()
     isConnected.value = connected
 
@@ -160,12 +244,19 @@ export const useConnectionStore = defineStore('connection', () => {
     return connected
   }
 
-  // 发送消息
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event: StorageEvent) => {
+      if (event.key !== null && event.key !== CONNECTION_SETTINGS_KEY) {
+        return
+      }
+      reloadPersistedSettings()
+    })
+  }
+
   async function sendMessage(content: any[], metadata: any) {
     return await window.electron.bridge.sendMessage({ content, metadata })
   }
 
-  // 发送状态
   async function sendState(op: string, payload: any) {
     return await window.electron.bridge.sendState(op, payload)
   }
@@ -176,16 +267,22 @@ export const useConnectionStore = defineStore('connection', () => {
     userId,
     resourceBaseUrl,
     resourcePath,
+    resourceToken,
     maxInlineBytes,
     serverUrl,
     token,
+    customResourceBaseUrl,
+    customResourcePath,
+    customResourceToken,
     applySessionState,
     resetSessionState,
     setConnectionConfig,
+    setResourceConfig,
+    reloadPersistedSettings,
     connect,
     disconnect,
     checkConnection,
     sendMessage,
-    sendState
+    sendState,
   }
 })

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 表演队列执行器
  * - 不同类型指令并行执行
  * - 同类型指令串行执行
@@ -356,7 +356,7 @@ export class PerformanceQueue {
             return
           }
 
-          const source = element.url || element.inline || element.rid || ''
+          const source = element.inline || element.rid || element.url || ''
           if (!source) {
             return
           }
@@ -381,7 +381,7 @@ export class PerformanceQueue {
             return
           }
 
-          const source = element.url || element.inline || element.rid || ''
+          const source = element.inline || element.rid || element.url || ''
           if (!source) {
             return
           }
@@ -401,7 +401,7 @@ export class PerformanceQueue {
             return
           }
 
-          const source = element.url || element.inline || element.rid || ''
+          const source = element.inline || element.rid || element.url || ''
           if (!source) {
             return
           }

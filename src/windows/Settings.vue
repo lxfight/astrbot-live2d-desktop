@@ -39,9 +39,29 @@
                 placeholder="必填，需与 AstrBot 适配器 auth_token 一致"
               />
             </n-form-item>
+            <n-form-item label="资源服务地址">
+              <n-input
+                v-model:value="resourceServerUrl"
+                placeholder="可选，云服务器请填写公网地址，如 http://203.0.113.10:9091"
+              />
+            </n-form-item>
+            <n-form-item label="资源路径">
+              <n-input
+                v-model:value="resourceServerPath"
+                placeholder="可选，默认沿用握手路径或 /resources"
+              />
+            </n-form-item>
+            <n-form-item label="资源令牌">
+              <n-input
+                v-model:value="resourceAccessToken"
+                type="password"
+                show-password-on="click"
+                placeholder="可选，留空时复用 WebSocket 认证令牌"
+              />
+            </n-form-item>
             <n-form-item>
               <n-alert type="warning" :show-icon="false">
-                为保障通讯安全，连接密钥为必填项。若适配器未手动配置，会自动生成随机密钥（见插件日志或 live2d_auth_token.txt）。
+                为保障通讯安全，连接密钥为必填项。若资源服务对外地址与握手返回不一致（例如云服务器需要使用公网 IP/端口），请在此单独填写资源服务地址；资源令牌留空时会自动复用 WebSocket 认证令牌。
               </n-alert>
             </n-form-item>
             <n-form-item>
@@ -253,6 +273,9 @@ const connectionStore = useConnectionStore()
 const activeMenu = ref('connection')
 const serverUrl = ref(connectionStore.serverUrl)
 const token = ref(connectionStore.token)
+const resourceServerUrl = ref(connectionStore.customResourceBaseUrl)
+const resourceServerPath = ref(connectionStore.customResourcePath)
+const resourceAccessToken = ref(connectionStore.customResourceToken)
 const modelList = ref<Array<{ name: string; path: string }>>([])
 const appVersion = ref('')
 const platformCapabilities = ref<PlatformCapabilities | null>(null)
@@ -369,6 +392,10 @@ const canInstallUpdate = computed(() => updateState.value?.status === 'downloade
 
 watch([serverUrl, token], ([nextUrl, nextToken]) => {
   connectionStore.setConnectionConfig(nextUrl, nextToken)
+})
+
+watch([resourceServerUrl, resourceServerPath, resourceAccessToken], ([nextUrl, nextPath, nextToken]) => {
+  connectionStore.setResourceConfig(nextUrl, nextPath, nextToken)
 })
 
 onMounted(async () => {

@@ -337,6 +337,7 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { useConnectionStore } from '@/stores/connection'
 import {
   buildHistoryRenderableItems,
   resolveHistoryMediaSource,
@@ -351,6 +352,7 @@ import {
 
 const message = useMessage()
 const dialog = useDialog()
+const connectionStore = useConnectionStore()
 
 // 配置 marked
 marked.setOptions({
@@ -483,6 +485,7 @@ const messageContentCache = new Map<string, any[]>()
 const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const historyResourceBaseUrl = ref('')
 const historyResourcePath = ref('/resources')
+const historyResourceToken = ref('')
 
 function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
   if (!cache.has(key) && cache.size >= limit) {
@@ -528,17 +531,19 @@ function handleWindowFocus() {
 }
 
 async function syncHistoryResourceConfig() {
+  connectionStore.reloadPersistedSettings()
+
   try {
     const session = await window.electron.bridge.getSession()
-    historyResourceBaseUrl.value = session?.config?.resourceBaseUrl || ''
-    historyResourcePath.value = session?.config?.resourcePath || '/resources'
+    connectionStore.applySessionState(session)
   } catch (error) {
     console.warn('[历史窗口] 获取资源配置失败:', error)
-    historyResourceBaseUrl.value = ''
-    historyResourcePath.value = '/resources'
   }
-}
 
+  historyResourceBaseUrl.value = connectionStore.resourceBaseUrl
+  historyResourcePath.value = connectionStore.resourcePath
+  historyResourceToken.value = connectionStore.resourceToken
+}
 function handleResize() {
   charts.forEach(chart => chart.resize())
 }
@@ -981,7 +986,7 @@ function isPerformanceMessage(msg: any): boolean {
 }
 
 function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${content}`
+  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content}`
   const cached = performancePreviewCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
@@ -993,6 +998,7 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
       includeTtsText: true,
       resourceBaseUrl: historyResourceBaseUrl.value,
       resourcePath: historyResourcePath.value,
+      resourceToken: historyResourceToken.value,
     })
     return setCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
   } catch {
@@ -1004,6 +1010,7 @@ function resolveMessageImageSource(item: any): string | null {
   return resolveHistoryImageSource(item, {
     resourceBaseUrl: historyResourceBaseUrl.value,
     resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
   })
 }
 
@@ -1011,6 +1018,7 @@ function resolveMessageAudioSource(item: any): string | null {
   return resolveHistoryMediaSource(item, {
     resourceBaseUrl: historyResourceBaseUrl.value,
     resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
   })
 }
 
@@ -1018,6 +1026,7 @@ function resolveMessageVideoSource(item: any): string | null {
   return resolveHistoryMediaSource(item, {
     resourceBaseUrl: historyResourceBaseUrl.value,
     resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
   })
 }
 
@@ -1025,6 +1034,7 @@ function resolveMessageFileSource(item: any): string | null {
   return resolveHistoryMediaSource(item, {
     resourceBaseUrl: historyResourceBaseUrl.value,
     resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
   })
 }
 

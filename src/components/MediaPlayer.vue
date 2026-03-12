@@ -62,6 +62,7 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
       {
         resourceBaseUrl: connectionStore.resourceBaseUrl,
         resourcePath: connectionStore.resourcePath,
+        resourceToken: connectionStore.resourceToken,
       }
     )
 
@@ -112,6 +113,7 @@ function showImage(urlOrData: string, duration?: number) {
     {
       resourceBaseUrl: connectionStore.resourceBaseUrl,
       resourcePath: connectionStore.resourcePath,
+      resourceToken: connectionStore.resourceToken,
     }
   )
 
@@ -157,6 +159,7 @@ function playVideo(urlOrData: string) {
     {
       resourceBaseUrl: connectionStore.resourceBaseUrl,
       resourcePath: connectionStore.resourcePath,
+      resourceToken: connectionStore.resourceToken,
     }
   )
 
