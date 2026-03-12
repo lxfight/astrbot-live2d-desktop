@@ -66,6 +66,8 @@ declare global {
         getPassThroughMode: () => Promise<boolean>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>
+        openResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
+        saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         getAppVersion: () => Promise<string>
         getPlatformCapabilities: () => Promise<PlatformCapabilities>
       }

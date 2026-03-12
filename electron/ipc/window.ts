@@ -1,4 +1,6 @@
-import { ipcMain, shell, app } from 'electron'
+import { ipcMain, shell, app, dialog } from 'electron'
+import fs from 'fs/promises'
+import path from 'path'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
@@ -7,6 +9,7 @@ import { getUserConfig } from '../database/schema'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:'])
 
 function toSafeExternalUrl(rawUrl: unknown): string | null {
   if (typeof rawUrl !== 'string') {
@@ -27,6 +30,52 @@ function toSafeExternalUrl(rawUrl: unknown): string | null {
   } catch {
     return null
   }
+}
+
+function toSafeResourceSource(rawSource: unknown): string | null {
+  if (typeof rawSource !== 'string') {
+    return null
+  }
+
+  const trimmedSource = rawSource.trim()
+  if (!trimmedSource) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(trimmedSource)
+    if (!ALLOWED_RESOURCE_PROTOCOLS.has(parsed.protocol)) {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+function sanitizeSuggestedFileName(rawName: unknown, fallback = 'download.bin'): string {
+  if (typeof rawName !== 'string') {
+    return fallback
+  }
+
+  const trimmedName = rawName.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+  return trimmedName || fallback
+}
+
+async function fetchResourceBuffer(source: string): Promise<Buffer> {
+  const response = await fetch(source)
+  if (!response.ok) {
+    throw new Error(`资源请求失败 (${response.status})`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
+
+async function writeResourceToPath(source: string, targetPath: string): Promise<void> {
+  const buffer = await fetchResourceBuffer(source)
+  await fs.mkdir(path.dirname(targetPath), { recursive: true })
+  await fs.writeFile(targetPath, buffer)
 }
 
 /**
@@ -143,6 +192,52 @@ ipcMain.handle('window:openExternal', async (_event, url: string) => {
 
   await shell.openExternal(safeUrl)
   return { success: true }
+})
+
+ipcMain.handle('window:openResource', async (_event, source: string, suggestedName?: string) => {
+  const safeSource = toSafeResourceSource(source)
+  if (!safeSource) {
+    return { success: false, error: '仅支持打开 http/https/data 协议资源' }
+  }
+
+  try {
+    const fileName = sanitizeSuggestedFileName(suggestedName, 'resource.bin')
+    const tempDir = path.join(app.getPath('temp'), 'astrbot-live2d-history')
+    const tempFilePath = path.join(tempDir, `${Date.now()}-${fileName}`)
+
+    await writeResourceToPath(safeSource, tempFilePath)
+    const openError = await shell.openPath(tempFilePath)
+    if (openError) {
+      return { success: false, error: openError }
+    }
+
+    return { success: true, path: tempFilePath }
+  } catch (error: any) {
+    return { success: false, error: error?.message || String(error) }
+  }
+})
+
+ipcMain.handle('window:saveResource', async (_event, source: string, suggestedName?: string) => {
+  const safeSource = toSafeResourceSource(source)
+  if (!safeSource) {
+    return { success: false, error: '仅支持保存 http/https/data 协议资源' }
+  }
+
+  try {
+    const fileName = sanitizeSuggestedFileName(suggestedName, 'download.bin')
+    const result = await dialog.showSaveDialog({
+      defaultPath: path.join(app.getPath('downloads'), fileName),
+    })
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, canceled: true }
+    }
+
+    await writeResourceToPath(safeSource, result.filePath)
+    return { success: true, path: result.filePath }
+  } catch (error: any) {
+    return { success: false, error: error?.message || String(error) }
+  }
 })
 
 /**

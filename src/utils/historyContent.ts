@@ -15,6 +15,7 @@ export type HistoryRenderableItem =
   | { type: 'image'; src: string; alt: string }
   | { type: 'audio'; src: string; label: string }
   | { type: 'video'; src: string; label: string }
+  | { type: 'file'; src: string; label: string; name: string }
 
 export function resolveHistoryMediaSource(
   element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
@@ -72,6 +73,15 @@ export function buildHistoryRenderableItems(
       const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
       if (src) {
         items.push({ type: 'video', src, label: element.name || '视频' })
+      }
+      continue
+    }
+
+    if (type === 'file') {
+      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      if (src) {
+        const name = element.name || 'file.bin'
+        items.push({ type: 'file', src, label: name, name })
       }
     }
   }

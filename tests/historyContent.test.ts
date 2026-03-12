@@ -36,6 +36,10 @@ describe('historyContent', () => {
     expect(resolveHistoryMediaSource({ inline: 'data:video/mp4;base64,abcd' })).toBe(
       'data:video/mp4;base64,abcd'
     )
+
+    expect(resolveHistoryMediaSource({ rid: 'file_001' }, 'http://127.0.0.1:9091')).toBe(
+      'http://127.0.0.1:9091/resources/file_001'
+    )
   })
 
   it('includes performance text and images when tts preview is enabled', () => {
@@ -46,6 +50,7 @@ describe('historyContent', () => {
         { type: 'image', rid: 'img_002' },
         { type: 'audio', rid: 'audio_002', name: 'voice.wav' },
         { type: 'video', inline: 'data:video/mp4;base64,efgh', name: 'clip.mp4' },
+        { type: 'file', rid: 'file_002', name: 'report.pdf' },
       ],
       { includeTtsText: true, resourceBaseUrl: 'http://127.0.0.1:9091' }
     )
@@ -67,6 +72,12 @@ describe('historyContent', () => {
         type: 'video',
         src: 'data:video/mp4;base64,efgh',
         label: 'clip.mp4',
+      },
+      {
+        type: 'file',
+        src: 'http://127.0.0.1:9091/resources/file_002',
+        label: 'report.pdf',
+        name: 'report.pdf',
       },
     ])
   })

@@ -152,6 +152,24 @@
                                   </div>
                                   <video class="video-player" :src="item.src" controls preload="metadata" playsinline @click.stop></video>
                                 </div>
+                                <div v-else-if="item.type === 'file'" class="file-content performance-file-content">
+                                  <div class="file-header">
+                                    <div class="file-meta">
+                                      <n-icon size="18"><FileText /></n-icon>
+                                      <span class="file-name">{{ item.label }}</span>
+                                    </div>
+                                    <div class="file-actions">
+                                      <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                        <ExternalLink :size="14" />
+                                        <span>打开</span>
+                                      </button>
+                                      <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                        <Download :size="14" />
+                                        <span>下载</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -213,6 +231,31 @@
                               <div v-else class="media-placeholder">
                                 <n-icon size="20"><Video /></n-icon>
                                 <span>视频</span>
+                              </div>
+                            </div>
+                            <!-- 文件 -->
+                            <div v-else-if="item.type === 'file'" class="file-content">
+                              <template v-if="resolveMessageFileSource(item)">
+                                <div class="file-header">
+                                  <div class="file-meta">
+                                    <n-icon size="18"><FileText /></n-icon>
+                                    <span class="file-name">{{ item.name || '文件' }}</span>
+                                  </div>
+                                  <div class="file-actions">
+                                    <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                      <ExternalLink :size="14" />
+                                      <span>打开</span>
+                                    </button>
+                                    <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                      <Download :size="14" />
+                                      <span>下载</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><FileText /></n-icon>
+                                <span>{{ item.name || '文件' }}</span>
                               </div>
                             </div>
                           </div>
@@ -301,8 +344,9 @@ import {
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
 import { 
-  Search, User, Bot, Drama, Image as ImageIcon, Mic, Video, 
-  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn
+  Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
+  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn,
+  FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 
 const message = useMessage()
@@ -962,6 +1006,68 @@ function resolveMessageAudioSource(item: any): string | null {
 
 function resolveMessageVideoSource(item: any): string | null {
   return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+}
+
+function resolveMessageFileSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+}
+
+function getHistoryFileSource(item: any): string | null {
+  if (typeof item?.src === 'string' && item.src.trim()) {
+    return item.src.trim()
+  }
+
+  return resolveMessageFileSource(item)
+}
+
+function getHistoryFileName(item: any): string {
+  if (typeof item?.name === 'string' && item.name.trim()) {
+    return item.name.trim()
+  }
+
+  if (typeof item?.label === 'string' && item.label.trim()) {
+    return item.label.trim()
+  }
+
+  return 'file.bin'
+}
+
+async function openHistoryFile(item: any) {
+  const source = getHistoryFileSource(item)
+  if (!source) {
+    message.warning('文件资源不可用')
+    return
+  }
+
+  try {
+    const result = await window.electron.window.openResource(source, getHistoryFileName(item))
+    if (!result.success) {
+      throw new Error(result.error || '打开文件失败')
+    }
+  } catch (error: any) {
+    message.error(`打开文件失败: ${error.message || error}`)
+  }
+}
+
+async function downloadHistoryFile(item: any) {
+  const source = getHistoryFileSource(item)
+  if (!source) {
+    message.warning('文件资源不可用')
+    return
+  }
+
+  try {
+    const result = await window.electron.window.saveResource(source, getHistoryFileName(item))
+    if (result.canceled) {
+      return
+    }
+    if (!result.success) {
+      throw new Error(result.error || '下载文件失败')
+    }
+    message.success('文件已开始保存')
+  } catch (error: any) {
+    message.error(`下载文件失败: ${error.message || error}`)
+  }
 }
 
 function formatElement(element: any): string {
@@ -1944,9 +2050,143 @@ function handleClose() {
 
 
 
+.file-content {
+
+  padding: 12px 14px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  border-radius: 8px;
+
+}
+
+
+
+.file-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+
+}
+
+
+
+.file-meta {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  min-width: 0;
+
+}
+
+
+
+.file-name {
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+  word-break: break-word;
+
+}
+
+
+
+.file-actions {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+
+}
+
+
+
+.file-action-btn {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 6px 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  border-radius: 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+
+  color: inherit;
+
+  font-size: 12px;
+
+  cursor: pointer;
+
+  transition: background 0.2s, border-color 0.2s;
+
+}
+
+
+
+.file-action-btn:hover {
+
+  background: rgba(255, 255, 255, 0.14);
+
+  border-color: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-content {
+
+  background: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-action-btn {
+
+  background: rgba(255, 255, 255, 0.16);
+
+  border-color: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-action-btn:hover {
+
+  background: rgba(255, 255, 255, 0.24);
+
+}
+
+
+
 .performance-audio-content,
 
-.performance-video-content {
+.performance-video-content,
+
+.performance-file-content {
 
   margin-top: 0;
 
