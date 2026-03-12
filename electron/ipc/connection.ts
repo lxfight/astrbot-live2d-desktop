@@ -12,6 +12,33 @@ function toErrorMessage(error: unknown): string {
   return String(error)
 }
 
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1'])
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalizedHostname = hostname.trim().toLowerCase()
+  return LOOPBACK_HOSTNAMES.has(normalizedHostname) || normalizedHostname.startsWith('127.')
+}
+
+function getBridgeUrlValidationError(rawUrl: string): string | null {
+  let parsedUrl: URL
+
+  try {
+    parsedUrl = new URL(rawUrl)
+  } catch {
+    return '服务器地址格式无效，请填写完整的 WebSocket 地址'
+  }
+
+  if (parsedUrl.protocol !== 'ws:' && parsedUrl.protocol !== 'wss:') {
+    return '服务器地址必须使用 ws 或 wss 协议'
+  }
+
+  if (parsedUrl.protocol === 'ws:' && !isLoopbackHostname(parsedUrl.hostname)) {
+    return '远程服务器请使用加密 WebSocket（wss），仅本机 localhost 或 127.0.0.1 允许使用非加密连接'
+  }
+
+  return null
+}
+
 function waitForBridgeReady(client: NonNullable<ReturnType<typeof getBridgeClient>>, timeoutMs: number = 8000): Promise<void> {
   if (client.isConnected()) {
     return Promise.resolve()
@@ -65,8 +92,10 @@ ipcMain.handle('bridge:connect', async (_event, url: string, token?: string) => 
     if (!targetUrl) {
       throw new Error('服务器地址不能为空')
     }
-    if (!/^wss?:\/\//i.test(targetUrl)) {
-      throw new Error('服务器地址必须以 ws:// 或 wss:// 开头')
+
+    const urlValidationError = getBridgeUrlValidationError(targetUrl)
+    if (urlValidationError) {
+      throw new Error(urlValidationError)
     }
 
     const authToken = (token || '').trim()

@@ -262,11 +262,13 @@ const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left:
 const bubbleRef = ref<HTMLElement | null>(null)
 const bubbleContentRef = ref<HTMLElement | null>(null)
 let typewriterTimer: number | null = null
+let typewriterResolve: (() => void) | null = null
 let bubbleSequenceVersion = 0
 let bubbleTypingIndex = 0
 let isBubbleTyping = false
 
 const NORMAL_TYPEWRITER_INTERVAL = 50
+const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_MAX_WIDTH = 450
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
@@ -495,6 +497,12 @@ function clearTypewriterTimer() {
     clearInterval(typewriterTimer)
     typewriterTimer = null
   }
+
+  if (typewriterResolve) {
+    const resolve = typewriterResolve
+    typewriterResolve = null
+    resolve()
+  }
 }
 
 function resetBubbleTypingState() {
@@ -548,6 +556,8 @@ function runTypewriterForBubbleItem(
   clearTypewriterTimer()
 
   let index = 0
+  let typedSinceLastLayoutUpdate = 0
+
   if (item.fullText.startsWith(item.renderedText) && item.renderedText.length > 0) {
     index = item.renderedText.length
   } else {
@@ -561,22 +571,34 @@ function runTypewriterForBubbleItem(
   }
 
   return new Promise((resolve) => {
+    typewriterResolve = resolve
+
     typewriterTimer = window.setInterval(() => {
       if (version !== bubbleSequenceVersion || !currentBubble.value) {
         clearTypewriterTimer()
-        resolve()
         return
       }
 
-      if (index < item.fullText.length) {
-        item.renderedText += item.fullText.charAt(index)
-        index += 1
+      if (index >= item.fullText.length) {
+        clearTypewriterTimer()
+        return
+      }
+
+      item.renderedText += item.fullText.charAt(index)
+      index += 1
+      typedSinceLastLayoutUpdate += 1
+
+      if (
+        typedSinceLastLayoutUpdate >= TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS ||
+        index >= item.fullText.length
+      ) {
+        typedSinceLastLayoutUpdate = 0
         scheduleBubbleLayoutUpdate()
-        return
       }
 
-      clearTypewriterTimer()
-      resolve()
+      if (index >= item.fullText.length) {
+        clearTypewriterTimer()
+      }
     }, intervalMs)
   })
 }
@@ -750,8 +772,7 @@ performQueue.onVideo((url) => {
 function interruptPerformance() {
   performQueue.interrupt()
 
-  clearTypewriterTimer()
-  isBubbleTyping = false
+  resetBubbleTypingState()
 
   mediaPlayerRef.value?.stopAudio()
   mediaPlayerRef.value?.hideImage()

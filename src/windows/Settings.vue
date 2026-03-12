@@ -29,7 +29,7 @@
           <h2>连接配置</h2>
           <n-form label-placement="left" label-width="120">
             <n-form-item label="服务器地址">
-              <n-input v-model:value="serverUrl" placeholder="ws://127.0.0.1:9090/astrbot/live2d" />
+              <n-input v-model:value="serverUrl" placeholder="wss://example.com/astrbot/live2d（本地开发可填写 ws://127.0.0.1:9090/astrbot/live2d）" />
             </n-form-item>
             <n-form-item label="认证令牌">
               <n-input

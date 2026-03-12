@@ -1,9 +1,41 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-const DEFAULT_SERVER_URL = 'ws://127.0.0.1:9090/astrbot/live2d'
+function buildDefaultLocalServerUrl(): string {
+  const url = new URL('http://127.0.0.1:9090/astrbot/live2d')
+  url.protocol = 'ws:'
+  return url.toString()
+}
+
+const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
 const DEFAULT_RESOURCE_PATH = '/resources'
 const CONNECTION_SETTINGS_KEY = 'connectionSettings'
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1'])
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalizedHostname = hostname.trim().toLowerCase()
+  return LOOPBACK_HOSTNAMES.has(normalizedHostname) || normalizedHostname.startsWith('127.')
+}
+
+function getBridgeUrlValidationError(rawUrl: string): string | null {
+  let parsedUrl: URL
+
+  try {
+    parsedUrl = new URL(rawUrl)
+  } catch {
+    return '服务器地址格式无效，请填写完整的 WebSocket 地址'
+  }
+
+  if (parsedUrl.protocol !== 'ws:' && parsedUrl.protocol !== 'wss:') {
+    return '服务器地址必须使用 ws 或 wss 协议'
+  }
+
+  if (parsedUrl.protocol === 'ws:' && !isLoopbackHostname(parsedUrl.hostname)) {
+    return '远程服务器请使用加密 WebSocket（wss），仅本机 localhost 或 127.0.0.1 允许使用非加密连接'
+  }
+
+  return null
+}
 
 type ConnectionSettings = {
   serverUrl: string
@@ -69,7 +101,7 @@ function loadConnectionSettings(): ConnectionSettings {
         : defaults.resourceToken,
     }
   } catch (error) {
-    console.warn('[ConnectionStore] ??????????????:', error)
+    console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
     return getDefaultConnectionSettings()
   }
 }
@@ -78,7 +110,7 @@ function saveConnectionSettings(settings: ConnectionSettings) {
   try {
     localStorage.setItem(CONNECTION_SETTINGS_KEY, JSON.stringify(settings))
   } catch (error) {
-    console.warn('[ConnectionStore] ????????:', error)
+    console.warn('[ConnectionStore] 保存连接配置失败:', error)
   }
 }
 
@@ -191,16 +223,19 @@ export const useConnectionStore = defineStore('connection', () => {
       const normalizedToken = (authToken ?? token.value ?? '').trim()
 
       if (!targetUrl) {
-        return { success: false, error: '?????????' }
+        return { success: false, error: '服务器地址不能为空' }
       }
-      if (!/^wss?:\/\//i.test(targetUrl)) {
-        return { success: false, error: '???????? ws:// ? wss:// ??' }
+
+      const urlValidationError = getBridgeUrlValidationError(targetUrl)
+      if (urlValidationError) {
+        return { success: false, error: urlValidationError }
       }
+
       if (!normalizedToken) {
-        return { success: false, error: '????????????????????' }
+        return { success: false, error: '认证密钥不能为空，请在设置中填写后再连接' }
       }
       if (normalizedToken.length < 16) {
-        return { success: false, error: '???????? 16 ?' }
+        return { success: false, error: '认证密钥长度至少 16 位' }
       }
 
       setConnectionConfig(targetUrl, normalizedToken)
