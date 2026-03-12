@@ -81,7 +81,20 @@
         @mouseleave="handleBubbleMouseLeave"
       >
         <div class="bubble-content" ref="bubbleContentRef">
-          <div v-html="renderBubbleMarkdown(displayedText)"></div>
+          <div
+            v-for="item in currentBubble?.items || []"
+            :key="item.id"
+            :class="['bubble-item', `bubble-item-${item.type}`]"
+          >
+            <div
+              v-if="item.type === 'text'"
+              class="bubble-text"
+              v-html="renderBubbleMarkdown(item.renderedText)"
+            ></div>
+            <div v-else-if="item.type === 'image'" class="bubble-image">
+              <img :src="item.src" :alt="item.alt" @load="handleBubbleMediaLoad" />
+            </div>
+          </div>
         </div>
       </div>
     </Transition>
@@ -193,12 +206,39 @@ import {
   loadAdvancedSettings,
   type AdvancedSettings
 } from '@/utils/advancedSettings'
+import {
+  computeBubbleAutoHideDelay,
+  resolvePerformMediaSource,
+  splitPerformSequenceForBubble,
+  type BubbleRenderableItem,
+} from '@/utils/bubbleContent'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 // @ts-ignore
 import ColorThief from 'colorthief'
+
+type BubbleTextItem = {
+  id: string
+  type: 'text'
+  fullText: string
+  renderedText: string
+}
+
+type BubbleImageItem = {
+  id: string
+  type: 'image'
+  src: string
+  alt: string
+}
+
+type BubbleItem = BubbleTextItem | BubbleImageItem
+
+type BubbleState = {
+  position: string
+  items: BubbleItem[]
+}
 
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
@@ -217,20 +257,18 @@ const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
 const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
-const currentBubble = ref<any>(null)
+const currentBubble = ref<BubbleState | null>(null)
 const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left: '0px', top: '0px' })
 const bubbleRef = ref<HTMLElement | null>(null)
 const bubbleContentRef = ref<HTMLElement | null>(null)
-const displayedText = ref('')
-let typewriterTimer: any = null
-let typewriterTargetText = ''
-let isSwitchingText = false
-let pendingTextPayload: { content: string; position: string } | null = null
-let textTransitionVersion = 0
+let typewriterTimer: number | null = null
+let typewriterResolve: (() => void) | null = null
+let bubbleSequenceVersion = 0
+let bubbleTypingIndex = 0
+let isBubbleTyping = false
 
 const NORMAL_TYPEWRITER_INTERVAL = 50
-const FAST_TYPEWRITER_INTERVAL = 8
-const MESSAGE_SWITCH_DELAY = 1000
+const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_MAX_WIDTH = 450
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
@@ -356,35 +394,15 @@ watch(hasModel, async (value) => {
   }
 })
 
-// 监听气泡内容变化，自动滚动到底部
-watch(displayedText, () => {
-  nextTick(() => {
-    updateBubblePosition()
-    if (bubbleContentRef.value) {
-      bubbleContentRef.value.scrollTop = bubbleContentRef.value.scrollHeight
-    }
-  })
-})
-
 // 监听气泡关闭，重置打字机
 watch(currentBubble, (val) => {
   if (val) {
-    nextTick(() => {
-      updateBubblePosition()
-    })
+    scheduleBubbleLayoutUpdate()
     return
   }
 
   if (!val) {
-    if (typewriterTimer) {
-      clearInterval(typewriterTimer)
-      typewriterTimer = null
-    }
-    displayedText.value = ''
-    typewriterTargetText = ''
-    pendingTextPayload = null
-    isSwitchingText = false
-    textTransitionVersion++
+    resetBubbleTypingState()
   }
 })
 
@@ -461,6 +479,184 @@ function renderBubbleMarkdown(text: string): string {
   }
 }
 
+function scheduleBubbleLayoutUpdate() {
+  nextTick(() => {
+    updateBubblePosition()
+    if (bubbleContentRef.value) {
+      bubbleContentRef.value.scrollTop = bubbleContentRef.value.scrollHeight
+    }
+  })
+}
+
+function handleBubbleMediaLoad() {
+  scheduleBubbleLayoutUpdate()
+}
+
+function clearTypewriterTimer() {
+  if (typewriterTimer !== null) {
+    clearInterval(typewriterTimer)
+    typewriterTimer = null
+  }
+
+  if (typewriterResolve) {
+    const resolve = typewriterResolve
+    typewriterResolve = null
+    resolve()
+  }
+}
+
+function resetBubbleTypingState() {
+  clearTypewriterTimer()
+  bubbleSequenceVersion += 1
+  bubbleTypingIndex = 0
+  isBubbleTyping = false
+}
+
+function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
+  return items.map((item) => {
+    if (item.type === 'text') {
+      return {
+        id: generateMessageId('bubble_text'),
+        type: 'text',
+        fullText: item.text,
+        renderedText: '',
+      }
+    }
+
+    return {
+      id: generateMessageId('bubble_image'),
+      type: 'image',
+      src: item.src,
+      alt: item.alt,
+    }
+  })
+}
+
+function getCurrentBubbleAutoHideDelay(): number {
+  if (!currentBubble.value) {
+    return 5000
+  }
+
+  return computeBubbleAutoHideDelay(
+    currentBubble.value.items.map((item) => {
+      if (item.type === 'text') {
+        return { type: 'text', text: item.fullText }
+      }
+
+      return { type: 'image', src: item.src, alt: item.alt }
+    })
+  )
+}
+
+function runTypewriterForBubbleItem(
+  item: BubbleTextItem,
+  version: number,
+  intervalMs: number = NORMAL_TYPEWRITER_INTERVAL
+): Promise<void> {
+  clearTypewriterTimer()
+
+  let index = 0
+  let typedSinceLastLayoutUpdate = 0
+
+  if (item.fullText.startsWith(item.renderedText) && item.renderedText.length > 0) {
+    index = item.renderedText.length
+  } else {
+    item.renderedText = ''
+  }
+
+  if (index >= item.fullText.length) {
+    item.renderedText = item.fullText
+    scheduleBubbleLayoutUpdate()
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    typewriterResolve = resolve
+
+    typewriterTimer = window.setInterval(() => {
+      if (version !== bubbleSequenceVersion || !currentBubble.value) {
+        clearTypewriterTimer()
+        return
+      }
+
+      if (index >= item.fullText.length) {
+        clearTypewriterTimer()
+        return
+      }
+
+      item.renderedText += item.fullText.charAt(index)
+      index += 1
+      typedSinceLastLayoutUpdate += 1
+
+      if (
+        typedSinceLastLayoutUpdate >= TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS ||
+        index >= item.fullText.length
+      ) {
+        typedSinceLastLayoutUpdate = 0
+        scheduleBubbleLayoutUpdate()
+      }
+
+      if (index >= item.fullText.length) {
+        clearTypewriterTimer()
+      }
+    }, intervalMs)
+  })
+}
+
+async function ensureBubbleTyping(version: number = bubbleSequenceVersion) {
+  if (isBubbleTyping || version !== bubbleSequenceVersion || !currentBubble.value) {
+    return
+  }
+
+  isBubbleTyping = true
+
+  try {
+    while (currentBubble.value && version === bubbleSequenceVersion) {
+      if (bubbleTypingIndex >= currentBubble.value.items.length) {
+        break
+      }
+
+      const nextItem = currentBubble.value.items[bubbleTypingIndex]
+      bubbleTypingIndex += 1
+
+      if (nextItem.type === 'text') {
+        await runTypewriterForBubbleItem(nextItem, version)
+      } else {
+        scheduleBubbleLayoutUpdate()
+      }
+    }
+  } finally {
+    isBubbleTyping = false
+  }
+}
+
+function showPerformBubble(
+  bubbleItems: BubbleRenderableItem[],
+  position: string,
+  interrupt: boolean
+) {
+  if (!bubbleItems.length) {
+    return
+  }
+
+  const runtimeItems = createBubbleItems(bubbleItems)
+
+  if (interrupt || !currentBubble.value) {
+    resetBubbleTypingState()
+    currentBubble.value = {
+      position,
+      items: runtimeItems,
+    }
+  } else {
+    currentBubble.value.position = currentBubble.value.position || position
+    currentBubble.value.items.push(...runtimeItems)
+  }
+
+  scheduleBubbleLayoutUpdate()
+  startBubbleHideTimer(getCurrentBubbleAutoHideDelay())
+  void ensureBubbleTyping()
+}
+
 // 气泡鼠标进入
 function handleBubbleMouseEnter() {
   isBubbleHovered.value = true
@@ -490,115 +686,6 @@ function startBubbleHideTimer(delay: number) {
       currentBubble.value = null
     }
   }, delay)
-}
-
-// 打字机效果
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function isTypewriterRunning(): boolean {
-  return Boolean(typewriterTimer) && displayedText.value.length < typewriterTargetText.length
-}
-
-function isContinuationText(text: string): boolean {
-  if (!text) return false
-  if (typewriterTargetText && text.startsWith(typewriterTargetText)) return true
-  if (displayedText.value && text.startsWith(displayedText.value)) return true
-  return false
-}
-
-function runTypewriter(text: string, intervalMs: number = NORMAL_TYPEWRITER_INTERVAL): Promise<void> {
-  if (typewriterTimer) {
-    clearInterval(typewriterTimer)
-    typewriterTimer = null
-  }
-
-  typewriterTargetText = text
-
-  let startIdx = 0
-  if (text.startsWith(displayedText.value) && displayedText.value.length > 0) {
-    startIdx = displayedText.value.length
-  } else {
-    displayedText.value = ''
-  }
-
-  let i = startIdx
-  const len = text.length
-
-  if (i >= len) {
-    displayedText.value = text
-    return Promise.resolve()
-  }
-
-  return new Promise((resolve) => {
-    typewriterTimer = setInterval(() => {
-      if (i < len) {
-        displayedText.value += text.charAt(i)
-        i++
-        return
-      }
-
-      if (typewriterTimer) {
-        clearInterval(typewriterTimer)
-        typewriterTimer = null
-      }
-      resolve()
-    }, intervalMs)
-  })
-}
-
-async function fastForwardCurrentText(): Promise<void> {
-  if (!isTypewriterRunning() || !typewriterTargetText) {
-    return
-  }
-  await runTypewriter(typewriterTargetText, FAST_TYPEWRITER_INTERVAL)
-}
-
-function showBubbleText(content: string, position: string) {
-  currentBubble.value = { content, position }
-  updateUIPositions()
-  nextTick(() => {
-    updateBubblePosition()
-  })
-  void runTypewriter(content)
-
-  const autoHideDelay = Math.max(5000, content.length * 100)
-  startBubbleHideTimer(autoHideDelay)
-}
-
-async function handleIncomingText(content: string, position: string) {
-  if (isContinuationText(content) || !isTypewriterRunning()) {
-    showBubbleText(content, position)
-    return
-  }
-
-  pendingTextPayload = { content, position }
-  if (isSwitchingText) {
-    return
-  }
-
-  isSwitchingText = true
-  const versionAtStart = textTransitionVersion
-
-  try {
-    await fastForwardCurrentText()
-    if (versionAtStart !== textTransitionVersion) return
-
-    await wait(MESSAGE_SWITCH_DELAY)
-    if (versionAtStart !== textTransitionVersion) return
-  } finally {
-    isSwitchingText = false
-  }
-
-  const nextPayload = pendingTextPayload
-  pendingTextPayload = null
-
-  if (nextPayload) {
-    showBubbleText(nextPayload.content, nextPayload.position)
-  }
 }
 
 function updateBubblePosition() {
@@ -642,7 +729,7 @@ const performQueue = new PerformanceQueue()
 
 // Register performance queue callbacks
 performQueue.onText((content, position, _duration) => {
-  return handleIncomingText(content, position)
+  showPerformBubble([{ type: 'text', text: content }], position, false)
 })
 
 performQueue.onMotion((group, index, priority) => {
@@ -662,8 +749,20 @@ performQueue.onAudio((url, volume) => {
   return audioEndPromise
 })
 
-performQueue.onImage((url, duration) => {
-  mediaPlayerRef.value?.showImage(url, duration)
+performQueue.onImage((url, _duration) => {
+  const resolvedSrc = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')
+    ? url
+    : resolvePerformMediaSource({ rid: url }, {
+        resourceBaseUrl: connectionStore.resourceBaseUrl,
+        resourcePath: connectionStore.resourcePath,
+        resourceToken: connectionStore.resourceToken,
+      })
+
+  if (!resolvedSrc) {
+    return
+  }
+
+  showPerformBubble([{ type: 'image', src: resolvedSrc, alt: 'AstrBot message image' }], 'center', false)
 })
 
 performQueue.onVideo((url) => {
@@ -673,10 +772,7 @@ performQueue.onVideo((url) => {
 function interruptPerformance() {
   performQueue.interrupt()
 
-  // Reset text switching state, but keep the bubble content visible
-  pendingTextPayload = null
-  isSwitchingText = false
-  textTransitionVersion++
+  resetBubbleTypingState()
 
   mediaPlayerRef.value?.stopAudio()
   mediaPlayerRef.value?.hideImage()
@@ -1425,16 +1521,33 @@ onMounted(async () => {
   window.electron.bridge.onPerformShow((payload: any) => {
     console.log('收到表演指令:', payload)
 
-    if (payload.interrupt) {
+    const shouldInterrupt = payload.interrupt !== false
+
+    if (shouldInterrupt) {
       interruptPerformance()
     }
 
     // 使用表演队列执行
     if (payload.sequence) {
-      performQueue.enqueue({
-        sequence: payload.sequence,
-        interruptible: payload.interruptible !== false
-      })
+      const { bubbleItems, position, remainingSequence } = splitPerformSequenceForBubble(
+        payload.sequence,
+        {
+          resourceBaseUrl: connectionStore.resourceBaseUrl,
+          resourcePath: connectionStore.resourcePath,
+          resourceToken: connectionStore.resourceToken,
+        }
+      )
+
+      if (bubbleItems.length > 0) {
+        showPerformBubble(bubbleItems, position, shouldInterrupt)
+      }
+
+      if (remainingSequence.length > 0) {
+        performQueue.enqueue({
+          sequence: remainingSequence as any[],
+          interruptible: payload.interruptible !== false
+        })
+      }
 
       // 保存表演记录和更新统计
       try {
@@ -1798,7 +1911,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
-  max-height: 15vh;
+  max-height: min(55vh, calc(100vh - 32px));
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
@@ -1952,6 +2065,43 @@ onBeforeUnmount(() => {
       background: rgba(100, 108, 255, 0.7);
     }
   }
+}
+
+.bubble-item + .bubble-item {
+  margin-top: 10px;
+}
+
+.bubble-item-text {
+  min-width: 0;
+}
+
+.bubble-text:empty {
+  display: none;
+}
+
+.bubble-text :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.bubble-text :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.bubble-image {
+  display: flex;
+  justify-content: center;
+}
+
+.bubble-image img {
+  display: block;
+  max-width: 100%;
+  max-height: min(32vh, 280px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .input-panel-container {

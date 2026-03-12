@@ -102,6 +102,7 @@ export interface HandshakeAckPayload {
     supportedAudioFormats: string[]
     maxInlineBytes: number
     resourceBaseUrl: string
+    resourcePath?: string
   }
 }
 

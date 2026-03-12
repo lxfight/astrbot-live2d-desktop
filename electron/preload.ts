@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
     },
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
+    openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
+    saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
     getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
     getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities')
   },

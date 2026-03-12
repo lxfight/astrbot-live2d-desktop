@@ -124,9 +124,53 @@
                                 {{ formatElement(element) }}
                               </n-tag>
                             </div>
-                            <!-- 显示文本内容预览 -->
-                            <div v-if="getPerformanceTextPreview(msg.content)" class="performance-text-preview">
-                              <div class="text-content" v-html="renderMarkdown(getPerformanceTextPreview(msg.content))"></div>
+                            <div v-if="getPerformancePreviewItems(msg.content).length" class="performance-text-preview">
+                              <div
+                                v-for="(item, previewIdx) in getPerformancePreviewItems(msg.content)"
+                                :key="previewIdx"
+                                class="content-item performance-preview-item"
+                              >
+                                <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                                <div v-else-if="item.type === 'image'" class="image-content performance-image-content">
+                                  <n-image
+                                    :src="item.src"
+                                    width="200"
+                                    object-fit="cover"
+                                  />
+                                </div>
+                                <div v-else-if="item.type === 'audio'" class="audio-content performance-audio-content">
+                                  <div class="media-content-header">
+                                    <n-icon size="18"><Mic /></n-icon>
+                                    <span>{{ item.label }}</span>
+                                  </div>
+                                  <audio class="audio-player" :src="item.src" controls preload="metadata" @click.stop></audio>
+                                </div>
+                                <div v-else-if="item.type === 'video'" class="video-content performance-video-content">
+                                  <div class="media-content-header">
+                                    <n-icon size="18"><Video /></n-icon>
+                                    <span>{{ item.label }}</span>
+                                  </div>
+                                  <video class="video-player" :src="item.src" controls preload="metadata" playsinline @click.stop></video>
+                                </div>
+                                <div v-else-if="item.type === 'file'" class="file-content performance-file-content">
+                                  <div class="file-header">
+                                    <div class="file-meta">
+                                      <n-icon size="18"><FileText /></n-icon>
+                                      <span class="file-name">{{ item.label }}</span>
+                                    </div>
+                                    <div class="file-actions">
+                                      <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                        <ExternalLink :size="14" />
+                                        <span>打开</span>
+                                      </button>
+                                      <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                        <Download :size="14" />
+                                        <span>下载</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -138,8 +182,8 @@
                             <!-- 图片 -->
                             <div v-else-if="item.type === 'image'" class="image-content">
                               <n-image
-                                v-if="item.url"
-                                :src="item.url"
+                                v-if="resolveMessageImageSource(item)"
+                                :src="resolveMessageImageSource(item) || undefined"
                                 width="200"
                                 object-fit="cover"
                               />
@@ -150,13 +194,69 @@
                             </div>
                             <!-- 语音 -->
                             <div v-else-if="item.type === 'audio'" class="audio-content">
-                              <n-icon size="20"><Mic /></n-icon>
-                              <span>语音消息</span>
+                              <template v-if="resolveMessageAudioSource(item)">
+                                <div class="media-content-header">
+                                  <n-icon size="18"><Mic /></n-icon>
+                                  <span>{{ item.name || '语音消息' }}</span>
+                                </div>
+                                <audio
+                                  class="audio-player"
+                                  :src="resolveMessageAudioSource(item) || undefined"
+                                  controls
+                                  preload="metadata"
+                                  @click.stop
+                                ></audio>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><Mic /></n-icon>
+                                <span>语音消息</span>
+                              </div>
                             </div>
                             <!-- 视频 -->
                             <div v-else-if="item.type === 'video'" class="video-content">
-                              <n-icon size="20"><Video /></n-icon>
-                              <span>视频</span>
+                              <template v-if="resolveMessageVideoSource(item)">
+                                <div class="media-content-header">
+                                  <n-icon size="18"><Video /></n-icon>
+                                  <span>{{ item.name || '视频' }}</span>
+                                </div>
+                                <video
+                                  class="video-player"
+                                  :src="resolveMessageVideoSource(item) || undefined"
+                                  controls
+                                  preload="metadata"
+                                  playsinline
+                                  @click.stop
+                                ></video>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><Video /></n-icon>
+                                <span>视频</span>
+                              </div>
+                            </div>
+                            <!-- 文件 -->
+                            <div v-else-if="item.type === 'file'" class="file-content">
+                              <template v-if="resolveMessageFileSource(item)">
+                                <div class="file-header">
+                                  <div class="file-meta">
+                                    <n-icon size="18"><FileText /></n-icon>
+                                    <span class="file-name">{{ item.name || '文件' }}</span>
+                                  </div>
+                                  <div class="file-actions">
+                                    <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                      <ExternalLink :size="14" />
+                                      <span>打开</span>
+                                    </button>
+                                    <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                      <Download :size="14" />
+                                      <span>下载</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </template>
+                              <div v-else class="media-placeholder">
+                                <n-icon size="20"><FileText /></n-icon>
+                                <span>{{ item.name || '文件' }}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -237,13 +337,22 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { useConnectionStore } from '@/stores/connection'
+import {
+  buildHistoryRenderableItems,
+  resolveHistoryMediaSource,
+  resolveHistoryImageSource,
+  type HistoryRenderableItem,
+} from '@/utils/historyContent'
 import { 
-  Search, User, Bot, Drama, Image as ImageIcon, Mic, Video, 
-  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn
+  Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
+  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn,
+  FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 
 const message = useMessage()
 const dialog = useDialog()
+const connectionStore = useConnectionStore()
 
 // 配置 marked
 marked.setOptions({
@@ -373,7 +482,10 @@ const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
 const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, any[]>()
-const performancePreviewCache = new Map<string, string>()
+const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
+const historyResourceBaseUrl = ref('')
+const historyResourcePath = ref('/resources')
+const historyResourceToken = ref('')
 
 function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
   if (!cache.has(key) && cache.size >= limit) {
@@ -387,6 +499,7 @@ function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: n
 }
 
 onMounted(async () => {
+  await syncHistoryResourceConfig()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
@@ -411,11 +524,26 @@ onUnmounted(() => {
 })
 
 function handleWindowFocus() {
+  void syncHistoryResourceConfig()
   loadMessages()
   loadStatistics()
   loadAnalysisData()
 }
 
+async function syncHistoryResourceConfig() {
+  connectionStore.reloadPersistedSettings()
+
+  try {
+    const session = await window.electron.bridge.getSession()
+    connectionStore.applySessionState(session)
+  } catch (error) {
+    console.warn('[历史窗口] 获取资源配置失败:', error)
+  }
+
+  historyResourceBaseUrl.value = connectionStore.resourceBaseUrl
+  historyResourcePath.value = connectionStore.resourcePath
+  historyResourceToken.value = connectionStore.resourceToken
+}
 function handleResize() {
   charts.forEach(chart => chart.resize())
 }
@@ -857,29 +985,114 @@ function isPerformanceMessage(msg: any): boolean {
   return msg.raw_text === '[表演序列]' || msg.user_id === 'server'
 }
 
-function getPerformanceTextPreview(content: string): string {
-  const cached = performancePreviewCache.get(content)
+function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
+  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content}`
+  const cached = performancePreviewCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
   }
 
   try {
     const parsed = parseContent(content)
-    if (!Array.isArray(parsed)) return ''
-
-    // 提取所有文本和TTS内容
-    const textParts: string[] = []
-    parsed.forEach((element: any) => {
-      if (element.type === 'text' && element.content) {
-        textParts.push(element.content)
-      } else if (element.type === 'tts' && element.text) {
-        textParts.push(element.text)
-      }
+    const items = buildHistoryRenderableItems(parsed, {
+      includeTtsText: true,
+      resourceBaseUrl: historyResourceBaseUrl.value,
+      resourcePath: historyResourcePath.value,
+      resourceToken: historyResourceToken.value,
     })
-
-    return setCacheEntry(performancePreviewCache, content, textParts.join('\n\n'), PREVIEW_CACHE_LIMIT)
+    return setCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
   } catch {
-    return setCacheEntry(performancePreviewCache, content, '', PREVIEW_CACHE_LIMIT)
+    return setCacheEntry(performancePreviewCache, cacheKey, [], PREVIEW_CACHE_LIMIT)
+  }
+}
+
+function resolveMessageImageSource(item: any): string | null {
+  return resolveHistoryImageSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageAudioSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageVideoSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageFileSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function getHistoryFileSource(item: any): string | null {
+  if (typeof item?.src === 'string' && item.src.trim()) {
+    return item.src.trim()
+  }
+
+  return resolveMessageFileSource(item)
+}
+
+function getHistoryFileName(item: any): string {
+  if (typeof item?.name === 'string' && item.name.trim()) {
+    return item.name.trim()
+  }
+
+  if (typeof item?.label === 'string' && item.label.trim()) {
+    return item.label.trim()
+  }
+
+  return 'file.bin'
+}
+
+async function openHistoryFile(item: any) {
+  const source = getHistoryFileSource(item)
+  if (!source) {
+    message.warning('文件资源不可用')
+    return
+  }
+
+  try {
+    const result = await window.electron.window.openResource(source, getHistoryFileName(item))
+    if (!result.success) {
+      throw new Error(result.error || '打开文件失败')
+    }
+  } catch (error: any) {
+    message.error(`打开文件失败: ${error.message || error}`)
+  }
+}
+
+async function downloadHistoryFile(item: any) {
+  const source = getHistoryFileSource(item)
+  if (!source) {
+    message.warning('文件资源不可用')
+    return
+  }
+
+  try {
+    const result = await window.electron.window.saveResource(source, getHistoryFileName(item))
+    if (result.canceled) {
+      return
+    }
+    if (!result.success) {
+      throw new Error(result.error || '下载文件失败')
+    }
+    message.success('文件已开始保存')
+  } catch (error: any) {
+    message.error(`下载文件失败: ${error.message || error}`)
   }
 }
 
@@ -1699,7 +1912,9 @@ function handleClose() {
 
   display: flex;
 
-  align-items: center;
+  flex-direction: column;
+
+  align-items: stretch;
 
   gap: 10px;
 
@@ -1710,8 +1925,6 @@ function handleClose() {
   border-radius: 8px;
 
   font-size: 14px;
-
-  cursor: pointer;
 
   transition: background 0.2s;
 
@@ -1820,6 +2033,200 @@ function handleClose() {
     color: rgba(255, 255, 255, 0.8);
 
   }
+
+}
+
+
+
+.media-content-header,
+
+.media-placeholder {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+}
+
+
+
+.audio-player,
+
+.video-player {
+
+  width: min(320px, 100%);
+
+  max-width: 100%;
+
+  border-radius: 8px;
+
+  background: rgba(0, 0, 0, 0.15);
+
+}
+
+
+
+.video-player {
+
+  max-height: 240px;
+
+}
+
+
+
+.file-content {
+
+  padding: 12px 14px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  border-radius: 8px;
+
+}
+
+
+
+.file-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+
+}
+
+
+
+.file-meta {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  min-width: 0;
+
+}
+
+
+
+.file-name {
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+  word-break: break-word;
+
+}
+
+
+
+.file-actions {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+
+}
+
+
+
+.file-action-btn {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 6px 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  border-radius: 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+
+  color: inherit;
+
+  font-size: 12px;
+
+  cursor: pointer;
+
+  transition: background 0.2s, border-color 0.2s;
+
+}
+
+
+
+.file-action-btn:hover {
+
+  background: rgba(255, 255, 255, 0.14);
+
+  border-color: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-content {
+
+  background: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-action-btn {
+
+  background: rgba(255, 255, 255, 0.16);
+
+  border-color: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+.message-outgoing .file-action-btn:hover {
+
+  background: rgba(255, 255, 255, 0.24);
+
+}
+
+
+
+.performance-audio-content,
+
+.performance-video-content,
+
+.performance-file-content {
+
+  margin-top: 0;
+
+}
+
+.performance-preview-item + .performance-preview-item {
+
+  margin-top: 10px;
+
+}
+
+.performance-image-content {
+
+  margin-top: 0;
 
 }
 
