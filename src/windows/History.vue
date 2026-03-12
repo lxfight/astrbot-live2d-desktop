@@ -482,6 +482,7 @@ const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, any[]>()
 const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const historyResourceBaseUrl = ref('')
+const historyResourcePath = ref('/resources')
 
 function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
   if (!cache.has(key) && cache.size >= limit) {
@@ -495,7 +496,7 @@ function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: n
 }
 
 onMounted(async () => {
-  await syncHistoryResourceBaseUrl()
+  await syncHistoryResourceConfig()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
@@ -520,19 +521,21 @@ onUnmounted(() => {
 })
 
 function handleWindowFocus() {
-  void syncHistoryResourceBaseUrl()
+  void syncHistoryResourceConfig()
   loadMessages()
   loadStatistics()
   loadAnalysisData()
 }
 
-async function syncHistoryResourceBaseUrl() {
+async function syncHistoryResourceConfig() {
   try {
     const session = await window.electron.bridge.getSession()
     historyResourceBaseUrl.value = session?.config?.resourceBaseUrl || ''
+    historyResourcePath.value = session?.config?.resourcePath || '/resources'
   } catch (error) {
-    console.warn('[历史窗口] 获取资源基础地址失败:', error)
+    console.warn('[历史窗口] 获取资源配置失败:', error)
     historyResourceBaseUrl.value = ''
+    historyResourcePath.value = '/resources'
   }
 }
 
@@ -978,7 +981,7 @@ function isPerformanceMessage(msg: any): boolean {
 }
 
 function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = `${historyResourceBaseUrl.value}::${content}`
+  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${content}`
   const cached = performancePreviewCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
@@ -989,6 +992,7 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
     const items = buildHistoryRenderableItems(parsed, {
       includeTtsText: true,
       resourceBaseUrl: historyResourceBaseUrl.value,
+      resourcePath: historyResourcePath.value,
     })
     return setCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
   } catch {
@@ -997,19 +1001,31 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
 }
 
 function resolveMessageImageSource(item: any): string | null {
-  return resolveHistoryImageSource(item, historyResourceBaseUrl.value)
+  return resolveHistoryImageSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+  })
 }
 
 function resolveMessageAudioSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+  })
 }
 
 function resolveMessageVideoSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+  })
 }
 
 function resolveMessageFileSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, historyResourceBaseUrl.value)
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+  })
 }
 
 function getHistoryFileSource(item: any): string | null {

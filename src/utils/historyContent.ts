@@ -1,4 +1,4 @@
-import { resolvePerformMediaSource } from './bubbleContent'
+import { resolveResourceSource, type ResourceUrlConfig } from './resourceUrl'
 
 export interface HistoryContentElement {
   type?: string
@@ -19,21 +19,21 @@ export type HistoryRenderableItem =
 
 export function resolveHistoryMediaSource(
   element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
-  resourceBaseUrl?: string
+  resourceConfig: ResourceUrlConfig = {}
 ): string | null {
-  return resolvePerformMediaSource(element, resourceBaseUrl)
+  return resolveResourceSource(element, resourceConfig)
 }
 
 export function resolveHistoryImageSource(
   element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
-  resourceBaseUrl?: string
+  resourceConfig: ResourceUrlConfig = {}
 ): string | null {
-  return resolveHistoryMediaSource(element, resourceBaseUrl)
+  return resolveHistoryMediaSource(element, resourceConfig)
 }
 
 export function buildHistoryRenderableItems(
   content: HistoryContentElement[] | null | undefined,
-  options: { includeTtsText?: boolean; resourceBaseUrl?: string } = {}
+  options: { includeTtsText?: boolean } & ResourceUrlConfig = {}
 ): HistoryRenderableItem[] {
   const items: HistoryRenderableItem[] = []
 
@@ -54,7 +54,7 @@ export function buildHistoryRenderableItems(
     }
 
     if (type === 'image') {
-      const src = resolveHistoryImageSource(element, options.resourceBaseUrl)
+      const src = resolveHistoryImageSource(element, options)
       if (src) {
         items.push({ type: 'image', src, alt: 'History message image' })
       }
@@ -62,7 +62,7 @@ export function buildHistoryRenderableItems(
     }
 
     if (type === 'audio') {
-      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      const src = resolveHistoryMediaSource(element, options)
       if (src) {
         items.push({ type: 'audio', src, label: element.name || '语音消息' })
       }
@@ -70,7 +70,7 @@ export function buildHistoryRenderableItems(
     }
 
     if (type === 'video') {
-      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      const src = resolveHistoryMediaSource(element, options)
       if (src) {
         items.push({ type: 'video', src, label: element.name || '视频' })
       }
@@ -78,7 +78,7 @@ export function buildHistoryRenderableItems(
     }
 
     if (type === 'file') {
-      const src = resolveHistoryMediaSource(element, options.resourceBaseUrl)
+      const src = resolveHistoryMediaSource(element, options)
       if (src) {
         const name = element.name || 'file.bin'
         items.push({ type: 'file', src, label: name, name })

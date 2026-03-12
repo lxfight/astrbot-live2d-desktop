@@ -28,6 +28,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
+import { resolveResourceSource } from '@/utils/resourceUrl'
 
 const audioRef = ref<HTMLAudioElement>()
 const videoRef = ref<HTMLVideoElement>()
@@ -37,10 +38,6 @@ const connectionStore = useConnectionStore()
 
 let isAudioActive = false
 let imageHideTimer: number | null = null
-
-function resolveResourceBaseUrl(): string {
-  return connectionStore.resourceBaseUrl || 'http://localhost:9091'
-}
 
 // 定义 emit
 const emit = defineEmits<{
@@ -58,15 +55,18 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
     stopAudio()
 
     isAudioActive = true
-    let audioUrl = urlOrData
+    const audioUrl = resolveResourceSource(
+      urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
+        ? { url: urlOrData }
+        : { rid: urlOrData },
+      {
+        resourceBaseUrl: connectionStore.resourceBaseUrl,
+        resourcePath: connectionStore.resourcePath,
+      }
+    )
 
-    // 处理 inline base64
-    if (urlOrData.startsWith('data:')) {
-      audioUrl = urlOrData
-    }
-    // 处理 RID（需要从资源服务器获取）
-    else if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://')) {
-      audioUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
+    if (!audioUrl) {
+      throw new Error('音频资源地址不可用')
     }
 
     console.log('[媒体播放器] 播放音频:', audioUrl)
@@ -105,15 +105,19 @@ function stopAudio() {
  * 显示图片（支持 URL、RID、inline base64）
  */
 function showImage(urlOrData: string, duration?: number) {
-  let imageUrl = urlOrData
+  const imageUrl = resolveResourceSource(
+    urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
+      ? { url: urlOrData }
+      : { rid: urlOrData },
+    {
+      resourceBaseUrl: connectionStore.resourceBaseUrl,
+      resourcePath: connectionStore.resourcePath,
+    }
+  )
 
-  // 处理 inline base64
-  if (urlOrData.startsWith('data:')) {
-    imageUrl = urlOrData
-  }
-  // 处理 RID
-  else if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://')) {
-    imageUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
+  if (!imageUrl) {
+    console.warn('[媒体播放器] 图片资源地址不可用:', urlOrData)
+    return
   }
 
   console.log('[媒体播放器] 显示图片:', imageUrl)
@@ -146,11 +150,19 @@ function hideImage() {
  * 播放视频（支持 URL、RID）
  */
 function playVideo(urlOrData: string) {
-  let videoUrl = urlOrData
+  const videoUrl = resolveResourceSource(
+    urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
+      ? { url: urlOrData }
+      : { rid: urlOrData },
+    {
+      resourceBaseUrl: connectionStore.resourceBaseUrl,
+      resourcePath: connectionStore.resourcePath,
+    }
+  )
 
-  // 处理 RID
-  if (!urlOrData.startsWith('http://') && !urlOrData.startsWith('https://') && !urlOrData.startsWith('data:')) {
-    videoUrl = `${resolveResourceBaseUrl()}/resources/${urlOrData}`
+  if (!videoUrl) {
+    console.warn('[媒体播放器] 视频资源地址不可用:', urlOrData)
+    return
   }
 
   console.log('[媒体播放器] 播放视频:', videoUrl)

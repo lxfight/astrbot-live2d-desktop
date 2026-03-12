@@ -1,3 +1,5 @@
+import { resolveResourceSource, type ResourceUrlConfig } from './resourceUrl'
+
 export interface BubblePerformElement {
   type?: string
   content?: string
@@ -17,38 +19,16 @@ export interface BubbleSequenceSplitResult {
   remainingSequence: BubblePerformElement[]
 }
 
-const DEFAULT_RESOURCE_BASE_URL = 'http://localhost:9091'
-
-function normalizeResourceBaseUrl(resourceBaseUrl?: string): string {
-  const baseUrl = (resourceBaseUrl || DEFAULT_RESOURCE_BASE_URL).trim()
-  return baseUrl.replace(/\/+$/, '')
-}
-
 export function resolvePerformMediaSource(
   element: Pick<BubblePerformElement, 'url' | 'inline' | 'rid'>,
-  resourceBaseUrl?: string
+  resourceConfig: ResourceUrlConfig = {}
 ): string | null {
-  const inline = typeof element.inline === 'string' ? element.inline.trim() : ''
-  if (inline) {
-    return inline
-  }
-
-  const url = typeof element.url === 'string' ? element.url.trim() : ''
-  if (url) {
-    return url
-  }
-
-  const rid = typeof element.rid === 'string' ? element.rid.trim() : ''
-  if (!rid) {
-    return null
-  }
-
-  return `${normalizeResourceBaseUrl(resourceBaseUrl)}/resources/${rid}`
+  return resolveResourceSource(element, resourceConfig)
 }
 
 export function splitPerformSequenceForBubble(
   sequence: BubblePerformElement[] | null | undefined,
-  options: { resourceBaseUrl?: string } = {}
+  options: ResourceUrlConfig = {}
 ): BubbleSequenceSplitResult {
   const bubbleItems: BubbleRenderableItem[] = []
   const remainingSequence: BubblePerformElement[] = []
@@ -73,7 +53,7 @@ export function splitPerformSequenceForBubble(
     }
 
     if (type === 'image') {
-      const src = resolvePerformMediaSource(element, options.resourceBaseUrl)
+      const src = resolvePerformMediaSource(element, options)
       if (src) {
         bubbleItems.push({ type: 'image', src, alt: 'AstrBot message image' })
         continue

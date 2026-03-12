@@ -730,7 +730,10 @@ performQueue.onAudio((url, volume) => {
 performQueue.onImage((url, _duration) => {
   const resolvedSrc = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')
     ? url
-    : resolvePerformMediaSource({ rid: url }, connectionStore.resourceBaseUrl)
+    : resolvePerformMediaSource({ rid: url }, {
+        resourceBaseUrl: connectionStore.resourceBaseUrl,
+        resourcePath: connectionStore.resourcePath,
+      })
 
   if (!resolvedSrc) {
     return
@@ -1506,7 +1509,10 @@ onMounted(async () => {
     if (payload.sequence) {
       const { bubbleItems, position, remainingSequence } = splitPerformSequenceForBubble(
         payload.sequence,
-        { resourceBaseUrl: connectionStore.resourceBaseUrl }
+        {
+          resourceBaseUrl: connectionStore.resourceBaseUrl,
+          resourcePath: connectionStore.resourcePath,
+        }
       )
 
       if (bubbleItems.length > 0) {

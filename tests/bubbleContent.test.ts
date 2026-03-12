@@ -16,7 +16,8 @@ describe('bubbleContent', () => {
     ]
 
     const result = splitPerformSequenceForBubble(sequence, {
-      resourceBaseUrl: 'http://127.0.0.1:9091',
+      resourceBaseUrl: 'http://127.0.0.1:8090',
+      resourcePath: '/custom-media',
     })
 
     expect(result.position).toBe('top')
@@ -24,7 +25,7 @@ describe('bubbleContent', () => {
       { type: 'text', text: '你好' },
       {
         type: 'image',
-        src: 'http://127.0.0.1:9091/resources/img_123',
+        src: 'http://127.0.0.1:8090/custom-media/img_123',
         alt: 'AstrBot message image',
       },
     ])
@@ -49,6 +50,15 @@ describe('bubbleContent', () => {
         rid: 'ignored',
       })
     ).toBe('https://cdn.example.com/image.png')
+  })
+
+  it('uses resource configuration for rid-based media', () => {
+    expect(
+      resolvePerformMediaSource(
+        { rid: 'image-456' },
+        { resourceBaseUrl: 'http://192.168.1.2:5000', resourcePath: 'asset-files' }
+      )
+    ).toBe('http://192.168.1.2:5000/asset-files/image-456')
   })
 
   it('computes a longer hide delay for mixed text and image bubbles', () => {

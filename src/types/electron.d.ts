@@ -5,6 +5,7 @@ declare global {
     userId: string
     config: {
       resourceBaseUrl?: string
+      resourcePath?: string
       maxInlineBytes?: number
     }
   }

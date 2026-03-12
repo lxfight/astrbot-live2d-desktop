@@ -42,7 +42,7 @@ export class L2DBridgeClient extends EventEmitter {
   private maxReconnectAttempts: number = 10
   private isConnecting: boolean = false
   private shouldReconnect: boolean = true
-  private serverConfig: { resourceBaseUrl?: string; maxInlineBytes?: number } = {}
+  private serverConfig: { resourceBaseUrl?: string; resourcePath?: string; maxInlineBytes?: number } = {}
   private pendingRequests: Map<string, {
     resolve: (payload: any) => void
     reject: (error: Error) => void
@@ -260,6 +260,7 @@ export class L2DBridgeClient extends EventEmitter {
 
     this.serverConfig = {
       resourceBaseUrl: payload.config?.resourceBaseUrl,
+      resourcePath: payload.config?.resourcePath,
       maxInlineBytes: payload.config?.maxInlineBytes,
     }
     this.shouldReconnect = true
@@ -419,7 +420,7 @@ export class L2DBridgeClient extends EventEmitter {
   getSession(): {
     sessionId: string
     userId: string
-    config: { resourceBaseUrl?: string; maxInlineBytes?: number }
+    config: { resourceBaseUrl?: string; resourcePath?: string; maxInlineBytes?: number }
   } {
     return {
       sessionId: this.sessionId,

@@ -4,39 +4,54 @@ import { ref } from 'vue'
 const DEFAULT_SERVER_URL = 'ws://127.0.0.1:9090/astrbot/live2d'
 const CONNECTION_SETTINGS_KEY = 'connectionSettings'
 
-function loadConnectionSettings(): { serverUrl: string; token: string } {
+function loadConnectionSettings(): { serverUrl: string; token: string; resourceBaseUrl: string; resourcePath: string } {
   try {
     const raw = localStorage.getItem(CONNECTION_SETTINGS_KEY)
     if (!raw) {
       return {
         serverUrl: DEFAULT_SERVER_URL,
-        token: ''
+        token: '',
+        resourceBaseUrl: '',
+        resourcePath: '/resources'
       }
     }
 
-    const parsed = JSON.parse(raw) as { serverUrl?: unknown; token?: unknown }
+    const parsed = JSON.parse(raw) as {
+      serverUrl?: unknown
+      token?: unknown
+      resourceBaseUrl?: unknown
+      resourcePath?: unknown
+    }
     const serverUrl = typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
       ? parsed.serverUrl.trim()
       : DEFAULT_SERVER_URL
     const token = typeof parsed.token === 'string'
       ? parsed.token.trim()
       : ''
+    const resourceBaseUrl = typeof parsed.resourceBaseUrl === 'string'
+      ? parsed.resourceBaseUrl.trim()
+      : ''
+    const resourcePath = typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
+      ? parsed.resourcePath.trim()
+      : '/resources'
 
-    return { serverUrl, token }
+    return { serverUrl, token, resourceBaseUrl, resourcePath }
   } catch (error) {
     console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
     return {
       serverUrl: DEFAULT_SERVER_URL,
-      token: ''
+      token: '',
+      resourceBaseUrl: '',
+      resourcePath: '/resources'
     }
   }
 }
 
-function saveConnectionSettings(serverUrl: string, token: string) {
+function saveConnectionSettings(serverUrl: string, token: string, resourceBaseUrl: string, resourcePath: string) {
   try {
     localStorage.setItem(
       CONNECTION_SETTINGS_KEY,
-      JSON.stringify({ serverUrl, token })
+      JSON.stringify({ serverUrl, token, resourceBaseUrl, resourcePath })
     )
   } catch (error) {
     console.warn('[ConnectionStore] 保存连接配置失败:', error)
@@ -48,7 +63,8 @@ export const useConnectionStore = defineStore('connection', () => {
   const isConnected = ref(false)
   const sessionId = ref('')
   const userId = ref('')
-  const resourceBaseUrl = ref('')
+  const resourceBaseUrl = ref(initialSettings.resourceBaseUrl)
+  const resourcePath = ref(initialSettings.resourcePath)
   const maxInlineBytes = ref<number | null>(null)
   const serverUrl = ref(initialSettings.serverUrl)
   const token = ref(initialSettings.token)
@@ -56,15 +72,23 @@ export const useConnectionStore = defineStore('connection', () => {
   function applySessionState(session: BridgeSessionState | null | undefined) {
     sessionId.value = session?.sessionId || ''
     userId.value = session?.userId || ''
-    resourceBaseUrl.value = session?.config?.resourceBaseUrl || ''
+    if (session?.config?.resourceBaseUrl) {
+      resourceBaseUrl.value = session.config.resourceBaseUrl
+    }
+    if (session?.config?.resourcePath) {
+      resourcePath.value = session.config.resourcePath
+    }
     maxInlineBytes.value = typeof session?.config?.maxInlineBytes === 'number'
       ? session.config.maxInlineBytes
       : null
+    saveConnectionSettings(serverUrl.value, token.value, resourceBaseUrl.value, resourcePath.value)
   }
 
   function resetSessionState() {
     isConnected.value = false
-    applySessionState(null)
+    sessionId.value = ''
+    userId.value = ''
+    maxInlineBytes.value = null
   }
 
   function setConnectionConfig(url: string, authToken: string) {
@@ -72,7 +96,7 @@ export const useConnectionStore = defineStore('connection', () => {
     const normalizedToken = (authToken || '').trim()
     serverUrl.value = normalizedUrl
     token.value = normalizedToken
-    saveConnectionSettings(normalizedUrl, normalizedToken)
+    saveConnectionSettings(normalizedUrl, normalizedToken, resourceBaseUrl.value, resourcePath.value)
   }
 
   // 连接到服务器
@@ -151,6 +175,7 @@ export const useConnectionStore = defineStore('connection', () => {
     sessionId,
     userId,
     resourceBaseUrl,
+    resourcePath,
     maxInlineBytes,
     serverUrl,
     token,
