@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import http from 'http'
 import https from 'https'
 import { getUserId } from '../database/schema'
+import { resolveHttpUrl } from '../utils/urlNormalize'
 import type {
   BasePacket,
   HandshakePayload,
@@ -566,6 +567,10 @@ export class L2DBridgeClient extends EventEmitter {
     })
   }
 
+  private resolveHttpResourceUrl(rawUrl: string): string {
+    return resolveHttpUrl(rawUrl, this.getConnectionInfo().url)
+  }
+
   /**
    * 通过资源服务器上传文件，返回资源 URL
    */
@@ -582,13 +587,15 @@ export class L2DBridgeClient extends EventEmitter {
       const uploadUrl = result?.upload?.url
       if (!uploadUrl || !result?.rid) return null
 
+      const resolvedUploadUrl = this.resolveHttpResourceUrl(uploadUrl)
       const headers: Record<string, string> = { 'Content-Type': mime }
       const authHeaders = result?.upload?.headers
       if (authHeaders) Object.assign(headers, authHeaders)
 
-      const status = await this.httpPut(uploadUrl, buf, headers)
+      const status = await this.httpPut(resolvedUploadUrl, buf, headers)
       if (status >= 200 && status < 300) {
-        return result?.resource?.url || uploadUrl
+        const resourceUrl = result?.resource?.url || uploadUrl
+        return this.resolveHttpResourceUrl(resourceUrl)
       }
       console.error('[L2D] 资源上传 HTTP 失败:', status)
       return null

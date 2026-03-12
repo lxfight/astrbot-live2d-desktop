@@ -29,7 +29,7 @@
           <h2>连接配置</h2>
           <n-form label-placement="left" label-width="120">
             <n-form-item label="服务器地址">
-              <n-input v-model:value="serverUrl" placeholder="wss://example.com/astrbot/live2d（本地开发可填写 ws://127.0.0.1:9090/astrbot/live2d）" />
+              <n-input v-model:value="serverUrl" placeholder="ws://127.0.0.1:9090/astrbot/live2d（有证书时也可填写 wss://example.com/astrbot/live2d）" />
             </n-form-item>
             <n-form-item label="认证令牌">
               <n-input
@@ -39,30 +39,38 @@
                 placeholder="必填，需与 AstrBot 适配器 auth_token 一致"
               />
             </n-form-item>
-            <n-form-item label="资源服务地址">
-              <n-input
-                v-model:value="resourceServerUrl"
-                placeholder="可选，云服务器请填写公网地址，如 http://203.0.113.10:9091"
-              />
-            </n-form-item>
-            <n-form-item label="资源路径">
-              <n-input
-                v-model:value="resourceServerPath"
-                placeholder="可选，默认沿用握手路径或 /resources"
-              />
-            </n-form-item>
-            <n-form-item label="资源令牌">
-              <n-input
-                v-model:value="resourceAccessToken"
-                type="password"
-                show-password-on="click"
-                placeholder="可选，留空时复用 WebSocket 认证令牌"
-              />
+            <n-form-item>
+              <n-alert type="info" :show-icon="false">
+                默认情况下，图片、音频、视频和文件资源会自动复用与 WebSocket 相同的服务地址、端口和认证令牌。只有老版本适配器或特殊网络映射场景，才需要展开下面的高级资源设置。
+              </n-alert>
             </n-form-item>
             <n-form-item>
-              <n-alert type="warning" :show-icon="false">
-                为保障通讯安全，连接密钥为必填项。若资源服务对外地址与握手返回不一致（例如云服务器需要使用公网 IP/端口），请在此单独填写资源服务地址；资源令牌留空时会自动复用 WebSocket 认证令牌。
-              </n-alert>
+              <n-collapse>
+                <n-collapse-item title="高级资源设置（通常无需填写）" name="resource-advanced">
+                  <n-form label-placement="left" label-width="120">
+                    <n-form-item label="资源服务地址">
+                      <n-input
+                        v-model:value="resourceServerUrl"
+                        placeholder="留空时自动跟随连接地址；如需覆盖可填写 http://203.0.113.10:9090"
+                      />
+                    </n-form-item>
+                    <n-form-item label="资源路径">
+                      <n-input
+                        v-model:value="resourceServerPath"
+                        placeholder="默认沿用握手路径或 /resources"
+                      />
+                    </n-form-item>
+                    <n-form-item label="资源访问令牌">
+                      <n-input
+                        v-model:value="resourceAccessToken"
+                        type="password"
+                        show-password-on="click"
+                        placeholder="留空时复用 WebSocket 认证令牌"
+                      />
+                    </n-form-item>
+                  </n-form>
+                </n-collapse-item>
+              </n-collapse>
             </n-form-item>
             <n-form-item>
               <n-space>
