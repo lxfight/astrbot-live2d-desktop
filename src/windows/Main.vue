@@ -731,9 +731,11 @@ function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, inte
   }
 
   bubbleStack.value.push(entry)
+  // push 后必须从数组取响应式代理，否则修改 renderedText 不触发重渲染
+  const reactiveEntry = bubbleStack.value[bubbleStack.value.length - 1]
   nextTick(() => {
     updateStackPositions()
-    void runEntryTypewriter(entry)
+    void runEntryTypewriter(reactiveEntry)
   })
 }
 
@@ -1943,7 +1945,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
-  max-height: min(55vh, calc(100vh - 32px));
+  max-height: min(40vh, calc(100vh - 32px));
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
@@ -1962,7 +1964,7 @@ onBeforeUnmount(() => {
   opacity: 0.72;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
   filter: blur(0.3px);
-  max-height: min(40vh, calc(100vh - 32px));
+  max-height: min(32vh, calc(100vh - 32px));
 }
 
 /* 层级 2：更上层，更小更暗 */
@@ -1970,7 +1972,7 @@ onBeforeUnmount(() => {
   opacity: 0.48;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
   filter: blur(0.6px);
-  max-height: min(30vh, calc(100vh - 32px));
+  max-height: min(24vh, calc(100vh - 32px));
 }
 
 .bubble-content {
