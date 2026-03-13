@@ -143,7 +143,6 @@ export function initBridgeClient() {
   })
 
   bridgeClient.on('perform:show', (payload) => {
-    console.log('[主进程] 收到表演指令:', payload)
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('perform:show', payload)
     })

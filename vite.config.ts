@@ -14,7 +14,7 @@ export default defineConfig({
             outDir: 'dist-electron',
             minify: process.env.NODE_ENV === 'production',
             rollupOptions: {
-              external: ['electron', 'better-sqlite3', 'ws', 'active-win'],
+              external: ['electron', 'better-sqlite3', 'ws'],
               output: {
                 format: 'es'
               }

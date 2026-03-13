@@ -26,6 +26,30 @@ export function resolvePerformMediaSource(
   return resolveResourceSource(element, resourceConfig)
 }
 
+// 合并连续互补的 image 元素（服务端常将同一张图片拆成 inline + url/rid 两个元素发送）
+function mergeConsecutiveImages(sequence: BubblePerformElement[]): BubblePerformElement[] {
+  const result: BubblePerformElement[] = []
+  for (const el of sequence) {
+    const prev = result[result.length - 1]
+    if (
+      String(el?.type || '') === 'image' &&
+      prev && String(prev.type) === 'image'
+    ) {
+      const prevHasInline = Boolean(typeof prev.inline === 'string' && prev.inline.trim())
+      const elHasInline = Boolean(typeof el.inline === 'string' && el.inline?.trim())
+      // 一个有 inline 一个只有 url/rid → 同一张图的两种传输方式，合并
+      if (prevHasInline !== elHasInline) {
+        if (!prev.inline && el.inline) prev.inline = el.inline
+        if (!prev.url && el.url) prev.url = el.url
+        if (!prev.rid && el.rid) prev.rid = el.rid
+        continue
+      }
+    }
+    result.push({ ...el })
+  }
+  return result
+}
+
 export function splitPerformSequenceForBubble(
   sequence: BubblePerformElement[] | null | undefined,
   options: ResourceUrlConfig = {}
@@ -35,7 +59,7 @@ export function splitPerformSequenceForBubble(
   let position = 'center'
   let hasBubblePosition = false
 
-  for (const element of sequence || []) {
+  for (const element of mergeConsecutiveImages(sequence || [])) {
     const type = String(element?.type || '')
 
     if (!hasBubblePosition && (type === 'text' || type === 'image')) {

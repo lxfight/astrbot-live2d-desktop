@@ -69,20 +69,30 @@
       </div>
     </Transition>
 
-    <!-- 文字气泡 -->
-    <Transition name="bubble">
+    <!-- 气泡栈：最多 3 个，从下往上堆叠，独立生命周期 -->
+    <TransitionGroup name="bubble" tag="div" class="bubble-stack-host">
       <div
-        v-if="currentBubble"
+        v-for="(entry, i) in bubbleStack"
+        :key="entry.id"
+        :ref="(el) => setBubbleEl(entry.id, el as HTMLElement | null)"
         class="bubble"
-        ref="bubbleRef"
-        :style="bubbleStyle"
+        :class="bubbleTierClass(bubbleStack.length - 1 - i)"
+        :style="{
+          left: entry.styleLeft,
+          top: entry.styleTop,
+          '--bubble-offset-x': entry.offsetX + 'px',
+          maxHeight: entry.styleMaxHeight || undefined,
+        }"
         @click.stop
-        @mouseenter="handleBubbleMouseEnter"
-        @mouseleave="handleBubbleMouseLeave"
+        @mouseenter="handleBubbleMouseEnter(entry)"
+        @mouseleave="handleBubbleMouseLeave(entry)"
       >
-        <div class="bubble-content" ref="bubbleContentRef">
+        <div
+          class="bubble-content"
+          :ref="(el) => setBubbleContentEl(entry.id, el as HTMLElement | null)"
+        >
           <div
-            v-for="item in currentBubble?.items || []"
+            v-for="item in entry.items"
             :key="item.id"
             :class="['bubble-item', `bubble-item-${item.type}`]"
           >
@@ -92,12 +102,12 @@
               v-html="renderBubbleMarkdown(item.renderedText)"
             ></div>
             <div v-else-if="item.type === 'image'" class="bubble-image">
-              <img :src="item.src" :alt="item.alt" @load="handleBubbleMediaLoad" />
+              <img :src="item.src" :alt="item.alt" @load="handleBubbleMediaLoad(entry.id)" />
             </div>
           </div>
         </div>
       </div>
-    </Transition>
+    </TransitionGroup>
 
     <!-- 模型状态提示 -->
     <Transition name="status-toast">
@@ -235,9 +245,19 @@ type BubbleImageItem = {
 
 type BubbleItem = BubbleTextItem | BubbleImageItem
 
-type BubbleState = {
-  position: string
+// 气泡栈条目，每个条目独立维护打字机状态和生命周期
+type BubbleEntry = {
+  id: string
   items: BubbleItem[]
+  offsetX: number        // 随机水平偏移 px（±30px）
+  typingIdx: number      // 下一个待打字的 item 下标
+  typingVer: number      // 递增取消令牌，与打字协程绑定
+  typingDone: boolean    // 所有 item 打字完成
+  hideTimerId: number | null
+  pinned: boolean        // 鼠标悬停，抑制自动隐藏
+  styleLeft: string
+  styleTop: string
+  styleMaxHeight: string // 动态 max-height，空字符串时使用 CSS 默认值
 }
 
 const connectionStore = useConnectionStore()
@@ -257,21 +277,21 @@ const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
 const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
 let menuAutoCloseTimer: number | null = null
-const currentBubble = ref<BubbleState | null>(null)
-const bubbleStyle = ref<{ left: string; top?: string; bottom?: string }>({ left: '0px', top: '0px' })
-const bubbleRef = ref<HTMLElement | null>(null)
-const bubbleContentRef = ref<HTMLElement | null>(null)
-let typewriterTimer: number | null = null
-let typewriterResolve: (() => void) | null = null
-let bubbleSequenceVersion = 0
-let bubbleTypingIndex = 0
-let isBubbleTyping = false
+// 气泡栈：index 0 = 最老（顶部），index length-1 = 最新（底部）
+const bubbleStack = ref<BubbleEntry[]>([])
+// DOM 元素引用（非响应式 Map，通过 :ref 回调维护）
+const bubbleElMap = new Map<string, HTMLElement>()
+const bubbleContentElMap = new Map<string, HTMLElement>()
+// 追踪上次收到表演包的时间，用于判断追加消息
+let lastPerformReceiveTime = 0
 
 const NORMAL_TYPEWRITER_INTERVAL = 50
 const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
-const BUBBLE_MAX_WIDTH = 450
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
+const BUBBLE_GAP = 10          // 堆叠气泡间距 px
+const BUBBLE_STACK_MAX = 3     // 最大气泡数量
+const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref({ left: '0px', top: '0px' })
@@ -305,8 +325,6 @@ function generateMessageId(prefix = 'msg'): string {
 let audioRecorder: AudioRecorder | null = null
 let recordingTimer: NodeJS.Timeout | null = null
 let isStoppingRecording = false
-let bubbleHoverTimer: NodeJS.Timeout | null = null
-const isBubbleHovered = ref(false)
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
@@ -394,17 +412,10 @@ watch(hasModel, async (value) => {
   }
 })
 
-// 监听气泡关闭，重置打字机
-watch(currentBubble, (val) => {
-  if (val) {
-    scheduleBubbleLayoutUpdate()
-    return
-  }
-
-  if (!val) {
-    resetBubbleTypingState()
-  }
-})
+// 气泡栈变化时重新计算堆叠位置
+watch(bubbleStack, () => {
+  nextTick(() => updateStackPositions())
+}, { deep: false })
 
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
@@ -479,37 +490,49 @@ function renderBubbleMarkdown(text: string): string {
   }
 }
 
+// ─── 气泡栈辅助函数 ───────────────────────────────────────────────────────────
+
+function setBubbleEl(id: string, el: HTMLElement | null) {
+  if (el) {
+    bubbleElMap.set(id, el)
+  } else {
+    bubbleElMap.delete(id)
+  }
+}
+
+function setBubbleContentEl(id: string, el: HTMLElement | null) {
+  if (el) {
+    bubbleContentElMap.set(id, el)
+  } else {
+    bubbleContentElMap.delete(id)
+  }
+}
+
+// 返回气泡层级 CSS 类名（0=最新/底部，1=上一层，2=更上层）
+function bubbleTierClass(tier: number): string {
+  if (tier === 0) return 'bubble-tier-0'
+  if (tier === 1) return 'bubble-tier-1'
+  return 'bubble-tier-2'
+}
+
 function scheduleBubbleLayoutUpdate() {
   nextTick(() => {
-    updateBubblePosition()
-    if (bubbleContentRef.value) {
-      bubbleContentRef.value.scrollTop = bubbleContentRef.value.scrollHeight
+    updateStackPositions()
+    // 滚动最新气泡内容到底部
+    const stack = bubbleStack.value
+    if (stack.length > 0) {
+      const el = bubbleContentElMap.get(stack[stack.length - 1].id)
+      if (el) el.scrollTop = el.scrollHeight
     }
   })
 }
 
-function handleBubbleMediaLoad() {
-  scheduleBubbleLayoutUpdate()
-}
-
-function clearTypewriterTimer() {
-  if (typewriterTimer !== null) {
-    clearInterval(typewriterTimer)
-    typewriterTimer = null
-  }
-
-  if (typewriterResolve) {
-    const resolve = typewriterResolve
-    typewriterResolve = null
-    resolve()
-  }
-}
-
-function resetBubbleTypingState() {
-  clearTypewriterTimer()
-  bubbleSequenceVersion += 1
-  bubbleTypingIndex = 0
-  isBubbleTyping = false
+function handleBubbleMediaLoad(entryId: string) {
+  nextTick(() => {
+    updateStackPositions()
+    const el = bubbleContentElMap.get(entryId)
+    if (el) el.scrollTop = el.scrollHeight
+  })
 }
 
 function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
@@ -517,211 +540,253 @@ function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
     if (item.type === 'text') {
       return {
         id: generateMessageId('bubble_text'),
-        type: 'text',
+        type: 'text' as const,
         fullText: item.text,
         renderedText: '',
       }
     }
-
     return {
       id: generateMessageId('bubble_image'),
-      type: 'image',
+      type: 'image' as const,
       src: item.src,
       alt: item.alt,
     }
   })
 }
 
-function getCurrentBubbleAutoHideDelay(): number {
-  if (!currentBubble.value) {
-    return 5000
+// ─── 堆叠定位 ────────────────────────────────────────────────────────────────
+
+// 各层级 CSS max-height 对应的 vh 系数（须与 CSS 保持一致）
+const TIER_VH_FACTORS = [0.40, 0.32, 0.24]
+
+function getTierCSSMaxHeight(tier: number, vh: number): number {
+  const factor = TIER_VH_FACTORS[Math.min(tier, 2)]
+  return Math.min(factor * vh, vh - 32)
+}
+
+function updateStackPositions() {
+  const stack = bubbleStack.value
+  if (!stack.length) return
+
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const anchorX = modelPositionX
+  const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
+
+  // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
+  const data = stack.map((entry, i) => {
+    const el = bubbleElMap.get(entry.id)
+    const contentEl = bubbleContentElMap.get(entry.id)
+    const tier = stack.length - 1 - i
+    const cssMaxH = getTierCSSMaxHeight(tier, viewportHeight)
+    const contentScrollH = contentEl?.scrollHeight ?? 56
+    // 自然高度 = 内容高度 + 气泡 padding，再不超过 CSS 层级上限
+    const naturalH = Math.min(contentScrollH + 24, cssMaxH)
+    return {
+      entry,
+      naturalHeight: naturalH,
+      width: el?.offsetWidth ?? 300,
+    }
+  })
+
+  const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
+  const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
+  const idealAnchor = modelPositionY - BUBBLE_VERTICAL_OFFSET
+
+  let anchorBottom: number
+  let finalHeights: number[]
+
+  if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
+    // 完全放得下 — 理想位置
+    anchorBottom = idealAnchor
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else if (totalNaturalHeight <= usableHeight) {
+    // 放不下锚点上方但视口内放得下 — 整体下移
+    anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else {
+    // 视口也放不下 — 按比例缩小
+    anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
+    const usableForBubbles = Math.max(0, usableHeight - totalGaps)
+    const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
+    const scale = totalNatural > 0 ? usableForBubbles / totalNatural : 1
+    const MIN_BUBBLE_H = 60
+    finalHeights = data.map(d => Math.max(MIN_BUBBLE_H, Math.floor(d.naturalHeight * scale)))
+    for (let i = 0; i < data.length; i++) {
+      data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
+    }
   }
 
-  return computeBubbleAutoHideDelay(
-    currentBubble.value.items.map((item) => {
-      if (item.type === 'text') {
-        return { type: 'text', text: item.fullText }
-      }
+  // 从最新（底部）往最老（顶部）依次放置，绝不重叠
+  let currentBottom = anchorBottom
+  for (let i = data.length - 1; i >= 0; i--) {
+    const { entry, width: elW } = data[i]
+    const elH = finalHeights[i]
+    const halfW = elW / 2
+    const minLeft = BUBBLE_EDGE_PADDING + halfW
+    const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfW
+    const rawLeft = anchorX + entry.offsetX
+    const clampedLeft = Math.min(Math.max(rawLeft, minLeft), maxLeft)
 
-      return { type: 'image', src: item.src, alt: item.alt }
+    entry.styleLeft = `${clampedLeft}px`
+    entry.styleTop = `${currentBottom - elH}px`
+    currentBottom = currentBottom - elH - BUBBLE_GAP
+  }
+}
+
+// ─── 独立打字机 ───────────────────────────────────────────────────────────────
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function typeItemChars(item: BubbleTextItem, entry: BubbleEntry, localVer: number) {
+  let idx = item.renderedText.length
+  let sinceLayout = 0
+
+  while (idx < item.fullText.length) {
+    if (entry.typingVer !== localVer) return
+    item.renderedText += item.fullText.charAt(idx)
+    idx++
+    sinceLayout++
+    if (sinceLayout >= TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS || idx >= item.fullText.length) {
+      sinceLayout = 0
+      scheduleBubbleLayoutUpdate()
+    }
+    await sleep(NORMAL_TYPEWRITER_INTERVAL)
+  }
+}
+
+async function runEntryTypewriter(entry: BubbleEntry) {
+  const localVer = entry.typingVer
+
+  while (entry.typingIdx < entry.items.length) {
+    if (entry.typingVer !== localVer) return
+    const item = entry.items[entry.typingIdx]
+    entry.typingIdx++
+
+    if (item.type === 'text') {
+      await typeItemChars(item as BubbleTextItem, entry, localVer)
+    } else {
+      scheduleBubbleLayoutUpdate()
+    }
+    if (entry.typingVer !== localVer) return
+  }
+
+  // 所有 item 打字完成
+  if (entry.typingVer === localVer) {
+    entry.typingDone = true
+    startEntryHideTimer(entry)
+  }
+}
+
+// 强制冻结条目（将所有文本跳到最终状态，取消打字机）
+function freezeEntry(entry: BubbleEntry) {
+  entry.typingVer++  // 取消正在运行的打字协程
+  for (const item of entry.items) {
+    if (item.type === 'text') {
+      (item as BubbleTextItem).renderedText = (item as BubbleTextItem).fullText
+    }
+  }
+  entry.typingDone = true
+}
+
+// ─── 自动隐藏 ─────────────────────────────────────────────────────────────────
+
+function computeEntryAutoHideDelay(entry: BubbleEntry): number {
+  return computeBubbleAutoHideDelay(
+    entry.items.map((item) => {
+      if (item.type === 'text') return { type: 'text' as const, text: (item as BubbleTextItem).fullText }
+      return { type: 'image' as const, src: (item as BubbleImageItem).src, alt: (item as BubbleImageItem).alt }
     })
   )
 }
 
-function runTypewriterForBubbleItem(
-  item: BubbleTextItem,
-  version: number,
-  intervalMs: number = NORMAL_TYPEWRITER_INTERVAL
-): Promise<void> {
-  clearTypewriterTimer()
-
-  let index = 0
-  let typedSinceLastLayoutUpdate = 0
-
-  if (item.fullText.startsWith(item.renderedText) && item.renderedText.length > 0) {
-    index = item.renderedText.length
-  } else {
-    item.renderedText = ''
-  }
-
-  if (index >= item.fullText.length) {
-    item.renderedText = item.fullText
-    scheduleBubbleLayoutUpdate()
-    return Promise.resolve()
-  }
-
-  return new Promise((resolve) => {
-    typewriterResolve = resolve
-
-    typewriterTimer = window.setInterval(() => {
-      if (version !== bubbleSequenceVersion || !currentBubble.value) {
-        clearTypewriterTimer()
-        return
-      }
-
-      if (index >= item.fullText.length) {
-        clearTypewriterTimer()
-        return
-      }
-
-      item.renderedText += item.fullText.charAt(index)
-      index += 1
-      typedSinceLastLayoutUpdate += 1
-
-      if (
-        typedSinceLastLayoutUpdate >= TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS ||
-        index >= item.fullText.length
-      ) {
-        typedSinceLastLayoutUpdate = 0
-        scheduleBubbleLayoutUpdate()
-      }
-
-      if (index >= item.fullText.length) {
-        clearTypewriterTimer()
-      }
-    }, intervalMs)
-  })
-}
-
-async function ensureBubbleTyping(version: number = bubbleSequenceVersion) {
-  if (isBubbleTyping || version !== bubbleSequenceVersion || !currentBubble.value) {
-    return
-  }
-
-  isBubbleTyping = true
-
-  try {
-    while (currentBubble.value && version === bubbleSequenceVersion) {
-      if (bubbleTypingIndex >= currentBubble.value.items.length) {
-        break
-      }
-
-      const nextItem = currentBubble.value.items[bubbleTypingIndex]
-      bubbleTypingIndex += 1
-
-      if (nextItem.type === 'text') {
-        await runTypewriterForBubbleItem(nextItem, version)
-      } else {
-        scheduleBubbleLayoutUpdate()
-      }
-    }
-  } finally {
-    isBubbleTyping = false
-  }
-}
-
-function showPerformBubble(
-  bubbleItems: BubbleRenderableItem[],
-  position: string,
-  interrupt: boolean
-) {
-  if (!bubbleItems.length) {
-    return
-  }
-
-  const runtimeItems = createBubbleItems(bubbleItems)
-
-  if (interrupt || !currentBubble.value) {
-    resetBubbleTypingState()
-    currentBubble.value = {
-      position,
-      items: runtimeItems,
-    }
-  } else {
-    currentBubble.value.position = currentBubble.value.position || position
-    currentBubble.value.items.push(...runtimeItems)
-  }
-
-  scheduleBubbleLayoutUpdate()
-  startBubbleHideTimer(getCurrentBubbleAutoHideDelay())
-  void ensureBubbleTyping()
-}
-
-// 气泡鼠标进入
-function handleBubbleMouseEnter() {
-  isBubbleHovered.value = true
-  // 清除自动隐藏定时器
-  if (bubbleHoverTimer) {
-    clearTimeout(bubbleHoverTimer)
-    bubbleHoverTimer = null
-  }
-}
-
-// 气泡鼠标离开
-function handleBubbleMouseLeave() {
-  isBubbleHovered.value = false
-  // 鼠标离开后 3 秒自动隐藏
-  startBubbleHideTimer(3000)
-}
-
-// 启动气泡自动隐藏定时器
-function startBubbleHideTimer(delay: number) {
-  // 清除旧的定时器
-  if (bubbleHoverTimer) {
-    clearTimeout(bubbleHoverTimer)
-  }
-  // 设置新的定时器
-  bubbleHoverTimer = setTimeout(() => {
-    if (!isBubbleHovered.value) {
-      currentBubble.value = null
-    }
+function startEntryHideTimer(entry: BubbleEntry) {
+  if (entry.pinned) return  // 悬停时不启动
+  if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
+  const delay = computeEntryAutoHideDelay(entry)
+  entry.hideTimerId = window.setTimeout(() => {
+    removeEntry(entry.id)
   }, delay)
 }
 
-function updateBubblePosition() {
-  if (!currentBubble.value) {
-    return
+function removeEntry(id: string) {
+  const idx = bubbleStack.value.findIndex((e) => e.id === id)
+  if (idx === -1) return
+  const entry = bubbleStack.value[idx]
+  if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
+  entry.typingVer++  // 取消打字协程
+  bubbleStack.value.splice(idx, 1)
+}
+
+function clearAllBubbles() {
+  for (const entry of bubbleStack.value) {
+    if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
+    entry.typingVer++
+  }
+  bubbleStack.value = []
+}
+
+// ─── 鼠标交互 ─────────────────────────────────────────────────────────────────
+
+function handleBubbleMouseEnter(entry: BubbleEntry) {
+  entry.pinned = true
+  if (entry.hideTimerId !== null) {
+    clearTimeout(entry.hideTimerId)
+    entry.hideTimerId = null
+  }
+}
+
+function handleBubbleMouseLeave(entry: BubbleEntry) {
+  entry.pinned = false
+  if (entry.typingDone) {
+    // 离开后 3s 隐藏
+    entry.hideTimerId = window.setTimeout(() => removeEntry(entry.id), 3000)
+  }
+}
+
+// ─── 主入口：推入新气泡 ───────────────────────────────────────────────────────
+
+function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, interrupt: boolean) {
+  if (!bubbleItems.length) return
+
+  if (interrupt) {
+    clearAllBubbles()
   }
 
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const maxBubbleWidth = Math.max(0, Math.min(BUBBLE_MAX_WIDTH, viewportWidth - BUBBLE_EDGE_PADDING * 2))
-  const renderedWidth = bubbleRef.value?.offsetWidth ?? 0
-  const bubbleWidth = Math.max(0, Math.min(renderedWidth || maxBubbleWidth, maxBubbleWidth))
-  const bubbleHeight = bubbleRef.value?.offsetHeight ?? 0
-  const halfWidth = bubbleWidth / 2
-  const minLeft = BUBBLE_EDGE_PADDING + halfWidth
-  const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfWidth
-  const clampedLeft = maxLeft < minLeft
-    ? viewportWidth / 2
-    : Math.min(Math.max(modelPositionX, minLeft), maxLeft)
-
-  const anchorY = modelPositionY - BUBBLE_VERTICAL_OFFSET
-  const preferredTop = anchorY - bubbleHeight
-  const belowTop = anchorY + BUBBLE_EDGE_PADDING
-  const minTop = BUBBLE_EDGE_PADDING
-  const maxTop = Math.max(BUBBLE_EDGE_PADDING, viewportHeight - BUBBLE_EDGE_PADDING - bubbleHeight)
-
-  let resolvedTop = preferredTop
-  if (preferredTop < minTop && belowTop + bubbleHeight <= viewportHeight - BUBBLE_EDGE_PADDING) {
-    resolvedTop = belowTop
+  // 超过最大数量时驱逐最老的
+  if (bubbleStack.value.length >= BUBBLE_STACK_MAX) {
+    const oldest = bubbleStack.value[0]
+    freezeEntry(oldest)
+    bubbleStack.value.splice(0, 1)
   }
-  resolvedTop = Math.min(Math.max(resolvedTop, minTop), maxTop)
 
-  bubbleStyle.value = {
-    left: `${clampedLeft}px`,
-    top: `${resolvedTop}px`
+  const runtimeItems = createBubbleItems(bubbleItems)
+  const offsetX = Math.round((Math.random() - 0.5) * 50)  // ±25px 随机偏移
+  const entry: BubbleEntry = {
+    id: generateMessageId('bubble'),
+    items: runtimeItems,
+    offsetX,
+    typingIdx: 0,
+    typingVer: 0,
+    typingDone: false,
+    hideTimerId: null,
+    pinned: false,
+    styleLeft: '0px',
+    styleTop: '0px',
+    styleMaxHeight: '',
   }
+
+  bubbleStack.value.push(entry)
+  // push 后必须从数组取响应式代理，否则修改 renderedText 不触发重渲染
+  const reactiveEntry = bubbleStack.value[bubbleStack.value.length - 1]
+  nextTick(() => {
+    updateStackPositions()
+    void runEntryTypewriter(reactiveEntry)
+  })
 }
 
 // Create performance queue
@@ -729,7 +794,7 @@ const performQueue = new PerformanceQueue()
 
 // Register performance queue callbacks
 performQueue.onText((content, position, _duration) => {
-  showPerformBubble([{ type: 'text', text: content }], position, false)
+  pushBubble([{ type: 'text', text: content }], position, false)
 })
 
 performQueue.onMotion((group, index, priority) => {
@@ -762,7 +827,7 @@ performQueue.onImage((url, _duration) => {
     return
   }
 
-  showPerformBubble([{ type: 'image', src: resolvedSrc, alt: 'AstrBot message image' }], 'center', false)
+  pushBubble([{ type: 'image', src: resolvedSrc, alt: 'AstrBot message image' }], 'center', false)
 })
 
 performQueue.onVideo((url) => {
@@ -772,7 +837,7 @@ performQueue.onVideo((url) => {
 function interruptPerformance() {
   performQueue.interrupt()
 
-  resetBubbleTypingState()
+  clearAllBubbles()
 
   mediaPlayerRef.value?.stopAudio()
   mediaPlayerRef.value?.hideImage()
@@ -968,9 +1033,9 @@ function handleModelPositionChanged(position: { x: number; y: number }) {
 
 // 更新 UI 元素位置（跟随模型）
 function updateUIPositions() {
-  // 更新气泡位置（模型头顶上方 250px，避免遮挡模型）
-  if (currentBubble.value) {
-    updateBubblePosition()
+  // 重新计算气泡栈位置
+  if (bubbleStack.value.length > 0) {
+    updateStackPositions()
   }
 
   // 更新状态提示位置（模型头顶上方 280px）
@@ -1225,6 +1290,7 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
 
     await audioRecorder.start()
     isRecording.value = true
+    updateUIPositions()
     currentRecordingSource.value = source
     recordingDuration.value = 0
 
@@ -1521,7 +1587,13 @@ onMounted(async () => {
   window.electron.bridge.onPerformShow((payload: any) => {
     console.log('收到表演指令:', payload)
 
-    const shouldInterrupt = payload.interrupt !== false
+    const now = Date.now()
+    // 4s 窗口内的连续消息视为追加（不中断），超出则中断旧内容
+    const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < FOLLOW_UP_WINDOW_MS
+    lastPerformReceiveTime = now
+
+    // interrupt=true 且不是追加时才中断旧表演
+    const shouldInterrupt = payload.interrupt !== false && !isFollowUp
 
     if (shouldInterrupt) {
       interruptPerformance()
@@ -1539,7 +1611,7 @@ onMounted(async () => {
       )
 
       if (bubbleItems.length > 0) {
-        showPerformBubble(bubbleItems, position, shouldInterrupt)
+        pushBubble(bubbleItems, position, shouldInterrupt)
       }
 
       if (remainingSequence.length > 0) {
@@ -1718,6 +1790,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
   clearRecordingTimer()
+  clearAllBubbles()
 
   if (audioRecorder && isRecording.value) {
     audioRecorder.cancel()
@@ -1902,6 +1975,17 @@ onBeforeUnmount(() => {
   /* 恢复默认 transform (由 inline style 定义) */
 }
 
+/* 气泡栈宿主容器（零尺寸，仅作 TransitionGroup 挂载点） */
+.bubble-stack-host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .bubble {
   position: absolute;
   background: rgba(26, 26, 26, 0.95);
@@ -1911,7 +1995,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
-  max-height: min(55vh, calc(100vh - 32px));
+  max-height: min(40vh, calc(100vh - 32px));
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
@@ -1919,7 +2003,26 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  transform: translateX(-50%);
+  pointer-events: auto;
+  /* top/left 由 updateStackPositions 写入，transition 让位置变化平滑 */
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
+  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
+}
+
+/* 层级 1：上一个气泡，稍小稍暗 */
+.bubble-tier-1 {
+  opacity: 0.72;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
+  filter: blur(0.3px);
+  max-height: min(32vh, calc(100vh - 32px));
+}
+
+/* 层级 2：更上层，更小更暗 */
+.bubble-tier-2 {
+  opacity: 0.48;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
+  filter: blur(0.6px);
+  max-height: min(24vh, calc(100vh - 32px));
 }
 
 .bubble-content {
@@ -2049,20 +2152,20 @@ onBeforeUnmount(() => {
 
   /* 滚动条样式 */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(100, 108, 255, 0.5);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
 
     &:hover {
-      background: rgba(100, 108, 255, 0.7);
+      background: rgba(255, 255, 255, 0.4);
     }
   }
 }
@@ -2319,13 +2422,30 @@ onBeforeUnmount(() => {
 
 
 
-.bubble-enter-active, .bubble-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+/* TransitionGroup 进入：从下方滑入 */
+.bubble-enter-active {
+  transition: transform 0.35s ease-out;
 }
 
-.bubble-enter-from, .bubble-leave-to {
+.bubble-enter-from {
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(18px) scale(0.92);
+}
+
+/* TransitionGroup 离开：向上淡出 */
+.bubble-leave-active {
+  transition: opacity 0.28s ease-in, transform 0.28s ease-in;
+  /* 离开期间脱离流，避免影响其他气泡位置计算 */
+  position: absolute;
+}
+
+.bubble-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(20px) scale(0.9);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-10px) scale(0.94);
+}
+
+/* 堆叠位置平移动画（新气泡插入时旧气泡上移） */
+.bubble-move {
+  transition: top 0.3s ease-out;
 }
 
 .input-enter-active, .input-leave-active {

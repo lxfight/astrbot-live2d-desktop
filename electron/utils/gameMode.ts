@@ -2,6 +2,7 @@ import { screen } from 'electron'
 import { getMainWindow, hideMainWindow, showMainWindow } from '../windows/mainWindow'
 import { createRequire } from 'module'
 import { getPlatformCapabilities } from './platformCapabilities'
+import { safeGetActiveWindow as safeGetActiveWin } from './activeWinLoader'
 
 const require = createRequire(import.meta.url)
 const platformCapabilities = getPlatformCapabilities()
@@ -10,7 +11,6 @@ let isGameModeEnabled = false
 let checkInterval: NodeJS.Timeout | null = null
 let isHiddenByGameMode = false
 let windowManager: any = null
-let activeWinFn: (() => Promise<any>) | null = null
 let hasLoggedUnsupportedReason = false
 
 const MESSENGER_OVERLAY_TITLES = new Set([
@@ -78,21 +78,7 @@ function isLikelyMessengerScreenshotOverlay(
   return nearOrigin && nearScreenSize
 }
 
-async function getActiveWin(): Promise<any> {
-  if (!activeWinFn) {
-    const mod = await import('active-win')
-    activeWinFn = mod.default
-  }
-  return activeWinFn()
-}
-
-async function safeGetActiveWin(): Promise<any | null> {
-  try {
-    return await getActiveWin()
-  } catch {
-    return null
-  }
-}
+// active-win 由 activeWinLoader 统一加载
 
 function shouldIgnoreTransientFullscreen(title: string): boolean {
   const lowerTitle = normalizeToken(title)
