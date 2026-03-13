@@ -81,6 +81,7 @@
           left: entry.styleLeft,
           top: entry.styleTop,
           '--bubble-offset-x': entry.offsetX + 'px',
+          maxHeight: entry.styleMaxHeight || undefined,
         }"
         @click.stop
         @mouseenter="handleBubbleMouseEnter(entry)"
@@ -256,6 +257,7 @@ type BubbleEntry = {
   pinned: boolean        // 鼠标悬停，抑制自动隐藏
   styleLeft: string
   styleTop: string
+  styleMaxHeight: string // 动态 max-height，空字符串时使用 CSS 默认值
 }
 
 const connectionStore = useConnectionStore()
@@ -554,35 +556,83 @@ function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
 
 // ─── 堆叠定位 ────────────────────────────────────────────────────────────────
 
+// 各层级 CSS max-height 对应的 vh 系数（须与 CSS 保持一致）
+const TIER_VH_FACTORS = [0.40, 0.32, 0.24]
+
+function getTierCSSMaxHeight(tier: number, vh: number): number {
+  const factor = TIER_VH_FACTORS[Math.min(tier, 2)]
+  return Math.min(factor * vh, vh - 32)
+}
+
 function updateStackPositions() {
   const stack = bubbleStack.value
   if (!stack.length) return
 
   const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
   const anchorX = modelPositionX
-  // 锚点底边：模型中心往上 BUBBLE_VERTICAL_OFFSET px
-  let currentBottom = modelPositionY - BUBBLE_VERTICAL_OFFSET
+  const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
 
-  // 从最新（底部）往最老（顶部）依次计算
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const entry = stack[i]
+  // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
+  const data = stack.map((entry, i) => {
     const el = bubbleElMap.get(entry.id)
-    const elH = el?.offsetHeight ?? 80
-    const elW = el?.offsetWidth ?? 300
+    const contentEl = bubbleContentElMap.get(entry.id)
+    const tier = stack.length - 1 - i
+    const cssMaxH = getTierCSSMaxHeight(tier, viewportHeight)
+    const contentScrollH = contentEl?.scrollHeight ?? 56
+    // 自然高度 = 内容高度 + 气泡 padding，再不超过 CSS 层级上限
+    const naturalH = Math.min(contentScrollH + 24, cssMaxH)
+    return {
+      entry,
+      naturalHeight: naturalH,
+      width: el?.offsetWidth ?? 300,
+    }
+  })
+
+  const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
+  const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
+  const idealAnchor = modelPositionY - BUBBLE_VERTICAL_OFFSET
+
+  let anchorBottom: number
+  let finalHeights: number[]
+
+  if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
+    // 完全放得下 — 理想位置
+    anchorBottom = idealAnchor
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else if (totalNaturalHeight <= usableHeight) {
+    // 放不下锚点上方但视口内放得下 — 整体下移
+    anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else {
+    // 视口也放不下 — 按比例缩小
+    anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
+    const usableForBubbles = Math.max(0, usableHeight - totalGaps)
+    const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
+    const scale = totalNatural > 0 ? usableForBubbles / totalNatural : 1
+    const MIN_BUBBLE_H = 60
+    finalHeights = data.map(d => Math.max(MIN_BUBBLE_H, Math.floor(d.naturalHeight * scale)))
+    for (let i = 0; i < data.length; i++) {
+      data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
+    }
+  }
+
+  // 从最新（底部）往最老（顶部）依次放置，绝不重叠
+  let currentBottom = anchorBottom
+  for (let i = data.length - 1; i >= 0; i--) {
+    const { entry, width: elW } = data[i]
+    const elH = finalHeights[i]
     const halfW = elW / 2
     const minLeft = BUBBLE_EDGE_PADDING + halfW
     const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfW
     const rawLeft = anchorX + entry.offsetX
     const clampedLeft = Math.min(Math.max(rawLeft, minLeft), maxLeft)
 
-    const top = currentBottom - elH
-    const clampedTop = Math.max(BUBBLE_EDGE_PADDING, top)
-
     entry.styleLeft = `${clampedLeft}px`
-    entry.styleTop = `${clampedTop}px`
-
-    // 下一个气泡要放在这个气泡上方（留 GAP）
-    currentBottom = clampedTop - BUBBLE_GAP
+    entry.styleTop = `${currentBottom - elH}px`
+    currentBottom = currentBottom - elH - BUBBLE_GAP
   }
 }
 
@@ -727,6 +777,7 @@ function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, inte
     pinned: false,
     styleLeft: '0px',
     styleTop: '0px',
+    styleMaxHeight: '',
   }
 
   bubbleStack.value.push(entry)
@@ -1955,7 +2006,7 @@ onBeforeUnmount(() => {
   pointer-events: auto;
   /* top/left 由 updateStackPositions 写入，transition 让位置变化平滑 */
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
-  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s;
+  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
 }
 
 /* 层级 1：上一个气泡，稍小稍暗 */
@@ -2371,13 +2422,12 @@ onBeforeUnmount(() => {
 
 
 
-/* TransitionGroup 进入：从下方淡入 */
+/* TransitionGroup 进入：从下方滑入 */
 .bubble-enter-active {
-  transition: opacity 0.3s ease-out, transform 0.35s ease-out;
+  transition: transform 0.35s ease-out;
 }
 
 .bubble-enter-from {
-  opacity: 0;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(18px) scale(0.92);
 }
 
