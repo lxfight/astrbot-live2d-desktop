@@ -526,7 +526,6 @@ function scheduleBubbleLayoutUpdate() {
 }
 
 function handleBubbleMediaLoad(entryId: string) {
-  // 图片加载完成后重新计算堆叠位置
   nextTick(() => {
     updateStackPositions()
     const el = bubbleContentElMap.get(entryId)
@@ -2102,20 +2101,20 @@ onBeforeUnmount(() => {
 
   /* 滚动条样式 */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(100, 108, 255, 0.5);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
 
     &:hover {
-      background: rgba(100, 108, 255, 0.7);
+      background: rgba(255, 255, 255, 0.4);
     }
   }
 }
