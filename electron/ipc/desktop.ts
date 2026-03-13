@@ -6,6 +6,10 @@
 import { BrowserWindow, desktopCapturer, screen } from 'electron'
 import { bridgeClient } from '../main'
 import { getUserName } from '../database/schema'
+import {
+  getActiveWindow as loadActiveWindow,
+  safeGetActiveWindow as safeLoadActiveWindow,
+} from '../utils/activeWinLoader'
 import type {
   DesktopWindowInfo,
   DesktopCaptureRequestPayload,
@@ -15,22 +19,12 @@ import type {
   DesktopToolDeclaration,
 } from '../protocol/types'
 
-// active-win 是纯 ESM 包，动态导入
-let activeWinFn: (() => Promise<any>) | null = null
 async function getActiveWin(): Promise<any> {
-  if (!activeWinFn) {
-    const mod = await import('active-win')
-    activeWinFn = mod.default
-  }
-  return activeWinFn()
+  return await loadActiveWindow()
 }
 
 async function safeGetActiveWin(): Promise<any | null> {
-  try {
-    return await getActiveWin()
-  } catch {
-    return null
-  }
+  return await safeLoadActiveWindow()
 }
 
 function normalizeToken(value: unknown): string {
