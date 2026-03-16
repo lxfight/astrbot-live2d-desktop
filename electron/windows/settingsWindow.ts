@@ -18,10 +18,10 @@ export function createSettingsWindow(): BrowserWindow {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 900,
-    height: 600,
-    minWidth: 800,
-    minHeight: 500,
+    width: 1080,
+    height: 720,
+    minWidth: 900,
+    minHeight: 560,
     title: '设置',
     icon: resolveAppIconPath(),
     frame: true,

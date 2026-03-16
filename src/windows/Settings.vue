@@ -1207,7 +1207,7 @@ function handleOpenLink(url: string) {
   gap: 10px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 820px) {
   .settings-shell {
     grid-template-columns: 1fr;
   }
@@ -1226,7 +1226,7 @@ function handleOpenLink(url: string) {
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 860px) {
   .settings-page {
     padding: 18px;
   }
