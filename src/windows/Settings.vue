@@ -1028,7 +1028,7 @@ function handleOpenLink(url: string) {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(252px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(252px, var(--settings-sidebar-width)) minmax(0, 1fr);
 }
 
 .settings-sidebar {
@@ -1166,7 +1166,7 @@ function handleOpenLink(url: string) {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px;
+  padding: var(--settings-main-padding);
   background:
     linear-gradient(180deg, rgba(25, 20, 18, 0.66), rgba(16, 13, 12, 0.84)),
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 26%);
@@ -1174,16 +1174,16 @@ function handleOpenLink(url: string) {
 
 .settings-panel-grid {
   display: grid;
-  gap: 18px;
+  gap: var(--settings-card-gap);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 
 .settings-card {
-  padding: 20px;
+  padding: var(--settings-card-padding);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--settings-card-gap);
 }
 
 .settings-card--span-2 {
@@ -1217,7 +1217,7 @@ function handleOpenLink(url: string) {
 
 .settings-form-grid {
   display: grid;
-  gap: 12px;
+  gap: var(--settings-card-gap);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
@@ -1258,7 +1258,7 @@ function handleOpenLink(url: string) {
 
 .shortcut-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -1303,15 +1303,15 @@ function handleOpenLink(url: string) {
 
 .model-grid {
   display: grid;
-  gap: 14px;
+  gap: var(--settings-card-gap);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .model-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: var(--settings-card-gap);
+  padding: var(--settings-card-padding-compact);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1416,7 +1416,7 @@ function handleOpenLink(url: string) {
   }
 
   .settings-main {
-    padding: 18px;
+    padding: 20px;
   }
 
   .settings-card__header,
