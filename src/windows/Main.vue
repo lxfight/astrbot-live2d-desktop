@@ -146,17 +146,7 @@
 
     <!-- 快速输入框 -->
     <Transition name="input">
-      <div v-if="showInput" class="input-panel-container panel-card" :style="inputStyle" @click.stop>
-        <div class="composer-header">
-          <div class="composer-header__copy">
-            <strong>发送消息</strong>
-            <span>{{ connectionStore.isConnected ? '消息将发送到当前会话' : '请先在设置中连接服务器' }}</span>
-          </div>
-          <button class="composer-close-btn" type="button" @click="closeInputPanel">
-            <X :size="14" />
-          </button>
-        </div>
-
+      <div v-if="showInput" class="input-panel-container" :style="inputStyle" @click.stop>
         <!-- 录音提示 (悬浮) -->
         <Transition name="fade">
           <div v-if="isRecording" class="recording-indicator-floating">
@@ -609,6 +599,30 @@ function resolveBubbleAnchorY(): number {
   }
 
   return modelPositionY - BUBBLE_VERTICAL_OFFSET
+}
+
+function resolveModelOverlayAnchor() {
+  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
+  if (modelBounds) {
+    const anchorX = (modelBounds.left + modelBounds.right) / 2
+    const statusTop = Math.max(18, modelBounds.top - 56)
+    const recordingTop = Math.max(18, statusTop - 52)
+    const inputTop = Math.min(modelBounds.bottom + 22, window.innerHeight - 76)
+
+    return {
+      anchorX,
+      statusTop,
+      recordingTop,
+      inputTop,
+    }
+  }
+
+  return {
+    anchorX: modelPositionX,
+    statusTop: Math.max(18, modelPositionY - 280),
+    recordingTop: Math.max(18, modelPositionY - 330),
+    inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
+  }
 }
 
 function updateStackPositions() {
@@ -1145,32 +1159,34 @@ function handleModelPositionChanged(position: { x: number; y: number }) {
 
 // 更新 UI 元素位置（跟随模型）
 function updateUIPositions() {
+  const overlayAnchor = resolveModelOverlayAnchor()
+
   // 重新计算气泡栈位置
   if (bubbleStack.value.length > 0) {
     updateStackPositions()
   }
 
-  // 更新状态提示位置（模型头顶上方 280px）
+  // 更新状态提示位置（跟随模型头部）
   if (modelStatus.value) {
     modelStatusStyle.value = {
-      left: `${window.innerWidth / 2}px`,
-      top: '28px'
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.statusTop}px`
     }
   }
 
-  // 更新录音提示位置（模型头顶上方 330px）
+  // 更新录音提示位置（跟随模型头部）
   if (isRecording.value) {
     recordingToastStyle.value = {
-      left: `${window.innerWidth / 2}px`,
-      top: '72px'
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.recordingTop}px`
     }
   }
 
-  // 更新输入框位置（固定底部）
+  // 更新输入框位置（模型下方）
   if (showInput.value) {
     inputStyle.value = {
-      left: '50%',
-      bottom: '26px'
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.inputTop}px`
     }
   }
 }
@@ -2400,15 +2416,15 @@ onBeforeUnmount(() => {
 }
 
 .input-panel-container {
-  position: fixed;
-  width: min(560px, calc(100vw - 28px));
+  position: absolute;
+  width: min(420px, calc(100vw - 24px));
   z-index: 200;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  background: rgba(7, 12, 20, 0.72);
+  align-items: center;
+  gap: 8px;
+  background: transparent;
   pointer-events: none;
 }
 
@@ -2416,63 +2432,25 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.composer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.composer-header__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  strong {
-    font-size: 15px;
-    letter-spacing: -0.02em;
-  }
-
-  span {
-    color: var(--color-text-secondary);
-    font-size: 12px;
-  }
-}
-
-.composer-close-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-text-tertiary);
-  transition: background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-
-  &:hover {
-    background: var(--color-error-soft);
-    color: var(--color-error);
-  }
-}
-
 .glass-input-bar {
   width: 100%;
-  min-height: 56px;
+  height: 50px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 14px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
-  transition: all var(--duration-norm) var(--ease-out);
+  padding: 0 12px;
+  background: rgba(20, 20, 20, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
 }
 
 .glass-input-bar:focus-within {
-  background: var(--glass-bg-hover);
-  border-color: rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.40);
-  box-shadow: var(--shadow-lg), 0 0 0 3px rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.10);
+  background: rgba(20, 20, 20, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .transparent-input {
@@ -2480,7 +2458,7 @@ onBeforeUnmount(() => {
   background: transparent;
   border: none;
   outline: none;
-  color: var(--color-text-primary);
+  color: #fff;
   font-size: 14px;
   height: 100%;
 }
@@ -2490,26 +2468,26 @@ onBeforeUnmount(() => {
 }
 
 .icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-full);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: all 0.2s;
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .icon-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.95);
 }
 
 .action-buttons {
@@ -2524,28 +2502,26 @@ onBeforeUnmount(() => {
 }
 
 .send-btn {
-  color: var(--model-color, var(--color-accent));
+  color: #4096ff;
 }
 
 .send-btn:hover {
-  background: var(--model-color-soft, var(--color-accent-soft));
-  color: var(--model-color, var(--color-accent));
+  background: rgba(64, 150, 255, 0.1);
+  color: #69b1ff;
 }
 
 .recording-indicator-floating {
-  align-self: flex-start;
-  background: rgba(248, 113, 113, 0.88);
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(255, 77, 79, 0.9);
+  padding: 6px 12px;
+  border-radius: 20px;
   color: white;
   font-size: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
-  box-shadow: 0 4px 16px rgba(248, 113, 113, 0.25);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
 
   .recording-dot {
     width: 8px;
@@ -2558,19 +2534,18 @@ onBeforeUnmount(() => {
 
 .image-preview-floating {
   position: relative;
-  align-self: flex-start;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 6px;
-  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  border-radius: 8px;
   margin-bottom: 4px;
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
 }
 
 .image-preview-floating img {
   max-height: 100px;
   max-width: 200px;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   display: block;
 }
 
@@ -2581,7 +2556,7 @@ onBeforeUnmount(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--color-error);
+  background: #ff4d4f;
   border: 2px solid rgba(255, 255, 255, 0.8);
   color: white;
   display: flex;
@@ -2589,10 +2564,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--duration-fast) var(--ease-out);
-
-  &:hover { transform: scale(1.1); }
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes pulse-red {
