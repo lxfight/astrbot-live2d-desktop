@@ -1167,7 +1167,7 @@ function handleOpenLink(url: string) {
   gap: 4px;
   margin-top: auto;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--settings-divider);
   color: rgba(255, 255, 255, 0.45);
   font-size: 12px;
 }
@@ -1242,7 +1242,11 @@ function handleOpenLink(url: string) {
 .settings-summary-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--settings-divider);
+  border-radius: var(--settings-radius-card);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .settings-summary-row {
@@ -1250,10 +1254,13 @@ function handleOpenLink(url: string) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 14px;
-  border-radius: var(--settings-radius-control);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+
+  & + .settings-summary-row {
+    border-top: 1px solid var(--settings-divider);
+  }
 
   span {
     color: var(--color-text-secondary);

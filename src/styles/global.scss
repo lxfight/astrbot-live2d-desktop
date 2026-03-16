@@ -62,6 +62,7 @@
   --settings-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
   --settings-radius-card: 16px;
   --settings-radius-control: 12px;
+  --settings-divider: rgba(255, 255, 255, 0.05);
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius: 10px;
@@ -131,7 +132,7 @@ body {
   border-radius: var(--radius-full);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
