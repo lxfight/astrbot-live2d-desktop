@@ -811,9 +811,11 @@ function handleOpenLink(url: string) {
 
 <style scoped lang="scss">
 .settings-page {
-  min-height: 100vh;
+  height: 100%;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   background:
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.12), transparent 26%),
     linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 42%);
@@ -878,6 +880,7 @@ function handleOpenLink(url: string) {
 
 .settings-page__content {
   padding-top: 18px;
+  padding-bottom: 24px;
 }
 
 .settings-nav {

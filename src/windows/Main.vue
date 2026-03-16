@@ -3,7 +3,6 @@
     <div class="main-stage-ambient" aria-hidden="true">
       <span class="ambient-orb ambient-orb--primary"></span>
       <span class="ambient-orb ambient-orb--secondary"></span>
-      <span v-if="hasModel" class="ambient-ring"></span>
     </div>
 
     <!-- 空状态提示 -->
@@ -319,6 +318,8 @@ const NORMAL_TYPEWRITER_INTERVAL = 50
 const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
+const BUBBLE_HEAD_RATIO = 0.18
+const BUBBLE_HEAD_CLEARANCE = 28
 const BUBBLE_GAP = 10          // 堆叠气泡间距 px
 const BUBBLE_STACK_MAX = 3     // 最大气泡数量
 const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
@@ -600,6 +601,16 @@ function getTierCSSMaxHeight(tier: number, vh: number): number {
   return Math.min(factor * vh, vh - 32)
 }
 
+function resolveBubbleAnchorY(): number {
+  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
+  if (modelBounds) {
+    const headCenterY = modelBounds.top + Math.min(modelBounds.height * BUBBLE_HEAD_RATIO, 96)
+    return Math.max(BUBBLE_EDGE_PADDING + 72, headCenterY - BUBBLE_HEAD_CLEARANCE)
+  }
+
+  return modelPositionY - BUBBLE_VERTICAL_OFFSET
+}
+
 function updateStackPositions() {
   const stack = bubbleStack.value
   if (!stack.length) return
@@ -627,7 +638,7 @@ function updateStackPositions() {
 
   const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
   const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
-  const idealAnchor = modelPositionY - BUBBLE_VERTICAL_OFFSET
+  const idealAnchor = resolveBubbleAnchorY()
 
   let anchorBottom: number
   let finalHeights: number[]
@@ -1893,8 +1904,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.ambient-orb,
-.ambient-ring {
+.ambient-orb {
   position: absolute;
   display: block;
 }
@@ -1918,19 +1928,6 @@ onBeforeUnmount(() => {
     height: 280px;
     background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
   }
-}
-
-.ambient-ring {
-  left: 50%;
-  top: 46%;
-  width: min(64vw, 620px);
-  height: min(64vw, 620px);
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.02),
-    inset 0 0 80px rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.06);
 }
 
 /* 需要交互的元素不穿透 */

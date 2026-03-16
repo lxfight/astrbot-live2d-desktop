@@ -130,6 +130,32 @@ function getModelPosition(): { x: number; y: number } | null {
   }
 }
 
+function getModelBounds(): {
+  left: number
+  right: number
+  top: number
+  bottom: number
+  width: number
+  height: number
+} | null {
+  if (!model || !model.pixiModel) return null
+
+  const modelSprite = model.pixiModel
+  const width = modelSprite.width
+  const height = modelSprite.height
+  const anchorX = modelSprite.anchor?.x ?? 0.5
+  const anchorY = modelSprite.anchor?.y ?? 0.5
+
+  return {
+    left: modelSprite.x - width * anchorX,
+    right: modelSprite.x + width * (1 - anchorX),
+    top: modelSprite.y - height * anchorY,
+    bottom: modelSprite.y + height * (1 - anchorY),
+    width,
+    height,
+  }
+}
+
 // 拖动相关状态
 let isDragging = false
 let isDragStartedOnModel = false // 标记拖动是否从模型上开始
@@ -479,6 +505,7 @@ defineExpose({
   enablePassThrough,
   setModelPosition,
   getModelPosition,
+  getModelBounds,
   getTextureSource: () => model?.getTextureSource(),
   startLipSync: (audioElement: HTMLAudioElement) => {
     if (model) {
