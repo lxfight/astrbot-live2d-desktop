@@ -1,25 +1,60 @@
 <template>
-  <div class="settings-page">
-    <div class="settings-shell">
-      <aside class="panel-card settings-sidebar">
-        <div class="settings-sidebar__brand">
-          <span class="settings-sidebar__eyebrow">AstrBot Live2D Desktop</span>
-          <strong>设置工作台</strong>
+  <div class="settings-window">
+    <header class="settings-titlebar window-drag-region" @dblclick="handleTitleBarDoubleClick">
+      <div class="settings-titlebar__brand">
+        <span class="settings-titlebar__identity">
+          <span class="settings-theme-swatch settings-theme-swatch--title" :style="themeDotStyle"></span>
+          <span class="settings-titlebar__name">AstrBot Live2D Desktop</span>
+        </span>
+        <span class="settings-titlebar__divider"></span>
+        <span class="settings-titlebar__model">{{ currentModelDisplay }}</span>
+      </div>
+
+      <div class="settings-titlebar__actions window-no-drag">
+        <button class="settings-titlebar__button" type="button" aria-label="最小化" @click="handleMinimizeWindow">
+          <Minus :size="16" />
+        </button>
+        <button
+          class="settings-titlebar__button"
+          type="button"
+          :aria-label="isWindowMaximized ? '还原' : '最大化'"
+          @click="handleToggleWindowMaximize"
+        >
+          <component :is="isWindowMaximized ? Copy : Square" :size="14" />
+        </button>
+        <button
+          class="settings-titlebar__button settings-titlebar__button--close"
+          type="button"
+          aria-label="关闭"
+          @click="handleCloseWindow"
+        >
+          <X :size="16" />
+        </button>
+      </div>
+    </header>
+
+    <div class="settings-workspace">
+      <aside class="settings-sidebar">
+        <div class="settings-sidebar__section settings-sidebar__section--brand">
+          <div class="settings-sidebar__brand">
+            <strong>AstrBot Live2D Desktop</strong>
+            <span v-if="appVersion" class="settings-sidebar__version">v{{ appVersion }}</span>
+          </div>
+
+          <div class="settings-sidebar__status">
+            <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
+              {{ isConnected ? '已连接' : '未连接' }}
+            </span>
+            <span class="settings-theme-chip">
+              <span class="settings-theme-swatch" :style="themeDotStyle"></span>
+              <span>{{ sourceColor.toUpperCase() }}</span>
+            </span>
+          </div>
         </div>
 
-        <div class="settings-sidebar__status">
-          <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
-            {{ isConnected ? '已连接' : '未连接' }}
-          </span>
-          <span class="settings-theme-chip">
-            <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
-            <span>{{ sourceColor.toUpperCase() }}</span>
-          </span>
-        </div>
-
-        <div class="settings-sidebar__current">
+        <div class="settings-sidebar__section settings-sidebar__section--model">
           <span class="settings-sidebar__label">当前模型</span>
-          <strong>{{ currentModelDisplay }}</strong>
+          <strong class="settings-sidebar__model-name">{{ currentModelDisplay }}</strong>
           <span class="settings-sidebar__platform">{{ platformDisplayName }}</span>
           <code v-if="currentModelPath" class="settings-inline-path">{{ currentModelPath }}</code>
           <span v-else class="settings-sidebar__empty">主窗口尚未加载模型</span>
@@ -38,9 +73,14 @@
             <span>{{ item.label }}</span>
           </button>
         </nav>
+
+        <div class="settings-sidebar__meta">
+          <span>{{ isConnected ? 'Bridge 已连接' : 'Bridge 未连接' }}</span>
+          <span>主题色 {{ sourceColor.toUpperCase() }}</span>
+        </div>
       </aside>
 
-      <main class="settings-content">
+      <main class="settings-main">
       <template v-if="activeMenu === 'connection'">
         <div class="settings-panel-grid">
           <section class="panel-card settings-card">
@@ -398,7 +438,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDialog, useMessage } from 'naive-ui'
-import { Drama, Globe, Info, Settings } from 'lucide-vue-next'
+import { Copy, Drama, Globe, Info, Minus, Settings, Square, X } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
@@ -431,6 +471,7 @@ const advancedSettings = ref({
   ...DEFAULT_ADVANCED_SETTINGS,
 })
 const shortcutRegistered = ref(false)
+const isWindowMaximized = ref(false)
 
 const menuItems = [
   { key: 'connection', icon: Globe, label: '连接' },
@@ -451,6 +492,11 @@ const recordingSecondsValue = computed({
 const themeSwatchStyle = computed(() => ({
   background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
   boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
+}))
+
+const themeDotStyle = computed(() => ({
+  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
+  boxShadow: `0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 14px ${palette.value.shadowColor}`,
 }))
 
 const inactiveModelSwatchStyle = computed(() => ({
@@ -562,6 +608,12 @@ onMounted(async () => {
   themeStore.syncFromStorage()
 
   try {
+    isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
+  } catch {
+    isWindowMaximized.value = false
+  }
+
+  try {
     platformCapabilities.value = await window.electron.window.getPlatformCapabilities()
   } catch {
     platformCapabilities.value = null
@@ -577,6 +629,10 @@ onMounted(async () => {
 
   window.electron.update.onStateChanged((state: UpdateState) => {
     updateState.value = state
+  })
+
+  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+    isWindowMaximized.value = maximized
   })
 
   await checkShortcutRegistration()
@@ -836,58 +892,179 @@ function handleResetSettings() {
   })
 }
 
+async function handleMinimizeWindow() {
+  const result = await window.electron.window.minimizeCurrent()
+  if (!result.success) {
+    message.error(result.error || '最小化失败')
+  }
+}
+
+async function handleToggleWindowMaximize() {
+  const result = await window.electron.window.toggleMaximizeCurrent()
+  if (!result.success) {
+    message.error(result.error || '切换窗口状态失败')
+    return
+  }
+
+  isWindowMaximized.value = Boolean(result.maximized)
+}
+
+async function handleCloseWindow() {
+  const result = await window.electron.window.closeCurrent()
+  if (!result.success) {
+    message.error(result.error || '关闭窗口失败')
+  }
+}
+
+function handleTitleBarDoubleClick() {
+  void handleToggleWindowMaximize()
+}
+
 function handleOpenLink(url: string) {
-  ;(window.electron.window as any).openExternal(url)
+  void window.electron.window.openExternal(url)
 }
 </script>
 
 <style scoped lang="scss">
-.settings-page {
+.settings-window {
   position: fixed;
   inset: 0;
-  padding: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.12), transparent 26%),
-    linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 42%);
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
+    linear-gradient(180deg, rgba(37, 29, 24, 0.98), rgba(23, 18, 16, 0.99) 38%, rgba(17, 14, 13, 1));
 }
 
-.settings-shell {
+.settings-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 32px;
+  padding: 0 8px 0 14px;
+  background: rgba(23, 18, 16, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-titlebar__brand,
+.settings-titlebar__identity,
+.settings-titlebar__actions {
+  display: flex;
+  align-items: center;
+}
+
+.settings-titlebar__brand {
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-titlebar__identity {
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-titlebar__name,
+.settings-titlebar__model {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-titlebar__name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 245, 236, 0.88);
+}
+
+.settings-titlebar__divider {
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-titlebar__model {
+  min-width: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.settings-titlebar__actions {
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.settings-titlebar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 245, 236, 0.78);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 1px solid rgba(var(--color-accent-rgb), 0.42);
+    outline-offset: 1px;
+  }
+
+  &--close:hover {
+    background: rgba(198, 78, 65, 0.88);
+    color: #fff5ef;
+  }
+}
+
+.settings-workspace {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
-  gap: 20px;
-  min-height: calc(100vh - 48px);
+  grid-template-columns: minmax(252px, 280px) minmax(0, 1fr);
 }
 
 .settings-sidebar {
-  position: sticky;
-  top: 0;
-  align-self: start;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 18px;
+  padding: 20px 18px;
+  background: linear-gradient(180deg, rgba(42, 33, 28, 0.98), rgba(30, 23, 20, 0.99));
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0 16px 16px 0;
+}
+
+.settings-sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .settings-sidebar__brand {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
 
   strong {
-    font-size: 22px;
+    font-size: 20px;
     line-height: 1.1;
     letter-spacing: -0.04em;
   }
 }
 
-.settings-sidebar__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
+.settings-sidebar__version {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .settings-sidebar__status {
@@ -908,20 +1085,10 @@ function handleOpenLink(url: string) {
   color: var(--color-text-secondary);
 }
 
-.settings-sidebar__current {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-
-  strong {
-    font-size: 18px;
-    line-height: 1.25;
-    letter-spacing: -0.03em;
-  }
+.settings-sidebar__model-name {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
 }
 
 .settings-sidebar__label {
@@ -984,9 +1151,25 @@ function handleOpenLink(url: string) {
   }
 }
 
-.settings-content {
+.settings-sidebar__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+}
+
+.settings-main {
   min-width: 0;
-  padding-bottom: 24px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(25, 20, 18, 0.66), rgba(16, 13, 12, 0.84)),
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 26%);
 }
 
 .settings-panel-grid {
@@ -1207,13 +1390,15 @@ function handleOpenLink(url: string) {
   gap: 10px;
 }
 
-@media (max-width: 820px) {
-  .settings-shell {
+@media (max-width: 960px) {
+  .settings-workspace {
     grid-template-columns: 1fr;
   }
 
   .settings-sidebar {
-    position: relative;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0;
   }
 
   .settings-nav {
@@ -1223,11 +1408,14 @@ function handleOpenLink(url: string) {
 
   .settings-nav__item {
     width: auto;
+    flex: 1 1 160px;
   }
-}
 
-@media (max-width: 860px) {
-  .settings-page {
+  .settings-sidebar__meta {
+    margin-top: 0;
+  }
+
+  .settings-main {
     padding: 18px;
   }
 
@@ -1257,6 +1445,22 @@ function handleOpenLink(url: string) {
 
   .settings-nav__item {
     width: 100%;
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-titlebar {
+    padding-left: 10px;
+  }
+
+  .settings-titlebar__model,
+  .settings-titlebar__divider {
+    display: none;
+  }
+
+  .settings-titlebar__name {
+    max-width: 160px;
   }
 }
 </style>

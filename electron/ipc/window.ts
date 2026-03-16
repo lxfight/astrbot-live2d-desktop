@@ -1,4 +1,4 @@
-import { ipcMain, shell, app, dialog } from 'electron'
+import { ipcMain, shell, app, dialog, BrowserWindow } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
@@ -62,6 +62,10 @@ function sanitizeSuggestedFileName(rawName: unknown, fallback = 'download.bin'):
   return trimmedName || fallback
 }
 
+function getSenderWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
+  return BrowserWindow.fromWebContents(event.sender)
+}
+
 async function fetchResourceBuffer(source: string): Promise<Buffer> {
   const response = await fetch(source)
   if (!response.ok) {
@@ -91,6 +95,46 @@ ipcMain.handle('window:openSettings', async () => {
  */
 ipcMain.handle('window:closeSettings', async () => {
   closeSettingsWindow()
+  return { success: true }
+})
+
+ipcMain.handle('window:minimizeCurrent', async (event) => {
+  const targetWindow = getSenderWindow(event)
+  if (!targetWindow) {
+    return { success: false, error: '未找到当前窗口' }
+  }
+
+  targetWindow.minimize()
+  return { success: true }
+})
+
+ipcMain.handle('window:toggleMaximizeCurrent', async (event) => {
+  const targetWindow = getSenderWindow(event)
+  if (!targetWindow) {
+    return { success: false, error: '未找到当前窗口' }
+  }
+
+  if (targetWindow.isMaximized()) {
+    targetWindow.unmaximize()
+  } else {
+    targetWindow.maximize()
+  }
+
+  return { success: true, maximized: targetWindow.isMaximized() }
+})
+
+ipcMain.handle('window:isMaximizedCurrent', async (event) => {
+  const targetWindow = getSenderWindow(event)
+  return targetWindow ? targetWindow.isMaximized() : false
+})
+
+ipcMain.handle('window:closeCurrent', async (event) => {
+  const targetWindow = getSenderWindow(event)
+  if (!targetWindow) {
+    return { success: false, error: '未找到当前窗口' }
+  }
+
+  targetWindow.close()
   return { success: true }
 })
 

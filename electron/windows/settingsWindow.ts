@@ -24,10 +24,11 @@ export function createSettingsWindow(): BrowserWindow {
     minHeight: 560,
     title: '设置',
     icon: resolveAppIconPath(),
-    frame: true,
+    frame: false,
+    titleBarStyle: 'hidden',
     transparent: false,
     resizable: true,
-    backgroundColor: '#10151f',
+    backgroundColor: '#171210',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -58,6 +59,14 @@ export function createSettingsWindow(): BrowserWindow {
 
   settingsWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[设置窗口] 页面加载失败:', errorCode, errorDescription)
+  })
+
+  settingsWindow.on('maximize', () => {
+    settingsWindow?.webContents.send('window:maximizedChanged', true)
+  })
+
+  settingsWindow.on('unmaximize', () => {
+    settingsWindow?.webContents.send('window:maximizedChanged', false)
   })
 
   settingsWindow.on('closed', () => {

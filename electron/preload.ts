@@ -67,6 +67,10 @@ contextBridge.exposeInMainWorld('electron', {
   window: {
     openSettings: () => ipcRenderer.invoke('window:openSettings'),
     closeSettings: () => ipcRenderer.invoke('window:closeSettings'),
+    minimizeCurrent: () => ipcRenderer.invoke('window:minimizeCurrent'),
+    toggleMaximizeCurrent: () => ipcRenderer.invoke('window:toggleMaximizeCurrent'),
+    isMaximizedCurrent: () => ipcRenderer.invoke('window:isMaximizedCurrent'),
+    closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
     openHistory: () => ipcRenderer.invoke('window:openHistory'),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
@@ -80,6 +84,10 @@ contextBridge.exposeInMainWorld('electron', {
     onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
       ipcRenderer.removeAllListeners('window:passThroughModeChanged')
       ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
+    },
+    onMaximizedChanged: (callback: (maximized: boolean) => void) => {
+      ipcRenderer.removeAllListeners('window:maximizedChanged')
+      ipcRenderer.on('window:maximizedChanged', (_event: any, maximized: boolean) => callback(maximized))
     },
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
     openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
@@ -158,4 +166,3 @@ contextBridge.exposeInMainWorld('electron', {
     }
   }
 })
-
