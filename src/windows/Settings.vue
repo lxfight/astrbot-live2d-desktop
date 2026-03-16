@@ -1,56 +1,51 @@
 <template>
   <div class="settings-page">
-    <header class="settings-page__header">
-      <div class="settings-page__title">
-        <span class="settings-page__eyebrow">AstrBot Live2D Desktop</span>
-        <h1>设置</h1>
-        <p>连接、模型、桌面行为与更新管理。</p>
-      </div>
-
-      <div class="settings-page__meta">
-        <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
-          {{ isConnected ? '已连接' : '未连接' }}
-        </span>
-        <span class="settings-meta-chip">
-          <strong>模型</strong>
-          <span>{{ currentModelDisplay }}</span>
-        </span>
-        <span class="settings-meta-chip">
-          <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
-          <span>{{ sourceColor.toUpperCase() }}</span>
-        </span>
-        <span class="settings-meta-chip">{{ platformDisplayName }}</span>
-      </div>
-    </header>
-
-    <nav class="settings-nav">
-      <button
-        v-for="item in menuItems"
-        :key="item.key"
-        class="settings-nav__item"
-        :class="{ 'settings-nav__item--active': activeMenu === item.key }"
-        type="button"
-        @click="activeMenu = item.key"
-      >
-        <component :is="item.icon" :size="18" />
-        <span>{{ item.label }}</span>
-      </button>
-    </nav>
-
-    <div class="section-stack settings-page__content">
-      <template v-if="activeMenu === 'connection'">
-        <div class="section-heading">
-          <h2>连接工作区</h2>
-          <p>这里只保留连接和资源服务配置，不再用概览卡片占掉首屏空间。</p>
+    <div class="settings-shell">
+      <aside class="panel-card settings-sidebar">
+        <div class="settings-sidebar__brand">
+          <span class="settings-sidebar__eyebrow">AstrBot Live2D Desktop</span>
+          <strong>设置工作台</strong>
         </div>
 
-        <div class="section-grid settings-grid">
+        <div class="settings-sidebar__status">
+          <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
+            {{ isConnected ? '已连接' : '未连接' }}
+          </span>
+          <span class="settings-theme-chip">
+            <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
+            <span>{{ sourceColor.toUpperCase() }}</span>
+          </span>
+        </div>
+
+        <div class="settings-sidebar__current">
+          <span class="settings-sidebar__label">当前模型</span>
+          <strong>{{ currentModelDisplay }}</strong>
+          <span class="settings-sidebar__platform">{{ platformDisplayName }}</span>
+          <code v-if="currentModelPath" class="settings-inline-path">{{ currentModelPath }}</code>
+          <span v-else class="settings-sidebar__empty">主窗口尚未加载模型</span>
+        </div>
+
+        <nav class="settings-nav">
+          <button
+            v-for="item in menuItems"
+            :key="item.key"
+            class="settings-nav__item"
+            :class="{ 'settings-nav__item--active': activeMenu === item.key }"
+            type="button"
+            @click="activeMenu = item.key"
+          >
+            <component :is="item.icon" :size="18" />
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="settings-content">
+      <template v-if="activeMenu === 'connection'">
+        <div class="settings-panel-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>Bridge 连接</h3>
-                <p>连接 AstrBot Live2D 适配器所需的基础参数。</p>
-              </div>
+              <h2>Bridge 连接</h2>
               <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
                 {{ isConnected ? '已连接' : '未连接' }}
               </span>
@@ -85,10 +80,7 @@
 
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>连接状态</h3>
-                <p>会话信息和资源服务地址都放在同一处查看。</p>
-              </div>
+              <h2>工作区状态</h2>
             </div>
 
             <div class="settings-summary-list">
@@ -112,99 +104,139 @@
                 <span>资源路径</span>
                 <strong>{{ connectionStore.resourcePath || '/resources' }}</strong>
               </div>
+              <div class="settings-summary-row">
+                <span>当前模型</span>
+                <strong>{{ currentModelDisplay }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>主题色</span>
+                <strong>{{ sourceColor.toUpperCase() }}</strong>
+              </div>
             </div>
           </section>
-        </div>
 
-        <section class="panel-card settings-card">
-          <div class="settings-card__header">
-            <div>
-              <h3>资源服务高级配置</h3>
-              <p>只有老版本适配器或特殊网络映射场景，才需要覆盖默认的资源服务地址与路径。</p>
+          <section class="panel-card settings-card settings-card--span-2">
+            <div class="settings-card__header">
+              <h2>资源服务</h2>
             </div>
-          </div>
 
-          <n-alert type="info" :show-icon="false">
-            默认情况下，图片、音频、视频和文件资源会自动复用与 WebSocket 相同的服务地址、端口和认证令牌。
-          </n-alert>
+            <n-alert type="info" :show-icon="false">
+              默认情况下，图片、音频、视频和文件资源会自动复用与 WebSocket 相同的服务地址、端口和认证令牌。
+            </n-alert>
 
-          <n-form label-placement="top" class="settings-form-grid">
-            <n-form-item label="资源服务地址">
-              <n-input
-                v-model:value="resourceServerUrl"
-                placeholder="留空时自动跟随连接地址"
-              />
-            </n-form-item>
-            <n-form-item label="资源路径">
-              <n-input
-                v-model:value="resourceServerPath"
-                placeholder="默认沿用握手路径或 /resources"
-              />
-            </n-form-item>
-            <n-form-item label="资源访问令牌">
-              <n-input
-                v-model:value="resourceAccessToken"
-                type="password"
-                show-password-on="click"
-                placeholder="留空时复用 WebSocket 认证令牌"
-              />
-            </n-form-item>
-          </n-form>
-        </section>
+            <n-form label-placement="top" class="settings-form-grid">
+              <n-form-item label="资源服务地址">
+                <n-input
+                  v-model:value="resourceServerUrl"
+                  placeholder="留空时自动跟随连接地址"
+                />
+              </n-form-item>
+              <n-form-item label="资源路径">
+                <n-input
+                  v-model:value="resourceServerPath"
+                  placeholder="默认沿用握手路径或 /resources"
+                />
+              </n-form-item>
+              <n-form-item label="资源访问令牌">
+                <n-input
+                  v-model:value="resourceAccessToken"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="留空时复用 WebSocket 认证令牌"
+                />
+              </n-form-item>
+            </n-form>
+          </section>
+        </div>
       </template>
 
       <template v-else-if="activeMenu === 'model'">
-        <div class="section-heading">
-          <h2>模型管理</h2>
-          <p>导入、切换和清理本地模型，界面主题会跟随当前模型主色更新。</p>
-        </div>
-
-        <section class="panel-card settings-card">
-          <div class="settings-card__header">
-            <div>
-              <h3>模型库</h3>
-              <p>当前共 {{ modelList.length }} 个模型。</p>
+        <div class="settings-panel-grid">
+          <section class="panel-card settings-card current-model-card">
+            <div class="settings-card__header">
+              <h2>当前使用模型</h2>
+              <span class="status-pill" :class="currentModelStatusClass">
+                {{ currentModelStatusLabel }}
+              </span>
             </div>
-            <n-button type="primary" @click="handleImportModel">导入模型</n-button>
-          </div>
 
-          <div v-if="modelList.length > 0" class="model-grid">
-            <article
-              v-for="model in modelList"
-              :key="model.name"
-              class="model-card"
-              :class="{ 'model-card--active': currentModelPath === model.path }"
-            >
-              <div class="model-card__preview" :style="themeSwatchStyle">
-                <span>{{ model.name.slice(0, 1).toUpperCase() }}</span>
+            <template v-if="currentModelPath">
+              <div class="current-model-card__body">
+                <div class="current-model-card__preview" :style="themeSwatchStyle">
+                  <span>{{ currentModelInitial }}</span>
+                </div>
+                <div class="current-model-card__meta">
+                  <strong>{{ currentModelDisplay }}</strong>
+                  <span>{{ sourceColor.toUpperCase() }}</span>
+                  <code class="settings-inline-path">{{ currentModelPath }}</code>
+                </div>
               </div>
-              <div class="model-card__body">
-                <strong>{{ model.name }}</strong>
-                <p>{{ model.path }}</p>
+            </template>
+            <n-empty v-else description="当前未加载模型" />
+          </section>
+
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <h2>模型状态</h2>
+              <n-button type="primary" @click="handleImportModel">导入模型</n-button>
+            </div>
+
+            <div class="settings-summary-list">
+              <div class="settings-summary-row">
+                <span>模型总数</span>
+                <strong>{{ modelList.length }}</strong>
               </div>
-              <div class="model-card__actions">
-                <n-button size="small" type="primary" @click="handleLoadModel(model.path)">加载</n-button>
-                <n-button size="small" tertiary type="error" @click="handleDeleteModel(model.name)">删除</n-button>
+              <div class="settings-summary-row">
+                <span>已选模型</span>
+                <strong>{{ currentModelDisplay }}</strong>
               </div>
-            </article>
-          </div>
-          <n-empty v-else description="暂无模型" />
-        </section>
+              <div class="settings-summary-row">
+                <span>主题同步</span>
+                <strong>{{ currentModelPath ? '跟随当前模型' : '等待模型加载' }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-card settings-card settings-card--span-2">
+            <div class="settings-card__header">
+              <h2>模型库</h2>
+            </div>
+
+            <div v-if="modelList.length > 0" class="model-grid">
+              <article
+                v-for="model in modelList"
+                :key="model.name"
+                class="model-card"
+                :class="{ 'model-card--active': currentModelPath === model.path }"
+              >
+                <div class="model-card__top">
+                  <div class="model-card__preview" :style="getModelPreviewStyle(model.path)">
+                    <span>{{ model.name.slice(0, 1).toUpperCase() }}</span>
+                  </div>
+                  <span v-if="currentModelPath === model.path" class="model-card__badge">当前使用</span>
+                </div>
+                <div class="model-card__body">
+                  <strong>{{ model.name }}</strong>
+                  <p>{{ model.path }}</p>
+                </div>
+                <div class="model-card__actions">
+                  <n-button size="small" type="primary" @click="handleLoadModel(model.path)">
+                    {{ currentModelPath === model.path ? '重新加载' : '加载' }}
+                  </n-button>
+                  <n-button size="small" tertiary type="error" @click="handleDeleteModel(model.name)">删除</n-button>
+                </div>
+              </article>
+            </div>
+            <n-empty v-else description="暂无模型" />
+          </section>
+        </div>
       </template>
 
       <template v-else-if="activeMenu === 'advanced'">
-        <div class="section-heading">
-          <h2>高级选项</h2>
-          <p>桌面行为、全局快捷键和平台能力集中在这里。</p>
-        </div>
-
-        <div class="section-grid settings-grid">
+        <div class="settings-panel-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>行为配置</h3>
-                <p>这些配置会直接影响启动、录音和通知行为。</p>
-              </div>
+              <h2>行为配置</h2>
             </div>
 
             <n-form label-placement="top">
@@ -260,10 +292,7 @@
 
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>平台能力</h3>
-                <p>这些能力决定了穿透、全屏检测和置顶层级的实际表现。</p>
-              </div>
+              <h2>平台能力</h2>
             </div>
 
             <div class="settings-summary-list">
@@ -289,37 +318,26 @@
               {{ platformCompatibilityNotice.text }}
             </n-alert>
           </section>
-        </div>
 
-        <section class="panel-card settings-card">
-          <div class="settings-card__header">
-            <div>
-              <h3>数据管理</h3>
-              <p>这些操作不可逆，单独放置以降低误触风险。</p>
+          <section class="panel-card settings-card settings-card--span-2">
+            <div class="settings-card__header">
+              <h2>数据管理</h2>
             </div>
-          </div>
 
-          <div class="settings-card__actions">
-            <n-button @click="handleOpenLogs">打开日志目录</n-button>
-            <n-button @click="handleClearCache">清除缓存</n-button>
-            <n-button type="error" @click="handleResetSettings">重置所有设置</n-button>
-          </div>
-        </section>
+            <div class="settings-card__actions">
+              <n-button @click="handleOpenLogs">打开日志目录</n-button>
+              <n-button @click="handleClearCache">清除缓存</n-button>
+              <n-button type="error" @click="handleResetSettings">重置所有设置</n-button>
+            </div>
+          </section>
+        </div>
       </template>
 
       <template v-else>
-        <div class="section-heading">
-          <h2>关于</h2>
-          <p>版本、更新和相关项目入口。</p>
-        </div>
-
-        <div class="section-grid settings-grid">
+        <div class="settings-panel-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>AstrBot Live2D Desktop</h3>
-                <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互和语音对话。</p>
-              </div>
+              <h2>AstrBot Live2D Desktop</h2>
             </div>
 
             <div class="settings-summary-list">
@@ -345,10 +363,7 @@
 
           <section class="panel-card settings-card">
             <div class="settings-card__header">
-              <div>
-                <h3>相关项目</h3>
-                <p>这些链接会调用系统浏览器打开。</p>
-              </div>
+              <h2>相关项目</h2>
             </div>
 
             <div class="link-stack">
@@ -363,17 +378,18 @@
               </button>
             </div>
           </section>
-        </div>
 
-        <section class="panel-card settings-card">
-          <div class="settings-card__header">
-            <div>
-              <h3>版权声明</h3>
-              <p>本软件使用 Live2D Cubism SDK。Live2D 是 Live2D Inc. 的注册商标。</p>
+          <section class="panel-card settings-card settings-card--span-2">
+            <div class="settings-card__header">
+              <h2>版权声明</h2>
             </div>
-          </div>
-        </section>
+            <div class="settings-card__note">
+              本软件使用 Live2D Cubism SDK。Live2D 是 Live2D Inc. 的注册商标。
+            </div>
+          </section>
+        </div>
       </template>
+      </main>
     </div>
   </div>
 </template>
@@ -437,7 +453,17 @@ const themeSwatchStyle = computed(() => ({
   boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
 }))
 
+const inactiveModelSwatchStyle = computed(() => ({
+  background: 'linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.18), rgba(255, 255, 255, 0.04))',
+  boxShadow: 'none',
+}))
+
 const currentModelDisplay = computed(() => resolvedModelName.value || '尚未加载模型')
+const currentModelInitial = computed(() => (currentModelDisplay.value || 'A').slice(0, 1).toUpperCase())
+const currentModelStatusLabel = computed(() => (currentModelPath.value ? '使用中' : '未加载'))
+const currentModelStatusClass = computed(() => (
+  currentModelPath.value ? 'status-pill--accent' : 'status-pill--warning'
+))
 
 const platformDisplayName = computed(() => {
   const capabilities = platformCapabilities.value
@@ -676,6 +702,12 @@ async function saveAdvancedSettings() {
   message.success('高级设置已保存')
 }
 
+function getModelPreviewStyle(modelPath: string) {
+  return modelPath === currentModelPath.value
+    ? themeSwatchStyle.value
+    : inactiveModelSwatchStyle.value
+}
+
 function handleShortcutKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 
@@ -822,85 +854,119 @@ function handleOpenLink(url: string) {
     linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 42%);
 }
 
-.settings-page__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.settings-shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   gap: 20px;
-  margin-bottom: 20px;
+  min-height: calc(100vh - 48px);
 }
 
-.settings-page__title {
+.settings-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 18px;
+  padding: 18px;
+}
 
-  h1 {
-    margin: 0;
-    font-size: 28px;
-    letter-spacing: -0.05em;
-  }
+.settings-sidebar__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
-  p {
-    margin: 0;
-    color: var(--color-text-secondary);
+  strong {
+    font-size: 22px;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
   }
 }
 
-.settings-page__eyebrow {
+.settings-sidebar__eyebrow {
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
 
-.settings-page__meta {
+.settings-sidebar__status {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
-.settings-meta-chip {
+.settings-theme-chip {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 36px;
+  gap: 8px;
+  min-height: 34px;
   padding: 8px 12px;
-  border-radius: 14px;
+  border-radius: 999px;
   border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-secondary);
+}
+
+.settings-sidebar__current {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 
   strong {
-    color: var(--color-text-primary);
-    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -0.03em;
   }
 }
 
-.settings-page__content {
-  padding-top: 18px;
-  padding-bottom: 24px;
+.settings-sidebar__label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.settings-sidebar__platform,
+.settings-sidebar__empty {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.settings-inline-path {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .settings-nav {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: wrap;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border);
 }
 
 .settings-nav__item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  width: 100%;
+  padding: 12px 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
   color: var(--color-text-secondary);
+  text-align: left;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
@@ -918,7 +984,15 @@ function handleOpenLink(url: string) {
   }
 }
 
-.settings-grid {
+.settings-content {
+  min-width: 0;
+  padding-bottom: 24px;
+}
+
+.settings-panel-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 
@@ -929,21 +1003,20 @@ function handleOpenLink(url: string) {
   gap: 16px;
 }
 
+.settings-card--span-2 {
+  grid-column: 1 / -1;
+}
+
 .settings-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 
-  h3 {
-    margin: 0 0 6px;
-    font-size: 18px;
-    letter-spacing: -0.03em;
-  }
-
-  p {
+  h2 {
     margin: 0;
-    color: var(--color-text-secondary);
+    font-size: 17px;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -952,6 +1025,11 @@ function handleOpenLink(url: string) {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.settings-card__note {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
 }
 
 .settings-form-grid {
@@ -992,6 +1070,7 @@ function handleOpenLink(url: string) {
   height: 16px;
   border-radius: 999px;
   display: inline-block;
+  flex: 0 0 auto;
 }
 
 .shortcut-row {
@@ -1002,6 +1081,41 @@ function handleOpenLink(url: string) {
 
 .shortcut-row :deep(.n-input) {
   flex: 1 1 220px;
+}
+
+.current-model-card__body {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+}
+
+.current-model-card__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  color: var(--theme-accent-contrast);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.current-model-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+
+  strong {
+    font-size: 18px;
+    line-height: 1.25;
+  }
+
+  span {
+    color: var(--color-text-secondary);
+  }
 }
 
 .model-grid {
@@ -1034,6 +1148,13 @@ function handleOpenLink(url: string) {
   }
 }
 
+.model-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .model-card__preview {
   display: flex;
   align-items: center;
@@ -1044,6 +1165,19 @@ function handleOpenLink(url: string) {
   color: var(--theme-accent-contrast);
   font-size: 22px;
   font-weight: 700;
+}
+
+.model-card__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(var(--color-accent-rgb), 0.14);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.28);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .model-card__body {
@@ -1073,25 +1207,56 @@ function handleOpenLink(url: string) {
   gap: 10px;
 }
 
+@media (max-width: 1100px) {
+  .settings-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: relative;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .settings-nav__item {
+    width: auto;
+  }
+}
+
 @media (max-width: 960px) {
   .settings-page {
     padding: 18px;
   }
 
-  .settings-page__header,
   .settings-card__header,
-  .settings-summary-row {
+  .settings-summary-row,
+  .model-card__top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .settings-page__meta {
-    justify-content: flex-start;
+  .settings-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card--span-2 {
+    grid-column: auto;
+  }
+
+  .current-model-card__body {
+    grid-template-columns: 1fr;
   }
 
   .settings-summary-row strong {
     max-width: none;
     text-align: left;
+  }
+
+  .settings-nav__item {
+    width: 100%;
   }
 }
 </style>
