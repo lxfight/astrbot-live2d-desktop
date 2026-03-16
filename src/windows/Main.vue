@@ -1,5 +1,11 @@
 <template>
-  <div class="main-window" @click="handleWindowClick">
+  <div class="main-window" :style="mainWindowStyle" @click="handleWindowClick">
+    <div class="main-stage-ambient" aria-hidden="true">
+      <span class="ambient-orb ambient-orb--primary"></span>
+      <span class="ambient-orb ambient-orb--secondary"></span>
+      <span v-if="hasModel" class="ambient-ring"></span>
+    </div>
+
     <!-- 空状态提示 -->
     <Transition name="fade">
       <div v-if="!hasModel" class="empty-state">
@@ -41,6 +47,67 @@
       @audio-end="handleAudioEnd"
     />
 
+    <div class="stage-hud">
+      <header class="stage-header panel-card">
+        <div class="stage-header__identity">
+          <div class="stage-header__copy">
+            <span class="stage-header__eyebrow">AstrBot Live2D Desktop</span>
+            <strong class="stage-header__title">{{ currentModelLabel }}</strong>
+            <span class="stage-header__subtitle">{{ currentThemeSummary }}</span>
+          </div>
+          <div class="stage-header__chips">
+            <span class="status-pill" :class="connectionStatusPillClass">{{ connectionStatusLabel }}</span>
+            <span class="status-pill status-pill--accent">{{ resolvedThemeHex }}</span>
+          </div>
+        </div>
+
+        <div class="stage-header__actions">
+          <button class="hud-btn" type="button" @click.stop="openHistory">
+            <ChartColumn :size="16" />
+            <span>历史</span>
+          </button>
+          <button class="hud-btn" type="button" @click.stop="openSettings">
+            <Settings :size="16" />
+            <span>设置</span>
+          </button>
+          <button v-if="!hasModel" class="hud-btn hud-btn--primary" type="button" @click.stop="handleImportModel">
+            <FolderOpen :size="16" />
+            <span>导入模型</span>
+          </button>
+        </div>
+      </header>
+
+      <div v-if="hasModel" class="stage-dock panel-card">
+        <button class="dock-action dock-action--primary" type="button" @click.stop="openInput">
+          <MessageCircle :size="18" />
+          <span>展开对话</span>
+        </button>
+        <button class="dock-action" type="button" @click.stop="handleSelectImage">
+          <ImageIcon :size="18" />
+          <span>选择图片</span>
+        </button>
+        <button
+          class="dock-action"
+          :class="{ 'dock-action--recording': isRecording }"
+          type="button"
+          @mousedown.stop="startRecording"
+          @mouseup.stop="stopRecording"
+          @mouseleave="cancelRecordingIfActive"
+        >
+          <component :is="isRecording ? Disc : Mic" :size="18" />
+          <span>{{ isRecording ? '结束录音' : '按住说话' }}</span>
+        </button>
+        <button class="dock-action" type="button" @click.stop="openHistory">
+          <ChartColumn :size="18" />
+          <span>查看历史</span>
+        </button>
+        <button class="dock-action" type="button" @click.stop="openSettings">
+          <Settings :size="18" />
+          <span>更多设置</span>
+        </button>
+      </div>
+    </div>
+
     <!-- 圆形交互菜单 -->
     <Transition name="radial-menu">
       <div
@@ -76,7 +143,7 @@
         :key="entry.id"
         :ref="(el) => setBubbleEl(entry.id, el as HTMLElement | null)"
         class="bubble"
-        :class="bubbleTierClass(bubbleStack.length - 1 - i)"
+        :class="[bubbleTierClass(bubbleStack.length - 1 - i), { 'bubble-has-image': entry.items.some(it => it.type === 'image') }]"
         :style="{
           left: entry.styleLeft,
           top: entry.styleTop,
@@ -141,7 +208,17 @@
 
     <!-- 快速输入框 -->
     <Transition name="input">
-      <div v-if="showInput" class="input-panel-container" :style="inputStyle" @click.stop>
+      <div v-if="showInput" class="input-panel-container panel-card" :style="inputStyle" @click.stop>
+        <div class="composer-header">
+          <div class="composer-header__copy">
+            <strong>发送消息</strong>
+            <span>{{ connectionStore.isConnected ? '消息将发送到当前会话' : '请先在设置中连接服务器' }}</span>
+          </div>
+          <button class="composer-close-btn" type="button" @click="closeInputPanel">
+            <X :size="14" />
+          </button>
+        </div>
+
         <!-- 录音提示 (悬浮) -->
         <Transition name="fade">
           <div v-if="isRecording" class="recording-indicator-floating">
@@ -199,8 +276,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
+import { useThemeStore } from '@/stores/theme'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
   Image as ImageIcon, Disc, Mic, X,
@@ -228,6 +307,7 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 // @ts-ignore
 import ColorThief from 'colorthief'
+import { hexToRgb, withAlpha } from '@/utils/themePalette'
 
 type BubbleTextItem = {
   id: string
@@ -262,6 +342,8 @@ type BubbleEntry = {
 
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
+const themeStore = useThemeStore()
+const { palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -275,7 +357,16 @@ function waitForNextAudioEnd(): Promise<void> {
 }
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
-const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
+const themeColor = computed(() => withAlpha(palette.value.accent, 0.88))
+const themeRgb = computed(() => hexToRgb(palette.value.accent))
+const mainWindowStyle = computed(() => ({
+  '--model-r': themeRgb.value.r,
+  '--model-g': themeRgb.value.g,
+  '--model-b': themeRgb.value.b,
+  '--model-color': `rgb(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b})`,
+  '--model-color-soft': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.15)`,
+  '--model-color-glow': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.35)`,
+}))
 let menuAutoCloseTimer: number | null = null
 // 气泡栈：index 0 = 最老（顶部），index length-1 = 最新（底部）
 const bubbleStack = ref<BubbleEntry[]>([])
@@ -294,13 +385,19 @@ const BUBBLE_STACK_MAX = 3     // 最大气泡数量
 const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
-const inputStyle = ref({ left: '0px', top: '0px' })
+const inputStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 const inputText = ref('')
 const currentUserName = ref('桌面用户')
 const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
+const loadingModelPath = ref('')
 type RecordingSource = 'manual' | 'shortcut'
 type StopReason = 'manual' | 'shortcut' | 'max-duration'
+type FloatingOverlayStyle = {
+  left: string
+  top?: string
+  bottom?: string
+}
 
 const isRecording = ref(false)
 const recordingDuration = ref(0)
@@ -314,6 +411,23 @@ const recordingHintText = computed(() => {
 })
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
+const currentModelLabel = computed(() => {
+  if (!hasModel.value) {
+    return '尚未加载模型'
+  }
+
+  return resolvedModelName.value || '当前模型'
+})
+const currentThemeSummary = computed(() => {
+  return hasModel.value
+    ? '界面主题已跟随当前模型的主色'
+    : '导入模型后自动生成主题色'
+})
+const resolvedThemeHex = computed(() => sourceColor.value.toUpperCase())
+const connectionStatusLabel = computed(() => connectionStore.isConnected ? '已连接服务器' : '未连接服务器')
+const connectionStatusPillClass = computed(() => {
+  return connectionStore.isConnected ? 'status-pill--success' : 'status-pill--warning'
+})
 let messageIdSequence = 0
 
 function generateMessageId(prefix = 'msg'): string {
@@ -333,8 +447,8 @@ const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 // 模型状态提示
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
 const modelStatus = ref<{ text: string; type: ModelStatusType } | null>(null)
-const modelStatusStyle = ref({ left: '0px', top: '0px' })
-const recordingToastStyle = ref({ left: '0px', top: '0px' })
+const modelStatusStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
+const recordingToastStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 
 function showModelStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
   modelStatus.value = { text, type }
@@ -882,9 +996,11 @@ async function handleImportModel() {
 
     // 加载模型，传入保存的位置（如果有）
     const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
+    loadingModelPath.value = importResult.modelPath!
     await live2dCanvasRef.value?.loadModel(importResult.modelPath!, savedPosition || undefined)
     hasModel.value = true
     modelStore.setCurrentModel(importResult.modelPath!)
+    themeStore.setCurrentModel(importResult.modelPath!)
 
     // 如果有保存的位置，更新本地变量
     if (savedPosition) {
@@ -900,6 +1016,7 @@ async function handleImportModel() {
 
     showBaseEventStatus('模型导入成功', 'success')
   } catch (error: any) {
+    loadingModelPath.value = ''
     showModelStatus(`导入模型失败: ${error.message}`, 'error')
   }
 }
@@ -908,6 +1025,7 @@ async function handleImportModel() {
 async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
+  const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
   
   // 确保位置同步
   const currentPos = live2dCanvasRef.value?.getModelPosition()
@@ -918,26 +1036,43 @@ async function handleModelLoaded() {
   }
   
   showBaseEventStatus('模型加载成功', 'success')
+  if (activeModelPath) {
+    themeStore.setCurrentModel(activeModelPath)
+  }
 
   // 提取主题色
   try {
     const img = live2dCanvasRef.value?.getTextureSource()
     if (img) {
       const colorThief = new (ColorThief as any)()
+      const applyExtractedTheme = () => {
+        const color = colorThief.getColor(img)
+        const extractedColorHex = `#${color
+          .map((channel: number) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
+          .join('')}`
+        if (activeModelPath) {
+          themeStore.applyModelTheme({
+            modelPath: activeModelPath,
+            rgb: {
+              r: color[0],
+              g: color[1],
+              b: color[2],
+            },
+          })
+        }
+        console.log('[主窗口] 提取主题色:', extractedColorHex)
+      }
       // 确保图片已加载
       if (img.complete) {
-        const color = colorThief.getColor(img)
-        themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
+        applyExtractedTheme()
       } else {
-        img.addEventListener('load', () => {
-          const color = colorThief.getColor(img)
-          themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
-        })
+        img.addEventListener('load', applyExtractedTheme, { once: true })
       }
-      console.log('[主窗口] 提取主题色:', themeColor.value)
     }
   } catch (error) {
     console.warn('[主窗口] 提取主题色失败:', error)
+  } finally {
+    loadingModelPath.value = ''
   }
 }
 
@@ -948,6 +1083,9 @@ async function handleModelInfoChanged(modelInfo: {
   expressions: string[]
 }) {
   console.log('[主窗口] 模型信息变化:', modelInfo)
+  if (modelInfo.name) {
+    themeStore.setModelName(modelInfo.name)
+  }
 
   // 如果已连接到服务器，发送模型信息更新
   if (connectionStore.isConnected) {
@@ -1041,24 +1179,24 @@ function updateUIPositions() {
   // 更新状态提示位置（模型头顶上方 280px）
   if (modelStatus.value) {
     modelStatusStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY - 280}px`
+      left: `${window.innerWidth / 2}px`,
+      top: '88px'
     }
   }
 
   // 更新录音提示位置（模型头顶上方 330px）
   if (isRecording.value) {
     recordingToastStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY - 330}px`
+      left: `${window.innerWidth / 2}px`,
+      top: '140px'
     }
   }
 
-  // 更新输入框位置（模型下方 150px）
+  // 更新输入框位置（固定底部）
   if (showInput.value) {
     inputStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY + 150}px`
+      left: '50%',
+      bottom: '124px'
     }
   }
 }
@@ -1070,6 +1208,7 @@ function handleWindowClick(event: MouseEvent) {
 
   // 如果点击的是菜单、输入框、气泡或其子元素，不处理
   if (
+    target.closest('.stage-hud') ||
     target.closest('.radial-menu-container') ||
     target.closest('.input-panel-container') ||
     target.closest('.bubble') ||
@@ -1085,10 +1224,15 @@ function handleWindowClick(event: MouseEvent) {
     clearMenuAutoCloseTimer()
   }
   if (showInput.value) {
-    showInput.value = false
-    // 输入框关闭后，恢复动态穿透
-    live2dCanvasRef.value?.enablePassThrough()
+    closeInputPanel()
   }
+}
+
+function closeInputPanel() {
+  showInput.value = false
+  inputText.value = ''
+  selectedImage.value = null
+  live2dCanvasRef.value?.enablePassThrough()
 }
 
 // 打开历史记录窗口
@@ -1109,11 +1253,26 @@ async function openSettings() {
 function openInput() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
+  const wasOpen = showInput.value
   showInput.value = true
-  inputText.value = ''
-  selectedImage.value = null
-  updateUIPositions()
+  if (!wasOpen) {
+    updateUIPositions()
+  }
   // 禁用动态穿透，让整个窗口可以接收点击事件
+  live2dCanvasRef.value?.disablePassThrough()
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
+}
+
+function applySelectedImage(file: File, preview: string) {
+  selectedImage.value = { file, preview }
+
+  if (!showInput.value) {
+    openInput()
+    return
+  }
+
   live2dCanvasRef.value?.disablePassThrough()
   nextTick(() => {
     inputRef.value?.focus()
@@ -1165,10 +1324,7 @@ function handleSelectImage() {
     // 创建预览
     const reader = new FileReader()
     reader.onload = (e) => {
-      selectedImage.value = {
-        file,
-        preview: e.target?.result as string
-      }
+      applySelectedImage(file, e.target?.result as string)
     }
     reader.readAsDataURL(file)
   }
@@ -1190,10 +1346,7 @@ function handlePasteEvent(e: ClipboardEvent) {
 
       const reader = new FileReader()
       reader.onload = (e) => {
-        selectedImage.value = {
-          file,
-          preview: e.target?.result as string
-        }
+        applySelectedImage(file, e.target?.result as string)
       }
       reader.readAsDataURL(file)
       break
@@ -1482,11 +1635,8 @@ async function handleSendMessage() {
 
     if (result.success) {
       showBaseEventStatus('消息已发送', 'success')
-      showInput.value = false
+      closeInputPanel()
       inputText.value = ''
-      selectedImage.value = null
-      // 恢复动态穿透
-      live2dCanvasRef.value?.enablePassThrough()
 
       // 保存消息记录
       try {
@@ -1560,9 +1710,11 @@ onMounted(async () => {
     try {
       // 获取保存的位置并传入 loadModel
       const savedPosition = modelStore.getModelPosition(modelPath)
+      loadingModelPath.value = modelPath
       await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
       hasModel.value = true
       modelStore.setCurrentModel(modelPath)
+      themeStore.setCurrentModel(modelPath)
 
       // 如果有保存的位置，更新本地变量
       if (savedPosition) {
@@ -1578,6 +1730,7 @@ onMounted(async () => {
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
+      loadingModelPath.value = ''
       showModelStatus(`模型加载失败: ${error.message}`, 'error')
     } finally {
       isLoadingModel = false
@@ -1753,8 +1906,10 @@ onMounted(async () => {
     try {
       // 获取保存的位置并传入 loadModel
       const savedPosition = modelStore.getModelPosition(lastModelPath)
+      loadingModelPath.value = lastModelPath
       await live2dCanvasRef.value?.loadModel(lastModelPath, savedPosition || undefined)
       modelStore.setCurrentModel(lastModelPath)
+      themeStore.setCurrentModel(lastModelPath)
       console.log('[主窗口] 自动加载成功')
 
       // 如果有保存的位置，更新本地变量
@@ -1765,6 +1920,7 @@ onMounted(async () => {
       }
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
+      loadingModelPath.value = ''
       // 自动加载失败，显示导入提示
       hasModel.value = false
     }
@@ -1809,6 +1965,180 @@ onBeforeUnmount(() => {
   -webkit-app-region: no-drag;
 }
 
+.main-stage-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-orb,
+.ambient-ring {
+  position: absolute;
+  display: block;
+}
+
+.ambient-orb {
+  border-radius: 999px;
+  filter: blur(68px);
+
+  &--primary {
+    top: -90px;
+    left: -40px;
+    width: 240px;
+    height: 240px;
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.18);
+  }
+
+  &--secondary {
+    right: -90px;
+    bottom: 120px;
+    width: 280px;
+    height: 280px;
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
+  }
+}
+
+.ambient-ring {
+  left: 50%;
+  top: 46%;
+  width: min(64vw, 620px);
+  height: min(64vw, 620px);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    inset 0 0 80px rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.06);
+}
+
+.stage-hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  pointer-events: none;
+  z-index: 70;
+}
+
+.stage-header,
+.stage-dock {
+  pointer-events: auto;
+}
+
+.stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
+  max-width: min(860px, calc(100vw - 36px));
+  background: rgba(7, 12, 20, 0.52);
+}
+
+.stage-header__identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  flex: 1;
+}
+
+.stage-header__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stage-header__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.stage-header__title {
+  font-size: 18px;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.stage-header__subtitle {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.stage-header__chips,
+.stage-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hud-btn,
+.dock-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.14);
+    border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.28);
+    color: var(--color-text-primary);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.hud-btn {
+  padding: 10px 14px;
+}
+
+.hud-btn--primary,
+.dock-action--primary {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+  color: var(--theme-accent-contrast);
+  border-color: transparent;
+  box-shadow: var(--shadow-soft-accent);
+}
+
+.stage-dock {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(7, 12, 20, 0.62);
+}
+
+.dock-action {
+  min-height: 46px;
+  padding: 0 16px;
+}
+
+.dock-action--recording {
+  color: var(--color-error);
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+}
+
 /* 需要交互的元素不穿透 */
 .live2d-canvas,
 .context-menu,
@@ -1833,23 +2163,32 @@ onBeforeUnmount(() => {
   z-index: 10;
 
   .empty-content {
+    position: relative;
     text-align: center;
-    padding: 44px 48px;
-    background: rgba(26, 26, 26, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(18px);
+    padding: 48px 52px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px);
     max-width: 520px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    }
 
     .empty-icon {
       margin-bottom: 24px;
-      color: var(--color-text-secondary);
+      color: var(--color-text-tertiary);
     }
 
     h2 {
-      font-size: 24px;
-      font-weight: 600;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
       margin-bottom: 12px;
       color: var(--color-text-primary);
     }
@@ -1863,7 +2202,7 @@ onBeforeUnmount(() => {
 }
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out);
 }
 
 .fade-enter-from, .fade-leave-to {
@@ -1885,7 +2224,7 @@ onBeforeUnmount(() => {
     position: absolute;
     width: 10px;
     height: 10px;
-    background: rgba(100, 108, 255, 0.5);
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.5);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     opacity: 0; /* 默认隐藏，调试时可开启 */
@@ -1893,62 +2232,70 @@ onBeforeUnmount(() => {
 
   .radial-menu-item {
     position: absolute;
-    width: 50px;
-    height: 50px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: var(--theme-color, rgba(26, 26, 26, 0.9));
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: var(--theme-color, var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    pointer-events: auto; /* 恢复点击 */
+    pointer-events: auto;
 
-    /* 使用 CSS 变量控制位置 */
     transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay),
-                background 0.3s,
-                box-shadow 0.3s;
+    transition: transform var(--duration-slow) var(--ease-bounce) var(--delay),
+                background var(--duration-fast),
+                box-shadow var(--duration-fast),
+                border-color var(--duration-fast);
 
     .menu-icon {
-      color: #fff;
+      color: var(--color-text-primary);
       display: flex;
-      transition: transform 0.3s;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      transition: transform var(--duration-norm) var(--ease-out);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     }
 
     .menu-label {
       position: absolute;
       top: 100%;
       margin-top: 8px;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      color: var(--color-text-primary);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
       opacity: 0;
-      transform: translateY(-10px);
-      transition: all 0.3s;
+      transform: translateY(-8px);
+      transition: all var(--duration-norm) var(--ease-out);
       white-space: nowrap;
       pointer-events: none;
     }
 
     &:hover {
-      background: var(--theme-color);
-      filter: brightness(1.2);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      background: var(--theme-color, var(--glass-bg-hover));
+      border-color: var(--glass-border-hover);
+      box-shadow: var(--shadow-md), 0 0 16px var(--model-color-glow, var(--color-accent-glow));
       z-index: 10;
 
       .menu-icon {
-        transform: scale(1.2);
+        transform: scale(1.15);
       }
 
       .menu-label {
         opacity: 1;
         transform: translateY(0);
       }
+    }
+
+    &:active {
+      transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(0.93);
     }
   }
 }
@@ -1988,41 +2335,51 @@ onBeforeUnmount(() => {
 
 .bubble {
   position: absolute;
-  background: rgba(26, 26, 26, 0.95);
+  background: rgba(18, 18, 22, 0.88);
   color: var(--color-text-primary);
-  padding: 12px 16px;
-  border-radius: var(--radius);
+  padding: 14px 18px;
+  border: 1px solid rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.08);
+  border-radius: var(--radius-lg);
   font-size: 14px;
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
-  max-height: min(40vh, calc(100vh - 32px));
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-md);
+  max-height: min(28vh, calc(100vh - 32px));
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   z-index: 100;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   pointer-events: auto;
-  /* top/left 由 updateStackPositions 写入，transition 让位置变化平滑 */
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
-  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
+  transition: top 0.3s var(--ease-out), opacity var(--duration-norm), transform var(--duration-norm), max-height 0.3s var(--ease-out);
+
+  &.bubble-has-image {
+    max-height: min(40vh, calc(100vh - 32px));
+  }
 }
 
-/* 层级 1：上一个气泡，稍小稍暗 */
 .bubble-tier-1 {
-  opacity: 0.72;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
-  filter: blur(0.3px);
-  max-height: min(32vh, calc(100vh - 32px));
+  opacity: 0.65;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.94);
+  filter: blur(0.5px) brightness(0.9);
+  max-height: min(20vh, calc(100vh - 32px));
+
+  &.bubble-has-image {
+    max-height: min(32vh, calc(100vh - 32px));
+  }
 }
 
-/* 层级 2：更上层，更小更暗 */
 .bubble-tier-2 {
-  opacity: 0.48;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
-  filter: blur(0.6px);
-  max-height: min(24vh, calc(100vh - 32px));
+  opacity: 0.38;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.86);
+  filter: blur(1px) brightness(0.8);
+  max-height: min(17vh, calc(100vh - 32px));
+
+  &.bubble-has-image {
+    max-height: min(24vh, calc(100vh - 32px));
+  }
 }
 
 .bubble-content {
@@ -2066,18 +2423,20 @@ onBeforeUnmount(() => {
   }
 
   :deep(code) {
-    background: rgba(100, 108, 255, 0.2);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    background: var(--color-accent-soft);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.18);
+    padding: 2px 7px;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
     font-size: 0.9em;
     word-break: break-all;
   }
 
   :deep(pre) {
-    background: rgba(100, 108, 255, 0.1);
-    padding: 10px;
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 12px;
+    border-radius: var(--radius-sm);
     overflow-x: auto;
     margin: 6px 0;
     max-width: 100%;
@@ -2090,15 +2449,17 @@ onBeforeUnmount(() => {
   }
 
   :deep(blockquote) {
-    border-left: 3px solid rgba(100, 108, 255, 0.5);
-    padding-left: 10px;
+    border-left: 2px solid var(--color-accent);
+    background: var(--color-accent-soft);
+    padding: 6px 12px;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
     margin: 6px 0;
     color: var(--color-text-secondary);
     word-wrap: break-word;
   }
 
   :deep(a) {
-    color: #646cff;
+    color: var(--color-accent);
     text-decoration: none;
 
     &:hover {
@@ -2114,25 +2475,25 @@ onBeforeUnmount(() => {
   }
 
   :deep(th), :deep(td) {
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     padding: 6px 10px;
     text-align: left;
   }
 
   :deep(th) {
-    background: rgba(100, 108, 255, 0.2);
+    background: var(--color-accent-soft);
     font-weight: 600;
   }
 
   :deep(hr) {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     margin: 12px 0;
   }
 
   :deep(strong) {
     font-weight: 600;
-    color: #fff;
+    color: var(--color-text-primary);
   }
 
   :deep(em) {
@@ -2150,22 +2511,21 @@ onBeforeUnmount(() => {
     overflow-y: hidden;
   }
 
-  /* 滚动条样式 */
   &::-webkit-scrollbar {
-    width: 8px;
+    width: 5px;
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    background: transparent;
+    border-radius: var(--radius-full);
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-full);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.24);
     }
   }
 }
@@ -2202,47 +2562,85 @@ onBeforeUnmount(() => {
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .input-panel-container {
-  position: absolute;
-  width: 420px;
+  position: fixed;
+  width: min(560px, calc(100vw - 28px));
   z-index: 200;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  pointer-events: none; /* Container passes clicks, children catch them */
+  gap: 10px;
+  padding: 14px;
+  background: rgba(7, 12, 20, 0.72);
+  pointer-events: none;
 }
 
 .input-panel-container > * {
   pointer-events: auto;
 }
 
+.composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-header__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  strong {
+    font-size: 15px;
+    letter-spacing: -0.02em;
+  }
+
+  span {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+}
+
+.composer-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-tertiary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--color-error-soft);
+    color: var(--color-error);
+  }
+}
+
 .glass-input-bar {
   width: 100%;
-  height: 50px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  background: rgba(20, 20, 20, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 25px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+  padding: 0 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  transition: all var(--duration-norm) var(--ease-out);
 }
 
 .glass-input-bar:focus-within {
-  background: rgba(20, 20, 20, 0.8);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  background: var(--glass-bg-hover);
+  border-color: rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.40);
+  box-shadow: var(--shadow-lg), 0 0 0 3px rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.10);
 }
 
 .transparent-input {
@@ -2250,7 +2648,7 @@ onBeforeUnmount(() => {
   background: transparent;
   border: none;
   outline: none;
-  color: #fff;
+  color: var(--color-text-primary);
   font-size: 14px;
   height: 100%;
 }
@@ -2260,26 +2658,26 @@ onBeforeUnmount(() => {
 }
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
 }
 
 .icon-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .action-buttons {
@@ -2289,32 +2687,34 @@ onBeforeUnmount(() => {
 }
 
 .record-btn.recording {
-  color: #ff4d4f;
+  color: var(--color-error);
   animation: pulse-red 1.5s infinite;
 }
 
 .send-btn {
-  color: #4096ff;
+  color: var(--model-color, var(--color-accent));
 }
 
 .send-btn:hover {
-  background: rgba(64, 150, 255, 0.1);
-  color: #69b1ff;
+  background: var(--model-color-soft, var(--color-accent-soft));
+  color: var(--model-color, var(--color-accent));
 }
 
 .recording-indicator-floating {
-  background: rgba(255, 77, 79, 0.9);
-  padding: 6px 12px;
-  border-radius: 20px;
+  align-self: flex-start;
+  background: rgba(248, 113, 113, 0.88);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(248, 113, 113, 0.3);
   color: white;
   font-size: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  backdrop-filter: blur(4px);
-  
+  box-shadow: 0 4px 16px rgba(248, 113, 113, 0.25);
+  backdrop-filter: blur(12px);
+
   .recording-dot {
     width: 8px;
     height: 8px;
@@ -2326,18 +2726,19 @@ onBeforeUnmount(() => {
 
 .image-preview-floating {
   position: relative;
-  background: rgba(0,0,0,0.5);
-  padding: 4px;
-  border-radius: 8px;
+  align-self: flex-start;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  border-radius: var(--radius);
   margin-bottom: 4px;
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(4px);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
 }
 
 .image-preview-floating img {
   max-height: 100px;
   max-width: 200px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: block;
 }
 
@@ -2348,15 +2749,18 @@ onBeforeUnmount(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ff4d4f;
-  border: 2px solid rgba(255,255,255,0.8);
+  background: var(--color-error);
+  border: 2px solid rgba(255, 255, 255, 0.8);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-fast) var(--ease-out);
+
+  &:hover { transform: scale(1.1); }
 }
 
 @keyframes pulse-red {
@@ -2367,8 +2771,7 @@ onBeforeUnmount(() => {
 
 .recording-toast {
   position: absolute;
-  /* top is controlled by inline style */
-  left: 50%; /* Initial center, also controlled by inline style */
+  left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   pointer-events: none;
@@ -2377,11 +2780,12 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
-    background: rgba(255, 77, 79, 0.95);
-    border-radius: 8px;
+    padding: 10px 18px;
+    background: rgba(248, 113, 113, 0.90);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: var(--radius);
     backdrop-filter: blur(20px);
-    box-shadow: 0 4px 16px rgba(255, 77, 79, 0.4);
+    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.3);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
@@ -2409,6 +2813,33 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (max-width: 960px) {
+  .stage-hud {
+    padding: 12px;
+  }
+
+  .stage-header {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .stage-header__identity {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stage-dock {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .dock-action {
+    flex: 1 1 160px;
+  }
+}
+
 @keyframes recording-pulse {
   0%, 100% {
     opacity: 1;
@@ -2422,34 +2853,31 @@ onBeforeUnmount(() => {
 
 
 
-/* TransitionGroup 进入：从下方滑入 */
 .bubble-enter-active {
-  transition: transform 0.35s ease-out;
+  transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out);
 }
 
 .bubble-enter-from {
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(18px) scale(0.92);
+  opacity: 0;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(16px) scale(0.90);
 }
 
-/* TransitionGroup 离开：向上淡出 */
 .bubble-leave-active {
-  transition: opacity 0.28s ease-in, transform 0.28s ease-in;
-  /* 离开期间脱离流，避免影响其他气泡位置计算 */
+  transition: opacity 0.25s var(--ease-in), transform 0.25s var(--ease-in);
   position: absolute;
 }
 
 .bubble-leave-to {
   opacity: 0;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-10px) scale(0.94);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-8px) scale(0.95);
 }
 
-/* 堆叠位置平移动画（新气泡插入时旧气泡上移） */
 .bubble-move {
-  transition: top 0.3s ease-out;
+  transition: top 0.3s var(--ease-out);
 }
 
 .input-enter-active, .input-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
 }
 
 .input-enter-from, .input-leave-to {
@@ -2458,7 +2886,7 @@ onBeforeUnmount(() => {
 }
 
 .recording-toast-enter-active, .recording-toast-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
 }
 
 .recording-toast-enter-from, .recording-toast-leave-to {
@@ -2468,26 +2896,29 @@ onBeforeUnmount(() => {
 
 .model-status-toast {
   position: absolute;
-  padding: 8px 16px;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  background: var(--glass-bg);
   color: white;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   gap: 8px;
   z-index: 1000;
   pointer-events: none;
   transform: translateX(-50%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  font-size: 14px;
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 
-  &.success { background: rgba(82, 196, 26, 0.9); }
-  &.error { background: rgba(255, 77, 79, 0.9); }
-  &.warning { background: rgba(250, 173, 20, 0.9); }
-  &.loading { background: rgba(24, 144, 255, 0.9); }
-  &.info { background: rgba(0, 0, 0, 0.8); }
+  &.success { background: rgba(52, 211, 153, 0.85); border-color: rgba(52, 211, 153, 0.3); }
+  &.error   { background: rgba(248, 113, 113, 0.85); border-color: rgba(248, 113, 113, 0.3); }
+  &.warning { background: rgba(251, 191, 36, 0.85); border-color: rgba(251, 191, 36, 0.3); }
+  &.loading { background: rgba(96, 165, 250, 0.85); border-color: rgba(96, 165, 250, 0.3); }
+  &.info    { background: var(--glass-bg); color: var(--color-text-primary); }
 
   .status-icon {
     display: flex;
@@ -2505,7 +2936,7 @@ onBeforeUnmount(() => {
 }
 
 .status-toast-enter-active, .status-toast-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--duration-norm) var(--ease-out);
 }
 
 .status-toast-enter-from, .status-toast-leave-to {
@@ -2513,4 +2944,3 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(10px);
 }
 </style>
-

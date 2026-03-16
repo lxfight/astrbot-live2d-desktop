@@ -1,75 +1,89 @@
 <template>
-  <div class="welcome-screen">
-    <!-- Drag Region -->
-    <div class="drag-region"></div>
+  <WindowShell
+    title="欢迎使用"
+    subtitle="先确认你的桌面身份，然后进入 Live2D 舞台。"
+    eyebrow="AstrBot First Run"
+    :icon="Drama"
+    centered
+    @close="handleClose"
+  >
+    <template #hero>
+      <div class="welcome-hero">
+        <div>
+          <span class="welcome-hero__badge">首次启动</span>
+          <h2>从你的名字开始，让桌面角色知道该如何称呼你。</h2>
+        </div>
+        <div class="welcome-hero__theme" :style="themeSwatchStyle"></div>
+      </div>
+    </template>
 
-    <!-- Window Controls -->
-    <div class="window-controls">
-      <button class="close-btn" @click="handleClose">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </div>
+    <transition name="welcome-fade" mode="out-in">
+      <section v-if="stage === 'intro'" key="intro" class="welcome-card panel-card">
+        <div class="welcome-mark">
+          <span class="welcome-mark__core"></span>
+          <span class="welcome-mark__ring"></span>
+        </div>
+        <h3>AstrBot Live2D Desktop</h3>
+        <p>界面主题会跟随当前模型的主色，并在多个窗口之间自动同步。</p>
+      </section>
 
-    <!-- Content -->
-    <div class="content-container">
-      <transition name="fade-slide" mode="out-in">
-
-        <!-- Phase 1: Intro Animation -->
-        <div v-if="stage === 'intro'" class="intro-phase" key="intro">
-          <div class="logo-wrapper">
-            <div class="energy-ring"></div>
-            <div class="energy-core"></div>
-          </div>
-          <h1 class="intro-text">ASTRBOT</h1>
+      <section v-else key="form" class="welcome-card panel-card">
+        <div class="welcome-copy">
+          <h3>如何称呼你？</h3>
+          <p>这个名字会作为桌面端发送消息时的默认身份，可以稍后在数据库中再修改。</p>
         </div>
 
-        <!-- Phase 2: Input Form -->
-        <div v-else-if="stage === 'form'" class="form-phase" key="form">
-          <h2 class="prompt-text">初次见面，如何称呼您？</h2>
+        <div class="welcome-form">
+          <input
+            ref="nameInput"
+            v-model="userName"
+            type="text"
+            class="welcome-input"
+            placeholder="请输入你的昵称"
+            maxlength="20"
+            @keyup.enter="handleSubmit"
+          />
 
-          <div class="input-wrapper">
-            <input
-              v-model="userName"
-              type="text"
-              class="hero-input"
-              placeholder="请输入您的昵称"
-              maxlength="20"
-              @keyup.enter="handleSubmit"
-              ref="nameInput"
-            />
-            <div class="input-underline"></div>
-          </div>
-
-          <div class="action-area" :class="{ visible: userName.trim() }">
-             <button class="enter-btn" @click="handleSubmit">
-               <span v-if="!isSubmitting">你好</span>
-               <span v-else class="dots">...</span>
-             </button>
-             <div class="enter-hint">按 Enter 键继续</div>
-          </div>
+          <button class="welcome-submit" type="button" :disabled="!userName.trim() || isSubmitting" @click="handleSubmit">
+            <span v-if="!isSubmitting">进入桌面</span>
+            <span v-else>正在初始化...</span>
+          </button>
         </div>
 
-      </transition>
-    </div>
-  </div>
+        <span class="welcome-hint">按 Enter 键也可以继续</span>
+      </section>
+    </transition>
+  </WindowShell>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { nextTick, onMounted, ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { Drama } from 'lucide-vue-next'
+import WindowShell from '@/components/WindowShell.vue'
+import { useThemeStore } from '@/stores/theme'
 
-const stage = ref('intro') // intro | form
+const themeStore = useThemeStore()
+const { palette } = storeToRefs(themeStore)
+
+const stage = ref<'intro' | 'form'>('intro')
 const userName = ref('')
 const isSubmitting = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
 
+const themeSwatchStyle = computed(() => ({
+  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
+  boxShadow: `0 18px 42px ${palette.value.shadowColor}`,
+}))
+
 onMounted(() => {
-  // Play Intro Animation
+  themeStore.syncFromStorage()
   setTimeout(() => {
     stage.value = 'form'
     setTimeout(() => {
       nextTick(() => nameInput.value?.focus())
-    }, 300)
-  }, 2200)
+    }, 220)
+  }, 1400)
 })
 
 async function handleSubmit() {
@@ -78,15 +92,13 @@ async function handleSubmit() {
 
   isSubmitting.value = true
 
-  // Simulate processing
-  setTimeout(async () => {
-    try {
-      await window.electron.user.setUserName(name)
-    } catch (error) {
-      console.error('Error:', error)
-      isSubmitting.value = false
-    }
-  }, 1000)
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 420))
+    await window.electron.user.setUserName(name)
+  } catch (error) {
+    console.error('[Welcome] 设置用户名称失败:', error)
+    isSubmitting.value = false
+  }
 }
 
 function handleClose() {
@@ -94,250 +106,191 @@ function handleClose() {
 }
 </script>
 
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;800&display=swap');
-
-:global(body) {
-  margin: 0;
-  padding: 0;
-  background: transparent !important;
-  overflow: hidden;
-}
-
-.welcome-screen {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  font-family: 'Exo 2', sans-serif;
-  overflow: hidden;
-  /* NO BACKGROUND - Pure Transparency */
-}
-
-/* Drag Region */
-.drag-region {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  -webkit-app-region: drag;
-}
-
-/* Controls */
-.window-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 50;
-}
-
-.close-btn {
-  background: rgba(0, 0, 0, 0.3); /* Slight dim for visibility */
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  color: #fff;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
+<style scoped lang="scss">
+.welcome-hero {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  backdrop-filter: blur(4px);
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    margin: 8px 0 0;
+    max-width: 560px;
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: -0.04em;
+  }
 }
 
-.close-btn:hover {
-  background: #ff4d4f;
-  border-color: #ff4d4f;
-  transform: rotate(90deg);
-}
-
-/* Content */
-.content-container {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  height: 100%;
-  display: flex;
+.welcome-hero__badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  pointer-events: none; /* Let clicks pass through empty space if needed, but we have drag region */
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(var(--color-accent-rgb), 0.14);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.intro-phase, .form-phase {
-  pointer-events: auto; /* Re-enable for content */
+.welcome-hero__theme {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  flex-shrink: 0;
+}
+
+.welcome-card {
+  width: min(520px, 100%);
+  padding: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-}
-
-/* --- Intro Phase --- */
-.logo-wrapper {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  margin-bottom: 20px;
-}
-
-.energy-core {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  background: #00f2ff;
-  border-radius: 50%;
-  box-shadow: 0 0 40px #00f2ff;
-  animation: core-pulse 2s infinite;
-}
-
-.energy-ring {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: 4px solid rgba(0, 242, 255, 0.3);
-  border-top-color: #00f2ff;
-  border-radius: 50%;
-  animation: ring-spin 1.5s linear infinite;
-}
-
-.intro-text {
-  font-size: 4rem;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.2em;
-  text-shadow:
-    0 0 10px rgba(0, 242, 255, 0.8),
-    0 0 20px rgba(0, 242, 255, 0.4),
-    2px 2px 0px rgba(0,0,0,0.5); /* Hard shadow for contrast */
-  margin: 0;
-  animation: text-flicker 3s infinite;
-}
-
-/* --- Form Phase --- */
-.prompt-text {
-  font-size: 2rem;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 2.5rem;
-  text-shadow:
-    0 2px 4px rgba(0,0,0,0.9),
-    0 0 15px rgba(0,0,0,0.5);
-  letter-spacing: 1px;
-}
-
-.input-wrapper {
-  position: relative;
-  width: 320px;
-  margin-bottom: 1.5rem;
-}
-
-.hero-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.4); /* Slight dark backing for readability */
-  border: none;
-  border-radius: 8px;
-  padding: 15px 20px;
-  font-size: 1.5rem;
-  color: #00f2ff;
   text-align: center;
-  font-weight: 600;
-  font-family: inherit;
-  outline: none;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  transition: all 0.3s;
-  -webkit-app-region: no-drag;
+  gap: 16px;
+  background: rgba(7, 12, 20, 0.72);
 }
 
-.hero-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 400;
+.welcome-mark {
+  position: relative;
+  width: 90px;
+  height: 90px;
 }
 
-.hero-input:focus {
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 25px rgba(0, 242, 255, 0.3);
+.welcome-mark__core,
+.welcome-mark__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
 }
 
-.input-underline {
-  height: 3px;
-  width: 0%;
-  background: #00f2ff;
-  margin: 0 auto;
-  transition: width 0.4s ease;
-  box-shadow: 0 0 10px #00f2ff;
-  margin-top: 5px;
+.welcome-mark__core {
+  inset: 24px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+  box-shadow: 0 18px 40px rgba(var(--color-accent-rgb), 0.3);
 }
 
-.hero-input:focus + .input-underline {
-  width: 100%;
+.welcome-mark__ring {
+  border: 1px solid rgba(var(--color-accent-rgb), 0.28);
+  animation: welcome-orbit 2.4s linear infinite;
 }
 
-.action-area {
+.welcome-card h3 {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+}
+
+.welcome-card p {
+  color: var(--color-text-secondary);
+  max-width: 420px;
+}
+
+.welcome-copy {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 8px;
+}
+
+.welcome-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.welcome-input {
+  width: 100%;
+  height: 54px;
+  padding: 0 18px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-primary);
+  font-size: 16px;
+  text-align: center;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+
+  &:focus {
+    border-color: rgba(var(--color-accent-rgb), 0.34);
+    box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.14);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &::placeholder {
+    color: var(--color-text-tertiary);
+  }
+}
+
+.welcome-submit {
+  width: 100%;
+  height: 50px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+  color: var(--theme-accent-contrast);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-soft-accent);
+  transition: transform var(--duration-fast) var(--ease-out),
+    filter var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: saturate(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.welcome-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.welcome-fade-enter-active,
+.welcome-fade-leave-active {
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+
+.welcome-fade-enter-from,
+.welcome-fade-leave-to {
   opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.4s;
+  transform: translateY(12px) scale(0.98);
 }
 
-.action-area.visible {
-  opacity: 1;
-  transform: translateY(0);
+@keyframes welcome-orbit {
+  from {
+    transform: rotate(0deg) scale(0.96);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: rotate(180deg) scale(1.02);
+    opacity: 1;
+  }
+
+  to {
+    transform: rotate(360deg) scale(0.96);
+    opacity: 0.72;
+  }
 }
 
-.enter-btn {
-  background: linear-gradient(135deg, #00f2ff, #00a8ff);
-  border: none;
-  padding: 10px 40px;
-  border-radius: 30px;
-  color: #000;
-  font-weight: 800;
-  font-size: 1rem;
-  cursor: pointer;
-  box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
-  margin-bottom: 8px;
-  -webkit-app-region: no-drag;
-  transition: transform 0.2s;
-}
+@media (max-width: 768px) {
+  .welcome-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.enter-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 30px rgba(0, 242, 255, 0.6);
-}
-
-.enter-hint {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-}
-
-/* Animations */
-@keyframes ring-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@keyframes core-pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } }
-@keyframes text-flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; text-shadow: 0 0 15px rgba(0, 242, 255, 0.9); } }
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(20px);
-}
-
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: scale(1.1) translateY(-20px);
-  filter: blur(8px);
+  .welcome-card {
+    padding: 22px;
+  }
 }
 </style>

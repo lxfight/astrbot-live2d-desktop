@@ -1,282 +1,420 @@
 <template>
-  <div class="settings-window">
-    <div class="window-header window-drag-region">
-      <div class="header-title">
-        <Settings :size="16" />
-        <span>设置</span>
+  <WindowShell
+    title="设置中心"
+    subtitle="连接、模型、桌面行为与更新管理"
+    :icon="Settings"
+    @close="handleClose"
+  >
+    <template #hero>
+      <div class="metric-grid">
+        <article class="metric-card">
+          <span class="metric-card__label">连接状态</span>
+          <div class="metric-card__value">{{ isConnected ? '在线' : '离线' }}</div>
+          <p class="metric-card__meta">{{ isConnected ? 'Bridge 已连接到服务器' : '请先配置服务器地址与令牌' }}</p>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-card__label">当前模型</span>
+          <div class="metric-card__value">{{ currentModelDisplay }}</div>
+          <p class="metric-card__meta">{{ currentModelPathLabel }}</p>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-card__label">主题主色</span>
+          <div class="metric-card__value settings-theme-value">
+            <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
+            <span>{{ sourceColor.toUpperCase() }}</span>
+          </div>
+          <p class="metric-card__meta">所有窗口与图表都跟随当前模型主题</p>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-card__label">当前平台</span>
+          <div class="metric-card__value">{{ platformDisplayName }}</div>
+          <p class="metric-card__meta">{{ passThroughCapabilityLabel }}</p>
+        </article>
       </div>
-      <button class="window-close-btn window-no-drag" @click="handleClose">
-        <X :size="16" />
-      </button>
-    </div>
-    <div class="settings-layout">
-      <aside class="settings-sidebar">
-        <div
+    </template>
+
+    <template #aside>
+      <nav class="settings-nav">
+        <button
           v-for="item in menuItems"
           :key="item.key"
-          class="menu-item"
-          :class="{ active: activeMenu === item.key }"
+          class="settings-nav__item"
+          :class="{ 'settings-nav__item--active': activeMenu === item.key }"
+          type="button"
           @click="activeMenu = item.key"
         >
-          <component :is="item.icon" :size="20" />
-          <span class="label">{{ item.label }}</span>
-        </div>
-      </aside>
+          <component :is="item.icon" :size="18" />
+          <span>{{ item.label }}</span>
+        </button>
+      </nav>
+    </template>
 
-      <main class="settings-content">
-        <!-- 连接配置 -->
-        <div v-if="activeMenu === 'connection'" class="panel">
-          <h2>连接配置</h2>
-          <n-form label-placement="left" label-width="120">
-            <n-form-item label="服务器地址">
-              <n-input v-model:value="serverUrl" placeholder="ws://127.0.0.1:9090/astrbot/live2d（有证书时也可填写 wss://example.com/astrbot/live2d）" />
-            </n-form-item>
-            <n-form-item label="认证令牌">
+    <div class="section-stack">
+      <template v-if="activeMenu === 'connection'">
+        <div class="section-heading">
+          <h2>连接工作区</h2>
+          <p>把网络配置、资源服务和当前连接状态收敛到同一视图，避免跳来跳去找入口。</p>
+        </div>
+
+        <div class="section-grid">
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>Bridge 连接</h3>
+                <p>连接 AstrBot Live2D 适配器所需的基础参数。</p>
+              </div>
+              <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
+                {{ isConnected ? '已连接' : '未连接' }}
+              </span>
+            </div>
+
+            <n-form label-placement="top">
+              <n-form-item label="服务器地址">
+                <n-input
+                  v-model:value="serverUrl"
+                  placeholder="ws://127.0.0.1:9090/astrbot/live2d"
+                />
+              </n-form-item>
+              <n-form-item label="认证令牌">
+                <n-input
+                  v-model:value="token"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="必填，需与 AstrBot 适配器 auth_token 一致"
+                />
+              </n-form-item>
+            </n-form>
+
+            <div class="settings-card__actions">
+              <n-button type="primary" @click="handleConnect" :disabled="isConnected || !token.trim()">
+                {{ isConnected ? '已连接' : '连接服务器' }}
+              </n-button>
+              <n-button @click="handleDisconnect" :disabled="!isConnected">
+                断开连接
+              </n-button>
+            </div>
+          </section>
+
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>连接概览</h3>
+                <p>这里直接看到当前会话是否可用，以及资源访问是否复用连接配置。</p>
+              </div>
+            </div>
+
+            <div class="settings-summary-list">
+              <div class="settings-summary-row">
+                <span>状态</span>
+                <strong>{{ isConnected ? '在线' : '离线' }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>用户 ID</span>
+                <strong>{{ connectionStore.userId || '尚未分配' }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>会话 ID</span>
+                <strong>{{ connectionStore.sessionId || '尚未建立' }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>资源地址</span>
+                <strong>{{ connectionStore.resourceBaseUrl || '自动跟随连接地址' }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>资源路径</span>
+                <strong>{{ connectionStore.resourcePath || '/resources' }}</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel-card settings-card">
+          <div class="settings-card__header">
+            <div>
+              <h3>资源服务高级配置</h3>
+              <p>只有老版本适配器或特殊网络映射场景，才需要覆盖默认的资源服务地址与路径。</p>
+            </div>
+          </div>
+
+          <n-alert type="info" :show-icon="false">
+            默认情况下，图片、音频、视频和文件资源会自动复用与 WebSocket 相同的服务地址、端口和认证令牌。
+          </n-alert>
+
+          <n-form label-placement="top" class="settings-form-grid">
+            <n-form-item label="资源服务地址">
               <n-input
-                v-model:value="token"
-                type="password"
-                show-password-on="click"
-                placeholder="必填，需与 AstrBot 适配器 auth_token 一致"
+                v-model:value="resourceServerUrl"
+                placeholder="留空时自动跟随连接地址"
               />
             </n-form-item>
-            <n-form-item>
-              <n-alert type="info" :show-icon="false">
-                默认情况下，图片、音频、视频和文件资源会自动复用与 WebSocket 相同的服务地址、端口和认证令牌。只有老版本适配器或特殊网络映射场景，才需要展开下面的高级资源设置。
-              </n-alert>
+            <n-form-item label="资源路径">
+              <n-input
+                v-model:value="resourceServerPath"
+                placeholder="默认沿用握手路径或 /resources"
+              />
             </n-form-item>
-            <n-form-item>
-              <n-collapse>
-                <n-collapse-item title="高级资源设置（通常无需填写）" name="resource-advanced">
-                  <n-form label-placement="left" label-width="120">
-                    <n-form-item label="资源服务地址">
-                      <n-input
-                        v-model:value="resourceServerUrl"
-                        placeholder="留空时自动跟随连接地址；如需覆盖可填写 http://203.0.113.10:9090"
-                      />
-                    </n-form-item>
-                    <n-form-item label="资源路径">
-                      <n-input
-                        v-model:value="resourceServerPath"
-                        placeholder="默认沿用握手路径或 /resources"
-                      />
-                    </n-form-item>
-                    <n-form-item label="资源访问令牌">
-                      <n-input
-                        v-model:value="resourceAccessToken"
-                        type="password"
-                        show-password-on="click"
-                        placeholder="留空时复用 WebSocket 认证令牌"
-                      />
-                    </n-form-item>
-                  </n-form>
-                </n-collapse-item>
-              </n-collapse>
-            </n-form-item>
-            <n-form-item>
-              <n-space>
-                <n-button type="primary" @click="handleConnect" :disabled="connectionStore.isConnected || !token.trim()">
-                  {{ connectionStore.isConnected ? '已连接' : '连接' }}
-                </n-button>
-                <n-button @click="handleDisconnect" :disabled="!connectionStore.isConnected">
-                  断开连接
-                </n-button>
-                <n-tag :type="connectionStore.isConnected ? 'success' : 'default'">
-                  {{ connectionStore.isConnected ? '● 已连接' : '○ 未连接' }}
-                </n-tag>
-              </n-space>
+            <n-form-item label="资源访问令牌">
+              <n-input
+                v-model:value="resourceAccessToken"
+                type="password"
+                show-password-on="click"
+                placeholder="留空时复用 WebSocket 认证令牌"
+              />
             </n-form-item>
           </n-form>
-        </div>
+        </section>
+      </template>
 
-        <!-- 模型管理 -->
-        <div v-if="activeMenu === 'model'" class="panel">
+      <template v-else-if="activeMenu === 'model'">
+        <div class="section-heading">
           <h2>模型管理</h2>
-          <n-space vertical :size="16">
-            <n-button type="primary" @click="handleImportModel">
-              导入模型
-            </n-button>
-            <n-list bordered v-if="modelList.length > 0">
-              <n-list-item v-for="model in modelList" :key="model.name">
-                <n-thing :title="model.name" :description="model.path">
-                  <template #header-extra>
-                    <n-space>
-                      <n-button size="small" @click="handleLoadModel(model.path)">加载</n-button>
-                      <n-button size="small" type="error" @click="handleDeleteModel(model.name)">删除</n-button>
-                    </n-space>
-                  </template>
-                </n-thing>
-              </n-list-item>
-            </n-list>
-            <n-empty v-else description="暂无模型" />
-          </n-space>
+          <p>导入、切换和清理本地模型，并直接预览它们对界面主题的影响。</p>
         </div>
 
-        <!-- 高级选项 -->
-        <div v-if="activeMenu === 'advanced'" class="panel">
-          <h2>高级选项</h2>
-          <n-form label-placement="left" label-width="140">
-            <n-form-item label="启动时自动连接">
-              <n-switch v-model:value="advancedSettings.autoConnect" />
-            </n-form-item>
-            <n-form-item label="基础事件弹窗提示">
-              <n-switch v-model:value="advancedSettings.showBaseEventNotifications" />
-            </n-form-item>
-            <n-form-item label="日志级别">
-              <n-radio-group v-model:value="advancedSettings.logLevel">
-                <n-space>
-                  <n-radio-button value="info">Info（默认）</n-radio-button>
-                  <n-radio-button value="debug">Debug（调试）</n-radio-button>
-                </n-space>
-              </n-radio-group>
-            </n-form-item>
-            <n-form-item label="全局录音快捷键">
-              <n-space>
-                <n-input
-                  v-model:value="advancedSettings.recordingShortcut"
-                  placeholder="按下快捷键..."
-                  readonly
-                  @keydown="handleShortcutKeyDown"
-                  style="width: 200px"
-                />
-                <n-button @click="handleClearShortcut">清除</n-button>
-                <n-button type="primary" @click="handleRegisterShortcut">
-                  {{ shortcutRegistered ? '已注册' : '注册' }}
-                </n-button>
-              </n-space>
-            </n-form-item>
-            <n-form-item label="最长录音时长">
-              <n-space align="center">
-                <n-input-number
-                  v-model:value="recordingSecondsValue"
-                  :min="1"
-                  :max="60"
-                  :precision="0"
-                />
-                <span>秒（上限 60 秒）</span>
-              </n-space>
-            </n-form-item>
-            <n-form-item>
-              <n-alert type="warning" :show-icon="false">
-                全局快捷键用于手动录音；语音唤醒功能已暂时移除。
-                日志默认保留 info/warn/error，切换到 debug 可记录更详细调试信息。
-                日志文件会自动清理 14 天前的旧文件。
-                关闭「基础事件弹窗提示」后，将不再显示模型上方的连接/发送成功等提示（错误/警告提示仍会保留）。
-              </n-alert>
-            </n-form-item>
-            <n-form-item>
-              <n-button type="primary" @click="saveAdvancedSettings">
-                保存设置
-              </n-button>
-            </n-form-item>
-          </n-form>
+        <section class="panel-card settings-card">
+          <div class="settings-card__header">
+            <div>
+              <h3>模型库</h3>
+              <p>当前共 {{ modelList.length }} 个模型，加载后会同步刷新所有窗口的主题色。</p>
+            </div>
+            <n-button type="primary" @click="handleImportModel">导入模型</n-button>
+          </div>
 
-          <n-divider />
-
-          <n-space vertical>
-            <h3>平台能力</h3>
-            <n-alert type="info" :show-icon="false">
-              <div class="capability-list">
-                <p>当前平台：{{ platformDisplayName }}</p>
-                <p>自动检测全屏应用：{{ gameModeCapabilityLabel }}</p>
-                <p>动态穿透（事件转发）：{{ passThroughCapabilityLabel }}</p>
-                <p>置顶层级策略：{{ alwaysOnTopLevelLabel }}</p>
+          <div v-if="modelList.length > 0" class="model-grid">
+            <article
+              v-for="model in modelList"
+              :key="model.name"
+              class="model-card"
+              :class="{ 'model-card--active': currentModelPath === model.path }"
+            >
+              <div class="model-card__preview" :style="themeSwatchStyle">
+                <span>{{ model.name.slice(0, 1).toUpperCase() }}</span>
               </div>
+              <div class="model-card__body">
+                <strong>{{ model.name }}</strong>
+                <p>{{ model.path }}</p>
+              </div>
+              <div class="model-card__actions">
+                <n-button size="small" type="primary" @click="handleLoadModel(model.path)">加载</n-button>
+                <n-button size="small" tertiary type="error" @click="handleDeleteModel(model.name)">删除</n-button>
+              </div>
+            </article>
+          </div>
+          <n-empty v-else description="暂无模型" />
+        </section>
+      </template>
+
+      <template v-else-if="activeMenu === 'advanced'">
+        <div class="section-heading">
+          <h2>高级选项</h2>
+          <p>桌面行为、全局快捷键和平台能力都集中在这里，避免把危险操作埋到角落里。</p>
+        </div>
+
+        <div class="section-grid">
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>行为配置</h3>
+                <p>这些配置会直接影响启动、录音和通知行为。</p>
+              </div>
+            </div>
+
+            <n-form label-placement="top">
+              <n-form-item label="启动时自动连接">
+                <n-switch v-model:value="advancedSettings.autoConnect" />
+              </n-form-item>
+              <n-form-item label="基础事件弹窗提示">
+                <n-switch v-model:value="advancedSettings.showBaseEventNotifications" />
+              </n-form-item>
+              <n-form-item label="日志级别">
+                <n-radio-group v-model:value="advancedSettings.logLevel">
+                  <n-space>
+                    <n-radio-button value="info">Info（默认）</n-radio-button>
+                    <n-radio-button value="debug">Debug（调试）</n-radio-button>
+                  </n-space>
+                </n-radio-group>
+              </n-form-item>
+              <n-form-item label="全局录音快捷键">
+                <div class="shortcut-row">
+                  <n-input
+                    v-model:value="advancedSettings.recordingShortcut"
+                    placeholder="按下快捷键..."
+                    readonly
+                    @keydown="handleShortcutKeyDown"
+                  />
+                  <n-button @click="handleClearShortcut">清除</n-button>
+                  <n-button type="primary" @click="handleRegisterShortcut">
+                    {{ shortcutRegistered ? '已注册' : '注册' }}
+                  </n-button>
+                </div>
+              </n-form-item>
+              <n-form-item label="最长录音时长">
+                <n-space align="center">
+                  <n-input-number
+                    v-model:value="recordingSecondsValue"
+                    :min="1"
+                    :max="60"
+                    :precision="0"
+                  />
+                  <span>秒（上限 60 秒）</span>
+                </n-space>
+              </n-form-item>
+            </n-form>
+
+            <n-alert type="warning" :show-icon="false">
+              全局快捷键用于手动录音；语音唤醒功能已暂时移除。关闭基础事件提示后，不再显示连接成功等常规提示，但错误提示仍会保留。
             </n-alert>
+
+            <div class="settings-card__actions">
+              <n-button type="primary" @click="saveAdvancedSettings">保存设置</n-button>
+            </div>
+          </section>
+
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>平台能力</h3>
+                <p>这些能力决定了穿透、全屏检测和置顶层级的实际表现。</p>
+              </div>
+            </div>
+
+            <div class="settings-summary-list">
+              <div class="settings-summary-row">
+                <span>当前平台</span>
+                <strong>{{ platformDisplayName }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>自动检测全屏应用</span>
+                <strong>{{ gameModeCapabilityLabel }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>动态穿透</span>
+                <strong>{{ passThroughCapabilityLabel }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>置顶层级策略</span>
+                <strong>{{ alwaysOnTopLevelLabel }}</strong>
+              </div>
+            </div>
+
             <n-alert v-if="platformCompatibilityNotice" :type="platformCompatibilityNotice.type" :show-icon="false">
               {{ platformCompatibilityNotice.text }}
             </n-alert>
-          </n-space>
-
-          <n-divider />
-
-          <n-space vertical>
-            <h3>数据管理</h3>
-            <n-space>
-              <n-button @click="handleOpenLogs">
-                打开日志目录
-              </n-button>
-              <n-button @click="handleClearCache">
-                清除缓存
-              </n-button>
-              <n-button type="error" @click="handleResetSettings">
-                重置所有设置
-              </n-button>
-            </n-space>
-          </n-space>
+          </section>
         </div>
 
-        <!-- 关于 -->
-        <div v-if="activeMenu === 'about'" class="panel">
+        <section class="panel-card settings-card">
+          <div class="settings-card__header">
+            <div>
+              <h3>数据管理</h3>
+              <p>这些操作不可逆，放到单独卡片里，避免误触。</p>
+            </div>
+          </div>
+
+          <div class="settings-card__actions">
+            <n-button @click="handleOpenLogs">打开日志目录</n-button>
+            <n-button @click="handleClearCache">清除缓存</n-button>
+            <n-button type="error" @click="handleResetSettings">重置所有设置</n-button>
+          </div>
+        </section>
+      </template>
+
+      <template v-else>
+        <div class="section-heading">
           <h2>关于</h2>
-          <n-card>
-            <n-space vertical :size="24">
-              <div class="about-section">
-                <h3>AstrBot Live2D Desktop</h3>
-                <p>版本：<strong>v{{ appVersion }}</strong></p>
-                <n-space align="center">
-                  <n-button :loading="checkingUpdate" @click="handleCheckUpdates">
-                    检查更新
-                  </n-button>
-                  <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">
-                    重启并安装
-                  </n-button>
-                </n-space>
-                <p class="update-status-text">更新状态：{{ updateStatusLabel }}</p>
-                <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互、语音对话等功能。</p>
-                <p>作者：<strong>lxfight</strong></p>
-              </div>
-
-              <n-divider />
-
-              <div class="about-section">
-                <h3>相关项目</h3>
-                <n-space vertical>
-                  <n-button text tag="a" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
-                    AstrBot (Github)
-                  </n-button>
-                  <n-button text tag="a" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
-                    本项目仓库 (Github)
-                  </n-button>
-                  <n-button text tag="a" @click="handleOpenLink('https://github.com/lxfight/astrbot_plugin_live2d_adapter')">
-                    AstrBot 平台适配器插件 (Github)
-                  </n-button>
-                </n-space>
-              </div>
-
-              <n-divider />
-
-              <div class="about-section">
-                <h3>版权声明</h3>
-                <p class="copyright-text">
-                  本软件使用 Live2D Cubism SDK。<br>
-                  Live2D 是 Live2D Inc. 的注册商标。<br>
-                  This application uses Live2D Cubism SDK. Live2D is a registered trademark of Live2D Inc.
-                </p>
-              </div>
-            </n-space>
-          </n-card>
+          <p>版本、更新状态和相关项目入口都放在这里，不再混在其他配置里。</p>
         </div>
-      </main>
+
+        <div class="section-grid">
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>AstrBot Live2D Desktop</h3>
+                <p>一个用于 AstrBot 的 Live2D 桌面客户端，支持模型展示、交互和语音对话。</p>
+              </div>
+            </div>
+
+            <div class="settings-summary-list">
+              <div class="settings-summary-row">
+                <span>版本</span>
+                <strong>v{{ appVersion }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>更新状态</span>
+                <strong>{{ updateStatusLabel }}</strong>
+              </div>
+              <div class="settings-summary-row">
+                <span>作者</span>
+                <strong>lxfight</strong>
+              </div>
+            </div>
+
+            <div class="settings-card__actions">
+              <n-button :loading="checkingUpdate" @click="handleCheckUpdates">检查更新</n-button>
+              <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">重启并安装</n-button>
+            </div>
+          </section>
+
+          <section class="panel-card settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>相关项目</h3>
+                <p>这些链接会调用系统浏览器打开。</p>
+              </div>
+            </div>
+
+            <div class="link-stack">
+              <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
+                AstrBot
+              </button>
+              <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
+                本项目仓库
+              </button>
+              <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot_plugin_live2d_adapter')">
+                平台适配器插件
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel-card settings-card">
+          <div class="settings-card__header">
+            <div>
+              <h3>版权声明</h3>
+              <p>本软件使用 Live2D Cubism SDK。Live2D 是 Live2D Inc. 的注册商标。</p>
+            </div>
+          </div>
+        </section>
+      </template>
     </div>
-  </div>
+  </WindowShell>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useMessage, useDialog } from 'naive-ui'
+import { computed, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useDialog, useMessage } from 'naive-ui'
+import { Drama, Globe, Info, Settings } from 'lucide-vue-next'
+import WindowShell from '@/components/WindowShell.vue'
 import { useConnectionStore } from '@/stores/connection'
-import { Globe, Drama, Settings, X, Info } from 'lucide-vue-next'
+import { useThemeStore } from '@/stores/theme'
 import {
   DEFAULT_ADVANCED_SETTINGS,
   clampMaxRecordingSeconds,
   loadAdvancedSettings,
   normalizeAdvancedSettings,
-  saveAdvancedSettings as persistAdvancedSettings
+  saveAdvancedSettings as persistAdvancedSettings,
 } from '@/utils/advancedSettings'
 
 const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
+const themeStore = useThemeStore()
+const { currentModelPath, resolvedModelName, palette, sourceColor } = storeToRefs(themeStore)
+const { isConnected } = storeToRefs(connectionStore)
 
 const activeMenu = ref('connection')
 const serverUrl = ref(connectionStore.serverUrl)
@@ -289,29 +427,34 @@ const appVersion = ref('')
 const platformCapabilities = ref<PlatformCapabilities | null>(null)
 const updateState = ref<UpdateState | null>(null)
 const checkingUpdate = ref(false)
-
-// 高级设置
 const advancedSettings = ref({
-  ...DEFAULT_ADVANCED_SETTINGS
+  ...DEFAULT_ADVANCED_SETTINGS,
 })
-
-const recordingSecondsValue = computed({
-  get: () => advancedSettings.value.maxRecordingSeconds,
-  set: (value: number | null) => {
-    advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(
-      value ?? DEFAULT_ADVANCED_SETTINGS.maxRecordingSeconds
-    )
-  }
-})
-
 const shortcutRegistered = ref(false)
 
 const menuItems = [
   { key: 'connection', icon: Globe, label: '连接' },
   { key: 'model', icon: Drama, label: '模型' },
   { key: 'advanced', icon: Settings, label: '高级' },
-  { key: 'about', icon: Info, label: '关于' }
+  { key: 'about', icon: Info, label: '关于' },
 ]
+
+const recordingSecondsValue = computed({
+  get: () => advancedSettings.value.maxRecordingSeconds,
+  set: (value: number | null) => {
+    advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(
+      value ?? DEFAULT_ADVANCED_SETTINGS.maxRecordingSeconds,
+    )
+  },
+})
+
+const themeSwatchStyle = computed(() => ({
+  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
+  boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
+}))
+
+const currentModelDisplay = computed(() => resolvedModelName.value || '尚未加载模型')
+const currentModelPathLabel = computed(() => currentModelPath.value || '当前未关联模型路径')
 
 const platformDisplayName = computed(() => {
   const capabilities = platformCapabilities.value
@@ -344,16 +487,14 @@ const passThroughCapabilityLabel = computed(() => {
   const capabilities = platformCapabilities.value
   if (!capabilities) return '未知'
   return capabilities.mousePassthroughForward
-    ? '支持（完整动态穿透）'
-    : '降级（仅基础穿透，不启用动态穿透）'
+    ? '支持完整动态穿透'
+    : '仅基础穿透，不启用动态转发'
 })
 
 const alwaysOnTopLevelLabel = computed(() => {
   const capabilities = platformCapabilities.value
   if (!capabilities) return '未知'
-  return capabilities.alwaysOnTopLevel === 'screen-saver'
-    ? 'screen-saver'
-    : 'default'
+  return capabilities.alwaysOnTopLevel === 'screen-saver' ? 'screen-saver' : 'default'
 })
 
 const platformCompatibilityNotice = computed<null | { type: 'info' | 'warning'; text: string }>(() => {
@@ -364,20 +505,20 @@ const platformCompatibilityNotice = computed<null | { type: 'info' | 'warning'; 
     if (capabilities.linuxSessionType === 'wayland') {
       return {
         type: 'warning',
-        text: 'Wayland 会话下将关闭动态穿透，并禁用自动检测全屏应用；建议在支持 X11 的环境中使用以获得更完整体验。'
+        text: 'Wayland 会话下将关闭动态穿透，并禁用自动检测全屏应用；建议在支持 X11 的环境中使用以获得更完整体验。',
       }
     }
 
     return {
       type: 'info',
-      text: 'Linux 会话下动态穿透会降级为基础穿透，自动更新需通过 Releases 手动下载。'
+      text: 'Linux 会话下动态穿透会降级为基础穿透，自动更新需通过 Releases 手动下载。',
     }
   }
 
   if (capabilities.platform === 'win32' && !capabilities.gameMode.supported) {
     return {
       type: 'info',
-      text: `当前 Windows 平台已关闭自动检测全屏应用：${capabilities.gameMode.reason || '能力不可用'}`
+      text: `当前 Windows 平台已关闭自动检测全屏应用：${capabilities.gameMode.reason || '能力不可用'}`,
     }
   }
 
@@ -407,16 +548,16 @@ watch([resourceServerUrl, resourceServerPath, resourceAccessToken], ([nextUrl, n
 })
 
 onMounted(async () => {
-  loadModelList()
+  await loadModelList()
   loadSettings()
+  themeStore.syncFromStorage()
 
   try {
     platformCapabilities.value = await window.electron.window.getPlatformCapabilities()
   } catch {
     platformCapabilities.value = null
   }
-  
-  // 获取应用版本
+
   appVersion.value = await window.electron.window.getAppVersion()
 
   try {
@@ -429,10 +570,8 @@ onMounted(async () => {
     updateState.value = state
   })
 
-  // 检查快捷键是否已注册
-  checkShortcutRegistration()
+  await checkShortcutRegistration()
 
-  // 监听连接状态变化
   window.electron.bridge.onConnected((payload: any) => {
     connectionStore.isConnected = true
     connectionStore.applySessionState(payload)
@@ -442,17 +581,17 @@ onMounted(async () => {
     connectionStore.resetSessionState()
   })
 
-  // 检查初始连接状态
-  connectionStore.checkConnection()
+  await connectionStore.checkConnection()
 })
 
 async function checkShortcutRegistration() {
-  if (advancedSettings.value.recordingShortcut) {
-    // 转换为 Electron 格式检查
-    const electronFormat = convertToElectronFormat(advancedSettings.value.recordingShortcut)
-    const registered = await window.electron.shortcut.isRegistered(electronFormat)
-    shortcutRegistered.value = registered
+  if (!advancedSettings.value.recordingShortcut) {
+    shortcutRegistered.value = false
+    return
   }
+
+  const electronFormat = convertToElectronFormat(advancedSettings.value.recordingShortcut)
+  shortcutRegistered.value = await window.electron.shortcut.isRegistered(electronFormat)
 }
 
 async function applyLogLevelSetting(level: 'info' | 'debug') {
@@ -518,9 +657,7 @@ async function handleImportModel() {
   }
 
   const folderName = result.folderPath!.split(/[/\\]/).pop() || 'model'
-  const modelName = folderName
-
-  const importResult = await window.electron.model.import(result.folderPath!, modelName)
+  const importResult = await window.electron.model.import(result.folderPath!, folderName)
 
   if (!importResult.success) {
     message.error(`导入模型失败: ${importResult.error}`)
@@ -532,7 +669,7 @@ async function handleImportModel() {
   }
 
   message.success('模型导入成功')
-  loadModelList()
+  await loadModelList()
 }
 
 async function handleLoadModel(modelPath: string) {
@@ -544,7 +681,7 @@ async function handleDeleteModel(modelName: string) {
   const result = await window.electron.model.delete(modelName)
   if (result.success) {
     message.success('模型已删除')
-    loadModelList()
+    await loadModelList()
   } else {
     message.error(`删除失败: ${result.error}`)
   }
@@ -556,18 +693,14 @@ async function saveAdvancedSettings() {
   message.success('高级设置已保存')
 }
 
-// 处理快捷键输入
 function handleShortcutKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 
   const keys: string[] = []
-
-  // 修饰键（使用常见缩写）
   if (event.ctrlKey || event.metaKey) keys.push('Ctrl')
   if (event.altKey) keys.push('Alt')
   if (event.shiftKey) keys.push('Shift')
 
-  // 主键
   const key = event.key.toUpperCase()
   if (key.length === 1 && /[A-Z0-9]/.test(key)) {
     keys.push(key)
@@ -581,14 +714,10 @@ function handleShortcutKeyDown(event: KeyboardEvent) {
   }
 }
 
-// 将显示格式转换为 Electron 格式
 function convertToElectronFormat(shortcut: string): string {
   return shortcut.replace('Ctrl', 'CommandOrControl')
 }
 
-
-
-// 清除快捷键
 async function handleClearShortcut() {
   await window.electron.shortcut.unregister()
   advancedSettings.value.recordingShortcut = ''
@@ -596,20 +725,17 @@ async function handleClearShortcut() {
   message.success('快捷键已清除')
 }
 
-// 注册快捷键
 async function handleRegisterShortcut() {
   if (!advancedSettings.value.recordingShortcut) {
     message.warning('请先设置快捷键')
     return
   }
 
-  // 转换为 Electron 格式
   const electronFormat = convertToElectronFormat(advancedSettings.value.recordingShortcut)
   const result = await window.electron.shortcut.register(electronFormat)
 
   if (result.success) {
     shortcutRegistered.value = true
-    // 保存设置
     await saveAdvancedSettings()
     message.success('快捷键注册成功')
   } else {
@@ -661,20 +787,20 @@ function handleClearCache() {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => {
-      // 清除 localStorage 中的缓存数据（保留设置）
       const lastModelPath = localStorage.getItem('lastModelPath')
       const advancedSettingsStr = localStorage.getItem('advancedSettings')
       const connectionSettingsStr = localStorage.getItem('connectionSettings')
+      const themeStateStr = localStorage.getItem('rendererThemeState')
 
       localStorage.clear()
 
-      // 恢复设置
       if (lastModelPath) localStorage.setItem('lastModelPath', lastModelPath)
       if (advancedSettingsStr) localStorage.setItem('advancedSettings', advancedSettingsStr)
       if (connectionSettingsStr) localStorage.setItem('connectionSettings', connectionSettingsStr)
+      if (themeStateStr) localStorage.setItem('rendererThemeState', themeStateStr)
 
       message.success('缓存已清除')
-    }
+    },
   })
 }
 
@@ -691,7 +817,7 @@ function handleResetSettings() {
       void applyLogLevelSetting(advancedSettings.value.logLevel)
       shortcutRegistered.value = false
       message.success('设置已重置')
-    }
+    },
   })
 }
 
@@ -700,145 +826,212 @@ function handleClose() {
 }
 
 function handleOpenLink(url: string) {
-  (window.electron.window as any).openExternal(url)
+  ;(window.electron.window as any).openExternal(url)
 }
 </script>
 
 <style scoped lang="scss">
-.settings-window {
-  width: 100vw;
-  height: 100vh;
-  background: var(--color-bg-dark);
-  overflow: hidden;
+.settings-nav {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
-.window-header {
-  height: 32px;
-  background: var(--color-bg-light);
+.settings-nav__item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 500;
+  &:hover {
+    background: rgba(var(--color-accent-rgb), 0.08);
+    border-color: rgba(var(--color-accent-rgb), 0.18);
     color: var(--color-text-primary);
   }
 
-  .window-close-btn {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-text-secondary);
-    transition: all 0.2s;
-
-    &:hover {
-      background: rgba(255, 77, 79, 0.1);
-      color: var(--color-error);
-    }
+  &--active {
+    background: rgba(var(--color-accent-rgb), 0.16);
+    border-color: rgba(var(--color-accent-rgb), 0.3);
+    color: var(--color-text-primary);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.14);
   }
 }
 
-.settings-layout {
+.settings-card {
+  padding: 20px;
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.settings-sidebar {
-  width: 200px;
-  background: var(--color-bg-light);
-  padding: var(--spacing-md);
-  border-right: 1px solid var(--color-border);
+.settings-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 
-  .menu-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm);
-    margin-bottom: var(--spacing-xs);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s;
+  h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    letter-spacing: -0.03em;
+  }
 
-    .label {
-      font-size: 14px;
-    }
-
-    &:hover {
-      background: rgba(100, 108, 255, 0.1);
-    }
-
-    &.active {
-      background: rgba(100, 108, 255, 0.2);
-      color: var(--color-accent);
-    }
+  p {
+    margin: 0;
+    color: var(--color-text-secondary);
   }
 }
 
-.settings-content {
-  flex: 1;
-  padding: var(--spacing-lg);
-  overflow-y: auto;
+.settings-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
-  .panel {
-    max-width: 800px;
+.settings-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
 
-    h2 {
-      margin-bottom: var(--spacing-md);
-      font-size: 20px;
-      font-weight: 600;
-    }
+.settings-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-    h3 {
-      margin-bottom: var(--spacing-sm);
-      font-size: 16px;
-      font-weight: 600;
-    }
+.settings-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+
+  span {
+    color: var(--color-text-secondary);
   }
 
-  .about-section {
-    h3 {
-      margin-bottom: 12px;
-      color: var(--color-text-primary);
-    }
-    
-    p {
-      color: var(--color-text-secondary);
-      line-height: 1.6;
-    }
+  strong {
+    max-width: 60%;
+    text-align: right;
+    word-break: break-word;
+  }
+}
 
-    .copyright-text {
-      font-size: 12px;
-      opacity: 0.8;
-    }
+.settings-theme-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 
-    .update-status-text {
-      margin-top: 8px;
-    }
+.settings-theme-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.shortcut-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.shortcut-row :deep(.n-input) {
+  flex: 1 1 220px;
+}
+
+.model-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.model-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--color-accent-rgb), 0.22);
+    box-shadow: var(--shadow-md);
   }
 
-  .capability-list {
-    p {
-      margin: 0 0 6px;
-      color: var(--color-text-secondary);
-    }
+  &--active {
+    border-color: rgba(var(--color-accent-rgb), 0.32);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18);
+  }
+}
 
-    p:last-child {
-      margin-bottom: 0;
-    }
+.model-card__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: var(--theme-accent-contrast);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.model-card__body {
+  strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 16px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    word-break: break-word;
+  }
+}
+
+.model-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.link-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 960px) {
+  .settings-card__header,
+  .settings-summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-summary-row strong {
+    max-width: none;
+    text-align: left;
   }
 }
 </style>
