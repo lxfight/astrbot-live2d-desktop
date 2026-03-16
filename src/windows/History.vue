@@ -1188,7 +1188,8 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
 <style scoped lang="scss">
 .history-page {
-  height: 100%;
+  position: fixed;
+  inset: 0;
   padding: 24px;
   overflow-y: auto;
   overflow-x: hidden;

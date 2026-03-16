@@ -617,7 +617,8 @@ function updateStackPositions() {
 
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  const anchorX = modelPositionX
+  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
+  const anchorX = modelBounds ? (modelBounds.left + modelBounds.right) / 2 : modelPositionX
   const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
 
   // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
@@ -637,32 +638,72 @@ function updateStackPositions() {
   })
 
   const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
-  const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
   const idealAnchor = resolveBubbleAnchorY()
+  const latestIndex = data.length - 1
+  const latestHeight = data[latestIndex]?.naturalHeight ?? 60
+  const latestBottomMin = BUBBLE_EDGE_PADDING + latestHeight
+  const anchorBottom = Math.min(
+    Math.max(idealAnchor, latestBottomMin),
+    viewportHeight - BUBBLE_EDGE_PADDING,
+  )
 
-  let anchorBottom: number
-  let finalHeights: number[]
+  const finalHeights = data.map(d => d.naturalHeight)
+  for (const d of data) {
+    d.entry.styleMaxHeight = ''
+  }
 
-  if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
-    // 完全放得下 — 理想位置
-    anchorBottom = idealAnchor
-    finalHeights = data.map(d => d.naturalHeight)
-    for (const d of data) d.entry.styleMaxHeight = ''
-  } else if (totalNaturalHeight <= usableHeight) {
-    // 放不下锚点上方但视口内放得下 — 整体下移
-    anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
-    finalHeights = data.map(d => d.naturalHeight)
-    for (const d of data) d.entry.styleMaxHeight = ''
-  } else {
-    // 视口也放不下 — 按比例缩小
-    anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
-    const usableForBubbles = Math.max(0, usableHeight - totalGaps)
-    const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
-    const scale = totalNatural > 0 ? usableForBubbles / totalNatural : 1
-    const MIN_BUBBLE_H = 60
-    finalHeights = data.map(d => Math.max(MIN_BUBBLE_H, Math.floor(d.naturalHeight * scale)))
-    for (let i = 0; i < data.length; i++) {
-      data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
+  if (data.length > 1) {
+    const olderCount = data.length - 1
+    const gapsAboveLatest = olderCount * BUBBLE_GAP
+    const olderAvailableHeight = Math.max(
+      0,
+      anchorBottom - latestHeight - BUBBLE_EDGE_PADDING - gapsAboveLatest,
+    )
+    const olderNaturalHeight = data
+      .slice(0, latestIndex)
+      .reduce((sum, item) => sum + item.naturalHeight, 0)
+
+    if (olderNaturalHeight > olderAvailableHeight) {
+      const scale = olderNaturalHeight > 0 ? olderAvailableHeight / olderNaturalHeight : 1
+      const MIN_OLDER_BUBBLE_H = 48
+
+      for (let i = 0; i < latestIndex; i++) {
+        const scaledHeight = Math.max(
+          MIN_OLDER_BUBBLE_H,
+          Math.floor(data[i].naturalHeight * scale),
+        )
+        finalHeights[i] = Math.min(scaledHeight, data[i].naturalHeight)
+        data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
+      }
+    }
+  }
+
+  const totalFinalHeight = finalHeights.reduce((sum, height) => sum + height, 0) + totalGaps
+  if (totalFinalHeight > usableHeight) {
+    const compressibleHeight = totalFinalHeight - latestHeight - totalGaps
+    const latestTopFloor = BUBBLE_EDGE_PADDING
+
+    if (compressibleHeight > 0) {
+      const remainingHeight = Math.max(
+        0,
+        usableHeight - latestHeight - totalGaps,
+      )
+      const scale = remainingHeight / compressibleHeight
+      const MIN_OLDER_BUBBLE_H = 48
+
+      for (let i = 0; i < latestIndex; i++) {
+        const scaledHeight = Math.max(
+          MIN_OLDER_BUBBLE_H,
+          Math.floor(finalHeights[i] * scale),
+        )
+        finalHeights[i] = Math.min(finalHeights[i], scaledHeight)
+        data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
+      }
+    }
+
+    if (anchorBottom - latestHeight < latestTopFloor) {
+      data[latestIndex].entry.styleMaxHeight = `${Math.max(60, anchorBottom - BUBBLE_EDGE_PADDING)}px`
+      finalHeights[latestIndex] = Math.max(60, anchorBottom - BUBBLE_EDGE_PADDING)
     }
   }
 

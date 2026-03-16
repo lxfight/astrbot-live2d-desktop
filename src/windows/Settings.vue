@@ -811,7 +811,8 @@ function handleOpenLink(url: string) {
 
 <style scoped lang="scss">
 .settings-page {
-  height: 100%;
+  position: fixed;
+  inset: 0;
   padding: 24px;
   overflow-y: auto;
   overflow-x: hidden;
