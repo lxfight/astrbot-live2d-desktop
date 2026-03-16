@@ -81,7 +81,7 @@
         :key="entry.id"
         :ref="(el) => setBubbleEl(entry.id, el as HTMLElement | null)"
         class="bubble"
-        :class="[bubbleTierClass(bubbleStack.length - 1 - i), { 'bubble-has-image': entry.items.some(it => it.type === 'image') }]"
+        :class="bubbleTierClass(bubbleStack.length - 1 - i)"
         :style="{
           left: entry.styleLeft,
           top: entry.styleTop,
@@ -308,8 +308,6 @@ const NORMAL_TYPEWRITER_INTERVAL = 50
 const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_EDGE_PADDING = 16
 const BUBBLE_VERTICAL_OFFSET = 200
-const BUBBLE_HEAD_RATIO = 0.18
-const BUBBLE_HEAD_CLEARANCE = 28
 const BUBBLE_GAP = 10          // 堆叠气泡间距 px
 const BUBBLE_STACK_MAX = 3     // 最大气泡数量
 const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
@@ -591,16 +589,6 @@ function getTierCSSMaxHeight(tier: number, vh: number): number {
   return Math.min(factor * vh, vh - 32)
 }
 
-function resolveBubbleAnchorY(): number {
-  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
-  if (modelBounds) {
-    const headCenterY = modelBounds.top + Math.min(modelBounds.height * BUBBLE_HEAD_RATIO, 96)
-    return Math.max(BUBBLE_EDGE_PADDING + 72, headCenterY - BUBBLE_HEAD_CLEARANCE)
-  }
-
-  return modelPositionY - BUBBLE_VERTICAL_OFFSET
-}
-
 function resolveModelOverlayAnchor() {
   const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
   if (modelBounds) {
@@ -631,8 +619,7 @@ function updateStackPositions() {
 
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
-  const anchorX = modelBounds ? (modelBounds.left + modelBounds.right) / 2 : modelPositionX
+  const anchorX = modelPositionX
   const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
 
   // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
@@ -652,72 +639,29 @@ function updateStackPositions() {
   })
 
   const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
-  const idealAnchor = resolveBubbleAnchorY()
-  const latestIndex = data.length - 1
-  const latestHeight = data[latestIndex]?.naturalHeight ?? 60
-  const latestBottomMin = BUBBLE_EDGE_PADDING + latestHeight
-  const anchorBottom = Math.min(
-    Math.max(idealAnchor, latestBottomMin),
-    viewportHeight - BUBBLE_EDGE_PADDING,
-  )
+  const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
+  const idealAnchor = modelPositionY - BUBBLE_VERTICAL_OFFSET
 
-  const finalHeights = data.map(d => d.naturalHeight)
-  for (const d of data) {
-    d.entry.styleMaxHeight = ''
-  }
+  let anchorBottom: number
+  let finalHeights: number[]
 
-  if (data.length > 1) {
-    const olderCount = data.length - 1
-    const gapsAboveLatest = olderCount * BUBBLE_GAP
-    const olderAvailableHeight = Math.max(
-      0,
-      anchorBottom - latestHeight - BUBBLE_EDGE_PADDING - gapsAboveLatest,
-    )
-    const olderNaturalHeight = data
-      .slice(0, latestIndex)
-      .reduce((sum, item) => sum + item.naturalHeight, 0)
-
-    if (olderNaturalHeight > olderAvailableHeight) {
-      const scale = olderNaturalHeight > 0 ? olderAvailableHeight / olderNaturalHeight : 1
-      const MIN_OLDER_BUBBLE_H = 48
-
-      for (let i = 0; i < latestIndex; i++) {
-        const scaledHeight = Math.max(
-          MIN_OLDER_BUBBLE_H,
-          Math.floor(data[i].naturalHeight * scale),
-        )
-        finalHeights[i] = Math.min(scaledHeight, data[i].naturalHeight)
-        data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
-      }
-    }
-  }
-
-  const totalFinalHeight = finalHeights.reduce((sum, height) => sum + height, 0) + totalGaps
-  if (totalFinalHeight > usableHeight) {
-    const compressibleHeight = totalFinalHeight - latestHeight - totalGaps
-    const latestTopFloor = BUBBLE_EDGE_PADDING
-
-    if (compressibleHeight > 0) {
-      const remainingHeight = Math.max(
-        0,
-        usableHeight - latestHeight - totalGaps,
-      )
-      const scale = remainingHeight / compressibleHeight
-      const MIN_OLDER_BUBBLE_H = 48
-
-      for (let i = 0; i < latestIndex; i++) {
-        const scaledHeight = Math.max(
-          MIN_OLDER_BUBBLE_H,
-          Math.floor(finalHeights[i] * scale),
-        )
-        finalHeights[i] = Math.min(finalHeights[i], scaledHeight)
-        data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
-      }
-    }
-
-    if (anchorBottom - latestHeight < latestTopFloor) {
-      data[latestIndex].entry.styleMaxHeight = `${Math.max(60, anchorBottom - BUBBLE_EDGE_PADDING)}px`
-      finalHeights[latestIndex] = Math.max(60, anchorBottom - BUBBLE_EDGE_PADDING)
+  if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
+    anchorBottom = idealAnchor
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else if (totalNaturalHeight <= usableHeight) {
+    anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
+    finalHeights = data.map(d => d.naturalHeight)
+    for (const d of data) d.entry.styleMaxHeight = ''
+  } else {
+    anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
+    const usableForBubbles = Math.max(0, usableHeight - totalGaps)
+    const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
+    const scale = totalNatural > 0 ? usableForBubbles / totalNatural : 1
+    const MIN_BUBBLE_H = 60
+    finalHeights = data.map(d => Math.max(MIN_BUBBLE_H, Math.floor(d.naturalHeight * scale)))
+    for (let i = 0; i < data.length; i++) {
+      data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
     }
   }
 
@@ -2183,17 +2127,16 @@ onBeforeUnmount(() => {
 
 .bubble {
   position: absolute;
-  background: rgba(18, 18, 22, 0.88);
+  background: rgba(26, 26, 26, 0.95);
   color: var(--color-text-primary);
-  padding: 14px 18px;
-  border: 1px solid rgba(var(--model-r, 100), var(--model-g, 108), var(--model-b, 255), 0.08);
-  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  border-radius: var(--radius);
   font-size: 14px;
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
-  max-height: min(28vh, calc(100vh - 32px));
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  max-height: min(40vh, calc(100vh - 32px));
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-md);
   z-index: 100;
   overflow: hidden;
   display: flex;
@@ -2201,33 +2144,21 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   pointer-events: auto;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
-  transition: top 0.3s var(--ease-out), opacity var(--duration-norm), transform var(--duration-norm), max-height 0.3s var(--ease-out);
-
-  &.bubble-has-image {
-    max-height: min(40vh, calc(100vh - 32px));
-  }
+  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
 }
 
 .bubble-tier-1 {
-  opacity: 0.65;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.94);
-  filter: blur(0.5px) brightness(0.9);
-  max-height: min(20vh, calc(100vh - 32px));
-
-  &.bubble-has-image {
-    max-height: min(32vh, calc(100vh - 32px));
-  }
+  opacity: 0.72;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
+  filter: blur(0.3px);
+  max-height: min(32vh, calc(100vh - 32px));
 }
 
 .bubble-tier-2 {
-  opacity: 0.38;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.86);
-  filter: blur(1px) brightness(0.8);
-  max-height: min(17vh, calc(100vh - 32px));
-
-  &.bubble-has-image {
-    max-height: min(24vh, calc(100vh - 32px));
-  }
+  opacity: 0.48;
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
+  filter: blur(0.6px);
+  max-height: min(24vh, calc(100vh - 32px));
 }
 
 .bubble-content {
@@ -2271,20 +2202,18 @@ onBeforeUnmount(() => {
   }
 
   :deep(code) {
-    background: var(--color-accent-soft);
-    border: 1px solid rgba(var(--color-accent-rgb), 0.18);
-    padding: 2px 7px;
-    border-radius: var(--radius-xs);
-    font-family: var(--font-mono);
+    background: rgba(100, 108, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 0.9em;
     word-break: break-all;
   }
 
   :deep(pre) {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    padding: 12px;
-    border-radius: var(--radius-sm);
+    background: rgba(100, 108, 255, 0.1);
+    padding: 10px;
+    border-radius: 6px;
     overflow-x: auto;
     margin: 6px 0;
     max-width: 100%;
@@ -2297,17 +2226,15 @@ onBeforeUnmount(() => {
   }
 
   :deep(blockquote) {
-    border-left: 2px solid var(--color-accent);
-    background: var(--color-accent-soft);
-    padding: 6px 12px;
-    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    border-left: 3px solid rgba(100, 108, 255, 0.5);
+    padding-left: 10px;
     margin: 6px 0;
     color: var(--color-text-secondary);
     word-wrap: break-word;
   }
 
   :deep(a) {
-    color: var(--color-accent);
+    color: #646cff;
     text-decoration: none;
 
     &:hover {
@@ -2323,25 +2250,25 @@ onBeforeUnmount(() => {
   }
 
   :deep(th), :deep(td) {
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 6px 10px;
     text-align: left;
   }
 
   :deep(th) {
-    background: var(--color-accent-soft);
+    background: rgba(100, 108, 255, 0.2);
     font-weight: 600;
   }
 
   :deep(hr) {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin: 12px 0;
   }
 
   :deep(strong) {
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: #fff;
   }
 
   :deep(em) {
@@ -2360,20 +2287,20 @@ onBeforeUnmount(() => {
   }
 
   &::-webkit-scrollbar {
-    width: 5px;
+    width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.4);
     }
   }
 }
@@ -2410,9 +2337,9 @@ onBeforeUnmount(() => {
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .input-panel-container {
@@ -2631,26 +2558,25 @@ onBeforeUnmount(() => {
 
 
 .bubble-enter-active {
-  transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out);
+  transition: transform 0.35s ease-out;
 }
 
 .bubble-enter-from {
-  opacity: 0;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(16px) scale(0.90);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(18px) scale(0.92);
 }
 
 .bubble-leave-active {
-  transition: opacity 0.25s var(--ease-in), transform 0.25s var(--ease-in);
+  transition: opacity 0.28s ease-in, transform 0.28s ease-in;
   position: absolute;
 }
 
 .bubble-leave-to {
   opacity: 0;
-  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-8px) scale(0.95);
+  transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-10px) scale(0.94);
 }
 
 .bubble-move {
-  transition: top 0.3s var(--ease-out);
+  transition: top 0.3s ease-out;
 }
 
 .input-enter-active, .input-leave-active {
