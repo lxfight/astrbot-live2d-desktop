@@ -934,7 +934,7 @@ function handleOpenLink(url: string) {
   overflow: hidden;
   background:
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
-    linear-gradient(180deg, rgba(37, 29, 24, 0.98), rgba(23, 18, 16, 0.99) 38%, rgba(17, 14, 13, 1));
+    linear-gradient(180deg, rgba(38, 30, 25, 0.98), var(--settings-bg-base) 38%, rgba(17, 14, 13, 1));
 }
 
 .settings-titlebar {
@@ -945,7 +945,7 @@ function handleOpenLink(url: string) {
   min-height: 32px;
   padding: 0 8px 0 14px;
   background: rgba(23, 18, 16, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--settings-border-subtle);
 }
 
 .settings-titlebar__brand,
@@ -1002,7 +1002,7 @@ function handleOpenLink(url: string) {
   justify-content: center;
   width: 28px;
   height: 24px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: rgba(255, 245, 236, 0.78);
   transition: background var(--duration-fast) var(--ease-out),
@@ -1037,15 +1037,23 @@ function handleOpenLink(url: string) {
   flex-direction: column;
   gap: 18px;
   padding: 20px 18px;
-  background: linear-gradient(180deg, rgba(42, 33, 28, 0.98), rgba(30, 23, 20, 0.99));
+  background: linear-gradient(180deg, rgba(42, 33, 28, 0.98), rgba(32, 24, 21, 0.99) 48%, var(--settings-bg-sidebar));
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 0 16px 16px 0;
+  border-radius: 0 14px 14px 0;
 }
 
 .settings-sidebar__section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.settings-sidebar__section--model {
+  padding: 16px;
+  border: 1px solid var(--settings-border-subtle);
+  border-radius: var(--settings-radius-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%), rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .settings-sidebar__brand {
@@ -1080,8 +1088,8 @@ function handleOpenLink(url: string) {
   min-height: 34px;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--settings-border-subtle);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-text-secondary);
 }
 
@@ -1108,8 +1116,8 @@ function handleOpenLink(url: string) {
   display: block;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--settings-border-subtle);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1129,19 +1137,21 @@ function handleOpenLink(url: string) {
   gap: 10px;
   width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid transparent;
+  border-radius: var(--settings-radius-control);
+  background: var(--settings-bg-soft);
+  border: 1px solid var(--settings-border-subtle);
   color: var(--color-text-secondary);
   text-align: left;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 
   &:hover {
     background: rgba(var(--color-accent-rgb), 0.08);
-    border-color: rgba(var(--color-accent-rgb), 0.18);
+    border-color: rgba(var(--color-accent-rgb), 0.2);
     color: var(--color-text-primary);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
   &--active {
@@ -1168,8 +1178,16 @@ function handleOpenLink(url: string) {
   overflow-y: auto;
   padding: var(--settings-main-padding);
   background:
-    linear-gradient(180deg, rgba(25, 20, 18, 0.66), rgba(16, 13, 12, 0.84)),
+    linear-gradient(180deg, rgba(28, 22, 19, 0.7), rgba(17, 14, 13, 0.88)),
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 26%);
+}
+
+.panel-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--settings-bg-surface);
+  border: 1px solid var(--settings-border-subtle);
+  border-radius: var(--settings-radius-card);
+  box-shadow: var(--settings-card-shadow);
+  backdrop-filter: none;
 }
 
 .settings-panel-grid {
@@ -1198,7 +1216,7 @@ function handleOpenLink(url: string) {
 
   h2 {
     margin: 0;
-    font-size: 17px;
+    font-size: 18px;
     letter-spacing: -0.03em;
   }
 }
@@ -1233,9 +1251,9 @@ function handleOpenLink(url: string) {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--settings-radius-control);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 
   span {
     color: var(--color-text-secondary);
@@ -1279,7 +1297,7 @@ function handleOpenLink(url: string) {
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 20px;
+  border-radius: 16px;
   color: var(--theme-accent-contrast);
   font-size: 26px;
   font-weight: 700;
@@ -1312,9 +1330,10 @@ function handleOpenLink(url: string) {
   flex-direction: column;
   gap: var(--settings-card-gap);
   padding: var(--settings-card-padding-compact);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--settings-radius-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%), rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--settings-border-subtle);
+  box-shadow: var(--settings-card-shadow);
   transition: border-color var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
@@ -1322,12 +1341,12 @@ function handleOpenLink(url: string) {
   &:hover {
     transform: translateY(-2px);
     border-color: rgba(var(--color-accent-rgb), 0.22);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
   }
 
   &--active {
     border-color: rgba(var(--color-accent-rgb), 0.32);
-    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18), 0 10px 26px rgba(0, 0, 0, 0.2);
   }
 }
 
@@ -1344,7 +1363,7 @@ function handleOpenLink(url: string) {
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: var(--settings-radius-control);
   color: var(--theme-accent-contrast);
   font-size: 22px;
   font-weight: 700;
@@ -1388,6 +1407,20 @@ function handleOpenLink(url: string) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.ghost-button {
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--settings-radius-control);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--settings-border-subtle);
+
+  &:hover {
+    background: rgba(var(--color-accent-rgb), 0.12);
+    border-color: rgba(var(--color-accent-rgb), 0.2);
+  }
 }
 
 @media (max-width: 960px) {
