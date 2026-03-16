@@ -35,6 +35,11 @@ export function createSettingsWindow(): BrowserWindow {
     }
   })
 
+  if (process.platform !== 'darwin') {
+    settingsWindow.removeMenu()
+    settingsWindow.setMenuBarVisibility(false)
+  }
+
   const isDev = process.env.NODE_ENV === 'development'
 
   if (isDev) {

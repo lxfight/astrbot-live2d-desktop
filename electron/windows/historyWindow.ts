@@ -35,6 +35,11 @@ export function createHistoryWindow(): BrowserWindow {
     }
   })
 
+  if (process.platform !== 'darwin') {
+    historyWindow.removeMenu()
+    historyWindow.setMenuBarVisibility(false)
+  }
+
   const isDev = process.env.NODE_ENV === 'development'
 
   if (isDev) {
