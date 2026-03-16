@@ -47,67 +47,6 @@
       @audio-end="handleAudioEnd"
     />
 
-    <div class="stage-hud">
-      <header class="stage-header panel-card">
-        <div class="stage-header__identity">
-          <div class="stage-header__copy">
-            <span class="stage-header__eyebrow">AstrBot Live2D Desktop</span>
-            <strong class="stage-header__title">{{ currentModelLabel }}</strong>
-            <span class="stage-header__subtitle">{{ currentThemeSummary }}</span>
-          </div>
-          <div class="stage-header__chips">
-            <span class="status-pill" :class="connectionStatusPillClass">{{ connectionStatusLabel }}</span>
-            <span class="status-pill status-pill--accent">{{ resolvedThemeHex }}</span>
-          </div>
-        </div>
-
-        <div class="stage-header__actions">
-          <button class="hud-btn" type="button" @click.stop="openHistory">
-            <ChartColumn :size="16" />
-            <span>历史</span>
-          </button>
-          <button class="hud-btn" type="button" @click.stop="openSettings">
-            <Settings :size="16" />
-            <span>设置</span>
-          </button>
-          <button v-if="!hasModel" class="hud-btn hud-btn--primary" type="button" @click.stop="handleImportModel">
-            <FolderOpen :size="16" />
-            <span>导入模型</span>
-          </button>
-        </div>
-      </header>
-
-      <div v-if="hasModel" class="stage-dock panel-card">
-        <button class="dock-action dock-action--primary" type="button" @click.stop="openInput">
-          <MessageCircle :size="18" />
-          <span>展开对话</span>
-        </button>
-        <button class="dock-action" type="button" @click.stop="handleSelectImage">
-          <ImageIcon :size="18" />
-          <span>选择图片</span>
-        </button>
-        <button
-          class="dock-action"
-          :class="{ 'dock-action--recording': isRecording }"
-          type="button"
-          @mousedown.stop="startRecording"
-          @mouseup.stop="stopRecording"
-          @mouseleave="cancelRecordingIfActive"
-        >
-          <component :is="isRecording ? Disc : Mic" :size="18" />
-          <span>{{ isRecording ? '结束录音' : '按住说话' }}</span>
-        </button>
-        <button class="dock-action" type="button" @click.stop="openHistory">
-          <ChartColumn :size="18" />
-          <span>查看历史</span>
-        </button>
-        <button class="dock-action" type="button" @click.stop="openSettings">
-          <Settings :size="18" />
-          <span>更多设置</span>
-        </button>
-      </div>
-    </div>
-
     <!-- 圆形交互菜单 -->
     <Transition name="radial-menu">
       <div
@@ -343,7 +282,7 @@ type BubbleEntry = {
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
-const { palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
+const { palette } = storeToRefs(themeStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -411,23 +350,6 @@ const recordingHintText = computed(() => {
 })
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
-const currentModelLabel = computed(() => {
-  if (!hasModel.value) {
-    return '尚未加载模型'
-  }
-
-  return resolvedModelName.value || '当前模型'
-})
-const currentThemeSummary = computed(() => {
-  return hasModel.value
-    ? '界面主题已跟随当前模型的主色'
-    : '导入模型后自动生成主题色'
-})
-const resolvedThemeHex = computed(() => sourceColor.value.toUpperCase())
-const connectionStatusLabel = computed(() => connectionStore.isConnected ? '已连接服务器' : '未连接服务器')
-const connectionStatusPillClass = computed(() => {
-  return connectionStore.isConnected ? 'status-pill--success' : 'status-pill--warning'
-})
 let messageIdSequence = 0
 
 function generateMessageId(prefix = 'msg'): string {
@@ -1180,7 +1102,7 @@ function updateUIPositions() {
   if (modelStatus.value) {
     modelStatusStyle.value = {
       left: `${window.innerWidth / 2}px`,
-      top: '88px'
+      top: '28px'
     }
   }
 
@@ -1188,7 +1110,7 @@ function updateUIPositions() {
   if (isRecording.value) {
     recordingToastStyle.value = {
       left: `${window.innerWidth / 2}px`,
-      top: '140px'
+      top: '72px'
     }
   }
 
@@ -1196,7 +1118,7 @@ function updateUIPositions() {
   if (showInput.value) {
     inputStyle.value = {
       left: '50%',
-      bottom: '124px'
+      bottom: '26px'
     }
   }
 }
@@ -1208,7 +1130,6 @@ function handleWindowClick(event: MouseEvent) {
 
   // 如果点击的是菜单、输入框、气泡或其子元素，不处理
   if (
-    target.closest('.stage-hud') ||
     target.closest('.radial-menu-container') ||
     target.closest('.input-panel-container') ||
     target.closest('.bubble') ||
@@ -2012,133 +1933,6 @@ onBeforeUnmount(() => {
     inset 0 0 80px rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.06);
 }
 
-.stage-hud {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 18px;
-  pointer-events: none;
-  z-index: 70;
-}
-
-.stage-header,
-.stage-dock {
-  pointer-events: auto;
-}
-
-.stage-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px 18px;
-  max-width: min(860px, calc(100vw - 36px));
-  background: rgba(7, 12, 20, 0.52);
-}
-
-.stage-header__identity {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-width: 0;
-  flex: 1;
-}
-
-.stage-header__copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.stage-header__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-
-.stage-header__title {
-  font-size: 18px;
-  line-height: 1.15;
-  letter-spacing: -0.04em;
-}
-
-.stage-header__subtitle {
-  color: var(--color-text-secondary);
-  font-size: 13px;
-}
-
-.stage-header__chips,
-.stage-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.hud-btn,
-.dock-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 16px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-text-secondary);
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
-
-  &:hover {
-    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.14);
-    border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.28);
-    color: var(--color-text-primary);
-  }
-
-  &:active {
-    transform: scale(0.97);
-  }
-}
-
-.hud-btn {
-  padding: 10px 14px;
-}
-
-.hud-btn--primary,
-.dock-action--primary {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-  color: var(--theme-accent-contrast);
-  border-color: transparent;
-  box-shadow: var(--shadow-soft-accent);
-}
-
-.stage-dock {
-  align-self: center;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: rgba(7, 12, 20, 0.62);
-}
-
-.dock-action {
-  min-height: 46px;
-  padding: 0 16px;
-}
-
-.dock-action--recording {
-  color: var(--color-error);
-  border-color: rgba(248, 113, 113, 0.28);
-  background: rgba(248, 113, 113, 0.12);
-}
-
 /* 需要交互的元素不穿透 */
 .live2d-canvas,
 .context-menu,
@@ -2810,33 +2604,6 @@ onBeforeUnmount(() => {
       padding-left: 8px;
       border-left: 1px solid rgba(255, 255, 255, 0.3);
     }
-  }
-}
-
-@media (max-width: 960px) {
-  .stage-hud {
-    padding: 12px;
-  }
-
-  .stage-header {
-    flex-direction: column;
-    align-items: stretch;
-    max-width: none;
-  }
-
-  .stage-header__identity {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .stage-dock {
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .dock-action {
-    flex: 1 1 160px;
   }
 }
 

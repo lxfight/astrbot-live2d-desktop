@@ -1,42 +1,33 @@
 <template>
-  <WindowShell
-    title="历史记录"
-    subtitle="把时间线、统计和分析放进统一主题壳层里，避免继续像三个独立页面。"
-    :icon="ChartColumn"
-    @close="handleClose"
-  >
-    <template #hero>
-      <div class="metric-grid">
-        <article class="metric-card">
-          <span class="metric-card__label">总消息数</span>
-          <div class="metric-card__value">{{ totalMessages }}</div>
-          <p class="metric-card__meta">当前筛选条件下的历史消息总量。</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">总表演次数</span>
-          <div class="metric-card__value">{{ totalPerformances }}</div>
-          <p class="metric-card__meta">文字、图片、音频与视频表演次数总和。</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">平均响应速度</span>
-          <div class="metric-card__value">{{ avgResponseTime }} ms</div>
-          <p class="metric-card__meta">基于所选时间范围计算得到的平均响应时间。</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">当前主题色</span>
-          <div class="metric-card__value history-theme-value">
-            <span class="history-theme-swatch" :style="themeSwatchStyle"></span>
-            <span>{{ sourceColor.toUpperCase() }}</span>
-          </div>
-          <p class="metric-card__meta">图表和高亮色与当前模型保持同步。</p>
-        </article>
+  <div class="history-page">
+    <header class="history-page__header">
+      <div class="history-page__title">
+        <span class="history-page__eyebrow">AstrBot Live2D Desktop</span>
+        <h1>历史记录</h1>
+        <p>时间线、统计图表和动作分析统一收进一个原生工具窗口。</p>
       </div>
-    </template>
 
-    <div class="section-stack">
+      <div class="history-page__meta">
+        <span class="history-meta-chip">
+          <strong>消息</strong>
+          <span>{{ totalMessages }}</span>
+        </span>
+        <span class="history-meta-chip">
+          <strong>表演</strong>
+          <span>{{ totalPerformances }}</span>
+        </span>
+        <span class="history-meta-chip">
+          <strong>响应</strong>
+          <span>{{ avgResponseTime }} ms</span>
+        </span>
+        <span class="history-meta-chip">
+          <span class="history-theme-swatch" :style="themeSwatchStyle"></span>
+          <span>{{ sourceColor.toUpperCase() }}</span>
+        </span>
+      </div>
+    </header>
+
+    <div class="section-stack history-page__content">
       <section class="panel-card history-toolbar">
         <div class="history-toolbar__copy">
           <h2>{{ activeTabLabel }}</h2>
@@ -301,7 +292,7 @@
         </n-tab-pane>
       </n-tabs>
     </div>
-  </WindowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -317,7 +308,6 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
-import WindowShell from '@/components/WindowShell.vue'
 import {
   buildHistoryRenderableItems,
   resolveHistoryMediaSource,
@@ -326,7 +316,7 @@ import {
 } from '@/utils/historyContent'
 import { 
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
-  MessageSquare, Activity, Smile, Clock, HelpCircle, ChartColumn,
+  MessageSquare, Activity, Smile, Clock, HelpCircle,
   FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 import { withAlpha } from '@/utils/themePalette'
@@ -1194,18 +1184,85 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
 
 
-function handleClose() {
-  window.electron.window.closeHistory()
-}
 </script>
 
 <style scoped lang="scss">
+.history-page {
+  min-height: 100vh;
+  padding: 24px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.12), transparent 24%),
+    linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 40%);
+}
+
+.history-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.history-page__title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -0.05em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-secondary);
+  }
+}
+
+.history-page__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.history-page__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+
+  strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+}
+
+.history-page__content {
+  padding-top: 20px;
+}
+
 .history-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .history-toolbar__copy {
@@ -1240,15 +1297,9 @@ function handleClose() {
   width: 120px;
 }
 
-.history-theme-value {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .history-theme-swatch {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   display: inline-block;
 }
@@ -1257,12 +1308,27 @@ function handleClose() {
   margin-bottom: 18px;
 }
 
+:deep(.n-tabs-tab-pad) {
+  display: none !important;
+}
+
+:deep(.n-tabs-nav-scroll-content) {
+  gap: 6px;
+}
+
+:deep(.n-tabs-tab) {
+  min-width: 96px;
+  justify-content: center;
+  padding: 10px 14px !important;
+  border-radius: 14px 14px 0 0;
+}
+
 :deep(.n-card) {
-  background: rgba(7, 12, 20, 0.72) !important;
-  border: 1px solid var(--glass-border) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 22px !important;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(18px);
 }
 
 .history-grid,
@@ -1271,7 +1337,7 @@ function handleClose() {
 }
 
 .history-panel-card {
-  padding: 10px 4px 4px;
+  padding: 16px 10px 10px;
 }
 
 .history-pagination {
@@ -1293,7 +1359,7 @@ function handleClose() {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 12px 10px;
+  padding: 6px 10px;
 }
 
 .message-item {
@@ -1370,7 +1436,7 @@ function handleClose() {
   padding: 14px 18px;
   border-radius: 10px var(--radius-lg) var(--radius-lg) var(--radius-lg);
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xs);
   word-wrap: break-word;
   transition: background var(--duration-fast) var(--ease-out),
@@ -1637,6 +1703,18 @@ function handleClose() {
 }
 
 @media (max-width: 960px) {
+  .history-page {
+    padding: 18px;
+  }
+
+  .history-page__header {
+    flex-direction: column;
+  }
+
+  .history-page__meta {
+    justify-content: flex-start;
+  }
+
   .history-toolbar {
     flex-direction: column;
     align-items: stretch;

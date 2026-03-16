@@ -22,11 +22,12 @@ export function createSettingsWindow(): BrowserWindow {
     height: 600,
     minWidth: 800,
     minHeight: 500,
+    title: '设置',
     icon: resolveAppIconPath(),
-    frame: false,
-    transparent: false, // Settings usually opaque background is fine, but frame false allows custom header
+    frame: true,
+    transparent: false,
     resizable: true,
-    titleBarStyle: 'hidden',
+    backgroundColor: '#10151f',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

@@ -1,65 +1,50 @@
 <template>
-  <WindowShell
-    title="设置中心"
-    subtitle="连接、模型、桌面行为与更新管理"
-    :icon="Settings"
-    @close="handleClose"
-  >
-    <template #hero>
-      <div class="metric-grid">
-        <article class="metric-card">
-          <span class="metric-card__label">连接状态</span>
-          <div class="metric-card__value">{{ isConnected ? '在线' : '离线' }}</div>
-          <p class="metric-card__meta">{{ isConnected ? 'Bridge 已连接到服务器' : '请先配置服务器地址与令牌' }}</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">当前模型</span>
-          <div class="metric-card__value">{{ currentModelDisplay }}</div>
-          <p class="metric-card__meta">{{ currentModelPathLabel }}</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">主题主色</span>
-          <div class="metric-card__value settings-theme-value">
-            <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
-            <span>{{ sourceColor.toUpperCase() }}</span>
-          </div>
-          <p class="metric-card__meta">所有窗口与图表都跟随当前模型主题</p>
-        </article>
-
-        <article class="metric-card">
-          <span class="metric-card__label">当前平台</span>
-          <div class="metric-card__value">{{ platformDisplayName }}</div>
-          <p class="metric-card__meta">{{ passThroughCapabilityLabel }}</p>
-        </article>
+  <div class="settings-page">
+    <header class="settings-page__header">
+      <div class="settings-page__title">
+        <span class="settings-page__eyebrow">AstrBot Live2D Desktop</span>
+        <h1>设置</h1>
+        <p>连接、模型、桌面行为与更新管理。</p>
       </div>
-    </template>
 
-    <template #aside>
-      <nav class="settings-nav">
-        <button
-          v-for="item in menuItems"
-          :key="item.key"
-          class="settings-nav__item"
-          :class="{ 'settings-nav__item--active': activeMenu === item.key }"
-          type="button"
-          @click="activeMenu = item.key"
-        >
-          <component :is="item.icon" :size="18" />
-          <span>{{ item.label }}</span>
-        </button>
-      </nav>
-    </template>
+      <div class="settings-page__meta">
+        <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
+          {{ isConnected ? '已连接' : '未连接' }}
+        </span>
+        <span class="settings-meta-chip">
+          <strong>模型</strong>
+          <span>{{ currentModelDisplay }}</span>
+        </span>
+        <span class="settings-meta-chip">
+          <span class="settings-theme-swatch" :style="themeSwatchStyle"></span>
+          <span>{{ sourceColor.toUpperCase() }}</span>
+        </span>
+        <span class="settings-meta-chip">{{ platformDisplayName }}</span>
+      </div>
+    </header>
 
-    <div class="section-stack">
+    <nav class="settings-nav">
+      <button
+        v-for="item in menuItems"
+        :key="item.key"
+        class="settings-nav__item"
+        :class="{ 'settings-nav__item--active': activeMenu === item.key }"
+        type="button"
+        @click="activeMenu = item.key"
+      >
+        <component :is="item.icon" :size="18" />
+        <span>{{ item.label }}</span>
+      </button>
+    </nav>
+
+    <div class="section-stack settings-page__content">
       <template v-if="activeMenu === 'connection'">
         <div class="section-heading">
           <h2>连接工作区</h2>
-          <p>把网络配置、资源服务和当前连接状态收敛到同一视图，避免跳来跳去找入口。</p>
+          <p>这里只保留连接和资源服务配置，不再用概览卡片占掉首屏空间。</p>
         </div>
 
-        <div class="section-grid">
+        <div class="section-grid settings-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
               <div>
@@ -101,8 +86,8 @@
           <section class="panel-card settings-card">
             <div class="settings-card__header">
               <div>
-                <h3>连接概览</h3>
-                <p>这里直接看到当前会话是否可用，以及资源访问是否复用连接配置。</p>
+                <h3>连接状态</h3>
+                <p>会话信息和资源服务地址都放在同一处查看。</p>
               </div>
             </div>
 
@@ -171,14 +156,14 @@
       <template v-else-if="activeMenu === 'model'">
         <div class="section-heading">
           <h2>模型管理</h2>
-          <p>导入、切换和清理本地模型，并直接预览它们对界面主题的影响。</p>
+          <p>导入、切换和清理本地模型，界面主题会跟随当前模型主色更新。</p>
         </div>
 
         <section class="panel-card settings-card">
           <div class="settings-card__header">
             <div>
               <h3>模型库</h3>
-              <p>当前共 {{ modelList.length }} 个模型，加载后会同步刷新所有窗口的主题色。</p>
+              <p>当前共 {{ modelList.length }} 个模型。</p>
             </div>
             <n-button type="primary" @click="handleImportModel">导入模型</n-button>
           </div>
@@ -210,10 +195,10 @@
       <template v-else-if="activeMenu === 'advanced'">
         <div class="section-heading">
           <h2>高级选项</h2>
-          <p>桌面行为、全局快捷键和平台能力都集中在这里，避免把危险操作埋到角落里。</p>
+          <p>桌面行为、全局快捷键和平台能力集中在这里。</p>
         </div>
 
-        <div class="section-grid">
+        <div class="section-grid settings-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
               <div>
@@ -310,7 +295,7 @@
           <div class="settings-card__header">
             <div>
               <h3>数据管理</h3>
-              <p>这些操作不可逆，放到单独卡片里，避免误触。</p>
+              <p>这些操作不可逆，单独放置以降低误触风险。</p>
             </div>
           </div>
 
@@ -325,10 +310,10 @@
       <template v-else>
         <div class="section-heading">
           <h2>关于</h2>
-          <p>版本、更新状态和相关项目入口都放在这里，不再混在其他配置里。</p>
+          <p>版本、更新和相关项目入口。</p>
         </div>
 
-        <div class="section-grid">
+        <div class="section-grid settings-grid">
           <section class="panel-card settings-card">
             <div class="settings-card__header">
               <div>
@@ -390,7 +375,7 @@
         </section>
       </template>
     </div>
-  </WindowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -398,7 +383,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDialog, useMessage } from 'naive-ui'
 import { Drama, Globe, Info, Settings } from 'lucide-vue-next'
-import WindowShell from '@/components/WindowShell.vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
@@ -454,7 +438,6 @@ const themeSwatchStyle = computed(() => ({
 }))
 
 const currentModelDisplay = computed(() => resolvedModelName.value || '尚未加载模型')
-const currentModelPathLabel = computed(() => currentModelPath.value || '当前未关联模型路径')
 
 const platformDisplayName = computed(() => {
   const capabilities = platformCapabilities.value
@@ -821,32 +804,99 @@ function handleResetSettings() {
   })
 }
 
-function handleClose() {
-  window.electron.window.closeSettings()
-}
-
 function handleOpenLink(url: string) {
   ;(window.electron.window as any).openExternal(url)
 }
 </script>
 
 <style scoped lang="scss">
-.settings-nav {
+.settings-page {
+  min-height: 100vh;
+  padding: 24px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.12), transparent 26%),
+    linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 42%);
+}
+
+.settings-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.settings-page__title {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -0.05em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-secondary);
+  }
+}
+
+.settings-page__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.settings-page__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+
+  strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+}
+
+.settings-page__content {
+  padding-top: 18px;
+}
+
+.settings-nav {
+  display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .settings-nav__item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  padding: 10px 14px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
   color: var(--color-text-secondary);
-  text-align: left;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
@@ -859,10 +909,13 @@ function handleOpenLink(url: string) {
 
   &--active {
     background: rgba(var(--color-accent-rgb), 0.16);
-    border-color: rgba(var(--color-accent-rgb), 0.3);
+    border-color: rgba(var(--color-accent-rgb), 0.32);
     color: var(--color-text-primary);
-    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.14);
   }
+}
+
+.settings-grid {
+  align-items: stretch;
 }
 
 .settings-card {
@@ -915,9 +968,9 @@ function handleOpenLink(url: string) {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 
   span {
     color: var(--color-text-secondary);
@@ -930,15 +983,9 @@ function handleOpenLink(url: string) {
   }
 }
 
-.settings-theme-value {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .settings-theme-swatch {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   display: inline-block;
 }
@@ -987,11 +1034,11 @@ function handleOpenLink(url: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   color: var(--theme-accent-contrast);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -1023,10 +1070,19 @@ function handleOpenLink(url: string) {
 }
 
 @media (max-width: 960px) {
+  .settings-page {
+    padding: 18px;
+  }
+
+  .settings-page__header,
   .settings-card__header,
   .settings-summary-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .settings-page__meta {
+    justify-content: flex-start;
   }
 
   .settings-summary-row strong {
