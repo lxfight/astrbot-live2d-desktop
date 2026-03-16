@@ -211,13 +211,19 @@ function relativeLuminance(rgb: ThemeRgb): number {
 }
 
 function normalizeAccent(rgb: ThemeRgb): ThemeRgb {
-  const hsl = rgbToHsl(normalizeRgb(rgb))
-
-  return hslToRgb({
+  const source = normalizeRgb(rgb)
+  const hsl = rgbToHsl(source)
+  const adjusted = hslToRgb({
     h: hsl.h,
-    s: clamp(hsl.s, 42, 76),
-    l: clamp(hsl.l, 48, 62),
+    s: clamp(hsl.s < 28 ? hsl.s + 14 : hsl.s, 28, 90),
+    l: clamp(
+      hsl.l < 34 ? hsl.l + 10 : (hsl.l > 72 ? hsl.l - 12 : hsl.l),
+      34,
+      72,
+    ),
   })
+
+  return mixRgb(source, adjusted, 0.42)
 }
 
 export function createThemePalette(rgb: ThemeRgb): ThemePalette {

@@ -506,6 +506,7 @@ defineExpose({
   setModelPosition,
   getModelPosition,
   getModelBounds,
+  getTextureSources: () => model?.getTextureSources() || [],
   getTextureSource: () => model?.getTextureSource(),
   startLipSync: (audioElement: HTMLAudioElement) => {
     if (model) {

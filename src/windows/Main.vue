@@ -63,7 +63,11 @@
           v-for="(item, index) in menuItems"
           :key="item.key"
           class="radial-menu-item"
-          :style="{ ...getMenuItemStyle(index, menuItems.length), '--theme-color': themeColor }"
+          :style="{
+            ...getMenuItemStyle(index, menuItems.length),
+            '--theme-color': menuThemeColor,
+            '--theme-color-hover': menuThemeColorHover,
+          }"
           @click="item.action"
         >
           <div class="menu-icon">
@@ -233,9 +237,8 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-// @ts-ignore
-import ColorThief from 'colorthief'
-import { hexToRgb, withAlpha } from '@/utils/themePalette'
+import { withAlpha } from '@/utils/themePalette'
+import { extractModelThemeColor } from '@/utils/modelTheme'
 
 type BubbleTextItem = {
   id: string
@@ -271,7 +274,7 @@ type BubbleEntry = {
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
-const { palette } = storeToRefs(themeStore)
+const { palette, sourceRgb } = storeToRefs(themeStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -285,8 +288,9 @@ function waitForNextAudioEnd(): Promise<void> {
 }
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
-const themeColor = computed(() => withAlpha(palette.value.accent, 0.88))
-const themeRgb = computed(() => hexToRgb(palette.value.accent))
+const menuThemeColor = computed(() => withAlpha(palette.value.accent, 0.14))
+const menuThemeColorHover = computed(() => withAlpha(palette.value.accent, 0.24))
+const themeRgb = computed(() => sourceRgb.value)
 const mainWindowStyle = computed(() => ({
   '--model-r': themeRgb.value.r,
   '--model-g': themeRgb.value.g,
@@ -326,6 +330,7 @@ type FloatingOverlayStyle = {
   top?: string
   bottom?: string
 }
+let themeExtractionRevision = 0
 
 const isRecording = ref(false)
 const recordingDuration = ref(0)
@@ -611,6 +616,56 @@ function resolveModelOverlayAnchor() {
     recordingTop: Math.max(18, modelPositionY - 330),
     inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
   }
+}
+
+function waitForImageReady(image: HTMLImageElement): Promise<void> {
+  if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    const finalize = () => {
+      image.removeEventListener('load', finalize)
+      image.removeEventListener('error', finalize)
+      resolve()
+    }
+
+    image.addEventListener('load', finalize, { once: true })
+    image.addEventListener('error', finalize, { once: true })
+  })
+}
+
+function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
+  return `#${[rgb.r, rgb.g, rgb.b]
+    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
+    .join('')}`
+}
+
+async function extractAndApplyModelTheme(modelPath: string) {
+  const extractionRevision = ++themeExtractionRevision
+  const textureSources = live2dCanvasRef.value?.getTextureSources?.() || []
+
+  if (!textureSources.length) {
+    return
+  }
+
+  const images = textureSources.slice(0, 6)
+  await Promise.all(images.map(waitForImageReady))
+
+  if (extractionRevision !== themeExtractionRevision) {
+    return
+  }
+
+  const extractedColor = extractModelThemeColor(images)
+  if (!extractedColor) {
+    return
+  }
+
+  themeStore.applyModelTheme({
+    modelPath,
+    rgb: extractedColor,
+  })
+  console.log('[主窗口] 提取主题色:', rgbToHexString(extractedColor))
 }
 
 function updateStackPositions() {
@@ -974,32 +1029,8 @@ async function handleModelLoaded() {
 
   // 提取主题色
   try {
-    const img = live2dCanvasRef.value?.getTextureSource()
-    if (img) {
-      const colorThief = new (ColorThief as any)()
-      const applyExtractedTheme = () => {
-        const color = colorThief.getColor(img)
-        const extractedColorHex = `#${color
-          .map((channel: number) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
-          .join('')}`
-        if (activeModelPath) {
-          themeStore.applyModelTheme({
-            modelPath: activeModelPath,
-            rgb: {
-              r: color[0],
-              g: color[1],
-              b: color[2],
-            },
-          })
-        }
-        console.log('[主窗口] 提取主题色:', extractedColorHex)
-      }
-      // 确保图片已加载
-      if (img.complete) {
-        applyExtractedTheme()
-      } else {
-        img.addEventListener('load', applyExtractedTheme, { once: true })
-      }
+    if (activeModelPath) {
+      await extractAndApplyModelTheme(activeModelPath)
     }
   } catch (error) {
     console.warn('[主窗口] 提取主题色失败:', error)
@@ -2027,10 +2058,13 @@ onBeforeUnmount(() => {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: var(--theme-color, var(--glass-bg));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+      linear-gradient(135deg, var(--theme-color, transparent), transparent 72%),
+      var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2071,9 +2105,15 @@ onBeforeUnmount(() => {
     }
 
     &:hover {
-      background: var(--theme-color, var(--glass-bg-hover));
-      border-color: var(--glass-border-hover);
-      box-shadow: var(--shadow-md), 0 0 16px var(--model-color-glow, var(--color-accent-glow));
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)),
+        linear-gradient(135deg, var(--theme-color-hover, transparent), transparent 72%),
+        var(--glass-bg-hover);
+      border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.34);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        var(--shadow-md),
+        0 0 16px var(--model-color-glow, var(--color-accent-glow));
       z-index: 10;
 
       .menu-icon {
