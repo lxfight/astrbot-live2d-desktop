@@ -133,29 +133,39 @@
           <template v-else-if="activeTab === 'history'">
             <section class="panel-card history-panel-card">
               <div class="message-list">
-              <div
-                v-for="msg in messages"
-                :key="msg.id"
-                :class="['message-item', msg.direction === 'outgoing' ? 'message-outgoing' : 'message-incoming']"
-              >
-                <div class="message-avatar">
-                  <n-avatar :size="40">
-                    <component :is="msg.direction === 'outgoing' ? User : Bot" :size="24" />
-                  </n-avatar>
-                </div>
-                <div class="message-content-wrapper">
-                  <div class="message-header">
-                    <span class="message-user">
-                      {{
-                        msg.direction === 'incoming'
-                          ? (msg.user_id === 'server' || msg.user_id === 'bot' ? 'AstrBot' : (msg.user_name || msg.user_id))
-                          : (msg.user_name || '我')
-                      }}
+                <article
+                  v-for="msg in messages"
+                  :key="msg.id"
+                  :class="[
+                    'message-item',
+                    `message-item--${msg.direction}`,
+                    { 'message-item--performance': msg.direction === 'incoming' && isPerformanceMessage(msg) },
+                  ]"
+                >
+                  <div class="message-rail">
+                    <span class="message-rail__icon">
+                      <component :is="msg.direction === 'outgoing' ? User : Bot" :size="16" />
                     </span>
+                    <span class="message-rail__label">{{ getMessageRailLabel(msg) }}</span>
                   </div>
-                  <div class="message-bubble">
-                    <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)">
-                      <div class="performance-content">
+
+                  <div class="message-record">
+                    <header class="message-record__header">
+                      <div class="message-record__identity">
+                        <strong class="message-record__name">{{ getMessageAuthorLabel(msg) }}</strong>
+                        <span class="message-record__kind" :class="`message-record__kind--${msg.direction}`">
+                          {{ getMessageKindLabel(msg) }}
+                        </span>
+                      </div>
+
+                      <div class="message-record__meta">
+                        <span class="message-time">{{ formatTimestamp(msg.timestamp) }}</span>
+                        <span class="message-id">ID {{ msg.message_id }}</span>
+                      </div>
+                    </header>
+
+                    <div class="message-record__body">
+                      <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)" class="performance-content">
                         <div class="performance-header">
                           <n-icon size="18"><Drama /></n-icon>
                           <span>表演序列</span>
@@ -166,7 +176,6 @@
                             :key="idx"
                             :type="getElementTagType(element.type)"
                             size="small"
-                            style="margin: 2px"
                           >
                             <template #icon>
                               <component :is="getElementIcon(element.type)" :size="14" />
@@ -219,95 +228,90 @@
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div v-else>
-                      <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
-                        <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-                        <div v-else-if="item.type === 'image'" class="image-content">
-                          <n-image
-                            v-if="resolveMessageImageSource(item)"
-                            :src="resolveMessageImageSource(item) || undefined"
-                            width="200"
-                            object-fit="cover"
-                          />
-                          <div v-else class="image-placeholder">
-                            <n-icon size="40"><ImageIcon /></n-icon>
-                            <span>图片</span>
-                          </div>
-                        </div>
-                        <div v-else-if="item.type === 'audio'" class="audio-content">
-                          <template v-if="resolveMessageAudioSource(item)">
-                            <div class="media-content-header">
-                              <n-icon size="18"><Mic /></n-icon>
-                              <span>{{ item.name || '语音消息' }}</span>
+                      <div v-else>
+                        <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
+                          <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                          <div v-else-if="item.type === 'image'" class="image-content">
+                            <n-image
+                              v-if="resolveMessageImageSource(item)"
+                              :src="resolveMessageImageSource(item) || undefined"
+                              width="200"
+                              object-fit="cover"
+                            />
+                            <div v-else class="image-placeholder">
+                              <n-icon size="40"><ImageIcon /></n-icon>
+                              <span>图片</span>
                             </div>
-                            <audio
-                              class="audio-player"
-                              :src="resolveMessageAudioSource(item) || undefined"
-                              controls
-                              preload="metadata"
-                              @click.stop
-                            ></audio>
-                          </template>
-                          <div v-else class="media-placeholder">
-                            <n-icon size="20"><Mic /></n-icon>
-                            <span>语音消息</span>
                           </div>
-                        </div>
-                        <div v-else-if="item.type === 'video'" class="video-content">
-                          <template v-if="resolveMessageVideoSource(item)">
-                            <div class="media-content-header">
-                              <n-icon size="18"><Video /></n-icon>
-                              <span>{{ item.name || '视频' }}</span>
-                            </div>
-                            <video
-                              class="video-player"
-                              :src="resolveMessageVideoSource(item) || undefined"
-                              controls
-                              preload="metadata"
-                              playsinline
-                              @click.stop
-                            ></video>
-                          </template>
-                          <div v-else class="media-placeholder">
-                            <n-icon size="20"><Video /></n-icon>
-                            <span>视频</span>
-                          </div>
-                        </div>
-                        <div v-else-if="item.type === 'file'" class="file-content">
-                          <template v-if="resolveMessageFileSource(item)">
-                            <div class="file-header">
-                              <div class="file-meta">
-                                <n-icon size="18"><FileText /></n-icon>
-                                <span class="file-name">{{ item.name || '文件' }}</span>
+                          <div v-else-if="item.type === 'audio'" class="audio-content">
+                            <template v-if="resolveMessageAudioSource(item)">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Mic /></n-icon>
+                                <span>{{ item.name || '语音消息' }}</span>
                               </div>
-                              <div class="file-actions">
-                                <button class="file-action-btn" @click.stop="openHistoryFile(item)">
-                                  <ExternalLink :size="14" />
-                                  <span>打开</span>
-                                </button>
-                                <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
-                                  <Download :size="14" />
-                                  <span>下载</span>
-                                </button>
-                              </div>
+                              <audio
+                                class="audio-player"
+                                :src="resolveMessageAudioSource(item) || undefined"
+                                controls
+                                preload="metadata"
+                                @click.stop
+                              ></audio>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><Mic /></n-icon>
+                              <span>语音消息</span>
                             </div>
-                          </template>
-                          <div v-else class="media-placeholder">
-                            <n-icon size="20"><FileText /></n-icon>
-                            <span>{{ item.name || '文件' }}</span>
+                          </div>
+                          <div v-else-if="item.type === 'video'" class="video-content">
+                            <template v-if="resolveMessageVideoSource(item)">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Video /></n-icon>
+                                <span>{{ item.name || '视频' }}</span>
+                              </div>
+                              <video
+                                class="video-player"
+                                :src="resolveMessageVideoSource(item) || undefined"
+                                controls
+                                preload="metadata"
+                                playsinline
+                                @click.stop
+                              ></video>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><Video /></n-icon>
+                              <span>视频</span>
+                            </div>
+                          </div>
+                          <div v-else-if="item.type === 'file'" class="file-content">
+                            <template v-if="resolveMessageFileSource(item)">
+                              <div class="file-header">
+                                <div class="file-meta">
+                                  <n-icon size="18"><FileText /></n-icon>
+                                  <span class="file-name">{{ item.name || '文件' }}</span>
+                                </div>
+                                <div class="file-actions">
+                                  <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                    <ExternalLink :size="14" />
+                                    <span>打开</span>
+                                  </button>
+                                  <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                    <Download :size="14" />
+                                    <span>下载</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><FileText /></n-icon>
+                              <span>{{ item.name || '文件' }}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div class="message-footer">
-                    <span class="message-time">{{ formatTimestamp(msg.timestamp) }}</span>
-                    <span class="message-id">ID: {{ msg.message_id }}</span>
-                  </div>
-                </div>
+                </article>
               </div>
-            </div>
 
               <n-pagination
                 v-model:page="currentPage"
@@ -1045,6 +1049,34 @@ async function handleRefresh() {
   message.success('已刷新')
 }
 
+function getMessageAuthorLabel(msg: any): string {
+  if (msg.direction === 'outgoing') {
+    return msg.user_name || '我'
+  }
+
+  if (msg.user_id === 'server' || msg.user_id === 'bot') {
+    return 'AstrBot'
+  }
+
+  return msg.user_name || msg.user_id || '未知来源'
+}
+
+function getMessageKindLabel(msg: any): string {
+  if (msg.direction === 'incoming' && isPerformanceMessage(msg)) {
+    return '表演'
+  }
+
+  return msg.direction === 'outgoing' ? '发送' : '接收'
+}
+
+function getMessageRailLabel(msg: any): string {
+  if (msg.direction === 'incoming' && isPerformanceMessage(msg)) {
+    return 'PERF'
+  }
+
+  return msg.direction === 'outgoing' ? 'OUT' : 'IN'
+}
+
 function formatTimestamp(timestamp: number): string {
   return format(new Date(timestamp), 'yyyy-MM-dd HH:mm:ss')
 }
@@ -1558,100 +1590,133 @@ function handleTitleBarDoubleClick() {
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
 .message-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 14px;
-  max-width: min(900px, 92%);
+  align-items: flex-start;
 }
 
-.message-incoming {
-  align-self: flex-start;
-}
-
-.message-outgoing {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
-
-.message-avatar {
-  flex-shrink: 0;
-  margin-top: 2px;
-
-  :deep(.n-avatar) {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: none;
-  }
-}
-
-.message-content-wrapper {
-  flex: 1;
+.message-rail {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.message-outgoing .message-content-wrapper {
-  align-items: flex-end;
-}
-
-.message-header {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  font-size: 11px;
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
+.message-rail__icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--desktop-panel-border);
   color: var(--color-text-secondary);
 }
 
-.message-outgoing .message-header {
-  flex-direction: row-reverse;
+.message-rail__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.42);
 }
 
-.message-user {
-  font-weight: 600;
-  letter-spacing: 0.04em;
+.message-item--outgoing .message-rail__icon {
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border-color: rgba(var(--color-accent-rgb), 0.16);
+  color: var(--color-accent);
 }
 
-.message-bubble {
-  position: relative;
+.message-item--performance .message-rail__label {
+  color: var(--color-accent);
+}
+
+.message-record {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
+  border-radius: var(--desktop-radius-panel);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--desktop-panel-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  word-wrap: break-word;
-  transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.048);
-    border-color: rgba(var(--color-accent-rgb), 0.16);
-  }
 }
 
-.message-outgoing .message-bubble {
-  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.12), rgba(255, 255, 255, 0.028));
+.message-item--outgoing .message-record {
+  border-color: rgba(var(--color-accent-rgb), 0.14);
+  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), rgba(255, 255, 255, 0.022));
+}
+
+.message-record__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.message-record__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message-record__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.message-record__kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--desktop-panel-border);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.message-record__kind--outgoing {
   border-color: rgba(var(--color-accent-rgb), 0.18);
+  background: rgba(var(--color-accent-rgb), 0.12);
+  color: var(--color-text-primary);
 }
 
-.message-footer {
+.message-record__kind--incoming {
+  border-color: var(--desktop-panel-border);
+}
+
+.message-record__meta {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.42);
 }
 
-.message-outgoing .message-footer {
-  flex-direction: row-reverse;
+.message-record__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .message-time {
   font-family: var(--font-mono);
+}
+
+.message-id {
+  letter-spacing: 0.04em;
 }
 
 .content-item {
@@ -1724,6 +1789,7 @@ function handleTitleBarDoubleClick() {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .image-placeholder,
@@ -1732,8 +1798,9 @@ function handleTitleBarDoubleClick() {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.16);
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   color: var(--color-text-secondary);
 }
@@ -1744,22 +1811,17 @@ function handleTitleBarDoubleClick() {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 14px;
-  background: rgba(0, 0, 0, 0.16);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.028);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
-}
-
-.message-outgoing .audio-content,
-.message-outgoing .video-content,
-.message-outgoing .file-content {
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .performance-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-width: 280px;
+  min-width: 0;
 }
 
 .performance-header {
@@ -1780,10 +1842,15 @@ function handleTitleBarDoubleClick() {
   padding-bottom: 4px;
 }
 
+.performance-elements :deep(.n-tag) {
+  margin: 0;
+  border-radius: 999px;
+}
+
 .performance-text-preview {
   margin-top: 8px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.16);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 10px;
   max-height: 200px;
   overflow-y: auto;
@@ -1805,7 +1872,7 @@ function handleTitleBarDoubleClick() {
 
 .audio-player,
 .video-player {
-  width: min(320px, 100%);
+  width: min(360px, 100%);
   max-width: 100%;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.15);
@@ -1891,7 +1958,21 @@ function handleTitleBarDoubleClick() {
   }
 
   .message-item {
-    max-width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .message-rail {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 0;
+  }
+
+  .message-record__header {
+    flex-direction: column;
+  }
+
+  .message-record__meta {
+    justify-content: flex-start;
   }
 }
 
