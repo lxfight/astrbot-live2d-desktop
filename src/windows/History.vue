@@ -118,13 +118,13 @@
 
           <template v-if="activeTab === 'statistics'">
             <div class="section-grid history-grid">
-              <n-card title="消息趋势">
+              <n-card title="消息趋势" class="history-chart-card history-chart-card--wide">
                 <div ref="messageTrendRef" class="chart"></div>
               </n-card>
-              <n-card title="表演元素使用量">
+              <n-card title="表演元素使用量" class="history-chart-card">
                 <div ref="performElementRef" class="chart"></div>
               </n-card>
-              <n-card title="活跃时段">
+              <n-card title="活跃时段" class="history-chart-card">
                 <div ref="activeHoursRef" class="chart"></div>
               </n-card>
             </div>
@@ -328,11 +328,11 @@
 
           <template v-else>
             <div class="section-grid history-analysis-grid">
-              <n-card title="动作使用排行">
+              <n-card title="动作使用排行" class="history-chart-card history-chart-card--analysis">
                 <div ref="motionRankRef" class="chart-large"></div>
               </n-card>
 
-              <n-card title="表情使用排行">
+              <n-card title="表情使用排行" class="history-chart-card history-chart-card--analysis">
                 <div ref="expressionRankRef" class="chart-large"></div>
               </n-card>
             </div>
@@ -1546,6 +1546,9 @@ function handleTitleBarDoubleClick() {
 
 .history-window :deep(.n-card-header) {
   padding-bottom: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 14px;
 }
 
 .history-window :deep(.n-card-header__main) {
@@ -1554,10 +1557,42 @@ function handleTitleBarDoubleClick() {
   letter-spacing: -0.02em;
 }
 
+.history-window :deep(.n-card__content) {
+  padding-top: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+}
+
+.history-window :deep(.n-input .n-input-wrapper),
+.history-window :deep(.n-date-picker .n-input .n-input-wrapper),
+.history-window :deep(.n-base-selection .n-base-selection-label) {
+  min-height: 36px;
+  background: rgba(255, 255, 255, 0.045) !important;
+  box-shadow: inset 0 0 0 1px var(--desktop-panel-border) !important;
+  border-radius: 10px !important;
+}
+
+.history-window :deep(.n-input .n-input__input-el),
+.history-window :deep(.n-date-picker .n-input .n-input__input-el),
+.history-window :deep(.n-base-selection .n-base-selection-input),
+.history-window :deep(.n-base-selection .n-base-selection-placeholder) {
+  color: var(--color-text-secondary) !important;
+}
+
+.history-window :deep(.n-pagination-item),
+.history-window :deep(.n-pagination-prefix),
+.history-window :deep(.n-pagination-next),
+.history-window :deep(.n-pagination-prev) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px var(--desktop-panel-border) !important;
+}
+
 .history-grid {
   display: grid;
   gap: var(--desktop-gap-md);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 
@@ -1566,6 +1601,10 @@ function handleTitleBarDoubleClick() {
   gap: var(--desktop-gap-md);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
+}
+
+.history-chart-card--wide {
+  grid-column: 1 / -1;
 }
 
 .history-panel-card {
@@ -1579,12 +1618,16 @@ function handleTitleBarDoubleClick() {
 
 .chart {
   width: 100%;
-  height: 320px;
+  height: 260px;
 }
 
 .chart-large {
   width: 100%;
-  height: 420px;
+  height: 340px;
+}
+
+.history-chart-card--wide .chart {
+  height: 300px;
 }
 
 .message-list {
@@ -1930,6 +1973,10 @@ function handleTitleBarDoubleClick() {
   .history-grid,
   .history-analysis-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-chart-card--wide {
+    grid-column: auto;
   }
 }
 
