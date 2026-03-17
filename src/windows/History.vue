@@ -1,95 +1,138 @@
 <template>
-  <div class="history-page">
-    <header class="history-page__header">
-      <div class="history-page__title">
-        <span class="history-page__eyebrow">AstrBot Live2D Desktop</span>
-        <h1>历史记录</h1>
-        <p>时间线、统计图表和动作分析统一收进一个原生工具窗口。</p>
+  <div class="history-window">
+    <header class="history-titlebar window-drag-region" @dblclick="handleTitleBarDoubleClick">
+      <div class="history-titlebar__brand">
+        <span class="history-titlebar__identity">
+          <span class="history-theme-swatch history-theme-swatch--title" :style="themeDotStyle"></span>
+          <span class="history-titlebar__name">AstrBot Live2D Desktop</span>
+        </span>
+        <span class="history-titlebar__divider"></span>
+        <span class="history-titlebar__view">{{ activeTabMeta.label }}</span>
       </div>
 
-      <div class="history-page__meta">
-        <span class="history-meta-chip">
-          <strong>消息</strong>
-          <span>{{ totalMessages }}</span>
-        </span>
-        <span class="history-meta-chip">
-          <strong>表演</strong>
-          <span>{{ totalPerformances }}</span>
-        </span>
-        <span class="history-meta-chip">
-          <strong>响应</strong>
-          <span>{{ avgResponseTime }} ms</span>
-        </span>
-        <span class="history-meta-chip">
-          <span class="history-theme-swatch" :style="themeSwatchStyle"></span>
-          <span>{{ sourceColor.toUpperCase() }}</span>
-        </span>
+      <div class="history-titlebar__actions window-no-drag">
+        <button class="history-titlebar__button" type="button" aria-label="最小化" @click="handleMinimizeWindow">
+          <Minus :size="16" />
+        </button>
+        <button
+          class="history-titlebar__button"
+          type="button"
+          :aria-label="isWindowMaximized ? '还原' : '最大化'"
+          @click="handleToggleWindowMaximize"
+        >
+          <component :is="isWindowMaximized ? Copy : Square" :size="14" />
+        </button>
+        <button
+          class="history-titlebar__button history-titlebar__button--close"
+          type="button"
+          aria-label="关闭"
+          @click="handleCloseWindow"
+        >
+          <X :size="16" />
+        </button>
       </div>
     </header>
 
-    <div class="section-stack history-page__content">
-      <section class="panel-card history-toolbar">
-        <div class="history-toolbar__copy">
-          <h2>{{ activeTabLabel }}</h2>
-          <p>{{ activeTabDescription }}</p>
-        </div>
+    <div class="history-workspace">
+      <main class="history-main">
+        <div class="history-main__viewport">
+          <section class="desktop-toolbar history-overview">
+            <div class="desktop-toolbar__copy history-overview__copy">
+              <span class="history-overview__eyebrow">{{ activeTabMeta.eyebrow }}</span>
+              <h2>{{ activeTabMeta.label }}</h2>
+              <p>{{ activeTabMeta.description }}</p>
+            </div>
 
-        <div class="history-toolbar__actions">
-          <template v-if="activeTab === 'history'">
-            <n-input
-              v-model:value="keyword"
-              placeholder="搜索消息..."
-              clearable
-              @update:value="handleSearch"
-            >
-              <template #prefix>
-                <Search :size="16" />
+            <div class="history-overview__metrics">
+              <span class="history-meta-chip">
+                <strong>消息</strong>
+                <span>{{ totalMessages }}</span>
+              </span>
+              <span class="history-meta-chip">
+                <strong>表演</strong>
+                <span>{{ totalPerformances }}</span>
+              </span>
+              <span class="history-meta-chip">
+                <strong>响应</strong>
+                <span>{{ avgResponseTime }} ms</span>
+              </span>
+              <span class="history-meta-chip">
+                <span class="history-theme-swatch" :style="themeSwatchStyle"></span>
+                <span>{{ sourceColor.toUpperCase() }}</span>
+              </span>
+            </div>
+          </section>
+
+          <section class="desktop-toolbar history-toolbar">
+            <div class="history-view-switch">
+              <button
+                v-for="item in tabItems"
+                :key="item.key"
+                class="history-view-switch__item"
+                :class="{ 'history-view-switch__item--active': activeTab === item.key }"
+                type="button"
+                @click="activeTab = item.key"
+              >
+                <component :is="item.icon" :size="16" />
+                <span>{{ item.label }}</span>
+              </button>
+            </div>
+
+            <div class="history-toolbar__actions">
+              <template v-if="activeTab === 'history'">
+                <n-input
+                  v-model:value="keyword"
+                  placeholder="搜索消息..."
+                  clearable
+                  @update:value="handleSearch"
+                >
+                  <template #prefix>
+                    <Search :size="16" />
+                  </template>
+                </n-input>
+
+                <n-select
+                  v-model:value="directionFilter"
+                  :options="directionOptions"
+                  placeholder="方向"
+                  clearable
+                  class="history-toolbar__select"
+                  @update:value="loadMessages"
+                />
+
+                <n-button type="error" @click="handleClearHistory">清空历史</n-button>
               </template>
-            </n-input>
 
-            <n-select
-              v-model:value="directionFilter"
-              :options="directionOptions"
-              placeholder="方向"
-              clearable
-              class="history-toolbar__select"
-              @update:value="loadMessages"
-            />
+              <template v-else>
+                <n-date-picker
+                  v-model:value="dateRange"
+                  type="daterange"
+                  clearable
+                  @update:value="handleDateRangeChange"
+                />
+              </template>
 
-            <n-button type="error" @click="handleClearHistory">清空历史</n-button>
+              <n-button type="primary" @click="handleRefresh">刷新</n-button>
+            </div>
+          </section>
+
+          <template v-if="activeTab === 'statistics'">
+            <div class="section-grid history-grid">
+              <n-card title="消息趋势">
+                <div ref="messageTrendRef" class="chart"></div>
+              </n-card>
+              <n-card title="表演元素使用量">
+                <div ref="performElementRef" class="chart"></div>
+              </n-card>
+              <n-card title="活跃时段">
+                <div ref="activeHoursRef" class="chart"></div>
+              </n-card>
+            </div>
           </template>
 
-          <template v-else>
-            <n-date-picker
-              v-model:value="dateRange"
-              type="daterange"
-              clearable
-              @update:value="handleDateRangeChange"
-            />
-          </template>
-
-          <n-button type="primary" @click="handleRefresh">刷新</n-button>
-        </div>
-      </section>
-
-      <n-tabs v-model:value="activeTab" type="line" animated class="history-tabs">
-        <n-tab-pane name="statistics" tab="统计">
-          <div class="section-grid history-grid">
-            <n-card title="消息趋势">
-              <div ref="messageTrendRef" class="chart"></div>
-            </n-card>
-            <n-card title="表演元素使用量">
-              <div ref="performElementRef" class="chart"></div>
-            </n-card>
-            <n-card title="活跃时段">
-              <div ref="activeHoursRef" class="chart"></div>
-            </n-card>
-          </div>
-        </n-tab-pane>
-
-        <n-tab-pane name="history" tab="历史">
-          <n-card class="history-panel-card">
-            <div class="message-list">
+          <template v-else-if="activeTab === 'history'">
+            <section class="panel-card history-panel-card">
+              <div class="message-list">
               <div
                 v-for="msg in messages"
                 :key="msg.id"
@@ -266,31 +309,32 @@
               </div>
             </div>
 
-            <n-pagination
-              v-model:page="currentPage"
-              :page-count="totalPages"
-              :page-size="pageSize"
-              show-size-picker
-              :page-sizes="[10, 20, 50, 100]"
-              @update:page="loadMessages"
-              @update:page-size="handlePageSizeChange"
-              class="history-pagination"
-            />
-          </n-card>
-        </n-tab-pane>
+              <n-pagination
+                v-model:page="currentPage"
+                :page-count="totalPages"
+                :page-size="pageSize"
+                show-size-picker
+                :page-sizes="[10, 20, 50, 100]"
+                @update:page="loadMessages"
+                @update:page-size="handlePageSizeChange"
+                class="history-pagination"
+              />
+            </section>
+          </template>
 
-        <n-tab-pane name="analysis" tab="分析">
-          <div class="section-grid history-analysis-grid">
-            <n-card title="动作使用排行">
-              <div ref="motionRankRef" class="chart-large"></div>
-            </n-card>
+          <template v-else>
+            <div class="section-grid history-analysis-grid">
+              <n-card title="动作使用排行">
+                <div ref="motionRankRef" class="chart-large"></div>
+              </n-card>
 
-            <n-card title="表情使用排行">
-              <div ref="expressionRankRef" class="chart-large"></div>
-            </n-card>
-          </div>
-        </n-tab-pane>
-      </n-tabs>
+              <n-card title="表情使用排行">
+                <div ref="expressionRankRef" class="chart-large"></div>
+              </n-card>
+            </div>
+          </template>
+        </div>
+      </main>
     </div>
   </div>
 </template>
@@ -314,10 +358,10 @@ import {
   resolveHistoryImageSource,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
-import { 
+import {
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
   MessageSquare, Activity, Smile, Clock, HelpCircle,
-  FileText, ExternalLink, Download
+  FileText, ExternalLink, Download, Copy, Minus, Square, X
 } from 'lucide-vue-next'
 import { withAlpha } from '@/utils/themePalette'
 
@@ -387,23 +431,43 @@ marked.use({
 })
 
 const activeTab = ref('statistics')
-const activeTabLabel = computed(() => {
-  if (activeTab.value === 'history') return '消息时间线'
-  if (activeTab.value === 'analysis') return '动作与表情分析'
-  return '统计概览'
+const isWindowMaximized = ref(false)
+const tabItems = [
+  {
+    key: 'statistics',
+    icon: Activity,
+    label: '概览',
+    eyebrow: 'Metrics Overview',
+    description: '用统一的深色面板查看消息趋势、活跃时段和表演总量。',
+  },
+  {
+    key: 'history',
+    icon: MessageSquare,
+    label: '历史',
+    eyebrow: 'Conversation Archive',
+    description: '按时间回看消息、表演和资源内容，保留搜索与方向过滤。',
+  },
+  {
+    key: 'analysis',
+    icon: Smile,
+    label: '分析',
+    eyebrow: 'Behavior Analysis',
+    description: '聚焦动作和表情分布，作为独立的分析工作区而不是网页标签页。',
+  },
+] as const
+
+const activeTabMeta = computed(() => {
+  return tabItems.find((item) => item.key === activeTab.value) ?? tabItems[0]
 })
-const activeTabDescription = computed(() => {
-  if (activeTab.value === 'history') {
-    return '按时间回看对话和表演内容，支持搜索、方向过滤和媒体资源回放。'
-  }
-  if (activeTab.value === 'analysis') {
-    return '用主题一致的图表看动作和表情的使用分布，不再混搭固定蓝黄紫。'
-  }
-  return '查看消息趋势、表演元素总量和活跃时段。'
-})
+
 const themeSwatchStyle = computed(() => ({
   background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
   boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
+}))
+
+const themeDotStyle = computed(() => ({
+  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
+  boxShadow: `0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 14px ${palette.value.shadowColor}`,
 }))
 
 // 监听 tab 切换，修复图表不显示问题
@@ -505,10 +569,21 @@ function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: n
 
 onMounted(async () => {
   themeStore.syncFromStorage()
+
+  try {
+    isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
+  } catch {
+    isWindowMaximized.value = false
+  }
+
   await syncHistoryResourceConfig()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
+
+  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+    isWindowMaximized.value = maximized
+  })
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
@@ -1182,72 +1257,192 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 }
 
+async function handleMinimizeWindow() {
+  await window.electron.window.minimizeCurrent()
+}
+
+async function handleToggleWindowMaximize() {
+  const result = await window.electron.window.toggleMaximizeCurrent()
+  if (!result.success) {
+    message.error(result.error || '切换窗口状态失败')
+    return
+  }
+  isWindowMaximized.value = Boolean(result.maximized)
+}
+
+async function handleCloseWindow() {
+  const result = await window.electron.window.closeCurrent()
+  if (!result.success) {
+    message.error(result.error || '关闭窗口失败')
+  }
+}
+
+function handleTitleBarDoubleClick() {
+  void handleToggleWindowMaximize()
+}
+
 
 
 </script>
 
 <style scoped lang="scss">
-.history-page {
+.history-window {
   position: fixed;
   inset: 0;
-  padding: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  background:
-    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.12), transparent 24%),
-    linear-gradient(180deg, var(--color-bg-light), var(--color-bg-dark) 40%);
-}
-
-.history-page__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.history-page__title {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(29, 22, 19, 0.96), rgba(17, 13, 12, 1));
+}
 
-  h1 {
-    margin: 0;
-    font-size: 28px;
-    letter-spacing: -0.05em;
+.history-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--desktop-titlebar-height);
+  padding: 0 0 0 12px;
+  border-bottom: 1px solid var(--desktop-panel-border);
+  background: rgba(19, 15, 14, 0.92);
+}
+
+.history-titlebar__brand,
+.history-titlebar__identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-titlebar__name,
+.history-titlebar__view {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-titlebar__name {
+  max-width: 260px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.history-titlebar__divider {
+  width: 1px;
+  height: 12px;
+  background: var(--desktop-divider);
+}
+
+.history-titlebar__view {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.history-titlebar__actions {
+  display: inline-flex;
+  align-items: stretch;
+  align-self: stretch;
+}
+
+.history-titlebar__button {
+  width: 46px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
   }
 
-  p {
-    margin: 0;
-    color: var(--color-text-secondary);
+  &--close:hover {
+    background: rgba(218, 82, 82, 0.88);
+    color: #fff;
   }
 }
 
-.history-page__eyebrow {
+.history-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.history-theme-swatch--title {
+  width: 10px;
+  height: 10px;
+}
+
+.history-workspace {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+
+.history-main {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--desktop-content-padding);
+  background:
+    linear-gradient(180deg, rgba(28, 22, 19, 0.7), rgba(16, 13, 12, 0.9)),
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 28%);
+}
+
+.history-main__viewport {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--desktop-gap-md);
+}
+
+.history-overview,
+.history-toolbar {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.history-overview__copy {
+  gap: 2px;
+}
+
+.history-overview__eyebrow {
   font-size: 11px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
 
-.history-page__meta {
+.history-overview__metrics {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .history-meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.03);
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--desktop-panel-border);
   color: var(--color-text-secondary);
+  font-size: 11px;
 
   strong {
     color: var(--color-text-primary);
@@ -1255,40 +1450,49 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 }
 
-.history-page__content {
-  padding-top: 20px;
-  padding-bottom: 24px;
-}
-
 .history-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.04);
+  align-items: stretch;
 }
 
-.history-toolbar__copy {
-  display: flex;
-  flex-direction: column;
+.history-view-switch {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--desktop-panel-border);
+}
 
-  h2 {
-    margin: 0;
-    font-size: 22px;
-    letter-spacing: -0.04em;
+.history-view-switch__item {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
   }
 
-  p {
-    margin: 0;
-    color: var(--color-text-secondary);
+  &--active {
+    background: rgba(var(--color-accent-rgb), 0.14);
+    color: var(--color-text-primary);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18);
   }
 }
 
 .history-toolbar__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -1301,51 +1505,43 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   width: 120px;
 }
 
-.history-theme-swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  display: inline-block;
+.history-window :deep(.n-card) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 28%), var(--desktop-panel-bg) !important;
+  border: 1px solid var(--desktop-panel-border) !important;
+  border-radius: var(--desktop-radius-panel) !important;
+  box-shadow: var(--desktop-shadow) !important;
 }
 
-.history-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 18px;
+.history-window :deep(.n-card-header) {
+  padding-bottom: 0;
 }
 
-:deep(.n-tabs-tab-pad) {
-  display: none !important;
+.history-window :deep(.n-card-header__main) {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-:deep(.n-tabs-nav-scroll-content) {
-  gap: 6px;
+.history-grid {
+  display: grid;
+  gap: var(--desktop-gap-md);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
 }
 
-:deep(.n-tabs-tab) {
-  min-width: 96px;
-  justify-content: center;
-  padding: 10px 14px !important;
-  border-radius: 14px 14px 0 0;
-}
-
-:deep(.n-card) {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: 22px !important;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(18px);
-}
-
-.history-grid,
 .history-analysis-grid {
+  display: grid;
+  gap: var(--desktop-gap-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 
 .history-panel-card {
-  padding: 16px 10px 10px;
+  padding: 18px;
 }
 
 .history-pagination {
-  margin-top: 18px;
+  margin-top: 16px;
   justify-content: center;
 }
 
@@ -1362,37 +1558,22 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 6px 10px;
+  gap: 18px;
 }
 
 .message-item {
   display: flex;
-  gap: 16px;
-  animation: history-slide-in 0.35s var(--ease-out);
-  max-width: 85%;
-}
-
-@keyframes history-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  gap: 14px;
+  max-width: min(900px, 92%);
 }
 
 .message-incoming {
-  flex-direction: row;
   align-self: flex-start;
 }
 
 .message-outgoing {
-  flex-direction: row-reverse;
   align-self: flex-end;
+  flex-direction: row-reverse;
 }
 
 .message-avatar {
@@ -1401,8 +1582,8 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
   :deep(.n-avatar) {
     background: rgba(255, 255, 255, 0.08);
-    border: 2px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: none;
   }
 }
 
@@ -1422,7 +1603,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-text-secondary);
 }
 
@@ -1432,42 +1613,37 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
 .message-user {
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .message-bubble {
   position: relative;
-  padding: 14px 18px;
-  border-radius: 10px var(--radius-lg) var(--radius-lg) var(--radius-lg);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--desktop-panel-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   word-wrap: break-word;
   transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+    border-color var(--duration-fast) var(--ease-out);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.048);
     border-color: rgba(var(--color-accent-rgb), 0.16);
   }
 }
 
 .message-outgoing .message-bubble {
-  border-radius: var(--radius-lg) 10px var(--radius-lg) var(--radius-lg);
-  background: linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.94), rgba(var(--color-accent-rgb), 0.72));
-  color: var(--theme-accent-contrast);
-  border-color: transparent;
-  box-shadow: 0 12px 28px rgba(var(--color-accent-rgb), 0.24);
+  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.12), rgba(255, 255, 255, 0.028));
+  border-color: rgba(var(--color-accent-rgb), 0.18);
 }
 
 .message-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 11px;
-  color: var(--color-text-tertiary);
-  opacity: 0.72;
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .message-outgoing .message-footer {
@@ -1488,7 +1664,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
 .text-content {
   line-height: 1.6;
-  font-size: 14px;
+  font-size: 13px;
   white-space: pre-wrap;
 
   :deep(h1),
@@ -1515,7 +1691,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 
   :deep(pre) {
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.2);
     padding: 12px;
     border-radius: var(--radius-sm);
     overflow-x: auto;
@@ -1540,29 +1716,6 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
     &:hover {
       border-bottom-style: solid;
     }
-  }
-}
-
-.message-outgoing .text-content {
-  :deep(code) {
-    background: rgba(255, 255, 255, 0.18);
-    color: inherit;
-  }
-
-  :deep(pre) {
-    background: rgba(0, 0, 0, 0.18);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-
-  :deep(blockquote) {
-    border-left-color: rgba(255, 255, 255, 0.56);
-    background: rgba(255, 255, 255, 0.12);
-    color: inherit;
-  }
-
-  :deep(a) {
-    color: inherit;
-    border-bottom-color: rgba(255, 255, 255, 0.56);
   }
 }
 
@@ -1599,7 +1752,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 .message-outgoing .audio-content,
 .message-outgoing .video-content,
 .message-outgoing .file-content {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .performance-content {
@@ -1614,9 +1767,9 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--desktop-divider);
   color: var(--color-accent);
 }
 
@@ -1683,7 +1836,7 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   padding: 6px 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: inherit;
   font-size: 12px;
   transition: background var(--duration-fast) var(--ease-out),
@@ -1706,26 +1859,30 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   margin-top: 10px;
 }
 
+@media (max-width: 1080px) {
+  .history-grid,
+  .history-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 960px) {
-  .history-page {
-    padding: 18px;
+  .history-main {
+    padding: 20px;
   }
 
-  .history-page__header {
-    flex-direction: column;
-  }
-
-  .history-page__meta {
-    justify-content: flex-start;
-  }
-
+  .history-overview,
   .history-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .history-overview__metrics {
+    justify-content: flex-start;
+  }
+
   .history-toolbar__actions {
-    width: 100%;
+    justify-content: flex-start;
   }
 
   .history-toolbar__actions :deep(.n-input),
@@ -1735,6 +1892,31 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
 
   .message-item {
     max-width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .history-titlebar {
+    padding-left: 10px;
+  }
+
+  .history-titlebar__divider,
+  .history-titlebar__view {
+    display: none;
+  }
+
+  .history-titlebar__name {
+    max-width: 180px;
+  }
+
+  .history-view-switch {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .history-view-switch__item {
+    flex: 1 1 0;
+    justify-content: center;
   }
 }
 </style>

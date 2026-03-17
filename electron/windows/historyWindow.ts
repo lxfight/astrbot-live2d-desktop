@@ -24,10 +24,11 @@ export function createHistoryWindow(): BrowserWindow {
     minHeight: 600,
     title: '历史记录',
     icon: resolveAppIconPath(),
-    frame: true,
+    frame: false,
+    titleBarStyle: 'hidden',
     transparent: false,
     resizable: true,
-    backgroundColor: '#10151f',
+    backgroundColor: '#171210',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -58,6 +59,14 @@ export function createHistoryWindow(): BrowserWindow {
 
   historyWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[历史窗口] 页面加载失败:', errorCode, errorDescription)
+  })
+
+  historyWindow.on('maximize', () => {
+    historyWindow?.webContents.send('window:maximizedChanged', true)
+  })
+
+  historyWindow.on('unmaximize', () => {
+    historyWindow?.webContents.send('window:maximizedChanged', false)
   })
 
   historyWindow.on('closed', () => {
