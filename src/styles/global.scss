@@ -63,6 +63,25 @@
   --settings-radius-card: 16px;
   --settings-radius-control: 12px;
   --settings-divider: rgba(255, 255, 255, 0.05);
+  --desktop-window-bg: #171210;
+  --desktop-pane-bg: #221a17;
+  --desktop-pane-bg-strong: #2a201c;
+  --desktop-content-bg: #171211;
+  --desktop-panel-bg: rgba(58, 45, 39, 0.86);
+  --desktop-panel-bg-soft: rgba(255, 255, 255, 0.025);
+  --desktop-panel-bg-active: rgba(255, 255, 255, 0.055);
+  --desktop-panel-border: rgba(255, 255, 255, 0.07);
+  --desktop-panel-border-strong: rgba(255, 255, 255, 0.12);
+  --desktop-divider: rgba(255, 255, 255, 0.05);
+  --desktop-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  --desktop-radius-panel: 14px;
+  --desktop-radius-control: 10px;
+  --desktop-titlebar-height: 32px;
+  --desktop-sidebar-width: 232px;
+  --desktop-gap-sm: 10px;
+  --desktop-gap-md: 16px;
+  --desktop-gap-lg: 24px;
+  --desktop-content-padding: 24px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius: 10px;
@@ -183,6 +202,61 @@ textarea {
   border-radius: 22px;
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(24px);
+}
+
+.desktop-surface {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--desktop-panel-bg);
+  border: 1px solid var(--desktop-panel-border);
+  border-radius: var(--desktop-radius-panel);
+  box-shadow: var(--desktop-shadow);
+}
+
+.desktop-muted-surface {
+  background: var(--desktop-panel-bg-soft);
+  border: 1px solid var(--desktop-panel-border);
+  border-radius: var(--desktop-radius-control);
+}
+
+.desktop-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--desktop-gap-md);
+}
+
+.desktop-field-grid {
+  display: grid;
+  gap: var(--desktop-gap-md);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.desktop-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--desktop-gap-md);
+  padding: 14px 16px;
+  background: var(--desktop-panel-bg-soft);
+  border: 1px solid var(--desktop-panel-border);
+  border-radius: var(--desktop-radius-panel);
+}
+
+.desktop-toolbar__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.desktop-toolbar__copy h2,
+.desktop-toolbar__copy h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.desktop-toolbar__copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
 
 .metric-grid {

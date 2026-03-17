@@ -81,6 +81,19 @@
       </aside>
 
       <main class="settings-main">
+        <div class="settings-main__viewport">
+          <section class="desktop-toolbar settings-content-header">
+            <div class="desktop-toolbar__copy settings-content-header__copy">
+              <span class="settings-content-header__eyebrow">{{ activeMenuMeta.eyebrow }}</span>
+              <h2>{{ activeMenuMeta.label }}</h2>
+              <p>{{ activeMenuMeta.description }}</p>
+            </div>
+            <div class="settings-content-header__meta">
+              <span class="settings-content-header__meta-label">{{ isConnected ? 'Bridge 在线' : 'Bridge 未连接' }}</span>
+              <span class="settings-content-header__meta-label">{{ currentModelDisplay }}</span>
+            </div>
+          </section>
+
       <template v-if="activeMenu === 'connection'">
         <div class="settings-panel-grid">
           <section class="panel-card settings-card">
@@ -429,6 +442,7 @@
           </section>
         </div>
       </template>
+        </div>
       </main>
     </div>
   </div>
@@ -474,11 +488,39 @@ const shortcutRegistered = ref(false)
 const isWindowMaximized = ref(false)
 
 const menuItems = [
-  { key: 'connection', icon: Globe, label: '连接' },
-  { key: 'model', icon: Drama, label: '模型' },
-  { key: 'advanced', icon: Settings, label: '高级' },
-  { key: 'about', icon: Info, label: '关于' },
+  {
+    key: 'connection',
+    icon: Globe,
+    label: '连接',
+    eyebrow: 'Bridge Workspace',
+    description: '连接状态、资源服务和会话信息集中放在同一面板中。',
+  },
+  {
+    key: 'model',
+    icon: Drama,
+    label: '模型',
+    eyebrow: 'Model Library',
+    description: '浏览当前模型、主题同步状态和本地模型库。',
+  },
+  {
+    key: 'advanced',
+    icon: Settings,
+    label: '高级',
+    eyebrow: 'Behavior & System',
+    description: '桌面行为、快捷键、平台能力和数据管理。',
+  },
+  {
+    key: 'about',
+    icon: Info,
+    label: '关于',
+    eyebrow: 'Application Info',
+    description: '版本、更新状态和相关项目入口。',
+  },
 ]
+
+const activeMenuMeta = computed(() => {
+  return menuItems.find((item) => item.key === activeMenu.value) ?? menuItems[0]
+})
 
 const recordingSecondsValue = computed({
   get: () => advancedSettings.value.maxRecordingSeconds,
@@ -942,10 +984,10 @@ function handleOpenLink(url: string) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 32px;
+  min-height: var(--desktop-titlebar-height);
   padding: 0 8px 0 14px;
   background: rgba(23, 18, 16, 0.96);
-  border-bottom: 1px solid var(--settings-border-subtle);
+  border-bottom: 1px solid var(--desktop-panel-border);
 }
 
 .settings-titlebar__brand,
@@ -1028,80 +1070,86 @@ function handleOpenLink(url: string) {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(252px, var(--settings-sidebar-width)) minmax(0, 1fr);
+  grid-template-columns: minmax(216px, var(--desktop-sidebar-width)) minmax(0, 1fr);
 }
 
 .settings-sidebar {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 18px;
-  background: linear-gradient(180deg, rgba(42, 33, 28, 0.98), rgba(32, 24, 21, 0.99) 48%, var(--settings-bg-sidebar));
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 0 14px 14px 0;
+  gap: 14px;
+  padding: 16px 14px 14px;
+  background: linear-gradient(180deg, var(--desktop-pane-bg-strong), var(--desktop-pane-bg) 48%, #211915);
+  border-right: 1px solid var(--desktop-panel-border);
+  border-radius: 0 12px 12px 0;
 }
 
 .settings-sidebar__section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-sidebar__section--model {
-  padding: 16px;
-  border: 1px solid var(--settings-border-subtle);
-  border-radius: var(--settings-radius-card);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%), rgba(255, 255, 255, 0.02);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 14px;
+  border: 1px solid var(--desktop-panel-border);
+  border-radius: var(--desktop-radius-panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%), rgba(255, 255, 255, 0.018);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .settings-sidebar__brand {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 
   strong {
-    font-size: 20px;
-    line-height: 1.1;
+    font-size: 14px;
+    line-height: 1.15;
     letter-spacing: -0.04em;
   }
 }
 
 .settings-sidebar__version {
   flex-shrink: 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.48);
+  margin-top: 1px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .settings-sidebar__status {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+}
+
+.settings-sidebar .status-pill,
+.settings-theme-chip {
+  min-height: 28px;
+  padding: 6px 10px;
+  font-size: 11px;
 }
 
 .settings-theme-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 8px 12px;
+  gap: 6px;
   border-radius: 999px;
-  border: 1px solid var(--settings-border-subtle);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--desktop-panel-border);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--color-text-secondary);
 }
 
 .settings-sidebar__model-name {
-  font-size: 18px;
-  line-height: 1.25;
+  font-size: 16px;
+  line-height: 1.2;
   letter-spacing: -0.03em;
 }
 
 .settings-sidebar__label {
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
@@ -1114,13 +1162,13 @@ function handleOpenLink(url: string) {
 
 .settings-inline-path {
   display: block;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: var(--desktop-radius-control);
   background: rgba(0, 0, 0, 0.14);
-  border: 1px solid var(--settings-border-subtle);
+  border: 1px solid var(--desktop-panel-border);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -1134,30 +1182,40 @@ function handleOpenLink(url: string) {
 .settings-nav__item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--settings-radius-control);
-  background: var(--settings-bg-soft);
-  border: 1px solid var(--settings-border-subtle);
+  padding: 10px 11px;
+  border-radius: var(--desktop-radius-control);
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--color-text-secondary);
   text-align: left;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
+    color var(--duration-fast) var(--ease-out);
+
+  &::before {
+    content: '';
+    width: 2px;
+    height: 14px;
+    border-radius: 999px;
+    background: transparent;
+  }
 
   &:hover {
-    background: rgba(var(--color-accent-rgb), 0.08);
-    border-color: rgba(var(--color-accent-rgb), 0.2);
+    background: rgba(255, 255, 255, 0.045);
+    border-color: var(--desktop-panel-border);
     color: var(--color-text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
   &--active {
-    background: rgba(var(--color-accent-rgb), 0.16);
-    border-color: rgba(var(--color-accent-rgb), 0.32);
+    background: rgba(var(--color-accent-rgb), 0.12);
+    border-color: rgba(var(--color-accent-rgb), 0.18);
     color: var(--color-text-primary);
+
+    &::before {
+      background: var(--color-accent);
+    }
   }
 }
 
@@ -1166,42 +1224,81 @@ function handleOpenLink(url: string) {
   flex-direction: column;
   gap: 4px;
   margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid var(--settings-divider);
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--desktop-divider);
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
 }
 
 .settings-main {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--settings-main-padding);
+  padding: var(--desktop-content-padding);
   background:
-    linear-gradient(180deg, rgba(28, 22, 19, 0.7), rgba(17, 14, 13, 0.88)),
+    linear-gradient(180deg, rgba(28, 22, 19, 0.72), rgba(17, 14, 13, 0.9)),
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 26%);
 }
 
+.settings-main__viewport {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.settings-content-header {
+  margin-bottom: var(--desktop-gap-lg);
+}
+
+.settings-content-header__copy {
+  gap: 2px;
+}
+
+.settings-content-header__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.settings-content-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-content-header__meta-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--desktop-panel-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
 .panel-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--settings-bg-surface);
-  border: 1px solid var(--settings-border-subtle);
-  border-radius: var(--settings-radius-card);
-  box-shadow: var(--settings-card-shadow);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 28%), var(--desktop-panel-bg);
+  border: 1px solid var(--desktop-panel-border);
+  border-radius: var(--desktop-radius-panel);
+  box-shadow: var(--desktop-shadow);
   backdrop-filter: none;
 }
 
 .settings-panel-grid {
   display: grid;
-  gap: var(--settings-card-gap);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--desktop-gap-md);
+  grid-template-columns: minmax(0, 1.28fr) minmax(280px, 0.92fr);
   align-items: stretch;
 }
 
 .settings-card {
-  padding: var(--settings-card-padding);
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: var(--settings-card-gap);
+  gap: 14px;
 }
 
 .settings-card--span-2 {
@@ -1212,11 +1309,11 @@ function handleOpenLink(url: string) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     letter-spacing: -0.03em;
   }
 }
@@ -1235,7 +1332,7 @@ function handleOpenLink(url: string) {
 
 .settings-form-grid {
   display: grid;
-  gap: var(--settings-card-gap);
+  gap: var(--desktop-gap-md);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
@@ -1244,8 +1341,8 @@ function handleOpenLink(url: string) {
   flex-direction: column;
   gap: 0;
   overflow: hidden;
-  border: 1px solid var(--settings-divider);
-  border-radius: var(--settings-radius-card);
+  border: 1px solid var(--desktop-divider);
+  border-radius: var(--desktop-radius-panel);
   background: rgba(0, 0, 0, 0.08);
 }
 
@@ -1259,7 +1356,7 @@ function handleOpenLink(url: string) {
   border: none;
 
   & + .settings-summary-row {
-    border-top: 1px solid var(--settings-divider);
+    border-top: 1px solid var(--desktop-divider);
   }
 
   span {
@@ -1328,32 +1425,33 @@ function handleOpenLink(url: string) {
 
 .model-grid {
   display: grid;
-  gap: var(--settings-card-gap);
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .model-card {
   display: flex;
   flex-direction: column;
-  gap: var(--settings-card-gap);
-  padding: var(--settings-card-padding-compact);
-  border-radius: var(--settings-radius-card);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%), rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--settings-border-subtle);
-  box-shadow: var(--settings-card-shadow);
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--desktop-radius-panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 34%), rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--desktop-panel-border);
+  box-shadow: none;
   transition: border-color var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     border-color: rgba(var(--color-accent-rgb), 0.22);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
   }
 
   &--active {
     border-color: rgba(var(--color-accent-rgb), 0.32);
-    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18), 0 10px 26px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), transparent 30%), rgba(255, 255, 255, 0.024);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.16);
   }
 }
 
@@ -1370,7 +1468,7 @@ function handleOpenLink(url: string) {
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: var(--settings-radius-control);
+  border-radius: var(--desktop-radius-control);
   color: var(--theme-accent-contrast);
   font-size: 22px;
   font-weight: 700;
@@ -1419,14 +1517,14 @@ function handleOpenLink(url: string) {
 .ghost-button {
   justify-content: space-between;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--settings-radius-control);
+  padding: 10px 12px;
+  border-radius: var(--desktop-radius-control);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--settings-border-subtle);
+  border: 1px solid var(--desktop-panel-border);
 
   &:hover {
-    background: rgba(var(--color-accent-rgb), 0.12);
-    border-color: rgba(var(--color-accent-rgb), 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--desktop-panel-border-strong);
   }
 }
 
@@ -1437,7 +1535,7 @@ function handleOpenLink(url: string) {
 
   .settings-sidebar {
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--desktop-panel-border);
     border-radius: 0;
   }
 
@@ -1457,6 +1555,11 @@ function handleOpenLink(url: string) {
 
   .settings-main {
     padding: 20px;
+  }
+
+  .settings-content-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .settings-card__header,
