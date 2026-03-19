@@ -1916,23 +1916,23 @@ function handleOpenLink(url: string) {
   gap: 20px;
 }
 
-// 页面切换动画 - Q弹缩放效果
+// 页面切换动画 - 滑动效果
 .page-fade-enter-active {
-  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .page-fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .page-fade-enter-from {
   opacity: 0;
-  transform: scale(0.92);
+  transform: translateX(20px);
 }
 
 .page-fade-leave-to {
   opacity: 0;
-  transform: scale(1.02);
+  transform: translateX(-20px);
 }
 
 // 中栏标题动画
