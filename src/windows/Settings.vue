@@ -914,6 +914,14 @@ watch([resourceServerUrl, resourceServerPath, resourceAccessToken], ([nextUrl, n
   connectionStore.setResourceConfig(nextUrl, nextPath, nextToken)
 })
 
+// 监听页面切换，重新加载统计数据
+watch([activeGroup, activeChild], async ([group, child]) => {
+  if (group === 'history' && child === 'statistics') {
+    await nextTick()
+    await loadStatistics()
+  }
+})
+
 // 生命周期
 onMounted(async () => {
   // 先设置监听，避免错过消息
