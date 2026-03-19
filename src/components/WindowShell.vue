@@ -11,11 +11,7 @@
           <div v-if="icon" class="window-shell__icon window-no-drag">
             <component :is="icon" :size="18" />
           </div>
-          <div class="window-shell__title-group">
-            <span class="window-shell__eyebrow">{{ eyebrow }}</span>
-            <h1 class="window-shell__title">{{ title }}</h1>
-            <p v-if="subtitle" class="window-shell__subtitle">{{ subtitle }}</p>
-          </div>
+          <h1 class="window-shell__title">{{ title }}</h1>
         </div>
 
         <div class="window-shell__actions window-no-drag">
@@ -49,14 +45,10 @@ import { X } from 'lucide-vue-next'
 
 withDefaults(defineProps<{
   title: string
-  subtitle?: string
-  eyebrow?: string
   icon?: Component
   showClose?: boolean
   centered?: boolean
 }>(), {
-  subtitle: '',
-  eyebrow: 'AstrBot Desktop',
   icon: undefined,
   showClose: true,
   centered: false,
@@ -138,11 +130,10 @@ const hasAside = computed(() => Boolean(slots.aside))
   justify-content: space-between;
   gap: 18px;
   padding: 18px 22px;
-  background: rgba(6, 10, 18, 0.38);
-  border: 1px solid var(--glass-border);
+  background: #0f1520;
+  border: 1px solid var(--surface-border);
   border-bottom: none;
   border-radius: 28px 28px 0 0;
-  backdrop-filter: blur(24px);
 }
 
 .window-shell__heading {
@@ -164,30 +155,11 @@ const hasAside = computed(() => Boolean(slots.aside))
   box-shadow: 0 12px 30px rgba(var(--color-accent-rgb), 0.24);
 }
 
-.window-shell__title-group {
-  min-width: 0;
-}
-
-.window-shell__eyebrow {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-
 .window-shell__title {
   margin: 0;
   font-size: 22px;
   line-height: 1.1;
   letter-spacing: -0.04em;
-}
-
-.window-shell__subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
 }
 
 .window-shell__actions {
@@ -222,20 +194,18 @@ const hasAside = computed(() => Boolean(slots.aside))
 
 .window-shell__hero {
   padding: 20px 22px 0;
-  background: rgba(6, 10, 18, 0.38);
-  border-left: 1px solid var(--glass-border);
-  border-right: 1px solid var(--glass-border);
-  backdrop-filter: blur(24px);
+  background: #0f1520;
+  border-left: 1px solid var(--surface-border);
+  border-right: 1px solid var(--surface-border);
 }
 
 .window-shell__body {
   flex: 1;
   min-height: 0;
   display: grid;
-  background: rgba(6, 10, 18, 0.52);
-  border: 1px solid var(--glass-border);
+  background: #0f1520;
+  border: 1px solid var(--surface-border);
   border-radius: 0 0 28px 28px;
-  backdrop-filter: blur(24px);
   overflow: hidden;
 
   &--with-aside {
@@ -246,7 +216,7 @@ const hasAside = computed(() => Boolean(slots.aside))
 .window-shell__aside {
   min-width: 0;
   padding: 22px;
-  border-right: 1px solid var(--glass-border);
+  border-right: 1px solid var(--surface-border);
   background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), transparent 32%);
   overflow-y: auto;
 }
@@ -277,7 +247,7 @@ const hasAside = computed(() => Boolean(slots.aside))
 
   .window-shell__aside {
     border-right: none;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--surface-border);
   }
 }
 </style>

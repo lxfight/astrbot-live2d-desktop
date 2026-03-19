@@ -8,10 +8,7 @@
       <div v-if="currentImage" class="media-overlay image-overlay" @click="hideImage">
         <div class="media-card media-card--image" @click.stop>
           <div class="media-card__header">
-            <div class="media-card__copy">
-              <span class="media-card__eyebrow">图片表演</span>
-              <strong class="media-card__title">当前图片内容</strong>
-            </div>
+            <strong class="media-card__title">当前图片内容</strong>
             <button class="media-card__close" type="button" @click.stop="hideImage">关闭</button>
           </div>
           <img :src="currentImage" alt="表演图片" />
@@ -25,10 +22,7 @@
       <div v-if="currentVideo" class="media-overlay video-overlay" @click="hideVideo">
         <div class="media-card media-card--video" @click.stop>
           <div class="media-card__header">
-            <div class="media-card__copy">
-              <span class="media-card__eyebrow">视频表演</span>
-              <strong class="media-card__title">当前视频内容</strong>
-            </div>
+            <strong class="media-card__title">当前视频内容</strong>
             <button class="media-card__close" type="button" @click.stop="hideVideo">关闭</button>
           </div>
           <video
@@ -257,8 +251,7 @@ audio {
   padding: 24px;
   background:
     radial-gradient(circle at top, rgba(var(--color-accent-rgb), 0.18), transparent 36%),
-    rgba(2, 6, 12, 0.78);
-  backdrop-filter: blur(24px);
+    rgba(2, 6, 12, 0.95);
   pointer-events: all;
   cursor: pointer;
 }
@@ -274,11 +267,10 @@ audio {
   border: 1px solid rgba(var(--color-accent-rgb), 0.18);
   background:
     linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
-    rgba(7, 12, 20, 0.84);
+    #0f1520;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.42),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-  backdrop-filter: blur(20px);
   cursor: default;
 }
 
@@ -293,20 +285,6 @@ audio {
   gap: 16px;
 }
 
-.media-card__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.media-card__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-
 .media-card__title {
   color: var(--color-text-primary);
   font-size: 18px;
@@ -316,7 +294,7 @@ audio {
 .media-card__close {
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-secondary);
   transition: background var(--duration-fast) var(--ease-out),

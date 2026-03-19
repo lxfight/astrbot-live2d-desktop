@@ -205,7 +205,7 @@ function handleClose() {
   height: 54px;
   padding: 0 18px;
   border-radius: 18px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-primary);
   font-size: 16px;
