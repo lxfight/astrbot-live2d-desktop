@@ -2,11 +2,6 @@
   <div class="history-window">
     <header class="history-titlebar window-drag-region" @dblclick="handleTitleBarDoubleClick">
       <div class="history-titlebar__brand">
-        <span class="history-titlebar__identity">
-          <span class="history-theme-swatch history-theme-swatch--title" :style="themeDotStyle"></span>
-          <span class="history-titlebar__name">AstrBot Live2D Desktop</span>
-        </span>
-        <span class="history-titlebar__divider"></span>
         <span class="history-titlebar__view">{{ activeTabMeta.label }}</span>
       </div>
 
@@ -38,9 +33,7 @@
         <div class="history-main__viewport">
           <section class="desktop-toolbar history-overview">
             <div class="desktop-toolbar__copy history-overview__copy">
-              <span class="history-overview__eyebrow">{{ activeTabMeta.eyebrow }}</span>
               <h2>{{ activeTabMeta.label }}</h2>
-              <p>{{ activeTabMeta.description }}</p>
             </div>
 
             <div class="history-overview__metrics">
@@ -55,10 +48,6 @@
               <span class="history-meta-chip">
                 <strong>响应</strong>
                 <span>{{ avgResponseTime }} ms</span>
-              </span>
-              <span class="history-meta-chip">
-                <span class="history-theme-swatch" :style="themeSwatchStyle"></span>
-                <span>{{ sourceColor.toUpperCase() }}</span>
               </span>
             </div>
           </section>
@@ -146,21 +135,16 @@
                     <span class="message-rail__icon">
                       <component :is="msg.direction === 'outgoing' ? User : Bot" :size="16" />
                     </span>
-                    <span class="message-rail__label">{{ getMessageRailLabel(msg) }}</span>
                   </div>
 
                   <div class="message-record">
                     <header class="message-record__header">
                       <div class="message-record__identity">
                         <strong class="message-record__name">{{ getMessageAuthorLabel(msg) }}</strong>
-                        <span class="message-record__kind" :class="`message-record__kind--${msg.direction}`">
-                          {{ getMessageKindLabel(msg) }}
-                        </span>
                       </div>
 
                       <div class="message-record__meta">
                         <span class="message-time">{{ formatTimestamp(msg.timestamp) }}</span>
-                        <span class="message-id">ID {{ msg.message_id }}</span>
                       </div>
                     </header>
 
@@ -441,22 +425,16 @@ const tabItems = [
     key: 'statistics',
     icon: Activity,
     label: '概览',
-    eyebrow: 'Metrics Overview',
-    description: '用统一的深色面板查看消息趋势、活跃时段和表演总量。',
   },
   {
     key: 'history',
     icon: MessageSquare,
     label: '历史',
-    eyebrow: 'Conversation Archive',
-    description: '按时间回看消息、表演和资源内容，保留搜索与方向过滤。',
   },
   {
     key: 'analysis',
     icon: Smile,
     label: '分析',
-    eyebrow: 'Behavior Analysis',
-    description: '聚焦动作和表情分布，作为独立的分析工作区而不是网页标签页。',
   },
 ] as const
 
@@ -1339,39 +1317,20 @@ function handleTitleBarDoubleClick() {
   background: rgba(19, 15, 14, 0.92);
 }
 
-.history-titlebar__brand,
-.history-titlebar__identity {
+.history-titlebar__brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.history-titlebar__name,
 .history-titlebar__view {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.history-titlebar__name {
-  max-width: 260px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
-}
-
-.history-titlebar__divider {
-  width: 1px;
-  height: 12px;
-  background: var(--desktop-divider);
-}
-
-.history-titlebar__view {
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.54);
 }
 
 .history-titlebar__actions {
@@ -1410,11 +1369,6 @@ function handleTitleBarDoubleClick() {
   flex: 0 0 auto;
 }
 
-.history-theme-swatch--title {
-  width: 10px;
-  height: 10px;
-}
-
 .history-workspace {
   min-height: 0;
   flex: 1;
@@ -1446,14 +1400,7 @@ function handleTitleBarDoubleClick() {
 }
 
 .history-overview__copy {
-  gap: 2px;
-}
-
-.history-overview__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
+  gap: 0;
 }
 
 .history-overview__metrics {
@@ -1829,23 +1776,31 @@ function handleTitleBarDoubleClick() {
 
 .image-content {
   margin-top: 8px;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: rgba(var(--color-accent-rgb), 0.2);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  }
 }
 
-.image-placeholder,
-.media-placeholder {
+.image-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  color: var(--color-text-secondary);
+  gap: 10px;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
 }
 
 .audio-content,
@@ -1853,11 +1808,19 @@ function handleTitleBarDoubleClick() {
 .file-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.028);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: rgba(var(--color-accent-rgb), 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .performance-content {
@@ -1904,38 +1867,73 @@ function handleTitleBarDoubleClick() {
   font-size: 0.9em;
 }
 
-.media-content-header,
-.media-placeholder,
-.file-meta,
-.file-actions {
+.media-content-header {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.file-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .audio-player,
 .video-player {
-  width: min(360px, 100%);
+  width: 100%;
   max-width: 100%;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.audio-player {
+  height: 44px;
 }
 
 .video-player {
-  max-height: 240px;
+  max-height: 280px;
+  background: #000;
 }
 
 .file-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
 .file-name {
   font-size: 14px;
   font-weight: 500;
+  color: var(--color-text-primary);
   word-break: break-word;
 }
 
@@ -1943,18 +1941,24 @@ function handleTitleBarDoubleClick() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
   font-size: 12px;
-  transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out);
+  font-weight: 500;
+  transition: all var(--duration-fast) var(--ease-out);
 
   &:hover {
     background: rgba(var(--color-accent-rgb), 0.12);
-    border-color: rgba(var(--color-accent-rgb), 0.2);
+    border-color: rgba(var(--color-accent-rgb), 0.25);
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 }
 
