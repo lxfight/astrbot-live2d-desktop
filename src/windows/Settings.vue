@@ -328,8 +328,11 @@
                           <n-image
                             v-if="resolveMessageImageSource(item)"
                             :src="resolveMessageImageSource(item) || undefined"
-                            width="180"
+                            :preview-src="resolveMessageImageSource(item) || undefined"
+                            width="220"
                             object-fit="cover"
+                            preview-disabled
+                            :lazy="true"
                           />
                           <div v-else class="media-placeholder">
                             <ImageIcon :size="16" />
@@ -2323,10 +2326,28 @@ function handleOpenLink(url: string) {
 }
 
 .image-content {
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  :deep(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    :deep(img) {
+      transform: scale(1.02);
+    }
+  }
 }
 
 // 语音条样式 - 微信/QQ 风格
