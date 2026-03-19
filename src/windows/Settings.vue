@@ -2296,22 +2296,29 @@ function handleOpenLink(url: string) {
   }
 
   :deep(code) {
-    background: rgba(var(--color-accent-rgb), 0.12);
-    border: 1px solid rgba(var(--color-accent-rgb), 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1px 4px;
     border-radius: 4px;
     font-family: var(--font-mono);
     font-size: 0.9em;
-    color: var(--color-accent);
+    color: #e0e0e0;
   }
 
   :deep(pre) {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 12px;
     border-radius: 6px;
     overflow-x: auto;
     margin: 6px 0;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #d4d4d4;
+    }
   }
 }
 
