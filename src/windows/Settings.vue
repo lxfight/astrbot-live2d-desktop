@@ -1918,11 +1918,11 @@ function handleOpenLink(url: string) {
 
 // 页面切换动画 - Q弹缩放效果
 .page-fade-enter-active {
-  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .page-fade-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .page-fade-enter-from {
@@ -1937,11 +1937,11 @@ function handleOpenLink(url: string) {
 
 // 中栏标题动画
 .slide-fade-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .slide-fade-leave-active {
-  transition: opacity 0.1s ease, transform 0.1s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .slide-fade-enter-from {
@@ -1956,11 +1956,11 @@ function handleOpenLink(url: string) {
 
 // 中栏列表动画
 .list-fade-enter-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .list-fade-leave-active {
-  transition: opacity 0.1s ease, transform 0.1s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .list-fade-enter-from {
