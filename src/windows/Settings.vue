@@ -2332,6 +2332,12 @@ function handleOpenLink(url: string) {
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  display: inline-block;
+  line-height: 0;
+
+  :deep(.n-image) {
+    display: block;
+  }
 
   :deep(img) {
     display: block;
@@ -2564,6 +2570,7 @@ function handleOpenLink(url: string) {
 }
 
 .chart-container {
+  width: 100%;
   height: 180px;
 }
 
