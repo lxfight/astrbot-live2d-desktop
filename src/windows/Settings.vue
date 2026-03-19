@@ -54,21 +54,25 @@
 
       <!-- 中栏：二级导航 -->
       <aside class="settings-secondary-nav">
-        <div class="settings-secondary-nav__header">
-          <strong>{{ activeGroupMeta.label }}</strong>
-        </div>
-        <div class="settings-secondary-nav__list">
-          <button
-            v-for="item in activeGroupChildren"
-            :key="item.key"
-            class="settings-secondary-nav__item"
-            :class="{ 'settings-secondary-nav__item--active': activeChild === item.key }"
-            type="button"
-            @click="activeChild = item.key"
-          >
-            <span>{{ item.label }}</span>
-          </button>
-        </div>
+        <transition name="slide-fade" mode="out-in">
+          <div class="settings-secondary-nav__header" :key="activeGroup">
+            <strong>{{ activeGroupMeta.label }}</strong>
+          </div>
+        </transition>
+        <transition name="list-fade" mode="out-in">
+          <div class="settings-secondary-nav__list" :key="activeGroup">
+            <button
+              v-for="item in activeGroupChildren"
+              :key="item.key"
+              class="settings-secondary-nav__item"
+              :class="{ 'settings-secondary-nav__item--active': activeChild === item.key }"
+              type="button"
+              @click="activeChild = item.key"
+            >
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
+        </transition>
       </aside>
 
       <!-- 右栏：内容区域 -->
@@ -1929,6 +1933,44 @@ function handleOpenLink(url: string) {
 .page-fade-leave-to {
   opacity: 0;
   transform: scale(1.02);
+}
+
+// 中栏标题动画
+.slide-fade-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.slide-fade-leave-active {
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+// 中栏列表动画
+.list-fade-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.list-fade-leave-active {
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+
+.list-fade-enter-from {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
 }
 
 // 设置区块
