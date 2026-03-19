@@ -112,10 +112,7 @@
                 </n-button>
               </div>
             </section>
-          </template>
 
-          <!-- 连接 > 资源服务 -->
-          <template v-else-if="activeGroup === 'connection' && activeChild === 'resource'">
             <section class="settings-section">
               <div class="settings-section__header">
                 <h2>资源服务</h2>
@@ -213,6 +210,24 @@
               </template>
               <n-empty v-else description="当前未加载模型" />
             </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>主题同步</h2>
+              </div>
+              <p class="settings-section__desc">应用主题色会自动跟随当前加载的 Live2D 模型配色方案。</p>
+
+              <div class="settings-kv-list">
+                <div class="settings-kv-list__row">
+                  <span>当前主题色</span>
+                  <strong>{{ sourceColor.toUpperCase() }}</strong>
+                </div>
+                <div class="settings-kv-list__row">
+                  <span>同步状态</span>
+                  <strong>{{ currentModelPath ? '跟随当前模型' : '等待模型加载' }}</strong>
+                </div>
+              </div>
+            </section>
           </template>
 
           <!-- 模型 > 模型库 -->
@@ -253,30 +268,9 @@
             </section>
           </template>
 
-          <!-- 模型 > 主题同步 -->
-          <template v-else-if="activeGroup === 'model' && activeChild === 'theme'">
-            <section class="settings-section">
-              <div class="settings-section__header">
-                <h2>主题同步</h2>
-              </div>
-              <p class="settings-section__desc">应用主题色会自动跟随当前加载的 Live2D 模型配色方案。</p>
-
-              <div class="settings-kv-list">
-                <div class="settings-kv-list__row">
-                  <span>当前主题色</span>
-                  <strong>{{ sourceColor.toUpperCase() }}</strong>
-                </div>
-                <div class="settings-kv-list__row">
-                  <span>同步状态</span>
-                  <strong>{{ currentModelPath ? '跟随当前模型' : '等待模型加载' }}</strong>
-                </div>
-              </div>
-            </section>
-          </template>
-
           <!-- 历史 > 消息列表 -->
           <template v-else-if="activeGroup === 'history' && activeChild === 'messages'">
-            <section class="settings-section">
+            <section class="settings-section settings-section--fill">
               <div class="settings-section__header">
                 <h2>消息列表</h2>
                 <div class="history-toolbar-actions">
@@ -470,6 +464,36 @@
                 <n-button type="primary" @click="saveAdvancedSettings">保存设置</n-button>
               </div>
             </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>平台能力</h2>
+              </div>
+              <p class="settings-section__desc">当前系统平台支持的功能特性。</p>
+
+              <div class="settings-kv-list">
+                <div class="settings-kv-list__row">
+                  <span>当前平台</span>
+                  <strong>{{ platformDisplayName }}</strong>
+                </div>
+                <div class="settings-kv-list__row">
+                  <span>自动检测全屏应用</span>
+                  <strong>{{ gameModeCapabilityLabel }}</strong>
+                </div>
+                <div class="settings-kv-list__row">
+                  <span>动态穿透</span>
+                  <strong>{{ passThroughCapabilityLabel }}</strong>
+                </div>
+                <div class="settings-kv-list__row">
+                  <span>置顶层级策略</span>
+                  <strong>{{ alwaysOnTopLevelLabel }}</strong>
+                </div>
+              </div>
+
+              <n-alert v-if="platformCompatibilityNotice" :type="platformCompatibilityNotice.type" :show-icon="false">
+                {{ platformCompatibilityNotice.text }}
+              </n-alert>
+            </section>
           </template>
 
           <!-- 高级 > 快捷键 -->
@@ -514,39 +538,6 @@
             </section>
           </template>
 
-          <!-- 高级 > 平台能力 -->
-          <template v-else-if="activeGroup === 'advanced' && activeChild === 'platform'">
-            <section class="settings-section">
-              <div class="settings-section__header">
-                <h2>平台能力</h2>
-              </div>
-              <p class="settings-section__desc">当前系统平台支持的功能特性。</p>
-
-              <div class="settings-kv-list">
-                <div class="settings-kv-list__row">
-                  <span>当前平台</span>
-                  <strong>{{ platformDisplayName }}</strong>
-                </div>
-                <div class="settings-kv-list__row">
-                  <span>自动检测全屏应用</span>
-                  <strong>{{ gameModeCapabilityLabel }}</strong>
-                </div>
-                <div class="settings-kv-list__row">
-                  <span>动态穿透</span>
-                  <strong>{{ passThroughCapabilityLabel }}</strong>
-                </div>
-                <div class="settings-kv-list__row">
-                  <span>置顶层级策略</span>
-                  <strong>{{ alwaysOnTopLevelLabel }}</strong>
-                </div>
-              </div>
-
-              <n-alert v-if="platformCompatibilityNotice" :type="platformCompatibilityNotice.type" :show-icon="false">
-                {{ platformCompatibilityNotice.text }}
-              </n-alert>
-            </section>
-          </template>
-
           <!-- 高级 > 数据管理 -->
           <template v-else-if="activeGroup === 'advanced' && activeChild === 'data'">
             <section class="settings-section">
@@ -563,11 +554,11 @@
             </section>
           </template>
 
-          <!-- 关于 > 版本信息 -->
-          <template v-else-if="activeGroup === 'about' && activeChild === 'version'">
+          <!-- 关于 -->
+          <template v-else-if="activeGroup === 'about' && activeChild === 'info'">
             <section class="settings-section">
               <div class="settings-section__header">
-                <h2>版本信息</h2>
+                <h2>关于</h2>
               </div>
 
               <div class="settings-kv-list">
@@ -594,15 +585,11 @@
                 <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">重启并安装</n-button>
               </div>
             </section>
-          </template>
 
-          <!-- 关于 > 相关项目 -->
-          <template v-else-if="activeGroup === 'about' && activeChild === 'links'">
             <section class="settings-section">
               <div class="settings-section__header">
                 <h2>相关项目</h2>
               </div>
-              <p class="settings-section__desc">AstrBot 生态系统相关链接。</p>
 
               <div class="link-stack">
                 <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
@@ -616,14 +603,8 @@
                 </button>
               </div>
             </section>
-          </template>
 
-          <!-- 关于 > 版权声明 -->
-          <template v-else-if="activeGroup === 'about' && activeChild === 'license'">
             <section class="settings-section">
-              <div class="settings-section__header">
-                <h2>版权声明</h2>
-              </div>
               <p class="settings-section__note">
                 Powered by Live2D
               </p>
@@ -682,7 +663,6 @@ const menuGroups = [
     label: '连接',
     children: [
       { key: 'bridge', label: 'Bridge 连接' },
-      { key: 'resource', label: '资源服务' },
       { key: 'workspace', label: '工作区状态' },
     ],
   },
@@ -693,7 +673,6 @@ const menuGroups = [
     children: [
       { key: 'current', label: '当前模型' },
       { key: 'library', label: '模型库' },
-      { key: 'theme', label: '主题同步' },
     ],
   },
   {
@@ -712,7 +691,6 @@ const menuGroups = [
     children: [
       { key: 'behavior', label: '行为配置' },
       { key: 'shortcut', label: '快捷键' },
-      { key: 'platform', label: '平台能力' },
       { key: 'data', label: '数据管理' },
     ],
   },
@@ -721,9 +699,7 @@ const menuGroups = [
     icon: Info,
     label: '关于',
     children: [
-      { key: 'version', label: '版本信息' },
-      { key: 'links', label: '相关项目' },
-      { key: 'license', label: '版权声明' },
+      { key: 'info', label: '关于' },
     ],
   },
 ]
@@ -1904,7 +1880,7 @@ function handleOpenLink(url: string) {
 // 右栏：内容区域
 .settings-content {
   min-width: 0;
-  min-height: 0;
+  height: 100%;
   overflow-y: auto;
   padding: 20px 24px;
   background:
@@ -1913,6 +1889,7 @@ function handleOpenLink(url: string) {
 
 .settings-content__viewport {
   width: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1944,6 +1921,13 @@ function handleOpenLink(url: string) {
   border: 1px solid var(--desktop-panel-border);
   border-radius: var(--desktop-radius-panel);
   box-shadow: var(--desktop-shadow);
+}
+
+.settings-section--fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .settings-section__header {
@@ -2204,8 +2188,9 @@ function handleOpenLink(url: string) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: calc(100vh - 350px);
-  min-height: 200px;
+  flex: 1;
+  min-height: 300px;
+  max-height: calc(100vh - 300px);
   overflow-y: auto;
   padding: 8px;
 }
