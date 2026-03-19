@@ -85,8 +85,8 @@ async function writeResourceToPath(source: string, targetPath: string): Promise<
 /**
  * 打开设置窗口
  */
-ipcMain.handle('window:openSettings', async () => {
-  showSettingsWindow()
+ipcMain.handle('window:openSettings', async (_event, page?: string) => {
+  showSettingsWindow(page)
   return { success: true }
 })
 

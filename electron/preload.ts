@@ -65,7 +65,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // 窗口管理
   window: {
-    openSettings: () => ipcRenderer.invoke('window:openSettings'),
+    openSettings: (page?: string) => ipcRenderer.invoke('window:openSettings', page),
     closeSettings: () => ipcRenderer.invoke('window:closeSettings'),
     minimizeCurrent: () => ipcRenderer.invoke('window:minimizeCurrent'),
     toggleMaximizeCurrent: () => ipcRenderer.invoke('window:toggleMaximizeCurrent'),
@@ -94,6 +94,16 @@ contextBridge.exposeInMainWorld('electron', {
     saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
     getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
     getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities')
+  },
+
+  // 设置窗口专用
+  settings: {
+    getPendingPage: () => ipcRenderer.invoke('settings:getPendingPage'),
+    onNavigateTo: (callback: (page: string) => void) => {
+      // 移除之前的监听器，避免重复
+      ipcRenderer.removeListener('settings:navigateTo', callback as any)
+      ipcRenderer.on('settings:navigateTo', (_event: any, page: string) => callback(page))
+    }
   },
 
   // 用户配置

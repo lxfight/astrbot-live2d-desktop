@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
@@ -7,15 +7,30 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let settingsWindow: BrowserWindow | null = null
+let pendingPage: string | null = null
+
+// 处理渲染进程请求待处理页面的 IPC
+ipcMain.handle('settings:getPendingPage', () => {
+  const page = pendingPage
+  pendingPage = null
+  return page
+})
 
 /**
  * 创建设置窗口
  */
-export function createSettingsWindow(): BrowserWindow {
+export function createSettingsWindow(page?: string): BrowserWindow {
   if (settingsWindow) {
     settingsWindow.focus()
+    // 如果窗口已存在且有页面参数，发送消息让渲染进程跳转
+    if (page) {
+      settingsWindow.webContents.send('settings:navigateTo', page)
+    }
     return settingsWindow
   }
+
+  // 保存页面参数，等渲染进程准备好后使用
+  pendingPage = page || null
 
   settingsWindow = new BrowserWindow({
     width: 1080,
@@ -52,11 +67,6 @@ export function createSettingsWindow(): BrowserWindow {
     })
   }
 
-  // 调试：打印加载的 URL
-  settingsWindow.webContents.on('did-finish-load', () => {
-    console.log('[设置窗口] 页面加载完成')
-  })
-
   settingsWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[设置窗口] 页面加载失败:', errorCode, errorDescription)
   })
@@ -86,12 +96,16 @@ export function getSettingsWindow(): BrowserWindow | null {
 /**
  * 显示设置窗口
  */
-export function showSettingsWindow(): void {
+export function showSettingsWindow(page?: string): void {
   if (settingsWindow) {
     settingsWindow.show()
     settingsWindow.focus()
+    // 如果窗口已存在且有页面参数，发送消息让渲染进程跳转
+    if (page) {
+      settingsWindow.webContents.send('settings:navigateTo', page)
+    }
   } else {
-    createSettingsWindow()
+    createSettingsWindow(page)
   }
 }
 

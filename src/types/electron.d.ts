@@ -54,7 +54,7 @@ declare global {
         onPerformInterrupt: (callback: () => void) => void
       }
       window: {
-        openSettings: () => Promise<{ success: boolean }>
+        openSettings: (page?: string) => Promise<{ success: boolean }>
         closeSettings: () => Promise<{ success: boolean }>
         minimizeCurrent: () => Promise<{ success: boolean; error?: string }>
         toggleMaximizeCurrent: () => Promise<{ success: boolean; maximized?: boolean; error?: string }>
@@ -76,6 +76,10 @@ declare global {
         saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         getAppVersion: () => Promise<string>
         getPlatformCapabilities: () => Promise<PlatformCapabilities>
+      }
+      settings: {
+        getPendingPage: () => Promise<string | null>
+        onNavigateTo: (callback: (page: string) => void) => void
       }
       user: {
         setUserName: (name: string) => Promise<{ success: boolean }>
