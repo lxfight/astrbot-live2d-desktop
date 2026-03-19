@@ -1199,11 +1199,11 @@ function closeInputPanel() {
   live2dCanvasRef.value?.enablePassThrough()
 }
 
-// 打开历史记录窗口
+// 打开历史记录窗口（现在合并到设置窗口中）
 async function openHistory() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
-  await window.electron.window.openHistory()
+  await window.electron.window.openSettings('history')
 }
 
 // 打开设置窗口
@@ -1989,11 +1989,10 @@ onBeforeUnmount(() => {
     position: relative;
     text-align: center;
     padding: 48px 52px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--surface-bg);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(24px);
     max-width: 520px;
 
     &::before {
@@ -2061,8 +2060,7 @@ onBeforeUnmount(() => {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
       linear-gradient(135deg, var(--theme-color, transparent), transparent 72%),
-      var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
+      var(--surface-bg);
     border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.22);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--shadow-sm);
     display: flex;
@@ -2088,9 +2086,8 @@ onBeforeUnmount(() => {
       position: absolute;
       top: 100%;
       margin-top: 8px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--glass-border);
+      background: var(--surface-bg);
+      border: 1px solid var(--surface-border);
       color: var(--color-text-primary);
       padding: 4px 10px;
       border-radius: var(--radius-sm);
@@ -2108,7 +2105,7 @@ onBeforeUnmount(() => {
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)),
         linear-gradient(135deg, var(--theme-color-hover, transparent), transparent 72%),
-        var(--glass-bg-hover);
+        var(--surface-bg-hover);
       border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.34);
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.16),
@@ -2175,7 +2172,6 @@ onBeforeUnmount(() => {
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
   max-height: min(40vh, calc(100vh - 32px));
-  backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
   overflow: hidden;
@@ -2406,8 +2402,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  background: rgba(20, 20, 20, 0.6);
-  backdrop-filter: blur(12px);
+  background: #141414;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 25px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -2415,7 +2410,7 @@ onBeforeUnmount(() => {
 }
 
 .glass-input-bar:focus-within {
-  background: rgba(20, 20, 20, 0.8);
+  background: #1a1a1a;
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
@@ -2488,7 +2483,6 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin-bottom: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
 
   .recording-dot {
     width: 8px;
@@ -2506,7 +2500,6 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   margin-bottom: 4px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
 }
 
 .image-preview-floating img {
@@ -2555,7 +2548,6 @@ onBeforeUnmount(() => {
     background: rgba(248, 113, 113, 0.90);
     border: 1px solid rgba(248, 113, 113, 0.3);
     border-radius: var(--radius);
-    backdrop-filter: blur(20px);
     box-shadow: 0 4px 20px rgba(248, 113, 113, 0.3);
     color: #fff;
     font-size: 13px;
@@ -2641,10 +2633,9 @@ onBeforeUnmount(() => {
   position: absolute;
   padding: 8px 18px;
   border-radius: var(--radius-full);
-  background: var(--glass-bg);
+  background: var(--surface-bg);
   color: white;
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2661,7 +2652,7 @@ onBeforeUnmount(() => {
   &.error   { background: rgba(248, 113, 113, 0.85); border-color: rgba(248, 113, 113, 0.3); }
   &.warning { background: rgba(251, 191, 36, 0.85); border-color: rgba(251, 191, 36, 0.3); }
   &.loading { background: rgba(96, 165, 250, 0.85); border-color: rgba(96, 165, 250, 0.3); }
-  &.info    { background: var(--glass-bg); color: var(--color-text-primary); }
+  &.info    { background: var(--surface-bg); color: var(--color-text-primary); }
 
   .status-icon {
     display: flex;
