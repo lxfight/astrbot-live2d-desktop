@@ -1220,6 +1220,8 @@ function renderCharts(data: any[]) {
   charts = []
   if (!data || data.length === 0) return
 
+  console.log('[设置] 渲染图表, messageTrendRef:', messageTrendRef.value, 'performElementRef:', performElementRef.value, 'activeHoursRef:', activeHoursRef.value)
+
   const chartColors = palette.value.chartPalette
   const axisColor = 'rgba(255, 255, 255, 0.18)'
   const labelColor = palette.value.textSecondary
