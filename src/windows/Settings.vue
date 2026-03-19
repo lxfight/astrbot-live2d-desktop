@@ -73,7 +73,8 @@
 
       <!-- 右栏：内容区域 -->
       <main class="settings-content">
-        <div class="settings-content__viewport">
+        <transition name="page-fade" mode="out-in">
+          <div class="settings-content__viewport" :key="`${activeGroup}-${activeChild}`">
           <!-- 连接 > Bridge 连接 -->
           <template v-if="activeGroup === 'connection' && activeChild === 'bridge'">
             <section class="settings-section">
@@ -628,7 +629,8 @@
               </p>
             </section>
           </template>
-        </div>
+          </div>
+        </transition>
       </main>
     </div>
   </div>
@@ -1914,6 +1916,25 @@ function handleOpenLink(url: string) {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+// 页面切换动画 - Q弹缩放效果
+.page-fade-enter-active {
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.page-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: scale(1.02);
 }
 
 // 设置区块
