@@ -1203,7 +1203,9 @@ async function loadStatistics() {
 
   try {
     const result = await window.electron.history.getStatistics(startDate, endDate)
+    console.log('[设置] 统计数据响应:', result)
     if (result.success && result.data) {
+      console.log('[设置] 统计数据:', result.data)
       statisticsData.value = result.data
       await nextTick()
       renderCharts(result.data)
