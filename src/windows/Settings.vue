@@ -630,13 +630,13 @@ import { storeToRefs } from 'pinia'
 import { useDialog, useMessage } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
-import { format, startOfDay, endOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import {
   Copy, Drama, Globe, Info, Minus, Settings, Square, X,
   MessageSquare, Search, User, Bot, Image as ImageIcon, Mic, Video,
-  FileText, ExternalLink, Download, Activity
+  FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
@@ -765,7 +765,7 @@ function setVoiceRef(el: any, idx: number) {
   }
 }
 
-function toggleVoicePlay(item: any, idx: number) {
+function toggleVoicePlay(_item: any, idx: number) {
   const audio = voiceRefs.get(idx)
   if (!audio) return
 
@@ -1451,39 +1451,10 @@ function parseContent(content: string): any[] {
   }
 }
 
-function isPerformanceMessage(msg: any): boolean {
-  return msg.raw_text === '[表演序列]'
-}
-
 function getMessageAuthorLabel(msg: any): string {
   if (msg.direction === 'outgoing') return msg.user_name || '我'
   if (msg.user_id === 'server' || msg.user_id === 'bot') return 'AstrBot'
   return msg.user_name || msg.user_id || '未知来源'
-}
-
-function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content}`
-  const cached = performancePreviewCache.get(cacheKey)
-  if (cached !== undefined) return cached
-
-  try {
-    const parsed = parseContent(content)
-    const items = buildHistoryRenderableItems(parsed, {
-      includeTtsText: true,
-      resourceBaseUrl: historyResourceBaseUrl.value,
-      resourcePath: historyResourcePath.value,
-      resourceToken: historyResourceToken.value,
-    })
-    if (performancePreviewCache.size >= 500) {
-      const oldestKey = performancePreviewCache.keys().next().value
-      if (oldestKey) performancePreviewCache.delete(oldestKey)
-    }
-    performancePreviewCache.set(cacheKey, items)
-    return items
-  } catch {
-    performancePreviewCache.set(cacheKey, [])
-    return []
-  }
 }
 
 function resolveMessageImageSource(item: any): string | null {

@@ -357,7 +357,7 @@ const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
-const { palette, sourceColor } = storeToRefs(themeStore)
+const { palette } = storeToRefs(themeStore)
 
 // 配置 marked
 marked.setOptions({
@@ -441,16 +441,6 @@ const tabItems = [
 const activeTabMeta = computed(() => {
   return tabItems.find((item) => item.key === activeTab.value) ?? tabItems[0]
 })
-
-const themeSwatchStyle = computed(() => ({
-  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
-  boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
-}))
-
-const themeDotStyle = computed(() => ({
-  background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
-  boxShadow: `0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 14px ${palette.value.shadowColor}`,
-}))
 
 // 监听 tab 切换，修复图表不显示问题
 watch(activeTab, (newTab) => {
@@ -1037,22 +1027,6 @@ function getMessageAuthorLabel(msg: any): string {
   }
 
   return msg.user_name || msg.user_id || '未知来源'
-}
-
-function getMessageKindLabel(msg: any): string {
-  if (msg.direction === 'incoming' && isPerformanceMessage(msg)) {
-    return '表演'
-  }
-
-  return msg.direction === 'outgoing' ? '发送' : '接收'
-}
-
-function getMessageRailLabel(msg: any): string {
-  if (msg.direction === 'incoming' && isPerformanceMessage(msg)) {
-    return 'PERF'
-  }
-
-  return msg.direction === 'outgoing' ? 'OUT' : 'IN'
 }
 
 function formatTimestamp(timestamp: number): string {
