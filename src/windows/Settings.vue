@@ -1916,23 +1916,22 @@ function handleOpenLink(url: string) {
   gap: 20px;
 }
 
-// 页面切换动画 - 滑动效果
+// 页面切换动画 - 温和的滑动效果
 .page-fade-enter-active {
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
 .page-fade-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.2s ease;
 }
 
 .page-fade-enter-from {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateY(6px);
 }
 
 .page-fade-leave-to {
   opacity: 0;
-  transform: translateX(-20px);
 }
 
 // 中栏标题动画
