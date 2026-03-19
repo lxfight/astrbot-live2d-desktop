@@ -917,7 +917,9 @@ watch([resourceServerUrl, resourceServerPath, resourceAccessToken], ([nextUrl, n
 // 监听页面切换，重新加载统计数据
 watch([activeGroup, activeChild], async ([group, child]) => {
   if (group === 'history' && child === 'statistics') {
+    // 等待 DOM 完全渲染（包括动画）
     await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 300))
     await loadStatistics()
   }
 })
