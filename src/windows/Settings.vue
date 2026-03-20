@@ -648,10 +648,8 @@ import {
   saveAdvancedSettings as persistAdvancedSettings,
 } from '@/utils/advancedSettings'
 import {
-  buildHistoryRenderableItems,
   resolveHistoryMediaSource,
   resolveHistoryImageSource,
-  type HistoryRenderableItem,
 } from '@/utils/historyContent'
 import { withAlpha } from '@/utils/themePalette'
 
@@ -797,7 +795,6 @@ function onVoiceEnded(idx: number) {
 // 缓存
 const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, any[]>()
-const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
 
 // 计算属性
 const activeGroupMeta = computed(() => {
@@ -1010,7 +1007,6 @@ onUnmounted(() => {
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
-  performancePreviewCache.clear()
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('hashchange', navigateFromHash)
 })
