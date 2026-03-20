@@ -79,6 +79,7 @@
     "node-addon-api": "^2.0.0",
     "node-gyp-build": "^4.8.4",
     "pinia": "^2.1.0",
+    "live2dcubismcore": "^5.3.0",
     "pixi-live2d-display": "^0.4.0",
     "pixi.js": "^7.4.3",
     "simplex-noise": "^4.0.3",
