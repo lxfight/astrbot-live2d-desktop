@@ -82,7 +82,7 @@ declare global {
     type: WindowEventType
     timestamp: number
     window: WindowInfo
-    previousWindow?: WindowInfo  // 上一个活跃窗口（仅 focus 事件）
+    previousWindow?: WindowInfo | null  // 上一个活跃窗口（仅 focus 事件）
   }
 
   /**

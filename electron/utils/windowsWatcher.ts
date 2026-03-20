@@ -10,8 +10,7 @@ import { createRequire } from 'module'
 import type { 
   PlatformWatcher, 
   WindowInfo, 
-  WindowEvent, 
-  WindowEventType 
+  WindowEvent
 } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
 
@@ -19,14 +18,10 @@ const require = createRequire(import.meta.url)
 
 // Windows API 常量
 const EVENT_SYSTEM_FOREGROUND = 0x0003
-const EVENT_SYSTEM_MOVESIZESTART = 0x000A
-const EVENT_SYSTEM_MOVESIZEEND = 0x000B
 const EVENT_OBJECT_CREATE = 0x8000
 const EVENT_OBJECT_DESTROY = 0x8001
 const EVENT_OBJECT_LOCATIONCHANGE = 0x800B
 const EVENT_OBJECT_STATECHANGE = 0x800A
-const EVENT_OBJECT_SHOW = 0x8002
-const EVENT_OBJECT_HIDE = 0x8003
 
 const WINEVENT_OUTOFCONTEXT = 0x0000
 const WINEVENT_SKIPOWNPROCESS = 0x0002
@@ -36,9 +31,6 @@ interface ProcessInfo {
   name: string
   path: string
 }
-
-// 窗口句柄类型
-type HWND = bigint
 
 // 缓存进程信息，避免重复查询
 const processCache = new Map<number, ProcessInfo>()
@@ -56,7 +48,6 @@ let hookHandle: bigint | null = null
 // FFI 库
 let user32: any = null
 let kernel32: any = null
-let ntdll: any = null
 
 /**
  * 初始化 Windows API
@@ -65,7 +56,6 @@ function initWindowsApi(): boolean {
   try {
     const ffi = require('ffi-napi')
     const ref = require('ref-napi')
-    const Struct = require('ref-struct-napi')
     
     // 定义回调函数类型
     const WinEventProc = ffi.Function(ref.types.void, [

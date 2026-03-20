@@ -11,8 +11,7 @@ import { promisify } from 'util'
 import type { 
   PlatformWatcher, 
   WindowInfo, 
-  WindowEvent, 
-  WindowEventType 
+  WindowEvent
 } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
 

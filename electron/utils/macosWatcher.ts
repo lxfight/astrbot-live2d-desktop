@@ -10,8 +10,7 @@ import { promisify } from 'util'
 import type { 
   PlatformWatcher, 
   WindowInfo, 
-  WindowEvent, 
-  WindowEventType 
+  WindowEvent
 } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
 
@@ -95,18 +94,6 @@ async function getActiveWindowViaAppleScript(): Promise<WindowInfo | null> {
   } catch (error) {
     // AppleScript 可能会失败，静默处理
     return null
-  }
-}
-
-/**
- * 通过 pid 获取进程路径
- */
-async function getProcessPathByPid(pid: number): Promise<string> {
-  try {
-    const { stdout } = await execAsync(`ps -p ${pid} -o comm=`)
-    return stdout.trim()
-  } catch {
-    return ''
   }
 }
 
