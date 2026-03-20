@@ -93,7 +93,19 @@ contextBridge.exposeInMainWorld('electron', {
     openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
     saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
     getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
-    getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities')
+    getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities'),
+    
+    // 窗口事件监听
+    startWatching: () => ipcRenderer.invoke('window:startWatching'),
+    getActiveWindow: () => ipcRenderer.invoke('window:getActiveWindow'),
+    getWindowHistory: () => ipcRenderer.invoke('window:getWindowHistory'),
+    getAllWindows: () => ipcRenderer.invoke('window:getAllWindows'),
+    buildAIContext: () => ipcRenderer.invoke('window:buildAIContext'),
+    updateWatcherConfig: (config: any) => ipcRenderer.invoke('window:updateWatcherConfig', config),
+    onWindowEvent: (callback: (event: any) => void) => {
+      ipcRenderer.removeAllListeners('window:event')
+      ipcRenderer.on('window:event', (_event: any, event: any) => callback(event))
+    }
   },
 
   // 设置窗口专用
