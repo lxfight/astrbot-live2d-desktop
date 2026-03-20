@@ -5,21 +5,35 @@
 
     <!-- 图片显示 -->
     <transition name="fade">
-      <div v-if="currentImage" class="image-overlay" @click="hideImage">
-        <img :src="currentImage" alt="Performance Image" />
+      <div v-if="currentImage" class="media-overlay image-overlay" @click="hideImage">
+        <div class="media-card media-card--image" @click.stop>
+          <div class="media-card__header">
+            <strong class="media-card__title">当前图片内容</strong>
+            <button class="media-card__close" type="button" @click.stop="hideImage">关闭</button>
+          </div>
+          <img :src="currentImage" alt="表演图片" />
+          <p class="media-card__hint">点击空白区域也可关闭</p>
+        </div>
       </div>
     </transition>
 
     <!-- 视频播放器 -->
     <transition name="fade">
-      <div v-if="currentVideo" class="video-overlay" @click="hideVideo">
-        <video
-          ref="videoRef"
-          :src="currentVideo"
-          autoplay
-          controls
-          @ended="handleVideoEnded"
-        />
+      <div v-if="currentVideo" class="media-overlay video-overlay" @click="hideVideo">
+        <div class="media-card media-card--video" @click.stop>
+          <div class="media-card__header">
+            <strong class="media-card__title">当前视频内容</strong>
+            <button class="media-card__close" type="button" @click.stop="hideVideo">关闭</button>
+          </div>
+          <video
+            ref="videoRef"
+            :src="currentVideo"
+            autoplay
+            controls
+            @ended="handleVideoEnded"
+          />
+          <p class="media-card__hint">点击空白区域也可关闭</p>
+        </div>
       </div>
     </transition>
   </div>
@@ -225,8 +239,7 @@ audio {
   display: none;
 }
 
-.image-overlay,
-.video-overlay {
+.media-overlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -235,30 +248,117 @@ audio {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(var(--color-accent-rgb), 0.18), transparent 36%),
+    rgba(2, 6, 12, 0.95);
   pointer-events: all;
   cursor: pointer;
 }
 
+.media-card {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 48px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 28px;
+  border: 1px solid rgba(var(--color-accent-rgb), 0.18);
+  background:
+    linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
+    #0f1520;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  cursor: default;
+}
+
+.media-card--image {
+  width: min(880px, 100%);
+}
+
+.media-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.media-card__title {
+  color: var(--color-text-primary);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.media-card__close {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: rgba(var(--color-accent-rgb), 0.14);
+    border-color: rgba(var(--color-accent-rgb), 0.22);
+    color: var(--color-text-primary);
+  }
+}
+
 .image-overlay img {
-  max-width: 90%;
-  max-height: 90%;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(74vh, 880px);
   object-fit: contain;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  border-radius: 22px;
+  border: 1px solid rgba(var(--color-accent-rgb), 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .video-overlay video {
-  max-width: 90%;
-  max-height: 90%;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 100%;
+  max-height: min(72vh, 860px);
+  border-radius: 22px;
+  border: 1px solid rgba(var(--color-accent-rgb), 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.media-card__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .media-overlay {
+    padding: 12px;
+  }
+
+  .media-card {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .media-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .media-card__hint {
+    text-align: left;
+  }
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out);
 }
 
 .fade-enter-from,

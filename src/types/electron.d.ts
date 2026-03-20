@@ -54,8 +54,12 @@ declare global {
         onPerformInterrupt: (callback: () => void) => void
       }
       window: {
-        openSettings: () => Promise<{ success: boolean }>
+        openSettings: (page?: string) => Promise<{ success: boolean }>
         closeSettings: () => Promise<{ success: boolean }>
+        minimizeCurrent: () => Promise<{ success: boolean; error?: string }>
+        toggleMaximizeCurrent: () => Promise<{ success: boolean; maximized?: boolean; error?: string }>
+        isMaximizedCurrent: () => Promise<boolean>
+        closeCurrent: () => Promise<{ success: boolean; error?: string }>
         openHistory: () => Promise<{ success: boolean }>
         closeHistory: () => Promise<{ success: boolean }>
         closeWelcome: () => Promise<{ success: boolean }>
@@ -66,11 +70,16 @@ declare global {
         resetSize: () => Promise<{ success: boolean }>
         getPassThroughMode: () => Promise<boolean>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
+        onMaximizedChanged: (callback: (maximized: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>
         openResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         getAppVersion: () => Promise<string>
         getPlatformCapabilities: () => Promise<PlatformCapabilities>
+      }
+      settings: {
+        getPendingPage: () => Promise<string | null>
+        onNavigateTo: (callback: (page: string) => void) => void
       }
       user: {
         setUserName: (name: string) => Promise<{ success: boolean }>

@@ -65,8 +65,12 @@ contextBridge.exposeInMainWorld('electron', {
 
   // 窗口管理
   window: {
-    openSettings: () => ipcRenderer.invoke('window:openSettings'),
+    openSettings: (page?: string) => ipcRenderer.invoke('window:openSettings', page),
     closeSettings: () => ipcRenderer.invoke('window:closeSettings'),
+    minimizeCurrent: () => ipcRenderer.invoke('window:minimizeCurrent'),
+    toggleMaximizeCurrent: () => ipcRenderer.invoke('window:toggleMaximizeCurrent'),
+    isMaximizedCurrent: () => ipcRenderer.invoke('window:isMaximizedCurrent'),
+    closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
     openHistory: () => ipcRenderer.invoke('window:openHistory'),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
@@ -81,11 +85,25 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.removeAllListeners('window:passThroughModeChanged')
       ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
     },
+    onMaximizedChanged: (callback: (maximized: boolean) => void) => {
+      ipcRenderer.removeAllListeners('window:maximizedChanged')
+      ipcRenderer.on('window:maximizedChanged', (_event: any, maximized: boolean) => callback(maximized))
+    },
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
     openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
     saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
     getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
     getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities')
+  },
+
+  // 设置窗口专用
+  settings: {
+    getPendingPage: () => ipcRenderer.invoke('settings:getPendingPage'),
+    onNavigateTo: (callback: (page: string) => void) => {
+      // 移除之前的监听器，避免重复
+      ipcRenderer.removeListener('settings:navigateTo', callback as any)
+      ipcRenderer.on('settings:navigateTo', (_event: any, page: string) => callback(page))
+    }
   },
 
   // 用户配置
@@ -158,4 +176,3 @@ contextBridge.exposeInMainWorld('electron', {
     }
   }
 })
-

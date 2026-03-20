@@ -1,5 +1,10 @@
 <template>
-  <div class="main-window" @click="handleWindowClick">
+  <div class="main-window" :style="mainWindowStyle" @click="handleWindowClick">
+    <div class="main-stage-ambient" aria-hidden="true">
+      <span class="ambient-orb ambient-orb--primary"></span>
+      <span class="ambient-orb ambient-orb--secondary"></span>
+    </div>
+
     <!-- 空状态提示 -->
     <Transition name="fade">
       <div v-if="!hasModel" class="empty-state">
@@ -58,7 +63,11 @@
           v-for="(item, index) in menuItems"
           :key="item.key"
           class="radial-menu-item"
-          :style="{ ...getMenuItemStyle(index, menuItems.length), '--theme-color': themeColor }"
+          :style="{
+            ...getMenuItemStyle(index, menuItems.length),
+            '--theme-color': menuThemeColor,
+            '--theme-color-hover': menuThemeColorHover,
+          }"
           @click="item.action"
         >
           <div class="menu-icon">
@@ -199,8 +208,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
+import { useThemeStore } from '@/stores/theme'
 import {
   Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
   Image as ImageIcon, Disc, Mic, X,
@@ -226,8 +237,8 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-// @ts-ignore
-import ColorThief from 'colorthief'
+import { withAlpha } from '@/utils/themePalette'
+import { extractModelThemeColor } from '@/utils/modelTheme'
 
 type BubbleTextItem = {
   id: string
@@ -262,6 +273,8 @@ type BubbleEntry = {
 
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
+const themeStore = useThemeStore()
+const { palette, sourceRgb } = storeToRefs(themeStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -275,7 +288,17 @@ function waitForNextAudioEnd(): Promise<void> {
 }
 const showMenu = ref(false)
 const menuStyle = ref({ left: '0px', top: '0px' })
-const themeColor = ref('rgba(100, 108, 255, 0.8)') // Default accent color
+const menuThemeColor = computed(() => withAlpha(palette.value.accent, 0.14))
+const menuThemeColorHover = computed(() => withAlpha(palette.value.accent, 0.24))
+const themeRgb = computed(() => sourceRgb.value)
+const mainWindowStyle = computed(() => ({
+  '--model-r': themeRgb.value.r,
+  '--model-g': themeRgb.value.g,
+  '--model-b': themeRgb.value.b,
+  '--model-color': `rgb(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b})`,
+  '--model-color-soft': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.15)`,
+  '--model-color-glow': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.35)`,
+}))
 let menuAutoCloseTimer: number | null = null
 // 气泡栈：index 0 = 最老（顶部），index length-1 = 最新（底部）
 const bubbleStack = ref<BubbleEntry[]>([])
@@ -294,13 +317,20 @@ const BUBBLE_STACK_MAX = 3     // 最大气泡数量
 const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
-const inputStyle = ref({ left: '0px', top: '0px' })
+const inputStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 const inputText = ref('')
 const currentUserName = ref('桌面用户')
 const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
 const selectedImage = ref<{ file: File; preview: string } | null>(null)
+const loadingModelPath = ref('')
 type RecordingSource = 'manual' | 'shortcut'
 type StopReason = 'manual' | 'shortcut' | 'max-duration'
+type FloatingOverlayStyle = {
+  left: string
+  top?: string
+  bottom?: string
+}
+let themeExtractionRevision = 0
 
 const isRecording = ref(false)
 const recordingDuration = ref(0)
@@ -333,8 +363,8 @@ const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 // 模型状态提示
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
 const modelStatus = ref<{ text: string; type: ModelStatusType } | null>(null)
-const modelStatusStyle = ref({ left: '0px', top: '0px' })
-const recordingToastStyle = ref({ left: '0px', top: '0px' })
+const modelStatusStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
+const recordingToastStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 
 function showModelStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
   modelStatus.value = { text, type }
@@ -564,6 +594,80 @@ function getTierCSSMaxHeight(tier: number, vh: number): number {
   return Math.min(factor * vh, vh - 32)
 }
 
+function resolveModelOverlayAnchor() {
+  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
+  if (modelBounds) {
+    const anchorX = (modelBounds.left + modelBounds.right) / 2
+    const statusTop = Math.max(18, modelBounds.top - 56)
+    const recordingTop = Math.max(18, statusTop - 52)
+    const inputTop = Math.min(modelBounds.bottom + 22, window.innerHeight - 76)
+
+    return {
+      anchorX,
+      statusTop,
+      recordingTop,
+      inputTop,
+    }
+  }
+
+  return {
+    anchorX: modelPositionX,
+    statusTop: Math.max(18, modelPositionY - 280),
+    recordingTop: Math.max(18, modelPositionY - 330),
+    inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
+  }
+}
+
+function waitForImageReady(image: HTMLImageElement): Promise<void> {
+  if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    const finalize = () => {
+      image.removeEventListener('load', finalize)
+      image.removeEventListener('error', finalize)
+      resolve()
+    }
+
+    image.addEventListener('load', finalize, { once: true })
+    image.addEventListener('error', finalize, { once: true })
+  })
+}
+
+function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
+  return `#${[rgb.r, rgb.g, rgb.b]
+    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
+    .join('')}`
+}
+
+async function extractAndApplyModelTheme(modelPath: string) {
+  const extractionRevision = ++themeExtractionRevision
+  const textureSources = live2dCanvasRef.value?.getTextureSources?.() || []
+
+  if (!textureSources.length) {
+    return
+  }
+
+  const images = textureSources.slice(0, 6)
+  await Promise.all(images.map(waitForImageReady))
+
+  if (extractionRevision !== themeExtractionRevision) {
+    return
+  }
+
+  const extractedColor = extractModelThemeColor(images)
+  if (!extractedColor) {
+    return
+  }
+
+  themeStore.applyModelTheme({
+    modelPath,
+    rgb: extractedColor,
+  })
+  console.log('[主窗口] 提取主题色:', rgbToHexString(extractedColor))
+}
+
 function updateStackPositions() {
   const stack = bubbleStack.value
   if (!stack.length) return
@@ -597,17 +701,14 @@ function updateStackPositions() {
   let finalHeights: number[]
 
   if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
-    // 完全放得下 — 理想位置
     anchorBottom = idealAnchor
     finalHeights = data.map(d => d.naturalHeight)
     for (const d of data) d.entry.styleMaxHeight = ''
   } else if (totalNaturalHeight <= usableHeight) {
-    // 放不下锚点上方但视口内放得下 — 整体下移
     anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
     finalHeights = data.map(d => d.naturalHeight)
     for (const d of data) d.entry.styleMaxHeight = ''
   } else {
-    // 视口也放不下 — 按比例缩小
     anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
     const usableForBubbles = Math.max(0, usableHeight - totalGaps)
     const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
@@ -882,9 +983,11 @@ async function handleImportModel() {
 
     // 加载模型，传入保存的位置（如果有）
     const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
+    loadingModelPath.value = importResult.modelPath!
     await live2dCanvasRef.value?.loadModel(importResult.modelPath!, savedPosition || undefined)
     hasModel.value = true
     modelStore.setCurrentModel(importResult.modelPath!)
+    themeStore.setCurrentModel(importResult.modelPath!)
 
     // 如果有保存的位置，更新本地变量
     if (savedPosition) {
@@ -900,6 +1003,7 @@ async function handleImportModel() {
 
     showBaseEventStatus('模型导入成功', 'success')
   } catch (error: any) {
+    loadingModelPath.value = ''
     showModelStatus(`导入模型失败: ${error.message}`, 'error')
   }
 }
@@ -908,6 +1012,7 @@ async function handleImportModel() {
 async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
+  const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
   
   // 确保位置同步
   const currentPos = live2dCanvasRef.value?.getModelPosition()
@@ -918,26 +1023,19 @@ async function handleModelLoaded() {
   }
   
   showBaseEventStatus('模型加载成功', 'success')
+  if (activeModelPath) {
+    themeStore.setCurrentModel(activeModelPath)
+  }
 
   // 提取主题色
   try {
-    const img = live2dCanvasRef.value?.getTextureSource()
-    if (img) {
-      const colorThief = new (ColorThief as any)()
-      // 确保图片已加载
-      if (img.complete) {
-        const color = colorThief.getColor(img)
-        themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
-      } else {
-        img.addEventListener('load', () => {
-          const color = colorThief.getColor(img)
-          themeColor.value = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`
-        })
-      }
-      console.log('[主窗口] 提取主题色:', themeColor.value)
+    if (activeModelPath) {
+      await extractAndApplyModelTheme(activeModelPath)
     }
   } catch (error) {
     console.warn('[主窗口] 提取主题色失败:', error)
+  } finally {
+    loadingModelPath.value = ''
   }
 }
 
@@ -948,6 +1046,9 @@ async function handleModelInfoChanged(modelInfo: {
   expressions: string[]
 }) {
   console.log('[主窗口] 模型信息变化:', modelInfo)
+  if (modelInfo.name) {
+    themeStore.setModelName(modelInfo.name)
+  }
 
   // 如果已连接到服务器，发送模型信息更新
   if (connectionStore.isConnected) {
@@ -1033,32 +1134,34 @@ function handleModelPositionChanged(position: { x: number; y: number }) {
 
 // 更新 UI 元素位置（跟随模型）
 function updateUIPositions() {
+  const overlayAnchor = resolveModelOverlayAnchor()
+
   // 重新计算气泡栈位置
   if (bubbleStack.value.length > 0) {
     updateStackPositions()
   }
 
-  // 更新状态提示位置（模型头顶上方 280px）
+  // 更新状态提示位置（跟随模型头部）
   if (modelStatus.value) {
     modelStatusStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY - 280}px`
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.statusTop}px`
     }
   }
 
-  // 更新录音提示位置（模型头顶上方 330px）
+  // 更新录音提示位置（跟随模型头部）
   if (isRecording.value) {
     recordingToastStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY - 330}px`
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.recordingTop}px`
     }
   }
 
-  // 更新输入框位置（模型下方 150px）
+  // 更新输入框位置（模型下方）
   if (showInput.value) {
     inputStyle.value = {
-      left: `${modelPositionX}px`,
-      top: `${modelPositionY + 150}px`
+      left: `${overlayAnchor.anchorX}px`,
+      top: `${overlayAnchor.inputTop}px`
     }
   }
 }
@@ -1085,17 +1188,22 @@ function handleWindowClick(event: MouseEvent) {
     clearMenuAutoCloseTimer()
   }
   if (showInput.value) {
-    showInput.value = false
-    // 输入框关闭后，恢复动态穿透
-    live2dCanvasRef.value?.enablePassThrough()
+    closeInputPanel()
   }
 }
 
-// 打开历史记录窗口
+function closeInputPanel() {
+  showInput.value = false
+  inputText.value = ''
+  selectedImage.value = null
+  live2dCanvasRef.value?.enablePassThrough()
+}
+
+// 打开历史记录窗口（现在合并到设置窗口中）
 async function openHistory() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
-  await window.electron.window.openHistory()
+  await window.electron.window.openSettings('history')
 }
 
 // 打开设置窗口
@@ -1109,11 +1217,26 @@ async function openSettings() {
 function openInput() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
+  const wasOpen = showInput.value
   showInput.value = true
-  inputText.value = ''
-  selectedImage.value = null
-  updateUIPositions()
+  if (!wasOpen) {
+    updateUIPositions()
+  }
   // 禁用动态穿透，让整个窗口可以接收点击事件
+  live2dCanvasRef.value?.disablePassThrough()
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
+}
+
+function applySelectedImage(file: File, preview: string) {
+  selectedImage.value = { file, preview }
+
+  if (!showInput.value) {
+    openInput()
+    return
+  }
+
   live2dCanvasRef.value?.disablePassThrough()
   nextTick(() => {
     inputRef.value?.focus()
@@ -1165,10 +1288,7 @@ function handleSelectImage() {
     // 创建预览
     const reader = new FileReader()
     reader.onload = (e) => {
-      selectedImage.value = {
-        file,
-        preview: e.target?.result as string
-      }
+      applySelectedImage(file, e.target?.result as string)
     }
     reader.readAsDataURL(file)
   }
@@ -1190,10 +1310,7 @@ function handlePasteEvent(e: ClipboardEvent) {
 
       const reader = new FileReader()
       reader.onload = (e) => {
-        selectedImage.value = {
-          file,
-          preview: e.target?.result as string
-        }
+        applySelectedImage(file, e.target?.result as string)
       }
       reader.readAsDataURL(file)
       break
@@ -1482,11 +1599,8 @@ async function handleSendMessage() {
 
     if (result.success) {
       showBaseEventStatus('消息已发送', 'success')
-      showInput.value = false
+      closeInputPanel()
       inputText.value = ''
-      selectedImage.value = null
-      // 恢复动态穿透
-      live2dCanvasRef.value?.enablePassThrough()
 
       // 保存消息记录
       try {
@@ -1560,9 +1674,11 @@ onMounted(async () => {
     try {
       // 获取保存的位置并传入 loadModel
       const savedPosition = modelStore.getModelPosition(modelPath)
+      loadingModelPath.value = modelPath
       await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
       hasModel.value = true
       modelStore.setCurrentModel(modelPath)
+      themeStore.setCurrentModel(modelPath)
 
       // 如果有保存的位置，更新本地变量
       if (savedPosition) {
@@ -1578,6 +1694,7 @@ onMounted(async () => {
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
+      loadingModelPath.value = ''
       showModelStatus(`模型加载失败: ${error.message}`, 'error')
     } finally {
       isLoadingModel = false
@@ -1753,8 +1870,10 @@ onMounted(async () => {
     try {
       // 获取保存的位置并传入 loadModel
       const savedPosition = modelStore.getModelPosition(lastModelPath)
+      loadingModelPath.value = lastModelPath
       await live2dCanvasRef.value?.loadModel(lastModelPath, savedPosition || undefined)
       modelStore.setCurrentModel(lastModelPath)
+      themeStore.setCurrentModel(lastModelPath)
       console.log('[主窗口] 自动加载成功')
 
       // 如果有保存的位置，更新本地变量
@@ -1765,6 +1884,7 @@ onMounted(async () => {
       }
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
+      loadingModelPath.value = ''
       // 自动加载失败，显示导入提示
       hasModel.value = false
     }
@@ -1809,6 +1929,39 @@ onBeforeUnmount(() => {
   -webkit-app-region: no-drag;
 }
 
+.main-stage-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-orb {
+  position: absolute;
+  display: block;
+}
+
+.ambient-orb {
+  border-radius: 999px;
+  filter: blur(68px);
+
+  &--primary {
+    top: -90px;
+    left: -40px;
+    width: 240px;
+    height: 240px;
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.18);
+  }
+
+  &--secondary {
+    right: -90px;
+    bottom: 120px;
+    width: 280px;
+    height: 280px;
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
+  }
+}
+
 /* 需要交互的元素不穿透 */
 .live2d-canvas,
 .context-menu,
@@ -1833,23 +1986,31 @@ onBeforeUnmount(() => {
   z-index: 10;
 
   .empty-content {
+    position: relative;
     text-align: center;
-    padding: 44px 48px;
-    background: rgba(26, 26, 26, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(18px);
+    padding: 48px 52px;
+    background: var(--surface-bg);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.04);
     max-width: 520px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    }
 
     .empty-icon {
       margin-bottom: 24px;
-      color: var(--color-text-secondary);
+      color: var(--color-text-tertiary);
     }
 
     h2 {
-      font-size: 24px;
-      font-weight: 600;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
       margin-bottom: 12px;
       color: var(--color-text-primary);
     }
@@ -1863,7 +2024,7 @@ onBeforeUnmount(() => {
 }
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out);
 }
 
 .fade-enter-from, .fade-leave-to {
@@ -1885,7 +2046,7 @@ onBeforeUnmount(() => {
     position: absolute;
     width: 10px;
     height: 10px;
-    background: rgba(100, 108, 255, 0.5);
+    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.5);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     opacity: 0; /* 默认隐藏，调试时可开启 */
@@ -1893,62 +2054,77 @@ onBeforeUnmount(() => {
 
   .radial-menu-item {
     position: absolute;
-    width: 50px;
-    height: 50px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: var(--theme-color, rgba(26, 26, 26, 0.9));
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+      linear-gradient(135deg, var(--theme-color, transparent), transparent 72%),
+      var(--surface-bg);
+    border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    pointer-events: auto; /* 恢复点击 */
+    pointer-events: auto;
 
-    /* 使用 CSS 变量控制位置 */
     transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay),
-                background 0.3s,
-                box-shadow 0.3s;
+    transition: transform var(--duration-slow) var(--ease-bounce) var(--delay),
+                background var(--duration-fast),
+                box-shadow var(--duration-fast),
+                border-color var(--duration-fast);
 
     .menu-icon {
-      color: #fff;
+      color: var(--color-text-primary);
       display: flex;
-      transition: transform 0.3s;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      transition: transform var(--duration-norm) var(--ease-out);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     }
 
     .menu-label {
       position: absolute;
       top: 100%;
       margin-top: 8px;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
+      background: var(--surface-bg);
+      border: 1px solid var(--surface-border);
+      color: var(--color-text-primary);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
       opacity: 0;
-      transform: translateY(-10px);
-      transition: all 0.3s;
+      transform: translateY(-8px);
+      transition: all var(--duration-norm) var(--ease-out);
       white-space: nowrap;
       pointer-events: none;
     }
 
     &:hover {
-      background: var(--theme-color);
-      filter: brightness(1.2);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)),
+        linear-gradient(135deg, var(--theme-color-hover, transparent), transparent 72%),
+        var(--surface-bg-hover);
+      border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.34);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        var(--shadow-md),
+        0 0 16px var(--model-color-glow, var(--color-accent-glow));
       z-index: 10;
 
       .menu-icon {
-        transform: scale(1.2);
+        transform: scale(1.15);
       }
 
       .menu-label {
         opacity: 1;
         transform: translateY(0);
       }
+    }
+
+    &:active {
+      transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(0.93);
     }
   }
 }
@@ -1996,7 +2172,6 @@ onBeforeUnmount(() => {
   width: max-content;
   max-width: min(450px, calc(100vw - 32px));
   max-height: min(40vh, calc(100vh - 32px));
-  backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
   z-index: 100;
   overflow: hidden;
@@ -2004,12 +2179,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   box-sizing: border-box;
   pointer-events: auto;
-  /* top/left 由 updateStackPositions 写入，transition 让位置变化平滑 */
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
   transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
 }
 
-/* 层级 1：上一个气泡，稍小稍暗 */
 .bubble-tier-1 {
   opacity: 0.72;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
@@ -2017,7 +2190,6 @@ onBeforeUnmount(() => {
   max-height: min(32vh, calc(100vh - 32px));
 }
 
-/* 层级 2：更上层，更小更暗 */
 .bubble-tier-2 {
   opacity: 0.48;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
@@ -2150,7 +2322,6 @@ onBeforeUnmount(() => {
     overflow-y: hidden;
   }
 
-  /* 滚动条样式 */
   &::-webkit-scrollbar {
     width: 8px;
   }
@@ -2209,7 +2380,7 @@ onBeforeUnmount(() => {
 
 .input-panel-container {
   position: absolute;
-  width: 420px;
+  width: min(420px, calc(100vw - 24px));
   z-index: 200;
   transform: translateX(-50%);
   display: flex;
@@ -2217,7 +2388,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   background: transparent;
-  pointer-events: none; /* Container passes clicks, children catch them */
+  pointer-events: none;
 }
 
 .input-panel-container > * {
@@ -2231,8 +2402,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  background: rgba(20, 20, 20, 0.6);
-  backdrop-filter: blur(12px);
+  background: #141414;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 25px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -2240,7 +2410,7 @@ onBeforeUnmount(() => {
 }
 
 .glass-input-bar:focus-within {
-  background: rgba(20, 20, 20, 0.8);
+  background: #1a1a1a;
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
@@ -2289,7 +2459,7 @@ onBeforeUnmount(() => {
 }
 
 .record-btn.recording {
-  color: #ff4d4f;
+  color: var(--color-error);
   animation: pulse-red 1.5s infinite;
 }
 
@@ -2312,9 +2482,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  backdrop-filter: blur(4px);
-  
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
   .recording-dot {
     width: 8px;
     height: 8px;
@@ -2326,12 +2495,11 @@ onBeforeUnmount(() => {
 
 .image-preview-floating {
   position: relative;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   padding: 4px;
   border-radius: 8px;
   margin-bottom: 4px;
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .image-preview-floating img {
@@ -2349,14 +2517,14 @@ onBeforeUnmount(() => {
   height: 20px;
   border-radius: 50%;
   background: #ff4d4f;
-  border: 2px solid rgba(255,255,255,0.8);
+  border: 2px solid rgba(255, 255, 255, 0.8);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes pulse-red {
@@ -2367,8 +2535,7 @@ onBeforeUnmount(() => {
 
 .recording-toast {
   position: absolute;
-  /* top is controlled by inline style */
-  left: 50%; /* Initial center, also controlled by inline style */
+  left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   pointer-events: none;
@@ -2377,11 +2544,11 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
-    background: rgba(255, 77, 79, 0.95);
-    border-radius: 8px;
-    backdrop-filter: blur(20px);
-    box-shadow: 0 4px 16px rgba(255, 77, 79, 0.4);
+    padding: 10px 18px;
+    background: rgba(248, 113, 113, 0.90);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.3);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
@@ -2422,7 +2589,6 @@ onBeforeUnmount(() => {
 
 
 
-/* TransitionGroup 进入：从下方滑入 */
 .bubble-enter-active {
   transition: transform 0.35s ease-out;
 }
@@ -2431,10 +2597,8 @@ onBeforeUnmount(() => {
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(18px) scale(0.92);
 }
 
-/* TransitionGroup 离开：向上淡出 */
 .bubble-leave-active {
   transition: opacity 0.28s ease-in, transform 0.28s ease-in;
-  /* 离开期间脱离流，避免影响其他气泡位置计算 */
   position: absolute;
 }
 
@@ -2443,13 +2607,12 @@ onBeforeUnmount(() => {
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) translateY(-10px) scale(0.94);
 }
 
-/* 堆叠位置平移动画（新气泡插入时旧气泡上移） */
 .bubble-move {
   transition: top 0.3s ease-out;
 }
 
 .input-enter-active, .input-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
 }
 
 .input-enter-from, .input-leave-to {
@@ -2458,7 +2621,7 @@ onBeforeUnmount(() => {
 }
 
 .recording-toast-enter-active, .recording-toast-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
 }
 
 .recording-toast-enter-from, .recording-toast-leave-to {
@@ -2468,26 +2631,28 @@ onBeforeUnmount(() => {
 
 .model-status-toast {
   position: absolute;
-  padding: 8px 16px;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface-bg);
   color: white;
-  backdrop-filter: blur(10px);
+  border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   gap: 8px;
   z-index: 1000;
   pointer-events: none;
   transform: translateX(-50%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  font-size: 14px;
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 
-  &.success { background: rgba(82, 196, 26, 0.9); }
-  &.error { background: rgba(255, 77, 79, 0.9); }
-  &.warning { background: rgba(250, 173, 20, 0.9); }
-  &.loading { background: rgba(24, 144, 255, 0.9); }
-  &.info { background: rgba(0, 0, 0, 0.8); }
+  &.success { background: rgba(52, 211, 153, 0.85); border-color: rgba(52, 211, 153, 0.3); }
+  &.error   { background: rgba(248, 113, 113, 0.85); border-color: rgba(248, 113, 113, 0.3); }
+  &.warning { background: rgba(251, 191, 36, 0.85); border-color: rgba(251, 191, 36, 0.3); }
+  &.loading { background: rgba(96, 165, 250, 0.85); border-color: rgba(96, 165, 250, 0.3); }
+  &.info    { background: var(--surface-bg); color: var(--color-text-primary); }
 
   .status-icon {
     display: flex;
@@ -2505,7 +2670,7 @@ onBeforeUnmount(() => {
 }
 
 .status-toast-enter-active, .status-toast-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--duration-norm) var(--ease-out);
 }
 
 .status-toast-enter-from, .status-toast-leave-to {
@@ -2513,4 +2678,3 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(10px);
 }
 </style>
-

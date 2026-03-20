@@ -1,334 +1,335 @@
 <template>
   <div class="history-window">
-    <div class="window-header window-drag-region">
-      <div class="header-title">
-        <ChartColumn :size="16" />
-        <span>历史记录与数据统计</span>
+    <header class="history-titlebar window-drag-region" @dblclick="handleTitleBarDoubleClick">
+      <div class="history-titlebar__brand">
+        <span class="history-titlebar__view">{{ activeTabMeta.label }}</span>
       </div>
-      <button class="window-close-btn window-no-drag" @click="handleClose">
-        <X :size="16" />
-      </button>
-    </div>
-    <div class="history-container">
-      <n-tabs v-model:value="activeTab" type="line" animated>
-        <!-- 统计面板 -->
-        <n-tab-pane name="statistics" tab="统计">
-          <div class="statistics-panel">
-            <n-space vertical :size="16">
-              <n-card title="日期范围">
+
+      <div class="history-titlebar__actions window-no-drag">
+        <button class="history-titlebar__button" type="button" aria-label="最小化" @click="handleMinimizeWindow">
+          <Minus :size="16" />
+        </button>
+        <button
+          class="history-titlebar__button"
+          type="button"
+          :aria-label="isWindowMaximized ? '还原' : '最大化'"
+          @click="handleToggleWindowMaximize"
+        >
+          <component :is="isWindowMaximized ? Copy : Square" :size="14" />
+        </button>
+        <button
+          class="history-titlebar__button history-titlebar__button--close"
+          type="button"
+          aria-label="关闭"
+          @click="handleCloseWindow"
+        >
+          <X :size="16" />
+        </button>
+      </div>
+    </header>
+
+    <div class="history-workspace">
+      <main class="history-main">
+        <div class="history-main__viewport">
+          <section class="desktop-toolbar history-overview">
+            <div class="desktop-toolbar__copy history-overview__copy">
+              <h2>{{ activeTabMeta.label }}</h2>
+            </div>
+
+            <div class="history-overview__metrics">
+              <span class="history-meta-chip">
+                <strong>消息</strong>
+                <span>{{ totalMessages }}</span>
+              </span>
+              <span class="history-meta-chip">
+                <strong>表演</strong>
+                <span>{{ totalPerformances }}</span>
+              </span>
+              <span class="history-meta-chip">
+                <strong>响应</strong>
+                <span>{{ avgResponseTime }} ms</span>
+              </span>
+            </div>
+          </section>
+
+          <section class="desktop-toolbar history-toolbar">
+            <div class="history-view-switch">
+              <button
+                v-for="item in tabItems"
+                :key="item.key"
+                class="history-view-switch__item"
+                :class="{ 'history-view-switch__item--active': activeTab === item.key }"
+                type="button"
+                @click="activeTab = item.key"
+              >
+                <component :is="item.icon" :size="16" />
+                <span>{{ item.label }}</span>
+              </button>
+            </div>
+
+            <div class="history-toolbar__actions">
+              <template v-if="activeTab === 'history'">
+                <n-input
+                  v-model:value="keyword"
+                  placeholder="搜索消息..."
+                  clearable
+                  @update:value="handleSearch"
+                >
+                  <template #prefix>
+                    <Search :size="16" />
+                  </template>
+                </n-input>
+
+                <n-select
+                  v-model:value="directionFilter"
+                  :options="directionOptions"
+                  placeholder="方向"
+                  clearable
+                  class="history-toolbar__select"
+                  @update:value="loadMessages"
+                />
+
+                <n-button type="error" @click="handleClearHistory">清空历史</n-button>
+              </template>
+
+              <template v-else>
                 <n-date-picker
                   v-model:value="dateRange"
                   type="daterange"
                   clearable
-                  @update:value="loadStatistics"
+                  @update:value="handleDateRangeChange"
                 />
+              </template>
+
+              <n-button type="primary" @click="handleRefresh">刷新</n-button>
+            </div>
+          </section>
+
+          <template v-if="activeTab === 'statistics'">
+            <div class="section-grid history-grid">
+              <n-card title="消息趋势" class="history-chart-card history-chart-card--wide">
+                <div ref="messageTrendRef" class="chart"></div>
               </n-card>
-
-              <n-grid :cols="2" :x-gap="16" :y-gap="16">
-                <n-gi>
-                  <n-card title="消息趋势">
-                    <div ref="messageTrendRef" class="chart"></div>
-                  </n-card>
-                </n-gi>
-
-                <n-gi>
-                  <n-card title="表演元素使用量">
-                    <div ref="performElementRef" class="chart"></div>
-                  </n-card>
-                </n-gi>
-                <n-gi>
-                  <n-card title="活跃时段">
-                    <div ref="activeHoursRef" class="chart"></div>
-                  </n-card>
-                </n-gi>
-              </n-grid>
-            </n-space>
-          </div>
-        </n-tab-pane>
-
-        <!-- 历史记录面板 -->
-        <n-tab-pane name="history" tab="历史">
-          <div class="history-panel">
-            <n-space vertical :size="16">
-              <n-card>
-                <n-space :size="12">
-                  <n-input
-                    v-model:value="keyword"
-                    placeholder="搜索消息..."
-                    clearable
-                    @update:value="handleSearch"
-                  >
-                    <template #prefix>
-                      <Search :size="16" />
-                    </template>
-                  </n-input>
-
-                  <n-select
-                    v-model:value="directionFilter"
-                    :options="directionOptions"
-                    placeholder="方向"
-                    clearable
-                    style="width: 120px"
-                    @update:value="loadMessages"
-                  />
-                  <n-button @click="handleClearHistory" type="error">
-                    清空历史
-                  </n-button>
-                  <n-button @click="handleRefresh" type="primary">
-                    刷新
-                  </n-button>
-                </n-space>
+              <n-card title="表演元素使用量" class="history-chart-card">
+                <div ref="performElementRef" class="chart"></div>
               </n-card>
+              <n-card title="活跃时段" class="history-chart-card">
+                <div ref="activeHoursRef" class="chart"></div>
+              </n-card>
+            </div>
+          </template>
 
-              <n-card>
-                <div class="message-list">
-                  <div
-                    v-for="msg in messages"
-                    :key="msg.id"
-                    :class="['message-item', msg.direction === 'outgoing' ? 'message-outgoing' : 'message-incoming']"
-                  >
-                    <div class="message-avatar">
-                      <n-avatar :size="40">
-                        <component :is="msg.direction === 'outgoing' ? User : Bot" :size="24" />
-                      </n-avatar>
-                    </div>
-                    <div class="message-content-wrapper">
-                      <div class="message-header">
-                        <span class="message-user">
-                          {{ 
-                            msg.direction === 'incoming' 
-                              ? (msg.user_id === 'server' || msg.user_id === 'bot' ? 'AstrBot' : (msg.user_name || msg.user_id))
-                              : (msg.user_name || '我') 
-                          }}
-                        </span>
+          <template v-else-if="activeTab === 'history'">
+            <section class="panel-card history-panel-card">
+              <div class="message-list">
+                <article
+                  v-for="msg in messages"
+                  :key="msg.id"
+                  :class="[
+                    'message-item',
+                    `message-item--${msg.direction}`,
+                    { 'message-item--performance': msg.direction === 'incoming' && isPerformanceMessage(msg) },
+                  ]"
+                >
+                  <div class="message-rail">
+                    <span class="message-rail__icon">
+                      <component :is="msg.direction === 'outgoing' ? User : Bot" :size="16" />
+                    </span>
+                  </div>
+
+                  <div class="message-record">
+                    <header class="message-record__header">
+                      <div class="message-record__identity">
+                        <strong class="message-record__name">{{ getMessageAuthorLabel(msg) }}</strong>
                       </div>
-                      <div class="message-bubble">
-                        <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)">
-                          <!-- 表演序列消息 -->
-                          <div class="performance-content">
-                            <div class="performance-header">
-                              <n-icon size="18"><Drama /></n-icon>
-                              <span>表演序列</span>
-                            </div>
-                            <div class="performance-elements">
-                              <n-tag
-                                v-for="(element, idx) in parseContent(msg.content)"
-                                :key="idx"
-                                :type="getElementTagType(element.type)"
-                                size="small"
-                                style="margin: 2px"
-                              >
-                                <template #icon>
-                                  <component :is="getElementIcon(element.type)" :size="14" />
-                                </template>
-                                {{ formatElement(element) }}
-                              </n-tag>
-                            </div>
-                            <div v-if="getPerformancePreviewItems(msg.content).length" class="performance-text-preview">
-                              <div
-                                v-for="(item, previewIdx) in getPerformancePreviewItems(msg.content)"
-                                :key="previewIdx"
-                                class="content-item performance-preview-item"
-                              >
-                                <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-                                <div v-else-if="item.type === 'image'" class="image-content performance-image-content">
-                                  <n-image
-                                    :src="item.src"
-                                    width="200"
-                                    object-fit="cover"
-                                  />
-                                </div>
-                                <div v-else-if="item.type === 'audio'" class="audio-content performance-audio-content">
-                                  <div class="media-content-header">
-                                    <n-icon size="18"><Mic /></n-icon>
-                                    <span>{{ item.label }}</span>
-                                  </div>
-                                  <audio class="audio-player" :src="item.src" controls preload="metadata" @click.stop></audio>
-                                </div>
-                                <div v-else-if="item.type === 'video'" class="video-content performance-video-content">
-                                  <div class="media-content-header">
-                                    <n-icon size="18"><Video /></n-icon>
-                                    <span>{{ item.label }}</span>
-                                  </div>
-                                  <video class="video-player" :src="item.src" controls preload="metadata" playsinline @click.stop></video>
-                                </div>
-                                <div v-else-if="item.type === 'file'" class="file-content performance-file-content">
-                                  <div class="file-header">
-                                    <div class="file-meta">
-                                      <n-icon size="18"><FileText /></n-icon>
-                                      <span class="file-name">{{ item.label }}</span>
-                                    </div>
-                                    <div class="file-actions">
-                                      <button class="file-action-btn" @click.stop="openHistoryFile(item)">
-                                        <ExternalLink :size="14" />
-                                        <span>打开</span>
-                                      </button>
-                                      <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
-                                        <Download :size="14" />
-                                        <span>下载</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div v-else>
-                          <!-- 普通消息 -->
-                          <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
-                            <!-- 文本 -->
-                            <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-                            <!-- 图片 -->
-                            <div v-else-if="item.type === 'image'" class="image-content">
-                              <n-image
-                                v-if="resolveMessageImageSource(item)"
-                                :src="resolveMessageImageSource(item) || undefined"
-                                width="200"
-                                object-fit="cover"
-                              />
-                              <div v-else class="image-placeholder">
-                                <n-icon size="40"><ImageIcon /></n-icon>
-                                <span>图片</span>
-                              </div>
-                            </div>
-                            <!-- 语音 -->
-                            <div v-else-if="item.type === 'audio'" class="audio-content">
-                              <template v-if="resolveMessageAudioSource(item)">
-                                <div class="media-content-header">
-                                  <n-icon size="18"><Mic /></n-icon>
-                                  <span>{{ item.name || '语音消息' }}</span>
-                                </div>
-                                <audio
-                                  class="audio-player"
-                                  :src="resolveMessageAudioSource(item) || undefined"
-                                  controls
-                                  preload="metadata"
-                                  @click.stop
-                                ></audio>
-                              </template>
-                              <div v-else class="media-placeholder">
-                                <n-icon size="20"><Mic /></n-icon>
-                                <span>语音消息</span>
-                              </div>
-                            </div>
-                            <!-- 视频 -->
-                            <div v-else-if="item.type === 'video'" class="video-content">
-                              <template v-if="resolveMessageVideoSource(item)">
-                                <div class="media-content-header">
-                                  <n-icon size="18"><Video /></n-icon>
-                                  <span>{{ item.name || '视频' }}</span>
-                                </div>
-                                <video
-                                  class="video-player"
-                                  :src="resolveMessageVideoSource(item) || undefined"
-                                  controls
-                                  preload="metadata"
-                                  playsinline
-                                  @click.stop
-                                ></video>
-                              </template>
-                              <div v-else class="media-placeholder">
-                                <n-icon size="20"><Video /></n-icon>
-                                <span>视频</span>
-                              </div>
-                            </div>
-                            <!-- 文件 -->
-                            <div v-else-if="item.type === 'file'" class="file-content">
-                              <template v-if="resolveMessageFileSource(item)">
-                                <div class="file-header">
-                                  <div class="file-meta">
-                                    <n-icon size="18"><FileText /></n-icon>
-                                    <span class="file-name">{{ item.name || '文件' }}</span>
-                                  </div>
-                                  <div class="file-actions">
-                                    <button class="file-action-btn" @click.stop="openHistoryFile(item)">
-                                      <ExternalLink :size="14" />
-                                      <span>打开</span>
-                                    </button>
-                                    <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
-                                      <Download :size="14" />
-                                      <span>下载</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              </template>
-                              <div v-else class="media-placeholder">
-                                <n-icon size="20"><FileText /></n-icon>
-                                <span>{{ item.name || '文件' }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="message-footer">
+
+                      <div class="message-record__meta">
                         <span class="message-time">{{ formatTimestamp(msg.timestamp) }}</span>
-                        <span class="message-id">ID: {{ msg.message_id }}</span>
+                      </div>
+                    </header>
+
+                    <div class="message-record__body">
+                      <div v-if="msg.direction === 'incoming' && isPerformanceMessage(msg)" class="performance-content">
+                        <div class="performance-header">
+                          <n-icon size="18"><Drama /></n-icon>
+                          <span>表演序列</span>
+                        </div>
+                        <div class="performance-elements">
+                          <n-tag
+                            v-for="(element, idx) in parseContent(msg.content)"
+                            :key="idx"
+                            :type="getElementTagType(element.type)"
+                            size="small"
+                          >
+                            <template #icon>
+                              <component :is="getElementIcon(element.type)" :size="14" />
+                            </template>
+                            {{ formatElement(element) }}
+                          </n-tag>
+                        </div>
+                        <div v-if="getPerformancePreviewItems(msg.content).length" class="performance-text-preview">
+                          <div
+                            v-for="(item, previewIdx) in getPerformancePreviewItems(msg.content)"
+                            :key="previewIdx"
+                            class="content-item performance-preview-item"
+                          >
+                            <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                            <div v-else-if="item.type === 'image'" class="image-content performance-image-content">
+                              <n-image :src="item.src" width="200" object-fit="cover" />
+                            </div>
+                            <div v-else-if="item.type === 'audio'" class="audio-content performance-audio-content">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Mic /></n-icon>
+                                <span>{{ item.label }}</span>
+                              </div>
+                              <audio class="audio-player" :src="item.src" controls preload="metadata" @click.stop></audio>
+                            </div>
+                            <div v-else-if="item.type === 'video'" class="video-content performance-video-content">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Video /></n-icon>
+                                <span>{{ item.label }}</span>
+                              </div>
+                              <video class="video-player" :src="item.src" controls preload="metadata" playsinline @click.stop></video>
+                            </div>
+                            <div v-else-if="item.type === 'file'" class="file-content performance-file-content">
+                              <div class="file-header">
+                                <div class="file-meta">
+                                  <n-icon size="18"><FileText /></n-icon>
+                                  <span class="file-name">{{ item.label }}</span>
+                                </div>
+                                <div class="file-actions">
+                                  <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                    <ExternalLink :size="14" />
+                                    <span>打开</span>
+                                  </button>
+                                  <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                    <Download :size="14" />
+                                    <span>下载</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else>
+                        <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
+                          <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                          <div v-else-if="item.type === 'image'" class="image-content">
+                            <n-image
+                              v-if="resolveMessageImageSource(item)"
+                              :src="resolveMessageImageSource(item) || undefined"
+                              width="200"
+                              object-fit="cover"
+                            />
+                            <div v-else class="image-placeholder">
+                              <n-icon size="40"><ImageIcon /></n-icon>
+                              <span>图片</span>
+                            </div>
+                          </div>
+                          <div v-else-if="item.type === 'audio'" class="audio-content">
+                            <template v-if="resolveMessageAudioSource(item)">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Mic /></n-icon>
+                                <span>{{ item.name || '语音消息' }}</span>
+                              </div>
+                              <audio
+                                class="audio-player"
+                                :src="resolveMessageAudioSource(item) || undefined"
+                                controls
+                                preload="metadata"
+                                @click.stop
+                              ></audio>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><Mic /></n-icon>
+                              <span>语音消息</span>
+                            </div>
+                          </div>
+                          <div v-else-if="item.type === 'video'" class="video-content">
+                            <template v-if="resolveMessageVideoSource(item)">
+                              <div class="media-content-header">
+                                <n-icon size="18"><Video /></n-icon>
+                                <span>{{ item.name || '视频' }}</span>
+                              </div>
+                              <video
+                                class="video-player"
+                                :src="resolveMessageVideoSource(item) || undefined"
+                                controls
+                                preload="metadata"
+                                playsinline
+                                @click.stop
+                              ></video>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><Video /></n-icon>
+                              <span>视频</span>
+                            </div>
+                          </div>
+                          <div v-else-if="item.type === 'file'" class="file-content">
+                            <template v-if="resolveMessageFileSource(item)">
+                              <div class="file-header">
+                                <div class="file-meta">
+                                  <n-icon size="18"><FileText /></n-icon>
+                                  <span class="file-name">{{ item.name || '文件' }}</span>
+                                </div>
+                                <div class="file-actions">
+                                  <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                    <ExternalLink :size="14" />
+                                    <span>打开</span>
+                                  </button>
+                                  <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                    <Download :size="14" />
+                                    <span>下载</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </template>
+                            <div v-else class="media-placeholder">
+                              <n-icon size="20"><FileText /></n-icon>
+                              <span>{{ item.name || '文件' }}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </article>
+              </div>
 
-                <n-pagination
-                  v-model:page="currentPage"
-                  :page-count="totalPages"
-                  :page-size="pageSize"
-                  show-size-picker
-                  :page-sizes="[10, 20, 50, 100]"
-                  @update:page="loadMessages"
-                  @update:page-size="handlePageSizeChange"
-                  style="margin-top: 16px; justify-content: center"
-                />
-              </n-card>
-            </n-space>
-          </div>
-        </n-tab-pane>
+              <n-pagination
+                v-model:page="currentPage"
+                :page-count="totalPages"
+                :page-size="pageSize"
+                show-size-picker
+                :page-sizes="[10, 20, 50, 100]"
+                @update:page="loadMessages"
+                @update:page-size="handlePageSizeChange"
+                class="history-pagination"
+              />
+            </section>
+          </template>
 
-        <!-- 分析面板 -->
-        <n-tab-pane name="analysis" tab="分析">
-          <div class="analysis-panel">
-            <n-space vertical :size="16">
-              <n-grid :cols="3" :x-gap="16">
-                <n-gi>
-                  <n-statistic label="总消息数" :value="totalMessages">
-                    <template #prefix>
-                      <MessageSquare :size="24" />
-                    </template>
-                  </n-statistic>
-                </n-gi>
-                <n-gi>
-                  <n-statistic label="总表演次数" :value="totalPerformances">
-                    <template #prefix>
-                      <Drama :size="24" />
-                    </template>
-                  </n-statistic>
-                </n-gi>
-                <n-gi>
-                  <n-statistic label="平均响应速度" :value="avgResponseTime" suffix="ms">
-                    <template #prefix>
-                      <Zap :size="24" />
-                    </template>
-                  </n-statistic>
-                </n-gi>
-              </n-grid>
-
-              <n-card title="动作使用排行">
+          <template v-else>
+            <div class="section-grid history-analysis-grid">
+              <n-card title="动作使用排行" class="history-chart-card history-chart-card--analysis">
                 <div ref="motionRankRef" class="chart-large"></div>
               </n-card>
 
-              <n-card title="表情使用排行">
+              <n-card title="表情使用排行" class="history-chart-card history-chart-card--analysis">
                 <div ref="expressionRankRef" class="chart-large"></div>
               </n-card>
-            </n-space>
-          </div>
-        </n-tab-pane>
-      </n-tabs>
+            </div>
+          </template>
+        </div>
+      </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useMessage, useDialog } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
@@ -338,21 +339,25 @@ import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { useConnectionStore } from '@/stores/connection'
+import { useThemeStore } from '@/stores/theme'
 import {
   buildHistoryRenderableItems,
   resolveHistoryMediaSource,
   resolveHistoryImageSource,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
-import { 
+import {
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
-  MessageSquare, Zap, Activity, Smile, Clock, HelpCircle, X, ChartColumn,
-  FileText, ExternalLink, Download
+  MessageSquare, Activity, Smile, Clock, HelpCircle,
+  FileText, ExternalLink, Download, Copy, Minus, Square, X
 } from 'lucide-vue-next'
+import { withAlpha } from '@/utils/themePalette'
 
 const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
+const themeStore = useThemeStore()
+const { palette } = storeToRefs(themeStore)
 
 // 配置 marked
 marked.setOptions({
@@ -414,6 +419,28 @@ marked.use({
 })
 
 const activeTab = ref('statistics')
+const isWindowMaximized = ref(false)
+const tabItems = [
+  {
+    key: 'statistics',
+    icon: Activity,
+    label: '概览',
+  },
+  {
+    key: 'history',
+    icon: MessageSquare,
+    label: '历史',
+  },
+  {
+    key: 'analysis',
+    icon: Smile,
+    label: '分析',
+  },
+] as const
+
+const activeTabMeta = computed(() => {
+  return tabItems.find((item) => item.key === activeTab.value) ?? tabItems[0]
+})
 
 // 监听 tab 切换，修复图表不显示问题
 watch(activeTab, (newTab) => {
@@ -440,10 +467,24 @@ watch(activeTab, (newTab) => {
   }
 })
 
-const dateRange = ref<[number, number]>([
-  Date.now() - 7 * 24 * 60 * 60 * 1000,
-  Date.now()
-])
+watch(palette, () => {
+  if (!statisticsData.value.length) {
+    return
+  }
+
+  nextTick(() => {
+    renderCharts(statisticsData.value)
+  })
+}, { deep: true })
+
+function createDefaultDateRange(): [number, number] {
+  return [
+    Date.now() - 7 * 24 * 60 * 60 * 1000,
+    Date.now(),
+  ]
+}
+
+const dateRange = ref<[number, number] | null>(createDefaultDateRange())
 
 // 缓存统计数据
 const statisticsData = ref<any[]>([])
@@ -499,10 +540,22 @@ function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: n
 }
 
 onMounted(async () => {
+  themeStore.syncFromStorage()
+
+  try {
+    isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
+  } catch {
+    isWindowMaximized.value = false
+  }
+
   await syncHistoryResourceConfig()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
+
+  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+    isWindowMaximized.value = maximized
+  })
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
@@ -525,9 +578,9 @@ onUnmounted(() => {
 
 function handleWindowFocus() {
   void syncHistoryResourceConfig()
-  loadMessages()
-  loadStatistics()
-  loadAnalysisData()
+  void loadMessages()
+  void loadStatistics()
+  void loadAnalysisData()
 }
 
 async function syncHistoryResourceConfig() {
@@ -576,7 +629,11 @@ async function loadMessages() {
 }
 
 async function loadStatistics() {
-  if (!dateRange.value) return
+  if (!dateRange.value) {
+    statisticsData.value = []
+    renderCharts([])
+    return
+  }
 
   const [start, end] = dateRange.value
   const startDate = format(new Date(start), 'yyyy-MM-dd')
@@ -598,6 +655,12 @@ async function loadStatistics() {
 
 async function loadAnalysisData() {
   try {
+    if (!dateRange.value) {
+      totalPerformances.value = 0
+      avgResponseTime.value = 0
+      return
+    }
+
     // 获取所有消息用于计算总数
     const allMessagesResult = await window.electron.history.getMessages({ limit: 1 })
     if (allMessagesResult.success) {
@@ -639,29 +702,34 @@ function renderCharts(data: any[]) {
     return
   }
 
-  // 通用暗色主题配置
+  const chartColors = palette.value.chartPalette
+  const axisColor = 'rgba(255, 255, 255, 0.18)'
+  const labelColor = palette.value.textSecondary
+  const gridColor = 'rgba(255, 255, 255, 0.08)'
+  const tooltipBackground = 'rgba(8, 12, 20, 0.92)'
+
   const commonOption = {
     backgroundColor: 'transparent',
     textStyle: {
-      color: '#ccc'
+      color: labelColor
     },
     title: {
-      textStyle: { color: '#eee' }
+      textStyle: { color: palette.value.textPrimary }
     },
     tooltip: {
-      backgroundColor: 'rgba(50, 50, 50, 0.9)',
-      borderColor: '#777',
-      textStyle: { color: '#fff' }
+      backgroundColor: tooltipBackground,
+      borderColor: axisColor,
+      textStyle: { color: palette.value.textPrimary }
     },
     xAxis: {
-      axisLine: { lineStyle: { color: '#555' } },
-      axisLabel: { color: '#aaa' },
+      axisLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: labelColor },
       splitLine: { show: false }
     },
     yAxis: {
-      axisLine: { lineStyle: { color: '#555' } },
-      axisLabel: { color: '#aaa' },
-      splitLine: { lineStyle: { color: '#333' } }
+      axisLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: labelColor },
+      splitLine: { lineStyle: { color: gridColor } }
     },
     grid: {
       top: 40,
@@ -681,13 +749,13 @@ function renderCharts(data: any[]) {
       xAxis: {
         type: 'category',
         data: data.map(d => d.date),
-        axisLine: { lineStyle: { color: '#555' } },
-        axisLabel: { color: '#aaa' }
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor }
       },
       yAxis: { 
         type: 'value',
-        splitLine: { lineStyle: { color: '#333' } },
-        axisLabel: { color: '#aaa' }
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: labelColor }
       },
       series: [{
         name: '消息数',
@@ -698,14 +766,14 @@ function renderCharts(data: any[]) {
         lineStyle: {
           width: 3,
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#818cf8' },
-            { offset: 1, color: '#c084fc' }
+            { offset: 0, color: chartColors[0] },
+            { offset: 1, color: chartColors[1] }
           ])
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(129, 140, 248, 0.3)' },
-            { offset: 1, color: 'rgba(192, 132, 252, 0.05)' }
+            { offset: 0, color: withAlpha(chartColors[0], 0.28) },
+            { offset: 1, color: withAlpha(chartColors[1], 0.06) }
           ])
         }
       }]
@@ -730,10 +798,10 @@ function renderCharts(data: any[]) {
       xAxis: {
         type: 'category',
         data: ['文字', '图片', '音频', '视频'],
-        axisLine: { lineStyle: { color: '#555' } },
-        axisLabel: { color: '#aaa' }
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor }
       },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } } },
       series: [{
         name: '使用量',
         type: 'bar',
@@ -742,8 +810,8 @@ function renderCharts(data: any[]) {
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#34d399' },
-            { offset: 1, color: '#059669' }
+            { offset: 0, color: chartColors[2] },
+            { offset: 1, color: chartColors[0] }
           ])
         }
       }]
@@ -768,10 +836,10 @@ function renderCharts(data: any[]) {
       xAxis: {
         type: 'category',
         data: Array.from({ length: 24 }, (_, i) => `${i}`),
-        axisLine: { lineStyle: { color: '#555' } },
-        axisLabel: { color: '#aaa' }
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor }
       },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } } },
       series: [{
         name: '消息数',
         type: 'bar',
@@ -780,8 +848,8 @@ function renderCharts(data: any[]) {
         itemStyle: {
           borderRadius: [2, 2, 0, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#f472b6' },
-            { offset: 1, color: '#db2777' }
+            { offset: 0, color: chartColors[3] },
+            { offset: 1, color: chartColors[4] }
           ])
         }
       }]
@@ -797,12 +865,12 @@ function renderCharts(data: any[]) {
     chart.setOption({
       ...commonOption,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } } },
       yAxis: {
         type: 'category',
         data: motionData.map(d => d.name).slice(0, 10),
-        axisLine: { lineStyle: { color: '#555' } },
-        axisLabel: { color: '#aaa', width: 80, overflow: 'truncate' }
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor, width: 80, overflow: 'truncate' }
       },
       grid: {
         left: 100, // 增加左边距以显示长标签
@@ -817,8 +885,8 @@ function renderCharts(data: any[]) {
         itemStyle: {
           borderRadius: [0, 4, 4, 0],
           color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
-            { offset: 0, color: '#60a5fa' },
-            { offset: 1, color: '#2563eb' }
+            { offset: 0, color: chartColors[0] },
+            { offset: 1, color: chartColors[5] }
           ])
         }
       }]
@@ -834,12 +902,12 @@ function renderCharts(data: any[]) {
     chart.setOption({
       ...commonOption,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#333' } } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } } },
       yAxis: {
         type: 'category',
         data: expressionData.map(d => d.name).slice(0, 10),
-        axisLine: { lineStyle: { color: '#555' } },
-        axisLabel: { color: '#aaa', width: 80, overflow: 'truncate' }
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor, width: 80, overflow: 'truncate' }
       },
       grid: {
         left: 100,
@@ -854,8 +922,8 @@ function renderCharts(data: any[]) {
         itemStyle: {
           borderRadius: [0, 4, 4, 0],
           color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
-            { offset: 0, color: '#fbbf24' },
-            { offset: 1, color: '#d97706' }
+            { offset: 0, color: chartColors[1] },
+            { offset: 1, color: chartColors[3] }
           ])
         }
       }]
@@ -910,7 +978,13 @@ function handleSearch() {
 function handlePageSizeChange(size: number) {
   pageSize.value = size
   currentPage.value = 1
-  loadMessages()
+  void loadMessages()
+}
+
+function handleDateRangeChange(value: [number, number] | null) {
+  dateRange.value = value ?? createDefaultDateRange()
+  void loadStatistics()
+  void loadAnalysisData()
 }
 
 function handleClearHistory() {
@@ -924,8 +998,9 @@ function handleClearHistory() {
         const result = await window.electron.history.clearHistory()
         if (result.success) {
           message.success('历史记录已清空')
-          loadMessages()
-          loadStatistics()
+          await loadMessages()
+          await loadStatistics()
+          await loadAnalysisData()
         }
       } catch (error: any) {
         message.error(`清空失败: ${error.message}`)
@@ -935,10 +1010,23 @@ function handleClearHistory() {
 }
 
 async function handleRefresh() {
+  await syncHistoryResourceConfig()
   await loadMessages()
   await loadStatistics()
   await loadAnalysisData()
   message.success('已刷新')
+}
+
+function getMessageAuthorLabel(msg: any): string {
+  if (msg.direction === 'outgoing') {
+    return msg.user_name || '我'
+  }
+
+  if (msg.user_id === 'server' || msg.user_id === 'bot') {
+    return 'AstrBot'
+  }
+
+  return msg.user_name || msg.user_id || '未知来源'
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -1153,1081 +1241,788 @@ function getElementTagType(type: string): 'default' | 'success' | 'info' | 'warn
   }
 }
 
-
-
-function handleClose() {
-  window.electron.window.closeHistory()
+async function handleMinimizeWindow() {
+  await window.electron.window.minimizeCurrent()
 }
+
+async function handleToggleWindowMaximize() {
+  const result = await window.electron.window.toggleMaximizeCurrent()
+  if (!result.success) {
+    message.error(result.error || '切换窗口状态失败')
+    return
+  }
+  isWindowMaximized.value = Boolean(result.maximized)
+}
+
+async function handleCloseWindow() {
+  const result = await window.electron.window.closeCurrent()
+  if (!result.success) {
+    message.error(result.error || '关闭窗口失败')
+  }
+}
+
+function handleTitleBarDoubleClick() {
+  void handleToggleWindowMaximize()
+}
+
+
+
 </script>
 
 <style scoped lang="scss">
-
 .history-window {
-
-  width: 100vw;
-
-  height: 100vh;
-
-  background: var(--color-bg-dark); /* 深色背景基调 */
-
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-
-  display: flex;
-
-  flex-direction: column;
-
-  color: var(--color-text-primary);
-
+  background:
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(29, 22, 19, 0.96), rgba(17, 13, 12, 1));
 }
 
-
-
-.window-header {
-
-  height: 40px; /* 稍微增加头部高度 */
-
-  background: rgba(30, 30, 35, 0.8); /* 半透明背景 */
-
-  backdrop-filter: blur(10px);
-
+.history-titlebar {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
-  padding: 0 16px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-
-  flex-shrink: 0;
-
-  z-index: 10;
-
-
-
-  .header-title {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    font-size: 14px;
-
-    font-weight: 600;
-
-    color: var(--color-text-primary);
-
-    
-
-    svg {
-
-      color: #646cff; /* 强调色图标 */
-
-    }
-
-  }
-
-
-
-  .window-close-btn {
-
-    width: 28px;
-
-    height: 28px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    border-radius: 6px;
-
-    background: transparent;
-
-    color: var(--color-text-secondary);
-
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-    border: none;
-
-    cursor: pointer;
-
-
-
-    &:hover {
-
-      background: rgba(255, 77, 79, 0.2);
-
-      color: #ff4d4f;
-
-      transform: scale(1.05);
-
-    }
-
-    
-
-    &:active {
-
-      transform: scale(0.95);
-
-    }
-
-  }
-
+  min-height: var(--desktop-titlebar-height);
+  padding: 0 0 0 12px;
+  border-bottom: 1px solid var(--desktop-panel-border);
+  background: rgba(19, 15, 14, 0.92);
 }
 
-
-
-.history-container {
-
-  max-width: 1200px; /* 限制最大宽度，提升阅读体验 */
-
-  margin: 0 auto;
-
-  padding: 24px;
-
-  flex: 1;
-
-  overflow-y: auto;
-
-  overflow-x: hidden;
-
-  width: 100%;
-
-  
-
-  /* 自定义滚动条 */
-
-  &::-webkit-scrollbar {
-
-    width: 6px;
-
-  }
-
-  &::-webkit-scrollbar-track {
-
-    background: transparent;
-
-  }
-
-  &::-webkit-scrollbar-thumb {
-
-    background: rgba(255, 255, 255, 0.1);
-
-    border-radius: 3px;
-
-    &:hover {
-
-      background: rgba(255, 255, 255, 0.2);
-
-    }
-
-  }
-
-}
-
-
-
-.statistics-panel,
-
-.history-panel,
-
-.analysis-panel {
-
-  padding: 8px 0;
-
-}
-
-
-
-/* Naive UI Card Override */
-
-:deep(.n-card) {
-
-  background: rgba(40, 40, 45, 0.6) !important;
-
-  backdrop-filter: blur(10px);
-
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-
-  border-radius: 12px !important;
-
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  
-
-  &:hover {
-
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-
-  }
-
-}
-
-
-
-.chart {
-
-  width: 100%;
-
-  height: 320px;
-
-}
-
-
-
-.chart-large {
-
-  width: 100%;
-
-  height: 420px;
-
-}
-
-
-
-/* 消息列表样式 */
-
-.message-list {
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 24px; /* 增加消息间距 */
-
-  padding: 16px 8px;
-
-}
-
-
-
-.message-item {
-
-  display: flex;
-
-  gap: 16px;
-
-  animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-
-  max-width: 85%; /* 限制单条消息最大宽度 */
-
-}
-
-
-
-@keyframes slideIn {
-
-  from {
-
-    opacity: 0;
-
-    transform: translateY(20px);
-
-  }
-
-  to {
-
-    opacity: 1;
-
-    transform: translateY(0);
-
-  }
-
-}
-
-
-
-.message-incoming {
-
-  flex-direction: row;
-
-  align-self: flex-start; /* 靠左对齐 */
-
-}
-
-
-
-.message-outgoing {
-
-  flex-direction: row-reverse;
-
-  align-self: flex-end; /* 靠右对齐 */
-
-}
-
-
-
-.message-avatar {
-
-  flex-shrink: 0;
-
-  margin-top: 2px; /* 微调头像位置 */
-
-  
-
-  :deep(.n-avatar) {
-
-    background: rgba(255, 255, 255, 0.1);
-
-    border: 2px solid rgba(255, 255, 255, 0.05);
-
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-
-  }
-
-}
-
-
-
-.message-content-wrapper {
-
-  flex: 1;
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 6px;
-
-  min-width: 0; /* 防止 flex 子项溢出 */
-
-}
-
-
-
-.message-outgoing .message-content-wrapper {
-
-  align-items: flex-end;
-
-}
-
-
-
-.message-header {
-
-  display: flex;
-
+.history-titlebar__brand {
+  display: inline-flex;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
 
-  gap: 8px;
-
+.history-titlebar__view {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
-
-  color: var(--color-text-secondary);
-
-  opacity: 0.8;
-
-}
-
-
-
-.message-outgoing .message-header {
-
-  flex-direction: row-reverse;
-
-}
-
-
-
-.message-user {
-
   font-weight: 600;
-
-  letter-spacing: 0.5px;
-
+  letter-spacing: 0.02em;
 }
 
-
-
-.message-bubble {
-
-  background: rgba(50, 50, 55, 0.9);
-
-  border-radius: 4px 16px 16px 16px; /* 非对称圆角 */
-
-  padding: 14px 18px;
-
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-  word-wrap: break-word;
-
-  position: relative;
-
-  border: 1px solid rgba(255, 255, 255, 0.05);
-
-  transition: background-color 0.2s;
-
-
-
-  &:hover {
-
-    background: rgba(60, 60, 65, 0.95);
-
-  }
-
+.history-titlebar__actions {
+  display: inline-flex;
+  align-items: stretch;
+  align-self: stretch;
 }
 
-
-
-.message-outgoing .message-bubble {
-
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-
-  border-radius: 16px 4px 16px 16px; /* 镜像非对称圆角 */
-
-  color: white;
-
-  border: none;
-
-  box-shadow: 0 4px 12px rgba(83, 91, 242, 0.3);
-
-  
-
-  &:hover {
-
-    filter: brightness(1.1);
-
-  }
-
-}
-
-
-
-/* 消息尾巴效果 (可选，稍微复杂，这里暂且省略，保持简洁现代感) */
-
-
-
-.message-footer {
-
-  display: flex;
-
+.history-titlebar__button {
+  width: 46px;
+  height: 100%;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 
-  gap: 12px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+  }
 
+  &--close:hover {
+    background: rgba(218, 82, 82, 0.88);
+    color: #fff;
+  }
+}
+
+.history-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.history-workspace {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+
+.history-main {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--desktop-content-padding);
+  background:
+    linear-gradient(180deg, rgba(28, 22, 19, 0.7), rgba(16, 13, 12, 0.9)),
+    radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.08), transparent 28%);
+}
+
+.history-main__viewport {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--desktop-gap-md);
+}
+
+.history-overview,
+.history-toolbar {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.history-overview__copy {
+  gap: 0;
+}
+
+.history-overview__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--desktop-panel-border);
+  color: var(--color-text-secondary);
   font-size: 11px;
 
-  color: var(--color-text-tertiary);
+  strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+}
 
-  margin-top: 2px;
+.history-toolbar {
+  align-items: stretch;
+}
 
-  opacity: 0.6;
+.history-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--desktop-panel-border);
+}
 
-  transition: opacity 0.2s;
-
-  
+.history-view-switch__item {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
 
   &:hover {
-
-    opacity: 1;
-
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-primary);
   }
 
+  &--active {
+    background: rgba(var(--color-accent-rgb), 0.14);
+    color: var(--color-text-primary);
+    box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.18);
+  }
 }
 
-
-
-.message-outgoing .message-footer {
-
-  flex-direction: row-reverse;
-
+.history-toolbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
+.history-toolbar__actions :deep(.n-input) {
+  width: min(280px, 100%);
+}
 
+.history-toolbar__select {
+  width: 120px;
+}
+
+.history-window :deep(.n-card) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 28%), var(--desktop-panel-bg) !important;
+  border: 1px solid var(--desktop-panel-border) !important;
+  border-radius: var(--desktop-radius-panel) !important;
+  box-shadow: var(--desktop-shadow) !important;
+}
+
+.history-window :deep(.n-card-header) {
+  padding-bottom: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 14px;
+}
+
+.history-window :deep(.n-card-header__main) {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.history-window :deep(.n-card__content) {
+  padding-top: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+}
+
+.history-window :deep(.n-input .n-input-wrapper),
+.history-window :deep(.n-date-picker .n-input .n-input-wrapper),
+.history-window :deep(.n-base-selection .n-base-selection-label) {
+  min-height: 36px;
+  background: rgba(255, 255, 255, 0.045) !important;
+  box-shadow: inset 0 0 0 1px var(--desktop-panel-border) !important;
+  border-radius: 10px !important;
+}
+
+.history-window :deep(.n-input .n-input__input-el),
+.history-window :deep(.n-date-picker .n-input .n-input__input-el),
+.history-window :deep(.n-base-selection .n-base-selection-input),
+.history-window :deep(.n-base-selection .n-base-selection-placeholder) {
+  color: var(--color-text-secondary) !important;
+}
+
+.history-window :deep(.n-pagination-item),
+.history-window :deep(.n-pagination-prefix),
+.history-window :deep(.n-pagination-next),
+.history-window :deep(.n-pagination-prev) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px var(--desktop-panel-border) !important;
+}
+
+.history-grid {
+  display: grid;
+  gap: var(--desktop-gap-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.history-analysis-grid {
+  display: grid;
+  gap: var(--desktop-gap-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.history-chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.history-panel-card {
+  padding: 18px;
+}
+
+.history-pagination {
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.chart {
+  width: 100%;
+  height: 260px;
+}
+
+.chart-large {
+  width: 100%;
+  height: 340px;
+}
+
+.history-chart-card--wide .chart {
+  height: 300px;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.message-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
+.message-rail__icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--desktop-panel-border);
+  color: var(--color-text-secondary);
+}
+
+.message-rail__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.message-item--outgoing .message-rail__icon {
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border-color: rgba(var(--color-accent-rgb), 0.16);
+  color: var(--color-accent);
+}
+
+.message-item--performance .message-rail__label {
+  color: var(--color-accent);
+}
+
+.message-record {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--desktop-radius-panel);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--desktop-panel-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.message-item--outgoing .message-record {
+  border-color: rgba(var(--color-accent-rgb), 0.14);
+  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), rgba(255, 255, 255, 0.022));
+}
+
+.message-record__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.message-record__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message-record__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.message-record__kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--desktop-panel-border);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.message-record__kind--outgoing {
+  border-color: rgba(var(--color-accent-rgb), 0.18);
+  background: rgba(var(--color-accent-rgb), 0.12);
+  color: var(--color-text-primary);
+}
+
+.message-record__kind--incoming {
+  border-color: var(--desktop-panel-border);
+}
+
+.message-record__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.message-record__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .message-time {
-
-  font-family: 'JetBrains Mono', monospace;
-
+  font-family: var(--font-mono);
 }
 
-
-
-/* 内容项样式 */
+.message-id {
+  letter-spacing: 0.04em;
+}
 
 .content-item {
-
   margin-bottom: 8px;
-
 }
-
-
 
 .content-item:last-child {
-
   margin-bottom: 0;
-
 }
-
-
 
 .text-content {
-
-
-
   line-height: 1.6;
-
-
-
-  font-size: 14px;
-
-
-
+  font-size: 13px;
   white-space: pre-wrap;
 
-
-
-
-
-
-
-  /* Markdown 样式优化 */
-
-
-
-  :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
-
-
-
-    margin: 10px 0 6px 0;
-
-
-
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4) {
+    margin: 10px 0 6px;
     font-weight: 700;
-
-
-
     line-height: 1.3;
-
-
-
   }
-
-
-
-  
-
-
 
   :deep(p) {
-
-
-
     margin: 4px 0;
-
-
-
   }
 
-  
-
   :deep(code) {
-
-    background: rgba(0, 0, 0, 0.2);
-
-    padding: 2px 6px;
-
-    border-radius: 4px;
-
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-
+    background: rgba(var(--color-accent-rgb), 0.12);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.18);
+    padding: 2px 7px;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
     font-size: 0.9em;
-
-    color: #a5b4fc;
-
+    color: var(--color-accent);
   }
-
-  
 
   :deep(pre) {
-
-    background: rgba(0, 0, 0, 0.3);
-
-    padding: 12px;
-
-    border-radius: 8px;
-
-    overflow-x: auto;
-
-    margin: 10px 0;
-
-    border: 1px solid rgba(255, 255, 255, 0.05);
-
-  }
-
-  
-
-  :deep(blockquote) {
-
-    border-left: 3px solid #646cff;
-
-    padding-left: 12px;
-
-    margin: 8px 0;
-
-    color: rgba(255, 255, 255, 0.6);
-
-    background: rgba(100, 108, 255, 0.1);
-
-    padding: 8px 12px;
-
-    border-radius: 0 4px 4px 0;
-
-  }
-
-  
-
-  :deep(a) {
-
-    color: #818cf8;
-
-    text-decoration: none;
-
-    border-bottom: 1px dashed rgba(129, 140, 248, 0.5);
-
-    transition: all 0.2s;
-
-
-
-    &:hover {
-
-      color: #a5b4fc;
-
-      border-bottom-style: solid;
-
-    }
-
-  }
-
-}
-
-
-
-.message-outgoing .text-content {
-
-  :deep(code) {
-
-    background: rgba(255, 255, 255, 0.2);
-
-    color: #e0e7ff;
-
-  }
-
-  
-
-  :deep(pre) {
-
     background: rgba(0, 0, 0, 0.2);
-
-    border-color: rgba(255, 255, 255, 0.1);
-
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
-
-  
 
   :deep(blockquote) {
-
-    border-left-color: rgba(255, 255, 255, 0.6);
-
-    background: rgba(255, 255, 255, 0.1);
-
-    color: rgba(255, 255, 255, 0.9);
-
+    border-left: 2px solid var(--color-accent);
+    margin: 8px 0;
+    color: var(--color-text-secondary);
+    background: rgba(var(--color-accent-rgb), 0.08);
+    padding: 8px 12px;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   }
-
-  
 
   :deep(a) {
-
-    color: white;
-
-    border-bottom-color: rgba(255, 255, 255, 0.6);
+    color: var(--color-accent);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(var(--color-accent-rgb), 0.5);
 
     &:hover {
-
-      opacity: 0.9;
-
+      border-bottom-style: solid;
     }
-
   }
-
 }
-
-
 
 .image-content {
-
   margin-top: 8px;
-
-  border-radius: 8px;
-
+  border-radius: 12px;
   overflow: hidden;
-
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-
-  transition: transform 0.2s;
-
-  
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 
   &:hover {
-
-    transform: scale(1.02);
-
+    border-color: rgba(var(--color-accent-rgb), 0.2);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
   }
-
 }
-
-
 
 .image-placeholder {
-
   display: flex;
-
   flex-direction: column;
-
   align-items: center;
-
-  gap: 8px;
-
-  padding: 24px;
-
-  background: rgba(0, 0, 0, 0.2);
-
-  border-radius: 8px;
-
-  color: var(--color-text-secondary);
-
+  gap: 10px;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
 }
-
-
 
 .audio-content,
-
-.video-content {
-
+.video-content,
+.file-content {
   display: flex;
-
   flex-direction: column;
-
-  align-items: stretch;
-
-  gap: 10px;
-
-  padding: 10px 14px;
-
-  background: rgba(0, 0, 0, 0.2);
-
-  border-radius: 8px;
-
-  font-size: 14px;
-
-  transition: background 0.2s;
-
-  
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 
   &:hover {
-
-    background: rgba(0, 0, 0, 0.3);
-
+    border-color: rgba(var(--color-accent-rgb), 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
-
 }
-
-
-
-.message-outgoing .audio-content,
-
-.message-outgoing .video-content {
-
-  background: rgba(255, 255, 255, 0.2);
-
-  &:hover {
-
-    background: rgba(255, 255, 255, 0.3);
-
-  }
-
-}
-
-
-
-/* 表演序列样式 */
 
 .performance-content {
-
   display: flex;
-
   flex-direction: column;
-
   gap: 12px;
-
-  min-width: 280px;
-
+  min-width: 0;
 }
-
-
 
 .performance-header {
-
   display: flex;
-
   align-items: center;
-
   gap: 8px;
-
   font-weight: 600;
-
-  font-size: 14px;
-
+  font-size: 13px;
   padding-bottom: 10px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-
-  color: #a5b4fc;
-
+  border-bottom: 1px solid var(--desktop-divider);
+  color: var(--color-accent);
 }
-
-
 
 .performance-elements {
-
   display: flex;
-
   flex-wrap: wrap;
-
   gap: 6px;
-
   padding-bottom: 4px;
-
 }
 
-
+.performance-elements :deep(.n-tag) {
+  margin: 0;
+  border-radius: 999px;
+}
 
 .performance-text-preview {
-
   margin-top: 8px;
-
   padding: 12px;
-
-  background: rgba(0, 0, 0, 0.2);
-
-  border-radius: 8px;
-
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
   max-height: 200px;
-
   overflow-y: auto;
-
   border: 1px solid rgba(255, 255, 255, 0.05);
-
-
-
-  .text-content {
-
-    font-size: 0.9em;
-
-    color: rgba(255, 255, 255, 0.8);
-
-  }
-
 }
 
+.performance-text-preview .text-content {
+  font-size: 0.9em;
+}
 
-
-.media-content-header,
+.media-content-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
 
 .media-placeholder {
-
   display: flex;
-
+  flex-direction: column;
   align-items: center;
-
   gap: 10px;
-
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
 }
-
-
-
-.audio-player,
-
-.video-player {
-
-  width: min(320px, 100%);
-
-  max-width: 100%;
-
-  border-radius: 8px;
-
-  background: rgba(0, 0, 0, 0.15);
-
-}
-
-
-
-.video-player {
-
-  max-height: 240px;
-
-}
-
-
-
-.file-content {
-
-  padding: 12px 14px;
-
-  background: rgba(0, 0, 0, 0.2);
-
-  border-radius: 8px;
-
-}
-
-
-
-.file-header {
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  gap: 12px;
-
-  flex-wrap: wrap;
-
-}
-
-
 
 .file-meta {
-
   display: flex;
-
   align-items: center;
-
   gap: 10px;
-
-  min-width: 0;
-
+  color: var(--color-text-secondary);
 }
-
-
-
-.file-name {
-
-  font-size: 14px;
-
-  font-weight: 500;
-
-  word-break: break-word;
-
-}
-
-
 
 .file-actions {
-
   display: flex;
-
   align-items: center;
-
   gap: 8px;
-
-  flex-wrap: wrap;
-
 }
 
+.audio-player,
+.video-player {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
 
+.audio-player {
+  height: 44px;
+}
+
+.video-player {
+  max-height: 280px;
+  background: #000;
+}
+
+.file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
 
 .file-action-btn {
-
   display: inline-flex;
-
   align-items: center;
-
   gap: 6px;
-
-  padding: 6px 10px;
-
-  border: 1px solid rgba(255, 255, 255, 0.12);
-
-  border-radius: 6px;
-
-  background: rgba(255, 255, 255, 0.08);
-
-  color: inherit;
-
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
   font-size: 12px;
+  font-weight: 500;
+  transition: all var(--duration-fast) var(--ease-out);
 
-  cursor: pointer;
+  &:hover {
+    background: rgba(var(--color-accent-rgb), 0.12);
+    border-color: rgba(var(--color-accent-rgb), 0.25);
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
 
-  transition: background 0.2s, border-color 0.2s;
-
+  &:active {
+    transform: translateY(0);
+  }
 }
-
-
-
-.file-action-btn:hover {
-
-  background: rgba(255, 255, 255, 0.14);
-
-  border-color: rgba(255, 255, 255, 0.2);
-
-}
-
-
-
-.message-outgoing .file-content {
-
-  background: rgba(255, 255, 255, 0.2);
-
-}
-
-
-
-.message-outgoing .file-action-btn {
-
-  background: rgba(255, 255, 255, 0.16);
-
-  border-color: rgba(255, 255, 255, 0.2);
-
-}
-
-
-
-.message-outgoing .file-action-btn:hover {
-
-  background: rgba(255, 255, 255, 0.24);
-
-}
-
-
 
 .performance-audio-content,
-
 .performance-video-content,
-
-.performance-file-content {
-
+.performance-file-content,
+.performance-image-content {
   margin-top: 0;
-
 }
 
 .performance-preview-item + .performance-preview-item {
-
   margin-top: 10px;
-
 }
 
-.performance-image-content {
+@media (max-width: 1080px) {
+  .history-grid,
+  .history-analysis-grid {
+    grid-template-columns: 1fr;
+  }
 
-  margin-top: 0;
-
+  .history-chart-card--wide {
+    grid-column: auto;
+  }
 }
 
+@media (max-width: 960px) {
+  .history-main {
+    padding: 20px;
+  }
+
+  .history-overview,
+  .history-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-overview__metrics {
+    justify-content: flex-start;
+  }
+
+  .history-toolbar__actions {
+    justify-content: flex-start;
+  }
+
+  .history-toolbar__actions :deep(.n-input),
+  .history-toolbar__actions :deep(.n-date-picker) {
+    width: 100%;
+  }
+
+  .message-item {
+    grid-template-columns: 1fr;
+  }
+
+  .message-rail {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 0;
+  }
+
+  .message-record__header {
+    flex-direction: column;
+  }
+
+  .message-record__meta {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .history-titlebar {
+    padding-left: 10px;
+  }
+
+  .history-titlebar__divider,
+  .history-titlebar__view {
+    display: none;
+  }
+
+  .history-titlebar__name {
+    max-width: 180px;
+  }
+
+  .history-view-switch {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .history-view-switch__item {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
 </style>
