@@ -37,6 +37,87 @@ declare global {
     }
   }
 
+  /**
+   * 窗口事件类型
+   */
+  type WindowEventType = 
+    | 'focus'      // 窗口获得焦点
+    | 'blur'       // 窗口失去焦点
+    | 'create'     // 窗口创建
+    | 'destroy'    // 窗口销毁
+    | 'resize'     // 窗口大小变化
+    | 'move'       // 窗口位置变化
+    | 'minimize'   // 窗口最小化
+    | 'maximize'   // 窗口最大化
+    | 'restore'    // 窗口恢复
+    | 'fullscreen' // 窗口进入全屏
+    | 'windowed'   // 窗口退出全屏
+
+  /**
+   * 窗口信息
+   */
+  interface WindowInfo {
+    id: string              // 窗口唯一标识（HWND 或其他）
+    title: string           // 窗口标题
+    processName: string     // 进程名（如 chrome.exe）
+    processPath: string     // 进程路径
+    processId: number       // 进程 ID
+    bounds: {
+      x: number
+      y: number
+      width: number
+      height: number
+    }
+    isFullscreen: boolean
+    isMinimized: boolean
+    isMaximized: boolean
+    url?: string            // 浏览器窗口的 URL
+    className?: string      // 窗口类名（Windows）
+  }
+
+  /**
+   * 窗口事件
+   */
+  interface WindowEvent {
+    type: WindowEventType
+    timestamp: number
+    window: WindowInfo
+    previousWindow?: WindowInfo | null  // 上一个活跃窗口（仅 focus 事件）
+  }
+
+  /**
+   * 窗口监听器配置
+   */
+  interface WindowWatcherConfig {
+    enabled: boolean
+    throttle: {
+      globalInterval: number
+      perWindowInterval: number
+      minInterval: number
+    }
+    events: {
+      focus: boolean
+      blur: boolean
+      create: boolean
+      destroy: boolean
+      fullscreen: boolean
+      windowed: boolean
+      resize: boolean
+      move: boolean
+      minimize: boolean
+      maximize: boolean
+      restore: boolean
+    }
+    ignore: {
+      processNames: string[]
+      titleKeywords: string[]
+    }
+    aiResponse: {
+      mode: 'first-open' | 'every-switch' | 'specific-apps'
+      specificApps: string[]
+    }
+  }
+
   interface Window {
     electron: {
       bridge: {
@@ -76,6 +157,22 @@ declare global {
         saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         getAppVersion: () => Promise<string>
         getPlatformCapabilities: () => Promise<PlatformCapabilities>
+        
+        // 窗口事件监听
+        startWatching: () => Promise<{ success: boolean; error?: string }>
+        getActiveWindow: () => Promise<WindowInfo | null>
+        getWindowHistory: () => Promise<Array<{ window: WindowInfo; timestamp: number }>>
+        getAllWindows: () => Promise<WindowInfo[]>
+        buildAIContext: () => Promise<{
+          currentApp: string | null
+          currentTitle: string | null
+          isFullscreen: boolean
+          recentApps: string[]
+        }>
+        getWatcherConfig: () => Promise<WindowWatcherConfig>
+        updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
+        resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
+        onWindowEvent: (callback: (event: WindowEvent) => void) => void
       }
       settings: {
         getPendingPage: () => Promise<string | null>

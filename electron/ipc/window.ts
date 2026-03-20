@@ -297,3 +297,100 @@ ipcMain.handle('window:getAppVersion', async () => {
 ipcMain.handle('window:getPlatformCapabilities', async () => {
   return getPlatformCapabilities()
 })
+
+/**
+ * 窗口事件监听
+ * 
+ * 使用 IPC 单向通信，渲染进程通过此接口注册监听器
+ */
+import { getWindowWatcher } from '../utils/windowWatcher'
+import type { WindowEvent } from '../utils/windowWatcher'
+
+// 存储已注册的渲染进程
+const registeredRenderers = new Set<BrowserWindow>()
+
+// 窗口事件监听器注册
+ipcMain.handle('window:startWatching', async (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window) {
+    return { success: false, error: '无法获取窗口实例' }
+  }
+  
+  // 添加到已注册列表
+  registeredRenderers.add(window)
+  
+  // 获取窗口监听器实例
+  const watcher = getWindowWatcher()
+  
+  // 如果监听器未启动，启动它
+  if (!watcher.isActive()) {
+    await watcher.start()
+  }
+  
+  // 添加事件监听器
+  const removeListener = watcher.onWindowEvent((windowEvent: WindowEvent) => {
+    // 向所有已注册的渲染进程发送事件
+    for (const renderer of registeredRenderers) {
+      if (!renderer.isDestroyed()) {
+        renderer.webContents.send('window:event', windowEvent)
+      }
+    }
+  })
+  
+  // 窗口关闭时移除监听器
+  window.on('closed', () => {
+    registeredRenderers.delete(window)
+    removeListener()
+    
+    // 如果没有渲染进程了，停止监听器
+    if (registeredRenderers.size === 0) {
+      watcher.stop()
+    }
+  })
+  
+  return { success: true }
+})
+
+// 获取当前活跃窗口
+ipcMain.handle('window:getActiveWindow', async () => {
+  const watcher = getWindowWatcher()
+  return watcher.getCurrentWindow()
+})
+
+// 获取窗口历史记录
+ipcMain.handle('window:getWindowHistory', async () => {
+  const watcher = getWindowWatcher()
+  return watcher.getWindowHistory()
+})
+
+// 获取所有已知窗口
+ipcMain.handle('window:getAllWindows', async () => {
+  const watcher = getWindowWatcher()
+  return watcher.getAllWindows()
+})
+
+// 构建 AI 上下文
+ipcMain.handle('window:buildAIContext', async () => {
+  const watcher = getWindowWatcher()
+  return watcher.buildAIContext()
+})
+
+// 获取窗口监听配置
+ipcMain.handle('window:getWatcherConfig', async () => {
+  const watcher = getWindowWatcher()
+  return await watcher.getConfig()
+})
+
+// 更新窗口监听配置
+ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
+  const watcher = getWindowWatcher()
+  await watcher.updateConfig(config)
+  return { success: true }
+})
+
+// 重置窗口监听配置
+ipcMain.handle('window:resetWatcherConfig', async () => {
+  const watcher = getWindowWatcher()
+  await watcher.resetConfig()
+  return { success: true, config: await watcher.getConfig() }
+})
