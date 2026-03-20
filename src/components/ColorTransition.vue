@@ -1,5 +1,6 @@
 <template>
   <div 
+    v-if="isMainWindow"
     ref="containerRef"
     class="color-transition"
     :class="{ 'color-transition--active': isAnimating }"
@@ -9,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/stores/theme'
 
@@ -22,6 +23,13 @@ const isAnimating = ref(false)
 
 let ctx: CanvasRenderingContext2D | null = null
 let animationId: number | null = null
+
+// 只在主窗口中显示（主窗口的路由是 / 或没有 hash）
+const isMainWindow = computed(() => {
+  const hash = window.location.hash
+  // 主窗口没有 hash 或者 hash 是 #/
+  return !hash || hash === '#/' || hash === '#'
+})
 
 // 动画配置
 const ANIMATION_DURATION = 1500 // 动画时长（毫秒）
