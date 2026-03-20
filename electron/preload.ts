@@ -101,7 +101,9 @@ contextBridge.exposeInMainWorld('electron', {
     getWindowHistory: () => ipcRenderer.invoke('window:getWindowHistory'),
     getAllWindows: () => ipcRenderer.invoke('window:getAllWindows'),
     buildAIContext: () => ipcRenderer.invoke('window:buildAIContext'),
+    getWatcherConfig: () => ipcRenderer.invoke('window:getWatcherConfig'),
     updateWatcherConfig: (config: any) => ipcRenderer.invoke('window:updateWatcherConfig', config),
+    resetWatcherConfig: () => ipcRenderer.invoke('window:resetWatcherConfig'),
     onWindowEvent: (callback: (event: any) => void) => {
       ipcRenderer.removeAllListeners('window:event')
       ipcRenderer.on('window:event', (_event: any, event: any) => callback(event))

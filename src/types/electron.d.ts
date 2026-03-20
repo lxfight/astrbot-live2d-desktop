@@ -90,10 +90,32 @@ declare global {
    */
   interface WindowWatcherConfig {
     enabled: boolean
-    pollInterval?: number
-    ignoreTitleKeywords?: string[]
-    ignoreProcessNames?: string[]
-    detectBrowserUrl?: boolean
+    throttle: {
+      globalInterval: number
+      perWindowInterval: number
+      minInterval: number
+    }
+    events: {
+      focus: boolean
+      blur: boolean
+      create: boolean
+      destroy: boolean
+      fullscreen: boolean
+      windowed: boolean
+      resize: boolean
+      move: boolean
+      minimize: boolean
+      maximize: boolean
+      restore: boolean
+    }
+    ignore: {
+      processNames: string[]
+      titleKeywords: string[]
+    }
+    aiResponse: {
+      mode: 'first-open' | 'every-switch' | 'specific-apps'
+      specificApps: string[]
+    }
   }
 
   interface Window {
@@ -147,7 +169,9 @@ declare global {
           isFullscreen: boolean
           recentApps: string[]
         }>
+        getWatcherConfig: () => Promise<WindowWatcherConfig>
         updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
+        resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
         onWindowEvent: (callback: (event: WindowEvent) => void) => void
       }
       settings: {

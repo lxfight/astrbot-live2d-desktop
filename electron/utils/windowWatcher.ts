@@ -62,46 +62,6 @@ export interface PlatformWatcher {
 }
 
 /**
- * 窗口监听器配置
- */
-export interface WindowWatcherConfig {
-  // 是否启用
-  enabled: boolean
-  
-  // 检测间隔（仅用于 fallback 轮询模式）
-  pollInterval?: number
-  
-  // 忽略的窗口标题关键词
-  ignoreTitleKeywords?: string[]
-  
-  // 忽略的进程名
-  ignoreProcessNames?: string[]
-  
-  // 是否检测浏览器 URL
-  detectBrowserUrl?: boolean
-}
-
-/**
- * 默认配置
- */
-export const DEFAULT_CONFIG: WindowWatcherConfig = {
-  enabled: true,
-  pollInterval: 1000,  // 1 秒（仅 fallback 模式使用）
-  ignoreTitleKeywords: [
-    'Program Manager',
-    'Windows Shell Experience Host',
-    'LockApp',
-    'Lock Screen',
-    '锁屏',
-  ],
-  ignoreProcessNames: [
-    'dwm.exe',           // Desktop Window Manager
-    'csrss.exe',         // Client Server Runtime Process
-  ],
-  detectBrowserUrl: true,
-}
-
-/**
  * 检查窗口是否全屏
  */
 export function isWindowFullscreen(
@@ -119,34 +79,6 @@ export function isWindowFullscreen(
 }
 
 /**
- * 检查窗口是否应该被忽略
- */
-export function shouldIgnoreWindow(
-  window: WindowInfo,
-  config: WindowWatcherConfig
-): boolean {
-  // 检查进程名
-  if (config.ignoreProcessNames?.includes(window.processName)) {
-    return true
-  }
-  
-  // 检查标题关键词
-  const lowerTitle = window.title.toLowerCase()
-  if (config.ignoreTitleKeywords?.some(keyword => 
-    lowerTitle.includes(keyword.toLowerCase())
-  )) {
-    return true
-  }
-  
-  // 忽略空标题
-  if (!window.title.trim()) {
-    return true
-  }
-  
-  return false
-}
-
-/**
  * 窗口监听器管理器
  * 
  * 统一管理各平台的窗口事件监听，提供以下功能：
@@ -154,20 +86,24 @@ export function shouldIgnoreWindow(
  * 2. 事件过滤和转换
  * 3. 状态缓存和查询
  * 4. AI 上下文构建
+ * 5. 节流控制（防止频繁触发）
  */
 export class WindowWatcherManager {
   private platformWatcher: PlatformWatcher | null = null
   private listeners: Set<WindowEventCallback> = new Set()
-  private config: WindowWatcherConfig
   private isRunning = false
+  
+  // 配置和节流器（延迟加载）
+  private configModule: any = null
+  private throttler: any = null
+  private config: any = null
   
   // 状态
   private currentWindow: WindowInfo | null = null
   private previousWindow: WindowInfo | null = null
   private windowHistory: Array<{ window: WindowInfo; timestamp: number }> = []
   
-  constructor(config: Partial<WindowWatcherConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config }
+  constructor() {
     this.platformWatcher = this.createPlatformWatcher()
   }
   
@@ -200,9 +136,39 @@ export class WindowWatcherManager {
   }
   
   /**
+   * 加载配置模块
+   */
+  private async loadConfigModule(): Promise<void> {
+    if (this.configModule) return
+    
+    try {
+      this.configModule = require('./windowWatcherConfig')
+      const { WindowThrottler } = require('./windowThrottler')
+      
+      // 加载配置
+      this.config = await this.configModule.loadConfig()
+      
+      // 创建节流器
+      this.throttler = new WindowThrottler(this.config)
+      
+      console.log('[窗口监听] 配置加载完成')
+    } catch (error) {
+      console.error('[窗口监听] 加载配置模块失败:', error)
+      // 使用默认配置
+      this.config = {
+        enabled: true,
+        throttle: { globalInterval: 1000, perWindowInterval: 3000, minInterval: 100 },
+        events: { focus: true, blur: false, create: true, destroy: false, fullscreen: true, windowed: false, resize: false, move: false, minimize: false, maximize: false, restore: false },
+        ignore: { processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'], titleKeywords: ['Program Manager', '锁屏', 'Lock Screen'] },
+        aiResponse: { mode: 'first-open', specificApps: [] },
+      }
+    }
+  }
+  
+  /**
    * 启动监听
    */
-  start(): void {
+  async start(): Promise<void> {
     if (this.isRunning) {
       console.warn('[窗口监听] 监听器已在运行')
       return
@@ -213,7 +179,10 @@ export class WindowWatcherManager {
       return
     }
     
-    if (!this.config.enabled) {
+    // 加载配置
+    await this.loadConfigModule()
+    
+    if (!this.config?.enabled) {
       console.log('[窗口监听] 监听器已禁用')
       return
     }
@@ -241,8 +210,14 @@ export class WindowWatcherManager {
     if (!this.isRunning) return
     
     this.platformWatcher?.stop()
-    this.isRunning = false
     
+    // 销毁节流器
+    if (this.throttler) {
+      this.throttler.destroy()
+      this.throttler = null
+    }
+    
+    this.isRunning = false
     console.log('[窗口监听] WindowWatcherManager 已停止')
   }
   
@@ -250,9 +225,13 @@ export class WindowWatcherManager {
    * 处理窗口事件
    */
   private handleWindowEvent(event: WindowEvent): void {
-    // 应用过滤规则
-    if (shouldIgnoreWindow(event.window, this.config)) {
-      return
+    // 使用节流器检查是否应该触发
+    if (this.throttler) {
+      const { shouldTrigger, reason } = this.throttler.shouldTrigger(event)
+      if (!shouldTrigger) {
+        console.log(`[窗口监听] 事件被节流: ${reason}`)
+        return
+      }
     }
     
     // 更新状态
@@ -340,8 +319,19 @@ export class WindowWatcherManager {
   /**
    * 更新配置
    */
-  updateConfig(config: Partial<WindowWatcherConfig>): void {
-    this.config = { ...this.config, ...config }
+  async updateConfig(config: any): Promise<void> {
+    if (!this.configModule) {
+      await this.loadConfigModule()
+    }
+    
+    // 验证并保存配置
+    this.config = this.configModule.validateConfig(config)
+    await this.configModule.saveConfig(this.config)
+    
+    // 更新节流器配置
+    if (this.throttler) {
+      this.throttler.updateConfig(this.config)
+    }
     
     // 如果禁用了监听器，停止它
     if (!this.config.enabled && this.isRunning) {
@@ -350,15 +340,38 @@ export class WindowWatcherManager {
     
     // 如果启用了监听器，启动它
     if (this.config.enabled && !this.isRunning) {
-      this.start()
+      await this.start()
     }
+    
+    console.log('[窗口监听] 配置已更新')
   }
   
   /**
    * 获取当前配置
    */
-  getConfig(): WindowWatcherConfig {
+  async getConfig(): Promise<any> {
+    if (!this.config) {
+      await this.loadConfigModule()
+    }
     return { ...this.config }
+  }
+  
+  /**
+   * 重置配置
+   */
+  async resetConfig(): Promise<void> {
+    if (!this.configModule) {
+      await this.loadConfigModule()
+    }
+    
+    this.config = await this.configModule.resetConfig()
+    
+    // 更新节流器配置
+    if (this.throttler) {
+      this.throttler.updateConfig(this.config)
+    }
+    
+    console.log('[窗口监听] 配置已重置')
   }
   
   /**

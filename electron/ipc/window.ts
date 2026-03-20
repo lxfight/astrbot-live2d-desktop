@@ -324,7 +324,7 @@ ipcMain.handle('window:startWatching', async (event) => {
   
   // 如果监听器未启动，启动它
   if (!watcher.isActive()) {
-    watcher.start()
+    await watcher.start()
   }
   
   // 添加事件监听器
@@ -375,9 +375,22 @@ ipcMain.handle('window:buildAIContext', async () => {
   return watcher.buildAIContext()
 })
 
+// 获取窗口监听配置
+ipcMain.handle('window:getWatcherConfig', async () => {
+  const watcher = getWindowWatcher()
+  return await watcher.getConfig()
+})
+
 // 更新窗口监听配置
 ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
   const watcher = getWindowWatcher()
-  watcher.updateConfig(config)
+  await watcher.updateConfig(config)
   return { success: true }
+})
+
+// 重置窗口监听配置
+ipcMain.handle('window:resetWatcherConfig', async () => {
+  const watcher = getWindowWatcher()
+  await watcher.resetConfig()
+  return { success: true, config: await watcher.getConfig() }
 })

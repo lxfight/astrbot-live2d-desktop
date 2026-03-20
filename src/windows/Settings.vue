@@ -545,6 +545,200 @@
             </section>
           </template>
 
+          <!-- 高级 > 窗口监听 -->
+          <template v-else-if="activeGroup === 'advanced' && activeChild === 'window-watcher'">
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>窗口监听</h2>
+                <n-switch 
+                  v-model:value="watcherConfig.enabled" 
+                  @update:value="saveWatcherConfig"
+                />
+              </div>
+              <p class="settings-section__desc">监听窗口变化，让 AI 主动感知你的操作。启用后，AI 会在你打开应用时主动响应。</p>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>监控频率</h2>
+              </div>
+              <p class="settings-section__desc">调整事件触发的频率限制，避免 AI 频繁响应。</p>
+
+              <n-form label-placement="top">
+                <n-form-item label="全局频率限制（毫秒）">
+                  <n-input-number
+                    v-model:value="watcherConfig.throttle.globalInterval"
+                    :min="0"
+                    :max="60000"
+                    :step="100"
+                    placeholder="默认 1000ms"
+                    @update:value="saveWatcherConfig"
+                  />
+                  <template #feedback>
+                    两次事件之间的最小间隔。默认 1000ms（1秒）。
+                  </template>
+                </n-form-item>
+
+                <n-form-item label="单窗口频率限制（毫秒）">
+                  <n-input-number
+                    v-model:value="watcherConfig.throttle.perWindowInterval"
+                    :min="0"
+                    :max="60000"
+                    :step="100"
+                    placeholder="默认 3000ms"
+                    @update:value="saveWatcherConfig"
+                  />
+                  <template #feedback>
+                    同一窗口两次事件之间的最小间隔。默认 3000ms（3秒）。
+                  </template>
+                </n-form-item>
+
+                <n-form-item label="最小间隔（毫秒）">
+                  <n-input-number
+                    v-model:value="watcherConfig.throttle.minInterval"
+                    :min="0"
+                    :max="1000"
+                    :step="10"
+                    placeholder="默认 100ms"
+                    @update:value="saveWatcherConfig"
+                  />
+                  <template #feedback>
+                    防止过于频繁的触发。默认 100ms。
+                  </template>
+                </n-form-item>
+              </n-form>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>监控事件</h2>
+              </div>
+              <p class="settings-section__desc">选择需要监控的窗口变化类型。</p>
+
+              <n-form label-placement="left">
+                <n-form-item label="窗口获得焦点（应用打开/切换）">
+                  <n-switch v-model:value="watcherConfig.events.focus" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口失去焦点">
+                  <n-switch v-model:value="watcherConfig.events.blur" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="新窗口创建">
+                  <n-switch v-model:value="watcherConfig.events.create" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口关闭">
+                  <n-switch v-model:value="watcherConfig.events.destroy" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口进入全屏">
+                  <n-switch v-model:value="watcherConfig.events.fullscreen" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口退出全屏">
+                  <n-switch v-model:value="watcherConfig.events.windowed" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口大小变化">
+                  <n-switch v-model:value="watcherConfig.events.resize" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口位置变化">
+                  <n-switch v-model:value="watcherConfig.events.move" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口最小化">
+                  <n-switch v-model:value="watcherConfig.events.minimize" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口最大化">
+                  <n-switch v-model:value="watcherConfig.events.maximize" @update:value="saveWatcherConfig" />
+                </n-form-item>
+
+                <n-form-item label="窗口恢复">
+                  <n-switch v-model:value="watcherConfig.events.restore" @update:value="saveWatcherConfig" />
+                </n-form-item>
+              </n-form>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>AI 响应模式</h2>
+              </div>
+              <p class="settings-section__desc">选择 AI 响应窗口事件的方式。</p>
+
+              <n-radio-group v-model:value="watcherConfig.aiResponse.mode" @update:value="saveWatcherConfig">
+                <n-space direction="vertical">
+                  <n-radio value="first-open">仅首次打开应用时响应</n-radio>
+                  <n-radio value="every-switch">每次应用切换都响应</n-radio>
+                  <n-radio value="specific-apps">仅检测到特定应用时响应</n-radio>
+                </n-space>
+              </n-radio-group>
+
+              <div v-if="watcherConfig.aiResponse.mode === 'specific-apps'" class="specific-apps-config">
+                <n-form-item label="特定应用列表（每行一个进程名）">
+                  <n-input
+                    v-model:value="specificAppsInput"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="chrome.exe&#10;firefox.exe&#10;code.exe"
+                    @update:value="updateSpecificApps"
+                  />
+                </n-form-item>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>忽略规则</h2>
+              </div>
+              <p class="settings-section__desc">配置额外需要忽略的进程和窗口。系统关键进程已内置过滤，此处添加的规则会与内置规则合并生效。</p>
+
+              <n-alert type="info" :show-icon="false" style="margin-bottom: 16px;">
+                <strong>内置忽略规则（始终生效）</strong>
+                <div style="margin-top: 8px; font-size: 12px;">
+                  进程：dwm.exe, csrss.exe, explorer.exe, SearchUI.exe 等系统进程<br/>
+                  标题：Program Manager, 锁屏, Lock Screen, Task Switching 等系统窗口
+                </div>
+              </n-alert>
+
+              <n-form label-placement="top">
+                <n-form-item label="额外忽略的进程名（每行一个）">
+                  <n-input
+                    v-model:value="ignoreProcessNamesInput"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="输入额外要忽略的进程名..."
+                    @update:value="updateIgnoreProcessNames"
+                  />
+                  <template #feedback>
+                    这些进程名会与内置规则合并，用于过滤不需要触发 AI 响应的进程。
+                  </template>
+                </n-form-item>
+
+                <n-form-item label="额外忽略的窗口标题关键词（每行一个）">
+                  <n-input
+                    v-model:value="ignoreTitleKeywordsInput"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="输入额外要忽略的标题关键词..."
+                    @update:value="updateIgnoreTitleKeywords"
+                  />
+                  <template #feedback>
+                    标题包含这些关键词的窗口会被忽略。
+                  </template>
+                </n-form-item>
+              </n-form>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__actions">
+                <n-button @click="resetWatcherConfig">重置配置</n-button>
+              </div>
+            </section>
+          </template>
+
           <!-- 高级 > 数据管理 -->
           <template v-else-if="activeGroup === 'advanced' && activeChild === 'data'">
             <section class="settings-section">
@@ -696,6 +890,7 @@ const menuGroups = [
     children: [
       { key: 'behavior', label: '行为配置' },
       { key: 'shortcut', label: '快捷键' },
+      { key: 'window-watcher', label: '窗口监听' },
       { key: 'data', label: '数据管理' },
     ],
   },
@@ -727,6 +922,44 @@ const advancedSettings = ref({
 })
 const shortcutRegistered = ref(false)
 const isWindowMaximized = ref(false)
+
+// 窗口监听配置状态
+type AIResponseMode = 'first-open' | 'every-switch' | 'specific-apps'
+
+const watcherConfig = ref({
+  enabled: true,
+  throttle: {
+    globalInterval: 1000,
+    perWindowInterval: 3000,
+    minInterval: 100,
+  },
+  events: {
+    focus: true,
+    blur: false,
+    create: true,
+    destroy: false,
+    fullscreen: true,
+    windowed: false,
+    resize: false,
+    move: false,
+    minimize: false,
+    maximize: false,
+    restore: false,
+  },
+  ignore: {
+    processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'],
+    titleKeywords: ['Program Manager', '锁屏', 'Lock Screen'],
+  },
+  aiResponse: {
+    mode: 'first-open' as AIResponseMode,
+    specificApps: [] as string[],
+  },
+})
+
+// 用于 textarea 显示的字符串（每行一个）
+const specificAppsInput = ref('')
+const ignoreProcessNamesInput = ref('')
+const ignoreTitleKeywordsInput = ref('')
 
 // 历史记录状态
 const messages = ref<any[]>([])
@@ -945,6 +1178,7 @@ onMounted(async () => {
   await loadModelList()
   loadSettings()
   themeStore.syncFromStorage()
+  await loadWatcherConfig()
 
   try {
     isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
@@ -1530,6 +1764,85 @@ async function saveAdvancedSettings() {
   advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
   await applyLogLevelSetting(advancedSettings.value.logLevel)
   message.success('高级设置已保存')
+}
+
+// 窗口监听配置相关方法
+async function loadWatcherConfig() {
+  try {
+    const config = await window.electron.window.getWatcherConfig()
+    watcherConfig.value = config
+    
+    // 更新 textarea 显示
+    specificAppsInput.value = config.aiResponse.specificApps.join('\n')
+    ignoreProcessNamesInput.value = config.ignore.processNames.join('\n')
+    ignoreTitleKeywordsInput.value = config.ignore.titleKeywords.join('\n')
+  } catch (error) {
+    console.error('[设置] 加载窗口监听配置失败:', error)
+  }
+}
+
+async function saveWatcherConfig() {
+  try {
+    await window.electron.window.updateWatcherConfig(watcherConfig.value)
+    message.success('窗口监听配置已保存')
+  } catch (error: any) {
+    message.error(`保存失败: ${error.message}`)
+  }
+}
+
+async function resetWatcherConfig() {
+  try {
+    const result = await window.electron.window.resetWatcherConfig()
+    watcherConfig.value = result.config
+    
+    // 更新 textarea 显示
+    specificAppsInput.value = result.config.aiResponse.specificApps.join('\n')
+    ignoreProcessNamesInput.value = result.config.ignore.processNames.join('\n')
+    ignoreTitleKeywordsInput.value = result.config.ignore.titleKeywords.join('\n')
+    
+    message.success('窗口监听配置已重置')
+  } catch (error: any) {
+    message.error(`重置失败: ${error.message}`)
+  }
+}
+
+function updateSpecificApps(value: string) {
+  specificAppsInput.value = value
+  watcherConfig.value.aiResponse.specificApps = value
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s)
+  saveWatcherConfig()
+}
+
+function updateIgnoreProcessNames(value: string) {
+  ignoreProcessNamesInput.value = value
+  // 过滤掉内置规则，只保存用户自定义的
+  const builtinProcessNames = [
+    'dwm.exe', 'csrss.exe', 'explorer.exe', 'SearchUI.exe',
+    'ShellExperienceHost.exe', 'StartMenuExperienceHost.exe',
+    'TextInputHost.exe', 'SecurityHealthSystray.exe',
+  ]
+  watcherConfig.value.ignore.processNames = value
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s && !builtinProcessNames.includes(s))
+  saveWatcherConfig()
+}
+
+function updateIgnoreTitleKeywords(value: string) {
+  ignoreTitleKeywordsInput.value = value
+  // 过滤掉内置规则，只保存用户自定义的
+  const builtinTitleKeywords = [
+    'Program Manager', '锁屏', 'Lock Screen', 'LockApp',
+    'Windows Shell Experience Host', 'Windows Default Lock Screen',
+    'Windows 输入体验', 'Task Switching', 'Task View',
+  ]
+  watcherConfig.value.ignore.titleKeywords = value
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s && !builtinTitleKeywords.some(k => s.toLowerCase().includes(k.toLowerCase())))
+  saveWatcherConfig()
 }
 
 function getModelPreviewStyle(modelPath: string) {
@@ -2169,6 +2482,11 @@ function handleOpenLink(url: string) {
 
 .shortcut-row :deep(.n-input) {
   flex: 1 1 200px;
+}
+
+// 窗口监听配置样式
+.specific-apps-config {
+  margin-top: 16px;
 }
 
 // 链接栈
