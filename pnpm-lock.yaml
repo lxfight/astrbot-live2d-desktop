@@ -47,6 +47,9 @@ importers:
       katex:
         specifier: ^0.16.28
         version: 0.16.33
+      live2dcubismcore:
+        specifier: ^1.0.2
+        version: 1.0.2
       lucide-vue-next:
         specifier: ^0.563.0
         version: 0.563.0(vue@3.5.29(typescript@5.9.3))
@@ -2296,6 +2299,9 @@ packages:
   lazystream@1.0.1:
     resolution: {integrity: sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==}
     engines: {node: '>= 0.6.3'}
+
+  live2dcubismcore@1.0.2:
+    resolution: {integrity: sha512-nABJjQb6XqzQ6JDWINtu8w9a1wTHvmxh85FafeIJ6xwUTFP+TVhq81dTeB2VKLesDyIuZ7CZ1X/Vi8nin3PSIA==}
 
   locate-path@3.0.0:
     resolution: {integrity: sha512-7AO748wWnIhNqAuaty2ZWHkQHRSNfPVIsPIfwEOWO22AmaoVrWavlOcMR5nzTLNYvp36X220/maaRsrec1G65A==}
@@ -5693,6 +5699,8 @@ snapshots:
   lazystream@1.0.1:
     dependencies:
       readable-stream: 2.3.8
+
+  live2dcubismcore@1.0.2: {}
 
   locate-path@3.0.0:
     dependencies:

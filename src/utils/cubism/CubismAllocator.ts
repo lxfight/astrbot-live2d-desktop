@@ -52,7 +52,7 @@ export class DefaultCubismAllocator implements CubismAllocator {
   /**
    * 分配对齐内存
    */
-  allocateAligned(size: number, alignment: number): any {
+  allocateAligned(size: number, _alignment: number): any {
     // JavaScript 中 ArrayBuffer 已经是对齐的
     // 这里我们简单返回一个对齐的缓冲区
     const buffer = new ArrayBuffer(size);
@@ -108,7 +108,7 @@ export class DebugCubismAllocator implements CubismAllocator {
     // JavaScript 自动垃圾回收
   }
   
-  allocateAligned(size: number, alignment: number): any {
+  allocateAligned(size: number, _alignment: number): any {
     const memory = new ArrayBuffer(size);
     this.trackAllocation(memory, size);
     return memory;
@@ -162,7 +162,7 @@ export class DebugCubismAllocator implements CubismAllocator {
     if (this.allocationCount > 0) {
       console.warn(`[DebugAllocator] 检测到 ${this.allocationCount} 个未释放的内存块，总计 ${this.totalAllocated} 字节`);
       
-      this.allocations.forEach((allocation, memory) => {
+      this.allocations.forEach((allocation, _memory) => {
         console.warn(`[DebugAllocator] 未释放: ${allocation.size} 字节`);
         console.warn(`[DebugAllocator] 分配栈:\n${allocation.stack}`);
       });

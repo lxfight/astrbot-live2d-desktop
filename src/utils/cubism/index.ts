@@ -4,7 +4,7 @@
 
 // 主要类
 export { CubismModel } from './CubismModel';
-export { 
+export type { 
   CubismAllocator, 
   DefaultCubismAllocator, 
   DebugCubismAllocator, 
@@ -15,25 +15,25 @@ export {
 export * from './constants';
 
 // 类型定义
-export interface CubismModelInfo {
+export type CubismModelInfo = {
   name: string;
   motionGroups: Record<string, Array<{ index: number; file: string }>>;
   expressions: string[];
-}
+};
 
-export interface ModelBounds {
+export type ModelBounds = {
   left: number;
   right: number;
   top: number;
   bottom: number;
   width: number;
   height: number;
-}
+};
 
-export interface Position {
+export type Position = {
   x: number;
   y: number;
-}
+};
 
 // 工具函数
 export function isCubism3Model(modelPath: string): boolean {

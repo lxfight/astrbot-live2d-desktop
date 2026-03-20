@@ -3,6 +3,7 @@
  * 用于验证基础功能的实现
  */
 
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { CubismModel } from './CubismModel';
 import { createCubismAllocator } from './CubismAllocator';
 
