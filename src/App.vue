@@ -4,6 +4,7 @@
       <n-dialog-provider>
         <div class="app-theme-root">
           <router-view />
+          <ColorTransition />
         </div>
       </n-dialog-provider>
     </n-message-provider>
@@ -15,6 +16,7 @@ import { onMounted, watchEffect } from 'vue'
 import { storeToRefs } from 'pinia'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
+import ColorTransition from '@/components/ColorTransition.vue'
 
 const themeStore = useThemeStore()
 const { cssVars, naiveThemeOverrides } = storeToRefs(themeStore)
