@@ -104,25 +104,25 @@ export class WindowWatcherManager {
   private windowHistory: Array<{ window: WindowInfo; timestamp: number }> = []
   
   constructor() {
-    this.platformWatcher = this.createPlatformWatcher()
+    // 平台监听器将在 start() 方法中初始化
   }
   
   /**
    * 创建平台特定的监听器
    */
-  private createPlatformWatcher(): PlatformWatcher | null {
+  private async createPlatformWatcher(): Promise<PlatformWatcher | null> {
     try {
       switch (process.platform) {
         case 'win32': {
-          const { WindowsWatcher } = require('./windowsWatcher')
+          const { WindowsWatcher } = await import('./windowsWatcher')
           return new WindowsWatcher()
         }
         case 'darwin': {
-          const { MacOSWatcher } = require('./macosWatcher')
+          const { MacOSWatcher } = await import('./macosWatcher')
           return new MacOSWatcher()
         }
         case 'linux': {
-          const { LinuxWatcher } = require('./linuxWatcher')
+          const { LinuxWatcher } = await import('./linuxWatcher')
           return new LinuxWatcher()
         }
         default:
@@ -142,8 +142,8 @@ export class WindowWatcherManager {
     if (this.configModule) return
     
     try {
-      this.configModule = require('./windowWatcherConfig')
-      const { WindowThrottler } = require('./windowThrottler')
+      this.configModule = await import('./windowWatcherConfig')
+      const { WindowThrottler } = await import('./windowThrottler')
       
       // 加载配置
       this.config = await this.configModule.loadConfig()
@@ -172,6 +172,11 @@ export class WindowWatcherManager {
     if (this.isRunning) {
       console.warn('[窗口监听] 监听器已在运行')
       return
+    }
+    
+    // 初始化平台监听器
+    if (!this.platformWatcher) {
+      this.platformWatcher = await this.createPlatformWatcher()
     }
     
     if (!this.platformWatcher) {
