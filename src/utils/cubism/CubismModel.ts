@@ -2,22 +2,35 @@
  * Live2D Cubism Model 类
  * 基于官方 Cubism SDK for Web 实现
  * 
- * 此类是 Live2D 模型的完整实现，支持：
- * - 模型加载和渲染
- * - 动作播放和管理
- * - 表情切换
- * - 口型同步
- * - 眼睛注视
- * - 物理演算
- * - 姿势系统
+ * 此类使用真实的 Cubism Framework 来加载和渲染 Live2D 模型
  */
 
 import {
+  CubismFramework,
+  CubismUserModel,
+  CubismModelSettingJson,
+  CubismRenderer_WebGL,
+  CubismMotionManager,
+  CubismMotion,
+  CubismExpressionMotionManager,
+  CubismExpressionMotion,
+  CubismEyeBlink,
+  CubismBreath,
+  CubismPhysics,
+  CubismPose,
   CubismMatrix44,
+  CubismModelMatrix,
   CubismTargetPoint,
-  CubismIdHandle,
-  csmVector,
-  csmMap,
+  type ICubismModelSetting
+} from '../../framework'
+
+import type {
+  CubismModelInfo,
+  ModelBounds,
+  Position
+} from './index'
+
+import {
   isCubism3Model,
   getModelName,
   getTexturePath,
@@ -27,68 +40,27 @@ import {
   getPosePath
 } from './CubismCore'
 
-import type {
-  CubismModelInfo,
-  ModelBounds,
-  Position
-} from './index'
-
 // ============================================================================
 // 类型定义
 // ============================================================================
 
 /**
- * 模型信息接口
- */
-export interface ICubismModelSetting {
-  getModelFileName(): string
-  getTextureCount(): number
-  getTextureFileName(index: number): string
-  getMotionGroupCount(): number
-  getMotionGroupName(index: number): string
-  getMotionCount(groupName: string): number
-  getMotionFileName(groupName: string, index: number): string
-  getExpressionCount(): number
-  getExpressionFileName(index: number): string
-  getPhysicsFileName(): string
-  getPoseFileName(): string
-  getLayoutMap(map: csmMap<string, number>): void
-  getLipSyncParameterCount(): number
-  getLipSyncParameterId(index: number): CubismIdHandle
-  getModelFileUrl(): string
-  getModelFileBytes(): number
-  getTopLeft(layoutMap: csmMap<string, number>): { x: number; y: number } | null
-  getBottomRight(layoutMap: csmMap<string, number>): { x: number; y: number } | null
-}
-
-/**
  * 加载状态枚举
  */
 export enum LoadStep {
-  LoadAssets = 0,      // 加载配置文件
-  LoadModel = 1,       // 加载模型文件
-  WaitLoadModel = 2,   // 等待模型加载
-  LoadExpression = 3,  // 加载表情
-  WaitLoadExpression = 4, // 等待表情加载
-  LoadPhysics = 5,     // 加载物理
-  WaitLoadPhysics = 6, // 等待物理加载
-  LoadPose = 7,        // 加载姿势
-  WaitLoadPose = 8,    // 等待姿势加载
-  SetupEyeBlink = 9,   // 设置眼睛眨动
-  SetupBreath = 10,    // 设置呼吸效果
-  LoadUserData = 11,   // 加载用户数据
-  WaitLoadUserData = 12, // 等待用户数据加载
-  SetupEyeBlinkIds = 13, // 设置眼睛眨动ID
-  SetupLipSyncIds = 14,  // 设置口型同步ID
-  SetupLayout = 15,      // 设置布局
-  LoadMotion = 16,       // 加载动作
-  WaitLoadMotion = 17,   // 等待动作加载
-  CompleteInitialize = 18, // 初始化完成
-  CompleteSetupModel = 19, // 模型设置完成
-  LoadTexture = 20,      // 加载纹理
-  WaitLoadTexture = 21,  // 等待纹理加载
-  CompleteSetup = 22     // 完成设置
+  LoadAssets = 0,
+  LoadModel = 1,
+  LoadExpression = 2,
+  LoadPhysics = 3,
+  LoadPose = 4,
+  LoadMotion = 5,
+  LoadTexture = 6,
+  CompleteSetup = 7
 }
+
+// ============================================================================
+// 常量和枚举
+// ============================================================================
 
 /**
  * 动作优先级
@@ -100,134 +72,14 @@ export enum MotionPriority {
   Force = 3
 }
 
-/**
- * 呼吸参数数据
- */
-export interface BreathParameterData {
-  parameterId: CubismIdHandle
-  offset: number
-  peak: number
-  cycle: number
-  weight: number
-}
-
-// ============================================================================
-// Cubism 模型设置 JSON 解析器
-// ============================================================================
-
-/**
- * Cubism 模型设置 JSON 解析器
- * 用于解析 model3.json 文件
- */
-export class CubismModelSettingJson implements ICubismModelSetting {
-  private _json: any = {}
-  private _fileName: string = ''
-
-  constructor(buffer: ArrayBuffer, size: number) {
-    try {
-      const decoder = new TextDecoder('utf-8')
-      const jsonString = decoder.decode(buffer.slice(0, size))
-      this._json = JSON.parse(jsonString)
-      this._fileName = this._json.FileReferences?.Moc || ''
-    } catch (error) {
-      console.error('[CubismModelSettingJson] JSON 解析失败:', error)
-      this._json = {}
-    }
-  }
-
-  getModelFileName(): string {
-    return this._json.FileReferences?.Moc || ''
-  }
-
-  getTextureCount(): number {
-    return this._json.FileReferences?.Textures?.length || 0
-  }
-
-  getTextureFileName(index: number): string {
-    return this._json.FileReferences?.Textures?.[index] || ''
-  }
-
-  getMotionGroupCount(): number {
-    return Object.keys(this._json.FileReferences?.Motions || {}).length
-  }
-
-  getMotionGroupName(index: number): string {
-    return Object.keys(this._json.FileReferences?.Motions || {})[index] || ''
-  }
-
-  getMotionCount(groupName: string): number {
-    return this._json.FileReferences?.Motions?.[groupName]?.length || 0
-  }
-
-  getMotionFileName(groupName: string, index: number): string {
-    return this._json.FileReferences?.Motions?.[groupName]?.[index]?.File || ''
-  }
-
-  getExpressionCount(): number {
-    return this._json.FileReferences?.Expressions?.length || 0
-  }
-
-  getExpressionFileName(index: number): string {
-    return this._json.FileReferences?.Expressions?.[index]?.File || ''
-  }
-
-  getPhysicsFileName(): string {
-    return this._json.FileReferences?.Physics || ''
-  }
-
-  getPoseFileName(): string {
-    return this._json.FileReferences?.Pose || ''
-  }
-
-  getLayoutMap(map: csmMap<string, number>): void {
-    const layout = this._json.Layout
-    if (layout) {
-      Object.keys(layout).forEach(key => {
-        map.setValue(key, layout[key])
-      })
-    }
-  }
-
-  getLipSyncParameterCount(): number {
-    return this._json.Groups?.LipSync?.Ids?.length || 0
-  }
-
-  getLipSyncParameterId(index: number): CubismIdHandle {
-    return this._json.Groups?.LipSync?.Ids?.[index] || ''
-  }
-
-  getModelFileUrl(): string {
-    return this._fileName
-  }
-
-  getModelFileBytes(): number {
-    return 0 // 需要实际加载后才知道
-  }
-
-  getTopLeft(layoutMap: csmMap<string, number>): { x: number; y: number } | null {
-    if (layoutMap.isExist('CenterX') && layoutMap.isExist('CenterY') && layoutMap.isExist('Width')) {
-      const centerX = layoutMap.getValue('CenterX')
-      const centerY = layoutMap.getValue('CenterY')
-      const width = layoutMap.getValue('Width')
-      return { x: centerX - width / 2, y: centerY - width / 2 }
-    }
-    return null
-  }
-
-  getBottomRight(layoutMap: csmMap<string, number>): { x: number; y: number } | null {
-    if (layoutMap.isExist('CenterX') && layoutMap.isExist('CenterY') && layoutMap.isExist('Width')) {
-      const centerX = layoutMap.getValue('CenterX')
-      const centerY = layoutMap.getValue('CenterY')
-      const width = layoutMap.getValue('Width')
-      return { x: centerX + width / 2, y: centerY + width / 2 }
-    }
-    return null
-  }
-}
-
 // ============================================================================
 // Cubism 模型类
 // ============================================================================
+
+/**
+ * 重新导出 CubismModelSettingJson 和 ICubismModelSetting
+ */
+export { CubismModelSettingJson, type ICubismModelSetting }
 
 /**
  * Cubism 模型类
@@ -238,9 +90,20 @@ export class CubismModel {
   private gl: WebGLRenderingContext | null = null
   private canvas: HTMLCanvasElement | null = null
 
-  // 模型数据
-  private modelData: any = null // CubismModel 数据
+  // Cubism Framework 对象
+  private userModel: CubismUserModel | null = null
   private modelSetting: ICubismModelSetting | null = null
+  private renderer: CubismRenderer_WebGL | null = null
+
+  // 动画管理器
+  private motionManager: CubismMotionManager | null = null
+  private expressionManager: CubismExpressionMotionManager | null = null
+
+  // 效果组件
+  private eyeBlink: CubismEyeBlink | null = null
+  private breath: CubismBreath | null = null
+  private physics: CubismPhysics | null = null
+  private pose: CubismPose | null = null
 
   // 状态
   private modelPath: string = ''
@@ -257,11 +120,9 @@ export class CubismModel {
   private lipSyncFrameId: number | null = null
   private lipSyncEndedHandler: (() => void) | null = null
   private lipSyncValue: number = 0
-  private lipSyncIds: csmVector<CubismIdHandle> = new csmVector<CubismIdHandle>()
+  private lipSyncParamId: string = 'ParamMouthOpenY'
 
   // 眼睛注视相关
-  private dragX: number = 0
-  private dragY: number = 0
   private dragManager: CubismTargetPoint = new CubismTargetPoint()
 
   // 动画相关
@@ -269,41 +130,16 @@ export class CubismModel {
   private deltaTime: number = 0
   private userTimeSeconds: number = 0
 
-  // 模型参数ID
-  private idParamAngleX: CubismIdHandle = 'ParamAngleX'
-  private idParamAngleY: CubismIdHandle = 'ParamAngleY'
-  private idParamAngleZ: CubismIdHandle = 'ParamAngleZ'
-  private idParamBodyAngleX: CubismIdHandle = 'ParamBodyAngleX'
-  private idParamEyeBallX: CubismIdHandle = 'ParamEyeBallX'
-  private idParamEyeBallY: CubismIdHandle = 'ParamEyeBallY'
-  private idParamMouthOpenY: CubismIdHandle = 'ParamMouthOpenY'
-
-  // 纹理相关
-  private textureCount: number = 0
-  private loadedTextureCount: number = 0
-  private textures: WebGLTexture[] = []
-
-  // 动作相关
-  private allMotionCount: number = 0
-  private motionGroups: Map<string, Array<{ file: string; buffer?: ArrayBuffer }>> = new Map()
-  private currentMotion: string | null = null
-  private motionStartTime: number = 0
-  private motionDuration: number = 0
-
-  // 表情相关
-  private expressionFiles: Array<{ name: string; file: string; buffer?: ArrayBuffer }> = []
-  // private currentExpression: string | null = null // 未使用，已注释
-
-  // 物理和姿势
-  // private physicsBuffer: ArrayBuffer | null = null // 未使用，已注释
-  // private poseBuffer: ArrayBuffer | null = null // 未使用，已注释
-
   // 矩阵
-  private modelMatrix: CubismMatrix44 = new CubismMatrix44()
+  private modelMatrix: CubismModelMatrix | null = null
   private projectionMatrix: CubismMatrix44 = new CubismMatrix44()
 
-  // ID 管理器
-  // private idManager: CubismIdManager = new CubismIdManager() // 未使用，已注释
+  // 纹理
+  private textures: WebGLTexture[] = []
+
+  // 动作和表情文件
+  private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion }>> = new Map()
+  private expressionFiles: Array<{ name: string; file: string; expression?: CubismExpressionMotion }> = []
 
   // 性能监控
   private frameCount: number = 0
@@ -330,39 +166,24 @@ export class CubismModel {
   // 状态获取方法
   // ============================================================================
 
-  /**
-   * 获取当前状态
-   */
   getState(): LoadStep {
     return this.state
   }
 
-  /**
-   * 获取纹理数量
-   */
-  getTextureCount(): number {
-    return this.textureCount
-  }
-
-  /**
-   * 获取已加载纹理数量
-   */
-  getLoadedTextureCount(): number {
-    return this.loadedTextureCount
-  }
-
-  /**
-   * 获取模型路径
-   */
   getModelPath(): string {
     return this.modelPath
   }
 
-  /**
-   * 获取模型名称
-   */
   getModelName(): string {
     return getModelName(this.modelPath)
+  }
+
+  getTextureCount(): number {
+    return this.textures.length
+  }
+
+  getFps(): number {
+    return this.fps
   }
 
   // ============================================================================
@@ -396,7 +217,7 @@ export class CubismModel {
         modelSettingBuffer.byteLength
       )
 
-      // 步骤2：加载模型文件
+      // 步骤2：加载 moc3 模型文件
       this.state = LoadStep.LoadModel
       const modelFileName = this.modelSetting.getModelFileName()
       if (!modelFileName) {
@@ -406,39 +227,39 @@ export class CubismModel {
       const modelFilePath = this.modelHomeDir + modelFileName
       console.log('[CubismModel] 加载模型文件:', modelFilePath)
 
-      const modelBuffer = await this.loadFileAsArrayBuffer(modelFilePath)
+      const mocBuffer = await this.loadFileAsArrayBuffer(modelFilePath)
 
-      // 步骤3：解析模型数据
-      this.state = LoadStep.CompleteInitialize
-      this.modelData = this.parseModelData(modelBuffer)
+      // 创建 CubismUserModel
+      this.userModel = new CubismUserModel()
 
-      // 步骤4：加载表情
+      // 加载 moc3 模型
+      this.userModel.loadModel(mocBuffer, false)
+
+      // 创建动作管理器
+      this.motionManager = new CubismMotionManager()
+      this.expressionManager = new CubismExpressionMotionManager()
+
+      // 步骤3：加载表情
       this.state = LoadStep.LoadExpression
       await this.loadExpressions()
 
-      // 步骤5：加载物理
+      // 步骤4：加载物理
       this.state = LoadStep.LoadPhysics
       await this.loadPhysics()
 
-      // 步骤6：加载姿势
+      // 步骤5：加载姿势
       this.state = LoadStep.LoadPose
       await this.loadPose()
 
-      // 步骤7：设置口型同步参数
-      this.state = LoadStep.SetupLipSyncIds
-      this.setupLipSyncIds()
-
-      // 步骤8：加载动作
+      // 步骤6：加载动作
       this.state = LoadStep.LoadMotion
       await this.loadMotions()
 
-      // 步骤9：设置布局
-      this.state = LoadStep.SetupLayout
-      this.setupLayout()
+      // 步骤7：设置眼睛眨动
+      this.eyeBlink = CubismEyeBlink.create(this.modelSetting)
 
-      // 步骤10：加载纹理
-      this.state = LoadStep.LoadTexture
-      await this.loadTextures()
+      // 步骤8：设置呼吸效果
+      this.breath = CubismBreath.create()
 
       this.state = LoadStep.CompleteSetup
       this.isInitialized = true
@@ -448,23 +269,6 @@ export class CubismModel {
     } catch (error) {
       console.error('[CubismModel] 模型加载失败:', error)
       throw error
-    }
-  }
-
-  /**
-   * 解析模型数据
-   */
-  private parseModelData(buffer: ArrayBuffer): any {
-    // 这里应该使用 Cubism Core 来解析 moc3 文件
-    // 目前返回一个简单的结构
-    console.log('[CubismModel] 解析模型数据, 大小:', buffer.byteLength)
-    return {
-      buffer,
-      parameterCount: 0,
-      partCount: 0,
-      drawableCount: 0,
-      canvasWidth: 1,
-      canvasHeight: 1
     }
   }
 
@@ -502,14 +306,16 @@ export class CubismModel {
 
       try {
         const expressionBuffer = await this.loadFileAsArrayBuffer(expressionPath)
+        const expression = CubismExpressionMotion.create(expressionBuffer, expressionBuffer.byteLength)
         this.expressionFiles.push({
           name,
           file: expressionFileName,
-          buffer: expressionBuffer
+          expression
         })
         console.log(`[CubismModel] 表情加载成功: ${name}`)
       } catch (error) {
         console.warn(`[CubismModel] 表情加载失败: ${expressionPath}`, error)
+        this.expressionFiles.push({ name, file: expressionFileName })
       }
     }
   }
@@ -530,7 +336,8 @@ export class CubismModel {
     console.log('[CubismModel] 加载物理:', physicsPath)
 
     try {
-      await this.loadFileAsArrayBuffer(physicsPath)
+      const physicsBuffer = await this.loadFileAsArrayBuffer(physicsPath)
+      this.physics = CubismPhysics.create(physicsBuffer, physicsBuffer.byteLength)
       console.log('[CubismModel] 物理加载成功')
     } catch (error) {
       console.warn('[CubismModel] 物理加载失败:', error)
@@ -553,33 +360,12 @@ export class CubismModel {
     console.log('[CubismModel] 加载姿势:', posePath)
 
     try {
-      await this.loadFileAsArrayBuffer(posePath)
+      const poseBuffer = await this.loadFileAsArrayBuffer(posePath)
+      this.pose = CubismPose.create(poseBuffer, poseBuffer.byteLength)
       console.log('[CubismModel] 姿势加载成功')
     } catch (error) {
       console.warn('[CubismModel] 姿势加载失败:', error)
     }
-  }
-
-  /**
-   * 设置口型同步参数
-   */
-  private setupLipSyncIds(): void {
-    if (!this.modelSetting) return
-
-    const lipSyncParamCount = this.modelSetting.getLipSyncParameterCount()
-    for (let i = 0; i < lipSyncParamCount; i++) {
-      const paramId = this.modelSetting.getLipSyncParameterId(i)
-      if (paramId) {
-        this.lipSyncIds.pushBack(paramId)
-      }
-    }
-
-    // 如果模型没有定义口型同步参数，使用默认参数
-    if (this.lipSyncIds.getSize() === 0) {
-      this.lipSyncIds.pushBack(this.idParamMouthOpenY)
-    }
-
-    console.log(`[CubismModel] 设置 ${this.lipSyncIds.getSize()} 个口型同步参数`)
   }
 
   /**
@@ -600,7 +386,7 @@ export class CubismModel {
       const groupName = this.modelSetting.getMotionGroupName(i)
       const motionCount = this.modelSetting.getMotionCount(groupName)
 
-      const motions: Array<{ file: string; buffer?: ArrayBuffer }> = []
+      const motions: Array<{ file: string; motion?: CubismMotion }> = []
 
       for (let j = 0; j < motionCount; j++) {
         const motionFileName = this.modelSetting.getMotionFileName(groupName, j)
@@ -610,11 +396,11 @@ export class CubismModel {
 
         try {
           const motionBuffer = await this.loadFileAsArrayBuffer(motionPath)
+          const motion = CubismMotion.create(motionBuffer, motionBuffer.byteLength)
           motions.push({
             file: motionFileName,
-            buffer: motionBuffer
+            motion
           })
-          this.allMotionCount++
         } catch (error) {
           console.warn(`[CubismModel] 动作加载失败: ${motionPath}`, error)
           motions.push({ file: motionFileName })
@@ -624,53 +410,13 @@ export class CubismModel {
       this.motionGroups.set(groupName, motions)
     }
 
-    console.log(`[CubismModel] 共加载 ${this.allMotionCount} 个动作`)
-  }
-
-  /**
-   * 设置布局
-   */
-  private setupLayout(): void {
-    if (!this.modelSetting) return
-
-    const layoutMap = new csmMap<string, number>()
-    this.modelSetting.getLayoutMap(layoutMap)
-
-    // 应用布局到模型矩阵
-    const modelMatrix = this.modelMatrix
-
-    if (layoutMap.isExist('Width')) {
-      const width = layoutMap.getValue('Width')
-      modelMatrix.scale(width, width)
-    }
-
-    if (layoutMap.isExist('CenterX')) {
-      const centerX = layoutMap.getValue('CenterX')
-      modelMatrix.translateX(centerX)
-    }
-
-    if (layoutMap.isExist('CenterY')) {
-      const centerY = layoutMap.getValue('CenterY')
-      modelMatrix.translateY(centerY)
-    }
-
-    if (layoutMap.isExist('X')) {
-      const x = layoutMap.getValue('X')
-      modelMatrix.translateX(x)
-    }
-
-    if (layoutMap.isExist('Y')) {
-      const y = layoutMap.getValue('Y')
-      modelMatrix.translateY(y)
-    }
-
-    console.log('[CubismModel] 布局设置完成')
+    console.log('[CubismModel] 动作加载完成')
   }
 
   /**
    * 加载纹理
    */
-  private async loadTextures(): Promise<void> {
+  async loadTextures(): Promise<void> {
     if (!this.modelSetting || !this.gl) return
 
     const textureCount = this.modelSetting.getTextureCount()
@@ -681,26 +427,24 @@ export class CubismModel {
 
     console.log(`[CubismModel] 加载 ${textureCount} 个纹理`)
 
-    this.textureCount = textureCount
-    this.loadedTextureCount = 0
-
     for (let i = 0; i < textureCount; i++) {
       const textureFileName = this.modelSetting.getTextureFileName(i)
-      if (!textureFileName) {
-        this.loadedTextureCount++
-        continue
-      }
+      if (!textureFileName) continue
 
       const texturePath = getTexturePath(this.modelPath, textureFileName)
 
       try {
         const texture = await this.loadTexture(texturePath)
         this.textures[i] = texture
-        this.loadedTextureCount++
+
+        // 绑定纹理到渲染器
+        if (this.renderer) {
+          this.renderer.bindTexture(i, texture)
+        }
+
         console.log(`[CubismModel] 纹理 ${i} 加载完成: ${texturePath}`)
       } catch (error) {
         console.warn(`[CubismModel] 纹理加载失败: ${texturePath}`, error)
-        this.loadedTextureCount++
       }
     }
   }
@@ -778,8 +522,15 @@ export class CubismModel {
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
 
-    // 初始化渲染
-    this.initializeRendering()
+    // 创建渲染器
+    if (this.userModel) {
+      this.userModel.createRenderer(canvas.width, canvas.height)
+      this.renderer = this.userModel.getRenderer() as CubismRenderer_WebGL
+
+      if (this.renderer) {
+        this.renderer.startUp(this.gl)
+      }
+    }
 
     // 设置模型初始位置和大小
     this.setupModelTransform(initialPosition)
@@ -789,37 +540,21 @@ export class CubismModel {
   }
 
   /**
-   * 初始化渲染
-   */
-  private initializeRendering(): void {
-    if (!this.gl) return
-
-    // 设置视口
-    if (this.canvas) {
-      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
-    }
-
-    // 设置混合模式
-    this.gl.enable(this.gl.BLEND)
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
-
-    // 清除颜色
-    this.gl.clearColor(0, 0, 0, 0)
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT)
-  }
-
-  /**
    * 设置模型变换
    */
   private setupModelTransform(initialPosition?: Position): void {
-    if (!this.canvas) return
+    if (!this.canvas || !this.userModel) return
 
     const width = this.canvas.width
     const height = this.canvas.height
 
+    // 获取模型矩阵
+    this.modelMatrix = this.userModel.getModelMatrix()
+
     // 计算模型缩放
-    const modelWidth = this.modelData?.canvasWidth || 1
-    const modelHeight = this.modelData?.canvasHeight || 1
+    const model = this.userModel.getModel()
+    const modelWidth = model ? model.getCanvasWidth() : 1
+    const modelHeight = model ? model.getCanvasHeight() : 1
 
     const scale = Math.min(
       width / modelWidth,
@@ -827,21 +562,23 @@ export class CubismModel {
     ) * 0.3 // 缩放系数：0.3 = 占屏幕 30%
 
     // 设置模型矩阵
-    this.modelMatrix.identity()
-    this.modelMatrix.scale(scale, scale)
+    if (this.modelMatrix) {
+      this.modelMatrix.loadIdentity()
+      this.modelMatrix.scale(scale, scale)
 
-    // 设置模型位置
-    if (initialPosition) {
-      const centerX = (initialPosition.x - width / 2) / scale
-      const centerY = (height - initialPosition.y - height / 2) / scale
-      this.modelMatrix.translate(centerX, centerY)
-      console.log('[CubismModel] 使用保存的位置:', initialPosition)
-    } else {
-      console.log('[CubismModel] 使用默认中心位置')
+      // 设置模型位置
+      if (initialPosition) {
+        const centerX = (initialPosition.x - width / 2) / scale
+        const centerY = (height - initialPosition.y - height / 2) / scale
+        this.modelMatrix.translate(centerX, centerY)
+        console.log('[CubismModel] 使用保存的位置:', initialPosition)
+      } else {
+        console.log('[CubismModel] 使用默认中心位置')
+      }
     }
 
     // 设置投影矩阵
-    this.projectionMatrix.identity()
+    this.projectionMatrix.loadIdentity()
     this.projectionMatrix.scale(width / 2, height / 2)
 
     console.log(`[CubismModel] 模型变换设置完成: 缩放=${scale.toFixed(2)}, 画布=${width}x${height}`)
@@ -855,11 +592,11 @@ export class CubismModel {
    * 更新模型
    */
   update(): void {
-    if (!this.isInitialized || this.isUpdating) return
+    if (!this.isInitialized || this.isUpdating || !this.userModel) return
 
     this.isUpdating = true
 
-    const now = performance.now() / 1000 // 转换为秒
+    const now = performance.now() / 1000
     this.deltaTime = now - this.lastUpdateTime
     this.lastUpdateTime = now
     this.userTimeSeconds += this.deltaTime
@@ -868,69 +605,70 @@ export class CubismModel {
 
     // 更新拖拽管理器
     this.dragManager.update(deltaTimeSeconds)
-    this.dragX = this.dragManager.getX()
-    this.dragY = this.dragManager.getY()
 
-    // 更新眼睛注视参数
-    this.updateEyeFocus()
+    // 保存参数
+    this.userModel.getModel().saveParameters()
 
     // 更新动作
-    this.updateMotion(deltaTimeSeconds)
+    if (this.motionManager) {
+      if (this.motionManager.isFinished()) {
+        // 播放随机待机动作
+        this.startRandomMotion('Idle', MotionPriority.Idle)
+      } else {
+        this.motionManager.updateMotion(this.userModel.getModel(), deltaTimeSeconds)
+      }
+    }
+
+    // 更新表情
+    if (this.expressionManager) {
+      this.expressionManager.updateMotion(this.userModel.getModel(), deltaTimeSeconds)
+    }
+
+    // 更新眼睛眨动
+    if (this.eyeBlink) {
+      this.eyeBlink.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+    }
+
+    // 更新呼吸效果
+    if (this.breath) {
+      this.breath.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+    }
+
+    // 更新物理
+    if (this.physics) {
+      this.physics.evaluate(this.userModel.getModel(), deltaTimeSeconds)
+    }
+
+    // 更新姿势
+    if (this.pose) {
+      this.pose.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+    }
+
+    // 更新眼睛注视
+    const dragX = this.dragManager.getX()
+    const dragY = this.dragManager.getY()
+
+    // 设置角度参数
+    const model = this.userModel.getModel()
+    model.addParameterValueById('ParamAngleX', dragX * 30)
+    model.addParameterValueById('ParamAngleY', dragY * 30)
+    model.addParameterValueById('ParamAngleZ', dragX * dragY * -30)
+    model.addParameterValueById('ParamBodyAngleX', dragX * 10)
+    model.addParameterValueById('ParamEyeBallX', dragX)
+    model.addParameterValueById('ParamEyeBallY', dragY)
 
     // 更新口型同步
-    this.updateLipSync()
+    if (this.lipSyncValue > 0) {
+      model.addParameterValueById(this.lipSyncParamId, this.lipSyncValue, 0.8)
+    }
+
+    // 更新模型
+    this.userModel.getModel().update()
 
     // 更新 FPS
     this.updateFps()
 
     this.isUpdating = false
-  }
-
-  /**
-   * 更新眼睛注视
-   */
-  private updateEyeFocus(): void {
-    if (!this.modelData) return
-
-    // 设置角度参数
-    this.setParameterValue(this.idParamAngleX, this.dragX * 30)
-    this.setParameterValue(this.idParamAngleY, this.dragY * 30)
-    this.setParameterValue(this.idParamAngleZ, this.dragX * this.dragY * -30)
-
-    // 设置身体角度
-    this.setParameterValue(this.idParamBodyAngleX, this.dragX * 10)
-
-    // 设置眼睛位置
-    this.setParameterValue(this.idParamEyeBallX, this.dragX)
-    this.setParameterValue(this.idParamEyeBallY, this.dragY)
-  }
-
-  /**
-   * 更新动作
-   */
-  private updateMotion(_deltaTime: number): void {
-    if (!this.currentMotion || this.motionDuration === 0) return
-
-    const elapsed = (performance.now() - this.motionStartTime) / 1000
-    const progress = Math.min(elapsed / this.motionDuration, 1.0)
-
-    // 动作结束
-    if (progress >= 1.0) {
-      console.log(`[CubismModel] 动作完成: ${this.currentMotion}`)
-      this.currentMotion = null
-      this.motionDuration = 0
-    }
-  }
-
-  /**
-   * 更新口型同步
-   */
-  private updateLipSync(): void {
-    if (this.lipSyncValue > 0) {
-      for (let i = 0; i < this.lipSyncIds.getSize(); i++) {
-        this.setParameterValue(this.lipSyncIds.at(i), this.lipSyncValue)
-      }
-    }
   }
 
   /**
@@ -951,7 +689,7 @@ export class CubismModel {
    * 渲染模型
    */
   render(): void {
-    if (!this.isInitialized || !this.gl) return
+    if (!this.isInitialized || !this.gl || !this.renderer) return
 
     // 清除画布
     this.gl.clearColor(0, 0, 0, 0)
@@ -962,51 +700,12 @@ export class CubismModel {
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
     }
 
+    // 设置投影矩阵
+    this.renderer.setMvpMatrix(this.projectionMatrix)
+
     // 渲染模型
-    this.drawModel()
+    this.renderer.drawModel()
   }
-
-  /**
-   * 绘制模型
-   */
-  private drawModel(): void {
-    if (!this.gl || !this.modelData) return
-
-    // 这里应该使用 Cubism Core 来绘制模型
-    // 目前只是一个占位符实现
-    console.log('[CubismModel] 绘制模型')
-  }
-
-  // ============================================================================
-  // 参数操作方法
-  // ============================================================================
-
-  /**
-   * 设置参数值
-   */
-  private setParameterValue(id: CubismIdHandle, value: number, weight: number = 1.0): void {
-    if (!this.modelData) return
-
-    // 这里应该使用 Cubism Core 来设置参数值
-    // 目前只是一个占位符实现
-    console.log(`[CubismModel] 设置参数: ${id} = ${value} (权重: ${weight})`)
-  }
-
-  // 以下方法为将来扩展预留，当前未使用
-  // /**
-  //  * 添加参数值
-  //  */
-  // protected addParameterValue(_id: CubismIdHandle, _value: number, _weight: number = 1.0): void {
-  //   // 这里应该使用 Cubism Core 来添加参数值
-  // }
-
-  // /**
-  //  * 获取参数值
-  //  */
-  // protected getParameterValue(_id: CubismIdHandle): number {
-  //   // 这里应该使用 Cubism Core 来获取参数值
-  //   return 0
-  // }
 
   // ============================================================================
   // 交互方法
@@ -1031,24 +730,25 @@ export class CubismModel {
   motion(group: string, index: number = 0, priority: number = MotionPriority.Normal): void {
     console.log(`[CubismModel] 播放动作: ${group}[${index}] (优先级: ${priority})`)
 
+    if (!this.motionManager) {
+      console.warn('[CubismModel] 动作管理器未初始化')
+      return
+    }
+
     const motions = this.motionGroups.get(group)
     if (!motions || index >= motions.length) {
       console.warn(`[CubismModel] 动作未找到: ${group}[${index}]`)
       return
     }
 
-    const motion = motions[index]
-    if (!motion.buffer) {
+    const motionData = motions[index]
+    if (!motionData.motion) {
       console.warn(`[CubismModel] 动作数据未加载: ${group}[${index}]`)
       return
     }
 
     // 开始播放动作
-    this.currentMotion = `${group}[${index}]`
-    this.motionStartTime = performance.now()
-    this.motionDuration = 2.0 // 默认2秒，实际应该从动作数据中读取
-
-    console.log(`[CubismModel] 开始播放动作: ${this.currentMotion}`)
+    this.motionManager.startMotion(motionData.motion, false, priority)
   }
 
   /**
@@ -1072,6 +772,11 @@ export class CubismModel {
   expression(expressionId: string | number): void {
     console.log(`[CubismModel] 设置表情: ${expressionId}`)
 
+    if (!this.expressionManager) {
+      console.warn('[CubismModel] 表情管理器未初始化')
+      return
+    }
+
     const expressionName = typeof expressionId === 'number'
       ? this.expressionFiles[expressionId]?.name
       : expressionId
@@ -1081,13 +786,13 @@ export class CubismModel {
       return
     }
 
-    const expression = this.expressionFiles.find(e => e.name === expressionName)
-    if (!expression) {
+    const expressionData = this.expressionFiles.find(e => e.name === expressionName)
+    if (!expressionData || !expressionData.expression) {
       console.warn(`[CubismModel] 表情未找到: ${expressionName}`)
       return
     }
 
-    console.log(`[CubismModel] 表情设置完成: ${expressionName}`)
+    this.expressionManager.startMotion(expressionData.expression, false)
   }
 
   // ============================================================================
@@ -1121,9 +826,7 @@ export class CubismModel {
       }
 
       if (this.lipSyncContext.state === 'suspended') {
-        void this.lipSyncContext.resume().catch(() => {
-          // ignore resume failure
-        })
+        void this.lipSyncContext.resume().catch(() => {})
       }
 
       const analyser = this.lipSyncAnalyser
@@ -1196,25 +899,19 @@ export class CubismModel {
     if (this.lipSyncSource) {
       try {
         this.lipSyncSource.disconnect()
-      } catch {
-        // ignore disconnect failure
-      }
+      } catch {}
       this.lipSyncSource = null
     }
 
     if (this.lipSyncAnalyser) {
       try {
         this.lipSyncAnalyser.disconnect()
-      } catch {
-        // ignore disconnect failure
-      }
+      } catch {}
       this.lipSyncAnalyser = null
     }
 
     if (this.lipSyncContext) {
-      void this.lipSyncContext.close().catch(() => {
-        // ignore close failure
-      })
+      void this.lipSyncContext.close().catch(() => {})
       this.lipSyncContext = null
     }
 
@@ -1241,11 +938,8 @@ export class CubismModel {
     // 获取表情信息
     const expressions = this.expressionFiles.map(e => e.name)
 
-    // 提取模型名称
-    const modelName = this.getModelName()
-
     return {
-      name: modelName,
+      name: this.getModelName(),
       motionGroups,
       expressions
     }
@@ -1255,21 +949,22 @@ export class CubismModel {
    * 获取模型边界
    */
   getModelBounds(): ModelBounds | null {
-    if (!this.canvas) return null
+    if (!this.canvas || !this.userModel) return null
 
-    // 计算模型实际边界
-    const width = 200 // 临时值，应该从模型数据中计算
-    const height = 200 // 临时值，应该从模型数据中计算
+    const model = this.userModel.getModel()
+    const modelWidth = model ? model.getCanvasWidth() : 200
+    const modelHeight = model ? model.getCanvasHeight() : 200
+
     const centerX = this.canvas.width / 2
     const centerY = this.canvas.height / 2
 
     return {
-      left: centerX - width / 2,
-      right: centerX + width / 2,
-      top: centerY - height / 2,
-      bottom: centerY + height / 2,
-      width,
-      height
+      left: centerX - modelWidth / 2,
+      right: centerX + modelWidth / 2,
+      top: centerY - modelHeight / 2,
+      bottom: centerY + modelHeight / 2,
+      width: modelWidth,
+      height: modelHeight
     }
   }
 
@@ -1277,19 +972,6 @@ export class CubismModel {
    * 获取纹理源（用于颜色提取）
    */
   getTextureSource(): HTMLImageElement | null {
-    if (this.textures.length === 0) return null
-
-    // 创建一个临时 canvas 来获取纹理数据
-    const tempCanvas = document.createElement('canvas')
-    const tempCtx = tempCanvas.getContext('2d')
-    if (!tempCtx) return null
-
-    // 绘制第一个纹理
-    const texture = this.textures[0]
-    if (!texture) return null
-
-    // 这里需要从 WebGL 纹理中读取数据
-    // 目前返回 null，实际实现需要使用 readPixels 或其他方法
     return null
   }
 
@@ -1302,13 +984,6 @@ export class CubismModel {
 
     return x >= bounds.left && x <= bounds.right &&
            y >= bounds.top && y <= bounds.bottom
-  }
-
-  /**
-   * 获取 FPS
-   */
-  getFps(): number {
-    return this.fps
   }
 
   // ============================================================================
@@ -1349,7 +1024,6 @@ export class CubismModel {
 
     // 清理 WebGL 资源
     if (this.gl) {
-      // 删除纹理
       this.textures.forEach(texture => {
         if (texture) {
           this.gl!.deleteTexture(texture)
@@ -1358,10 +1032,25 @@ export class CubismModel {
       this.textures = []
     }
 
+    // 释放渲染器
+    if (this.renderer) {
+      this.renderer = null
+    }
+
+    // 释放用户模型
+    if (this.userModel) {
+      this.userModel = null
+    }
+
     // 重置状态
     this.isInitialized = false
-    this.modelData = null
     this.modelSetting = null
+    this.motionManager = null
+    this.expressionManager = null
+    this.eyeBlink = null
+    this.breath = null
+    this.physics = null
+    this.pose = null
     this.motionGroups.clear()
     this.expressionFiles = []
 
@@ -1373,7 +1062,7 @@ export class CubismModel {
    */
   static destroyGlobal(): void {
     console.log('[CubismModel] 销毁全局资源')
-    // 这里应该调用 Cubism Framework 的 dispose 方法
+    CubismFramework.dispose()
   }
 }
 

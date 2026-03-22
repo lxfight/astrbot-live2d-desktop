@@ -6,7 +6,7 @@
 
 // 主要类
 export { CubismModel, LoadStep, MotionPriority, CubismModelSettingJson } from './CubismModel'
-export type { ICubismModelSetting, BreathParameterData } from './CubismModel'
+export type { ICubismModelSetting } from './CubismModel'
 
 // 核心数据结构
 export {
