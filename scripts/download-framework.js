@@ -16,22 +16,31 @@ const PROJECT_ROOT = path.join(__dirname, '..')
 const FRAMEWORK_DIR = path.join(PROJECT_ROOT, 'src', 'framework')
 const CUBISM_SAMPLES_DIR = path.join(PROJECT_ROOT, '..', 'CubismWebSamples')
 const FRAMEWORK_SOURCE_DIR = path.join(CUBISM_SAMPLES_DIR, 'Framework', 'src')
+const FRAMEWORK_SOURCE_DIR_ALT = path.join(PROJECT_ROOT, '..', '..', 'CubismWebSamples', 'Framework', 'src')
 
 // 强制重新复制
 const FORCE_COPY = process.argv.includes('--force')
 
 /**
  * 检查源目录是否存在
+ * 返回找到的源目录路径，如果不存在则返回 null
  */
-function checkSourceDirectory() {
-  if (!fs.existsSync(FRAMEWORK_SOURCE_DIR)) {
-    console.error('[错误] CubismWebSamples Framework 源码目录不存在')
-    console.error(`[错误] 路径: ${FRAMEWORK_SOURCE_DIR}`)
-    console.error('[错误] 请确保 CubismWebSamples 仓库在项目父目录中')
-    console.error('[错误] 或者从 GitHub 克隆: git clone https://github.com/Live2D/CubismWebSamples.git ..')
-    return false
+function findSourceDirectory() {
+  // 检查多个可能的路径
+  const possiblePaths = [
+    FRAMEWORK_SOURCE_DIR,
+    FRAMEWORK_SOURCE_DIR_ALT,
+    path.join(process.cwd(), '..', 'CubismWebSamples', 'Framework', 'src'),
+    path.join(process.cwd(), 'CubismWebSamples', 'Framework', 'src')
+  ]
+
+  for (const dirPath of possiblePaths) {
+    if (fs.existsSync(dirPath)) {
+      return dirPath
+    }
   }
-  return true
+
+  return null
 }
 
 /**
@@ -153,19 +162,44 @@ export { strtod } from './live2dcubismframework'
 }
 
 /**
+ * 显示提示信息
+ */
+function showDownloadInstructions() {
+  console.log('')
+  console.log('╔════════════════════════════════════════════════════════════════╗')
+  console.log('║                    Cubism Framework 未找到                      ║')
+  console.log('╠════════════════════════════════════════════════════════════════╣')
+  console.log('║                                                                ║')
+  console.log('║  项目需要 Cubism Web Framework 才能运行。                        ║')
+  console.log('║                                                                ║')
+  console.log('║  请选择以下方式之一获取 Framework：                              ║')
+  console.log('║                                                                ║')
+  console.log('║  方式 1: 从 GitHub 克隆官方仓库                                  ║')
+  console.log('║  ─────────────────────────────────────                         ║')
+  console.log('║  $ cd ..                                                       ║')
+  console.log('║  $ git clone https://github.com/Live2D/CubismWebSamples.git    ║')
+  console.log('║                                                                ║')
+  console.log('║  方式 2: 下载官方 SDK                                           ║')
+  console.log('║  ─────────────────────────────────────                         ║')
+  console.log('║  访问: https://www.live2d.com/sdk/download/web/                ║')
+  console.log('║  下载后解压，将 Framework/src 复制到 src/framework              ║')
+  console.log('║                                                                ║')
+  console.log('║  方式 3: 使用已有的本地副本                                      ║')
+  console.log('║  ─────────────────────────────────────                         ║')
+  console.log('║  如果已有 CubismWebSamples，运行：                               ║')
+  console.log('║  $ pnpm run setup:framework                                    ║')
+  console.log('║                                                                ║')
+  console.log('╚════════════════════════════════════════════════════════════════╝')
+  console.log('')
+}
+
+/**
  * 主函数
  */
 async function main() {
-  console.log('[Cubism Framework] 开始复制源码...\n')
-
-  // 检查源目录
-  if (!checkSourceDirectory()) {
-    process.exit(1)
-  }
-
   // 如果目标目录已存在且不是强制模式，跳过
   if (fs.existsSync(FRAMEWORK_DIR) && !FORCE_COPY) {
-    console.log(`[跳过] Framework 目录已存在 (使用 --force 强制重新复制)`)
+    console.log(`[Cubism Framework] ✓ Framework 已存在`)
     console.log(`[路径] ${FRAMEWORK_DIR}`)
     return
   }
@@ -176,17 +210,35 @@ async function main() {
     removeDirectory(FRAMEWORK_DIR)
   }
 
+  // 查找源目录
+  const sourceDir = findSourceDirectory()
+  
+  if (!sourceDir) {
+    // 源目录不存在，显示提示信息
+    showDownloadInstructions()
+    
+    // 在 postinstall 中不报错退出，只显示警告
+    if (process.env.npm_lifecycle_event === 'postinstall') {
+      console.log('[警告] Framework 未找到，项目可能无法正常运行')
+      console.log('[提示] 请在安装完成后运行: pnpm run setup:framework')
+      return
+    }
+    
+    process.exit(1)
+  }
+
   // 复制 Framework 源码
-  console.log(`[复制] 从 ${FRAMEWORK_SOURCE_DIR}`)
+  console.log('[Cubism Framework] 开始复制源码...\n')
+  console.log(`[复制] 从 ${sourceDir}`)
   console.log(`[复制] 到 ${FRAMEWORK_DIR}`)
 
   try {
-    copyDirectory(FRAMEWORK_SOURCE_DIR, FRAMEWORK_DIR)
+    copyDirectory(sourceDir, FRAMEWORK_DIR)
 
     // 创建入口文件
     createIndexFile()
 
-    console.log('\n[Cubism Framework] 复制完成')
+    console.log('\n[Cubism Framework] ✓ 复制完成')
     console.log(`[路径] ${FRAMEWORK_DIR}`)
   } catch (error) {
     console.error('[错误] 复制失败:', error)
