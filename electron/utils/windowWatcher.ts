@@ -52,6 +52,39 @@ export interface WindowEvent {
 export type WindowEventCallback = (event: WindowEvent) => void
 
 /**
+ * 窗口监听器配置
+ */
+export interface WindowWatcherConfig {
+  enabled: boolean
+  throttle: {
+    globalInterval: number
+    perWindowInterval: number
+    minInterval: number
+  }
+  events: {
+    focus: boolean
+    blur: boolean
+    create: boolean
+    destroy: boolean
+    fullscreen: boolean
+    windowed: boolean
+    resize: boolean
+    move: boolean
+    minimize: boolean
+    maximize: boolean
+    restore: boolean
+  }
+  ignore: {
+    processNames: string[]
+    titleKeywords: string[]
+  }
+  aiResponse: {
+    mode: 'first-open' | 'every-switch' | 'specific-apps'
+    specificApps: string[]
+  }
+}
+
+/**
  * 平台特定的窗口监听器接口
  */
 export interface PlatformWatcher {
