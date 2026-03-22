@@ -1,7 +1,7 @@
 /**
  * 下载 Cubism Core 文件
  * 在构建时执行，不将 Core 文件提交到仓库
- * 当前仅保留 Cubism 4 Core（停用 Cubism 2 live2d.min.js）
+ * 支持 Cubism 4 和 Cubism 5.3
  */
 
 import https from 'https'
@@ -20,14 +20,19 @@ if (!fs.existsSync(PUBLIC_LIB_DIR)) {
   fs.mkdirSync(PUBLIC_LIB_DIR, { recursive: true })
 }
 
-// 需要下载的文件（仅 Cubism 4）
+// 需要下载的文件
+// Cubism 5.3 使用与 Cubism 4 相同的 Core 文件名
+// 官方 CDN 会自动提供最新版本
 const files = [
   {
     name: 'live2dcubismcore.min.js',
     url: 'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
-    description: 'Cubism 4 Core'
+    description: 'Cubism Core (最新版本)'
   }
 ]
+
+// 强制重新下载（删除已存在的文件）
+const FORCE_DOWNLOAD = process.argv.includes('--force')
 
 /**
  * 下载文件
@@ -86,10 +91,16 @@ async function main() {
   for (const file of files) {
     const destPath = path.join(PUBLIC_LIB_DIR, file.name)
 
-    // 如果文件已存在，跳过
-    if (fs.existsSync(destPath)) {
-      console.log(`[跳过] ${file.name} 已存在`)
+    // 如果文件已存在且不是强制模式，跳过
+    if (fs.existsSync(destPath) && !FORCE_DOWNLOAD) {
+      console.log(`[跳过] ${file.name} 已存在 (使用 --force 强制重新下载)`)
       continue
+    }
+
+    // 强制模式下删除已存在的文件
+    if (FORCE_DOWNLOAD && fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath)
+      console.log(`[删除] ${file.name}`)
     }
 
     try {

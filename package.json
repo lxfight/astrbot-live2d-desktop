@@ -21,7 +21,10 @@
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
     "rebuild": "node scripts/rebuild-native.js",
     "rebuild:optional": "node scripts/rebuild-native.js --optional",
-    "postinstall": "node scripts/rebuild-native.js --optional",
+    "postinstall": "node scripts/rebuild-native.js --optional && node scripts/download-cubism-core.js && node scripts/download-framework.js",
+    "setup:framework": "node scripts/download-framework.js",
+    "setup:framework:force": "node scripts/download-framework.js --force",
+    "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:prepare:fast": "pnpm exec vite build",
     "pack": "pnpm exec electron-builder --publish never",
@@ -40,6 +43,7 @@
     "build:ci:linux": "pnpm run build:prepare && pnpm run pack:linux"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
     "@types/uuid": "^10.0.0",
@@ -73,6 +77,7 @@
     "extract-file-icon": "^0.3.2",
     "howler": "^2.2.3",
     "katex": "^0.16.28",
+    "live2dcubismcore": "^1.0.2",
     "lucide-vue-next": "^0.563.0",
     "marked": "^17.0.1",
     "naive-ui": "^2.37.0",
