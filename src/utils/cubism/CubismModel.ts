@@ -969,10 +969,93 @@ export class CubismModel {
   }
 
   /**
+   * 获取纹理源列表（用于颜色提取）
+   */
+  getTextureSources(): HTMLImageElement[] {
+    if (!this.renderer || !this.gl) return []
+
+    try {
+      const textures = (this.renderer as any).getBindedTextures?.()
+      if (!textures || textures.size === 0) return []
+
+      const sources: HTMLImageElement[] = []
+
+      // 遍历所有纹理
+      textures.forEach((glTexture: WebGLTexture, index: number) => {
+        if (!glTexture) return
+
+        try {
+          // 创建临时 canvas 来读取纹理数据
+          const tempCanvas = document.createElement('canvas')
+          const tempCtx = tempCanvas.getContext('2d')
+          if (!tempCtx) return
+
+          // 使用固定尺寸（因为 WebGL 不提供直接获取纹理尺寸的方法）
+          const width = 256
+          const height = 256
+
+          tempCanvas.width = width
+          tempCanvas.height = height
+
+          // 使用 readPixels 读取纹理数据
+          const framebuffer = this.gl!.createFramebuffer()
+          this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, framebuffer)
+          this.gl!.framebufferTexture2D(this.gl!.FRAMEBUFFER, this.gl!.COLOR_ATTACHMENT0, this.gl!.TEXTURE_2D, glTexture, 0)
+
+          // 检查 framebuffer 状态
+          const status = this.gl!.checkFramebufferStatus(this.gl!.FRAMEBUFFER)
+          if (status !== this.gl!.FRAMEBUFFER_COMPLETE) {
+            console.warn(`[CubismModel] Framebuffer 不完整: ${status}`)
+            this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, null)
+            this.gl!.deleteFramebuffer(framebuffer)
+            return
+          }
+
+          const pixels = new Uint8Array(width * height * 4)
+          this.gl!.readPixels(0, 0, width, height, this.gl!.RGBA, this.gl!.UNSIGNED_BYTE, pixels)
+
+          // 清理 framebuffer
+          this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, null)
+          this.gl!.deleteFramebuffer(framebuffer)
+
+          // 将像素数据绘制到 canvas
+          const imageData = tempCtx.createImageData(width, height)
+
+          // WebGL 的 readPixels 返回的是从底部到顶部的数据，需要翻转
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const srcIndex = ((height - y - 1) * width + x) * 4
+              const dstIndex = (y * width + x) * 4
+              imageData.data[dstIndex] = pixels[srcIndex]     // R
+              imageData.data[dstIndex + 1] = pixels[srcIndex + 1] // G
+              imageData.data[dstIndex + 2] = pixels[srcIndex + 2] // B
+              imageData.data[dstIndex + 3] = pixels[srcIndex + 3] // A
+            }
+          }
+
+          tempCtx.putImageData(imageData, 0, 0)
+
+          // 创建 HTMLImageElement
+          const img = new Image()
+          img.src = tempCanvas.toDataURL()
+          sources.push(img)
+        } catch (e) {
+          console.warn(`[CubismModel] 读取纹理 ${index} 失败:`, e)
+        }
+      })
+
+      return sources
+    } catch (e) {
+      console.warn('[CubismModel] 获取纹理源失败:', e)
+      return []
+    }
+  }
+
+  /**
    * 获取纹理源（用于颜色提取）
    */
   getTextureSource(): HTMLImageElement | null {
-    return null
+    return this.getTextureSources()[0] || null
   }
 
   /**
