@@ -59,6 +59,9 @@ public/models/*
 # Cubism Core 文件（构建时下载）
 public/lib/live2dcubismcore.min.js
 
+# Cubism Framework 源码（不包含在仓库中，从官方仓库复制）
+src/framework/
+
 # Electron 打包产物
 *.dmg
 *.exe
