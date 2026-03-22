@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Live2DModel } from '@/utils/Live2DModel'
+import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
@@ -113,9 +113,8 @@ function playRandomMotion() {
  * 设置模型位置
  */
 function setModelPosition(x: number, y: number) {
-  if (!model || !model.pixiModel) return
-  model.pixiModel.x = x
-  model.pixiModel.y = y
+  if (!model) return
+  model.setModelPosition(x, y)
   console.log('[Live2D] 模型位置已设置:', { x, y })
 }
 
@@ -123,11 +122,8 @@ function setModelPosition(x: number, y: number) {
  * 获取模型位置
  */
 function getModelPosition(): { x: number; y: number } | null {
-  if (!model || !model.pixiModel) return null
-  return {
-    x: model.pixiModel.x,
-    y: model.pixiModel.y
-  }
+  if (!model) return null
+  return model.getModelPosition()
 }
 
 function getModelBounds(): {
@@ -138,22 +134,8 @@ function getModelBounds(): {
   width: number
   height: number
 } | null {
-  if (!model || !model.pixiModel) return null
-
-  const modelSprite = model.pixiModel
-  const width = modelSprite.width
-  const height = modelSprite.height
-  const anchorX = modelSprite.anchor?.x ?? 0.5
-  const anchorY = modelSprite.anchor?.y ?? 0.5
-
-  return {
-    left: modelSprite.x - width * anchorX,
-    right: modelSprite.x + width * (1 - anchorX),
-    top: modelSprite.y - height * anchorY,
-    bottom: modelSprite.y + height * (1 - anchorY),
-    width,
-    height,
-  }
+  if (!model) return null
+  return model.getModelBounds()
 }
 
 // 拖动相关状态
@@ -169,27 +151,11 @@ let isFullPassThroughMode = false // 是否处于完全穿透模式
 let supportsDynamicPassThrough = true
 
 /**
- * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
+ * 检查点是否在模型内
  */
 function isPointInModel(x: number, y: number): boolean {
-  if (!model || !model.pixiModel) return false
-
-  const modelSprite = model.pixiModel
-  const modelX = modelSprite.x
-  const modelY = modelSprite.y
-  const modelWidth = modelSprite.width
-  const modelHeight = modelSprite.height
-  const anchorX = modelSprite.anchor?.x ?? 0.5
-  const anchorY = modelSprite.anchor?.y ?? 0.5
-
-  // 计算模型的边界框
-  const left = modelX - modelWidth * anchorX
-  const right = modelX + modelWidth * (1 - anchorX)
-  const top = modelY - modelHeight * anchorY
-  const bottom = modelY + modelHeight * (1 - anchorY)
-
-  // 简单的矩形碰撞检测
-  return x >= left && x <= right && y >= top && y <= bottom
+  if (!model) return false
+  return model.isPointInModel(x, y)
 }
 
 /**
@@ -216,9 +182,40 @@ function handleMouseDown(event: MouseEvent) {
     dragStartY = event.clientY
 
     // 获取当前模型位置
-    if (model.pixiModel) {
-      modelOffsetX = model.pixiModel.x
-      modelOffsetY = model.pixiModel.y
+    const position = model.getModelPosition()
+    if (position) {
+      modelOffsetX = position.x
+      modelOffsetY = position.y
+    }
+
+/**
+ * 处理鼠标按下
+ */
+function handleMouseDown(event: MouseEvent) {
+  // 如果处于完全穿透模式，不处理任何鼠标事件
+  if (isFullPassThroughMode) return
+
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (!rect || !model) return
+
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // 检查是否点击到模型（使用优化的检测方法）
+  const hitModel = isPointInModel(x, y)
+
+  // 左键开始拖动
+  if (event.button === 0 && hitModel) {
+    isDragging = false // 先标记为未拖动，等移动超过阈值再标记
+    isDragStartedOnModel = true // 标记拖动从模型上开始
+    dragStartX = event.clientX
+    dragStartY = event.clientY
+
+    // 获取当前模型位置
+    const position = model.getModelPosition()
+    if (position) {
+      modelOffsetX = position.x
+      modelOffsetY = position.y
     }
 
     event.preventDefault()
@@ -232,7 +229,7 @@ function handleMouseMove(event: MouseEvent) {
   // 如果处于完全穿透模式，不处理任何鼠标事件
   if (isFullPassThroughMode) return
 
-  if (!model || !model.pixiModel) return
+  if (!model) return
 
   // 只有当拖动从模型上开始时才允许拖动
   if (event.buttons === 1 && isDragStartedOnModel) {
@@ -246,13 +243,14 @@ function handleMouseMove(event: MouseEvent) {
 
     // 如果正在拖动，更新模型位置
     if (isDragging) {
-      model.pixiModel.x = modelOffsetX + deltaX
-      model.pixiModel.y = modelOffsetY + deltaY
+      const newX = modelOffsetX + deltaX
+      const newY = modelOffsetY + deltaY
+      model.setModelPosition(newX, newY)
 
       // 发射模型位置变化事件
       emit('modelPositionChanged', {
-        x: model.pixiModel.x,
-        y: model.pixiModel.y
+        x: newX,
+        y: newY
       })
 
       event.preventDefault()
@@ -309,7 +307,7 @@ function handleContextMenu(event: MouseEvent) {
     event.stopPropagation()
 
     // 发射右键点击事件，传递鼠标点击位置（屏幕坐标）
-    if (model && model.pixiModel) {
+    if (model) {
       emit('modelRightClick', {
         x: event.clientX,
         y: event.clientY
@@ -480,8 +478,8 @@ onUnmounted(() => {
     model = null
   }
 
-  // 只在组件卸载时销毁整个 Application
-  Live2DModel.destroyApp()
+  // 销毁全局资源
+  // CubismModel.destroyGlobal()
 
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('mousedown', handleMouseDown)
@@ -497,17 +495,15 @@ onUnmounted(() => {
 // 暴露方法给父组件
 defineExpose({
   loadModel,
+  getModelInfo,
   playMotion,
   setExpression,
   playRandomMotion,
-  getModelInfo,
-  disablePassThrough,
-  enablePassThrough,
-  setModelPosition,
   getModelPosition,
+  setModelPosition,
   getModelBounds,
-  getTextureSources: () => model?.getTextureSources() || [],
   getTextureSource: () => model?.getTextureSource(),
+  getTextureSources: () => model?.getTextureSources() || [],
   startLipSync: (audioElement: HTMLAudioElement) => {
     if (model) {
       model.startLipSync(audioElement)
@@ -515,8 +511,16 @@ defineExpose({
   },
   stopLipSync: () => {
     model?.stopLipSync()
-  }
+  },
+  disablePassThrough,
+  enablePassThrough
 })
+</script>
+
+<script lang="ts">
+export default {
+  name: 'Live2DCanvas'
+}
 </script>
 
 <style scoped>

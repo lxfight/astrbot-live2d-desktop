@@ -276,7 +276,7 @@ const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { palette, sourceRgb } = storeToRefs(themeStore)
 
-const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
+const live2dCanvasRef = ref<any>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 
 let audioEndResolvers: Array<() => void> = []

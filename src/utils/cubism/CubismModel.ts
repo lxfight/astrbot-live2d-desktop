@@ -134,6 +134,10 @@ export class CubismModel {
   private modelMatrix: CubismModelMatrix | null = null
   private projectionMatrix: CubismMatrix44 = new CubismMatrix44()
 
+  // 位置相关
+  private modelX: number = 0
+  private modelY: number = 0
+
   // 纹理
   private textures: WebGLTexture[] = []
 
@@ -1067,6 +1071,37 @@ export class CubismModel {
 
     return x >= bounds.left && x <= bounds.right &&
            y >= bounds.top && y <= bounds.bottom
+  }
+
+  // ============================================================================
+  // 位置管理方法
+  // ============================================================================
+
+  /**
+   * 设置模型位置
+   */
+  setModelPosition(x: number, y: number): void {
+    this.modelX = x
+    this.modelY = y
+    
+    // 重新设置模型变换
+    if (this.isInitialized) {
+      this.setupModelTransform({ x, y })
+    }
+    
+    console.log('[CubismModel] 模型位置已设置:', { x, y })
+  }
+
+  /**
+   * 获取模型位置
+   */
+  getModelPosition(): { x: number; y: number } | null {
+    if (!this.isInitialized) return null
+    
+    return {
+      x: this.modelX,
+      y: this.modelY
+    }
   }
 
   // ============================================================================
