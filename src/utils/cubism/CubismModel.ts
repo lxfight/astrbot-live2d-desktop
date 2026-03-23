@@ -39,6 +39,7 @@ import {
   getPhysicsPath,
   getPosePath
 } from './CubismCore'
+import { createCubismAllocator } from './CubismAllocator'
 
 // ============================================================================
 // 类型定义
@@ -86,6 +87,10 @@ export { CubismModelSettingJson, type ICubismModelSetting }
  * 提供 Live2D 模型的完整功能
  */
 export class CubismModel {
+  private static frameworkStarted = false
+  private static frameworkInitialized = false
+  private static allocator = createCubismAllocator()
+
   // WebGL 上下文
   private gl: WebGLRenderingContext | null = null
   private canvas: HTMLCanvasElement | null = null
@@ -154,6 +159,7 @@ export class CubismModel {
    * 构造函数
    */
   constructor() {
+    CubismModel.ensureFrameworkReady()
     console.log('[CubismModel] 构造函数')
   }
 
@@ -164,6 +170,21 @@ export class CubismModel {
     const instance = new CubismModel()
     await instance.load(modelPath)
     return instance
+  }
+
+  private static ensureFrameworkReady(): void {
+    if (!CubismModel.frameworkStarted) {
+      CubismFramework.startUp({
+        logFunction: console.log.bind(console),
+        loggingLevel: 1
+      } as any)
+      CubismModel.frameworkStarted = true
+    }
+
+    if (!CubismModel.frameworkInitialized) {
+      CubismFramework.initialize()
+      CubismModel.frameworkInitialized = true
+    }
   }
 
   // ============================================================================
@@ -1180,7 +1201,16 @@ export class CubismModel {
    */
   static destroyGlobal(): void {
     console.log('[CubismModel] 销毁全局资源')
-    CubismFramework.dispose()
+
+    if (CubismModel.frameworkInitialized) {
+      CubismFramework.dispose()
+      CubismModel.frameworkInitialized = false
+    }
+
+    if (CubismModel.frameworkStarted) {
+      CubismFramework.cleanUp()
+      CubismModel.frameworkStarted = false
+    }
   }
 }
 
