@@ -188,36 +188,6 @@ function handleMouseDown(event: MouseEvent) {
       modelOffsetY = position.y
     }
 
-/**
- * 处理鼠标按下
- */
-function handleMouseDown(event: MouseEvent) {
-  // 如果处于完全穿透模式，不处理任何鼠标事件
-  if (isFullPassThroughMode) return
-
-  const rect = canvasRef.value?.getBoundingClientRect()
-  if (!rect || !model) return
-
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
-
-  // 检查是否点击到模型（使用优化的检测方法）
-  const hitModel = isPointInModel(x, y)
-
-  // 左键开始拖动
-  if (event.button === 0 && hitModel) {
-    isDragging = false // 先标记为未拖动，等移动超过阈值再标记
-    isDragStartedOnModel = true // 标记拖动从模型上开始
-    dragStartX = event.clientX
-    dragStartY = event.clientY
-
-    // 获取当前模型位置
-    const position = model.getModelPosition()
-    if (position) {
-      modelOffsetX = position.x
-      modelOffsetY = position.y
-    }
-
     event.preventDefault()
   }
 }
