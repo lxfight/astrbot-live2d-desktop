@@ -1,0 +1,7 @@
+--- a/src/framework/motion/cubismmotion.ts
++++ b/src/framework/motion/cubismmotion.ts
+@@
+-    this._eyeBlinkParameterIds = null;
+-    this._lipSyncParameterIds = null;
++    this._eyeBlinkParameterIds = [];
++    this._lipSyncParameterIds = [];
