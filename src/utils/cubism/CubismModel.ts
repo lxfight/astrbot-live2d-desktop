@@ -128,8 +128,8 @@ export class CubismModel {
   private lipSyncValue: number = 0
   private lipSyncParamId: string = 'ParamMouthOpenY'
 
-  // 眼睛注视相关
-  private dragManager: CubismTargetPoint = new CubismTargetPoint()
+  private eyeBlinkIds: string[] = []
+  private lipSyncIds: string[] = []
 
   // 动画相关
   private lastUpdateTime: number = 0
@@ -265,26 +265,29 @@ export class CubismModel {
       this.motionManager = new CubismMotionManager()
       this.expressionManager = new CubismExpressionMotionManager()
 
-      // 步骤3：加载表情
+      // 步骤3：初始化眨眼与口型参数 ID
+      this.initializeEffectIds()
+
+      // 步骤4：加载表情
       this.state = LoadStep.LoadExpression
       await this.loadExpressions()
 
-      // 步骤4：加载物理
+      // 步骤5：加载物理
       this.state = LoadStep.LoadPhysics
       await this.loadPhysics()
 
-      // 步骤5：加载姿势
+      // 步骤6：加载姿势
       this.state = LoadStep.LoadPose
       await this.loadPose()
 
-      // 步骤6：加载动作
+      // 步骤7：加载动作
       this.state = LoadStep.LoadMotion
       await this.loadMotions()
 
-      // 步骤7：设置眼睛眨动
+      // 步骤8：设置眼睛眨动
       this.eyeBlink = CubismEyeBlink.create(this.modelSetting)
 
-      // 步骤8：设置呼吸效果
+      // 步骤9：设置呼吸效果
       this.breath = CubismBreath.create()
       this.breath.setParameters([
         {
@@ -344,6 +347,28 @@ export class CubismModel {
       throw new Error(`无法加载文件: ${filePath} (${response.status})`)
     }
     return await response.arrayBuffer()
+  }
+
+  private initializeEffectIds(): void {
+    if (!this.modelSetting) return
+
+    const eyeBlinkCount = this.modelSetting.getEyeBlinkParameterCount()
+    this.eyeBlinkIds = []
+    for (let i = 0; i < eyeBlinkCount; i++) {
+      const id = this.modelSetting.getEyeBlinkParameterId(i)
+      if (id) {
+        this.eyeBlinkIds.push(id as unknown as string)
+      }
+    }
+
+    const lipSyncCount = this.modelSetting.getLipSyncParameterCount()
+    this.lipSyncIds = []
+    for (let i = 0; i < lipSyncCount; i++) {
+      const id = this.modelSetting.getLipSyncParameterId(i)
+      if (id) {
+        this.lipSyncIds.push(id as unknown as string)
+      }
+    }
   }
 
   /**
@@ -460,6 +485,7 @@ export class CubismModel {
         try {
           const motionBuffer = await this.loadFileAsArrayBuffer(motionPath)
           const motion = CubismMotion.create(motionBuffer, motionBuffer.byteLength)
+          motion.setEffectIds(this.eyeBlinkIds, this.lipSyncIds)
           motions.push({
             file: motionFileName,
             motion
@@ -593,6 +619,7 @@ export class CubismModel {
       if (this.renderer) {
         this.renderer.startUp(this.gl)
         this.renderer.setIsPremultipliedAlpha(true)
+        this.renderer.loadShaders('/framework/rendering/')
       }
     }
 
@@ -759,16 +786,26 @@ export class CubismModel {
     this.gl.clearColor(0, 0, 0, 0)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT)
 
-    // 设置视口
+    // 设置视口与渲染状态
     if (this.canvas) {
+      const viewport = [0, 0, this.canvas.width, this.canvas.height]
+      this.renderer.setRenderState(null as any, viewport)
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
     }
 
+    // 组合 projection × modelMatrix
+    const mvpMatrix = new CubismMatrix44()
+    mvpMatrix.loadIdentity()
+    mvpMatrix.setMatrix(this.projectionMatrix.getArray())
+    if (this.modelMatrix) {
+      mvpMatrix.multiplyByMatrix(this.modelMatrix)
+    }
+
     // 设置投影矩阵
-    this.renderer.setMvpMatrix(this.projectionMatrix)
+    this.renderer.setMvpMatrix(mvpMatrix)
 
     // 渲染模型
-    this.renderer.drawModel()
+    this.renderer.drawModel('/framework/rendering/')
   }
 
   // ============================================================================
