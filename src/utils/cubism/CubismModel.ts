@@ -592,6 +592,7 @@ export class CubismModel {
 
       if (this.renderer) {
         this.renderer.startUp(this.gl)
+        this.renderer.setIsPremultipliedAlpha(true)
       }
     }
 

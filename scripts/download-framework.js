@@ -107,16 +107,20 @@ function copyDirectory(src, dest) {
     if (entry.isDirectory()) {
       // 递归复制子目录
       copyDirectory(srcPath, destPath)
-    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-      // 只复制 TypeScript 文件，并添加 @ts-nocheck
-      let content = fs.readFileSync(srcPath, 'utf-8')
-      
-      // 如果文件还没有 @ts-nocheck，则添加
-      if (!content.includes('@ts-nocheck')) {
-        content = '// @ts-nocheck\n' + content
+    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.vert') || entry.name.endsWith('.frag'))) {
+      if (entry.name.endsWith('.ts')) {
+        // 只为 TypeScript 文件添加 @ts-nocheck
+        let content = fs.readFileSync(srcPath, 'utf-8')
+
+        if (!content.includes('@ts-nocheck')) {
+          content = '// @ts-nocheck\n' + content
+        }
+
+        fs.writeFileSync(destPath, content)
+      } else {
+        // 保留 shader 原始内容
+        fs.copyFileSync(srcPath, destPath)
       }
-      
-      fs.writeFileSync(destPath, content)
     }
   }
 }
