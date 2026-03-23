@@ -4,10 +4,36 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import type { PlatformCapabilities } from '@/types/electron'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
+let renderFrameId: number | null = null
+
+function stopRenderLoop() {
+  if (renderFrameId !== null) {
+    cancelAnimationFrame(renderFrameId)
+    renderFrameId = null
+  }
+}
+
+function startRenderLoop() {
+  stopRenderLoop()
+
+  const renderFrame = () => {
+    if (!model) {
+      renderFrameId = null
+      return
+    }
+
+    model.update()
+    model.render()
+    renderFrameId = requestAnimationFrame(renderFrame)
+  }
+
+  renderFrame()
+}
 
 const emit = defineEmits<{
   modelLoaded: []
@@ -36,6 +62,7 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     // 如果有旧模型，先销毁（仅移除模型，保留 Application）
     if (model) {
       console.log('[Live2D] 移除旧模型...')
+      stopRenderLoop()
       model.destroy()
       model = null
     }
@@ -43,8 +70,10 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     // 加载新模型
     model = await Live2DModel.from(modelPath)
 
-    // 初始化或更新 WebGL（复用 Application），传入初始位置
+    // 初始化 WebGL 并启动渲染循环，传入初始位置
     model.initWebGL(canvasRef.value, initialPosition)
+    await model.loadTextures()
+    startRenderLoop()
 
     console.log('[Live2D] 模型加载成功')
     emit('modelLoaded')
@@ -443,6 +472,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopRenderLoop()
+
   if (model) {
     model.destroy()
     model = null
