@@ -21,6 +21,7 @@ import {
   CubismMatrix44,
   CubismModelMatrix,
   CubismTargetPoint,
+  CubismDefaultParameterId,
   type ICubismModelSetting
 } from '../../framework'
 
@@ -285,6 +286,43 @@ export class CubismModel {
 
       // 步骤8：设置呼吸效果
       this.breath = CubismBreath.create()
+      this.breath.setParameters([
+        {
+          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleX),
+          offset: 0.0,
+          peak: 15.0,
+          cycle: 6.5345,
+          weight: 0.5
+        },
+        {
+          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleY),
+          offset: 0.0,
+          peak: 8.0,
+          cycle: 3.5345,
+          weight: 0.5
+        },
+        {
+          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleZ),
+          offset: 0.0,
+          peak: 10.0,
+          cycle: 5.5345,
+          weight: 0.5
+        },
+        {
+          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBodyAngleX),
+          offset: 0.0,
+          peak: 4.0,
+          cycle: 15.5345,
+          weight: 0.5
+        },
+        {
+          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBreath),
+          offset: 0.5,
+          peak: 0.5,
+          cycle: 3.2345,
+          weight: 0.5
+        }
+      ])
 
       this.state = LoadStep.CompleteSetup
       this.isInitialized = true
