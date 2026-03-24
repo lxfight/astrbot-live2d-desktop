@@ -3,7 +3,7 @@
 > [!WARNING]
 > 本文档为历史状态记录，内容已过时。
 > 当前代码已迁移到 **官方 Cubism SDK for Web 5-r.4** 基线，并移除了旧 `pixi-live2d-display` 运行时与相关依赖。
-> 以当前代码与验证结果（`pnpm test` / `pnpm run typecheck` / `pnpm run build:prepare`）为准。
+> 当前说明请改看：[`CUBISM_RUNTIME.zh-CN.md`](./CUBISM_RUNTIME.zh-CN.md)
 
 ## 当前状态：🟡 历史记录（已过时）
 

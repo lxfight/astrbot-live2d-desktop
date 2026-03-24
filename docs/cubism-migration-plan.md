@@ -3,7 +3,7 @@
 > [!WARNING]
 > 本文档为历史迁移方案，已不代表当前实现。
 > 当前仓库已统一到 **官方 Cubism SDK for Web 5-r.4**，不再保留 `pixi-live2d-display` 默认实现，也不再采用双栈兼容策略。
-> 以当前代码、`package.json` 中的 `cubism` 配置和 `.sisyphus/plans/live2d-official-sdk-migration.md` 为准。
+> 当前说明请改看：[`CUBISM_RUNTIME.zh-CN.md`](./CUBISM_RUNTIME.zh-CN.md)
 
 ## 一、技术选型
 

@@ -50,7 +50,8 @@
 ### 7. framework 修复策略
 - 优先修我们自己的接入层
 - framework 例外修复仅通过 patch 机制
-- 不直接提交 `src/framework/`
+- framework 生成到 `.generated/cubism-framework/`，不直接提交到 `src/`
+- Core 与 framework 版本统一由 `package.json` 的 `cubism` 配置约束
 
 ## 分阶段实施
 
@@ -77,7 +78,7 @@
 - `electron/ipc/model.ts`
 - `scripts/download-framework.js`
 - `scripts/apply-cubism-framework-patches.mjs`
-- `scripts/patches/*.patch`
+- `scripts/cubism-config.js`
 
 ## 验证标准
 
