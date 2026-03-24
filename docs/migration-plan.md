@@ -1,5 +1,10 @@
 # Live2D Cubism SDK 迁移计划
 
+> [!WARNING]
+> 本文档为历史迁移草案，已过时。
+> 当前实际基线已切换为 **官方 Cubism SDK for Web 5-r.4**，且旧 `pixi-live2d-display` 回退链已移除。
+> 以 `.sisyphus/plans/live2d-official-sdk-migration.md` 与当前代码实现为准。
+
 ## 项目概述
 
 **项目名称**: astrbot-live2d-desktop  

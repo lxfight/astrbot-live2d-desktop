@@ -4,7 +4,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import type { PlatformCapabilities } from '@/types/electron'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 
 const canvasRef = ref<HTMLCanvasElement>()
@@ -172,9 +171,9 @@ let isDragging = false
 let isDragStartedOnModel = false // 标记拖动是否从模型上开始
 let dragStartX = 0
 let dragStartY = 0
-let modelOffsetX = 0
-let modelOffsetY = 0
-const DRAG_THRESHOLD = 5 // 拖动阈值（像素）
+let cursorOffsetX = 0
+let cursorOffsetY = 0
+const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
 let isFullPassThroughMode = false // 是否处于完全穿透模式
 let supportsDynamicPassThrough = true
@@ -213,8 +212,8 @@ function handleMouseDown(event: MouseEvent) {
     // 获取当前模型位置
     const position = model.getModelPosition()
     if (position) {
-      modelOffsetX = position.x
-      modelOffsetY = position.y
+      cursorOffsetX = x - position.x
+      cursorOffsetY = y - position.y
     }
 
     event.preventDefault()
@@ -232,24 +231,30 @@ function handleMouseMove(event: MouseEvent) {
 
   // 只有当拖动从模型上开始时才允许拖动
   if (event.buttons === 1 && isDragStartedOnModel) {
+    const rect = canvasRef.value?.getBoundingClientRect()
+    if (!rect) return
+
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
     const deltaX = event.clientX - dragStartX
     const deltaY = event.clientY - dragStartY
 
     // 判断是否超过拖动阈值
-    if (!isDragging && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
+    if (!isDragging && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
       isDragging = true
     }
 
     // 如果正在拖动，更新模型位置
     if (isDragging) {
-      const newX = modelOffsetX + deltaX
-      const newY = modelOffsetY + deltaY
+      const newX = pointerX - cursorOffsetX
+      const newY = pointerY - cursorOffsetY
       model.setModelPosition(newX, newY)
+      const actualPosition = model.getModelPosition()
 
       // 发射模型位置变化事件
       emit('modelPositionChanged', {
-        x: newX,
-        y: newY
+        x: actualPosition?.x ?? newX,
+        y: actualPosition?.y ?? newY
       })
 
       event.preventDefault()

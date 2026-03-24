@@ -12,6 +12,20 @@
     "live2d",
     "astrbot"
   ],
+  "cubism": {
+    "sdkBaseline": "5-r.4",
+    "frameworkRepo": "https://github.com/Live2D/CubismWebFramework.git",
+    "frameworkTag": "5-r.4",
+    "frameworkCommit": "8df84780f2aa1298f3b30965cdae143e049f3c8e",
+    "samplesRepo": "https://github.com/Live2D/CubismWebSamples.git",
+    "samplesTag": "5-r.4",
+    "samplesCommit": "435707a4676c19de754a8a557638450f889dcd2c",
+    "core": {
+      "filename": "live2dcubismcore.min.js",
+      "downloadUrl": "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
+      "runtimeSource": "official-sdk-download"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
@@ -78,15 +92,12 @@
     "extract-file-icon": "^0.3.2",
     "howler": "^2.2.3",
     "katex": "^0.16.28",
-    "live2dcubismcore": "^1.0.2",
     "lucide-vue-next": "^0.563.0",
     "marked": "^17.0.1",
     "naive-ui": "^2.37.0",
     "node-addon-api": "^2.0.0",
     "node-gyp-build": "^4.8.4",
     "pinia": "^2.1.0",
-    "pixi-live2d-display": "^0.4.0",
-    "pixi.js": "^7.4.3",
     "simplex-noise": "^4.0.3",
     "uuid": "^9.0.0",
     "vue": "^3.4.0",
@@ -139,7 +150,6 @@
       "!dist/models/**/node_modules/**",
       "!dist/models/**/{test,tests,__tests__,example,examples}/**",
       "!dist/models/package.json/**",
-      "!dist/models/pixi-live2d-display/**",
       "!dist/models/temp/**",
       "!dist/wakeword/**",
       "!**/*.map",

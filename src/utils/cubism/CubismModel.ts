@@ -7,6 +7,7 @@
 
 import {
   CubismFramework,
+  Option,
   CubismUserModel,
   CubismModelSettingJson,
   CubismRenderer_WebGL,
@@ -23,7 +24,12 @@ import {
   CubismTargetPoint,
   CubismDefaultParameterId,
   type ICubismModelSetting
-} from '../../framework'
+} from '@cubism-framework'
+import { LogLevel } from '@cubism-framework/live2dcubismframework'
+import type { CubismIdHandle } from '@cubism-framework/id/cubismid'
+import { csmVector } from '@cubism-framework/type/csmvector'
+import { csmMap } from '@cubism-framework/type/csmmap'
+import { BreathParameterData } from '@cubism-framework/effect/cubismbreath'
 
 import type {
   CubismModelInfo,
@@ -40,7 +46,6 @@ import {
   getPhysicsPath,
   getPosePath
 } from './CubismCore'
-import { createCubismAllocator } from './CubismAllocator'
 
 // ============================================================================
 // 类型定义
@@ -90,7 +95,6 @@ export { CubismModelSettingJson, type ICubismModelSetting }
 export class CubismModel {
   private static frameworkStarted = false
   private static frameworkInitialized = false
-  private static allocator = createCubismAllocator()
 
   // WebGL 上下文
   private gl: WebGLRenderingContext | null = null
@@ -128,8 +132,8 @@ export class CubismModel {
   private lipSyncValue: number = 0
   private lipSyncParamId: string = 'ParamMouthOpenY'
 
-  private eyeBlinkIds: string[] = []
-  private lipSyncIds: string[] = []
+  private eyeBlinkIds: CubismIdHandle[] = []
+  private lipSyncIds: CubismIdHandle[] = []
 
   // 动画相关
   private lastUpdateTime: number = 0
@@ -139,6 +143,7 @@ export class CubismModel {
   // 矩阵
   private modelMatrix: CubismModelMatrix | null = null
   private projectionMatrix: CubismMatrix44 = new CubismMatrix44()
+  private dragManager: CubismTargetPoint = new CubismTargetPoint()
 
   // 位置相关
   private modelX: number = 0
@@ -150,6 +155,7 @@ export class CubismModel {
   // 动作和表情文件
   private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion }>> = new Map()
   private expressionFiles: Array<{ name: string; file: string; expression?: CubismExpressionMotion }> = []
+  private hitAreaNames: string[] = []
 
   // 性能监控
   private frameCount: number = 0
@@ -175,10 +181,10 @@ export class CubismModel {
 
   private static ensureFrameworkReady(): void {
     if (!CubismModel.frameworkStarted) {
-      CubismFramework.startUp({
-        logFunction: console.log.bind(console),
-        loggingLevel: 1
-      } as any)
+      const option = new Option()
+      option.logFunction = console.log.bind(console)
+      option.loggingLevel = LogLevel.LogLevel_Info
+      CubismFramework.startUp(option)
       CubismModel.frameworkStarted = true
     }
 
@@ -287,45 +293,55 @@ export class CubismModel {
       // 步骤8：设置眼睛眨动
       this.eyeBlink = CubismEyeBlink.create(this.modelSetting)
 
+      const userDataFileName = this.modelSetting.getUserDataFile()
+      if (userDataFileName) {
+        try {
+          const userDataBuffer = await this.loadFileAsArrayBuffer(this.modelHomeDir + userDataFileName)
+          this.userModel.loadUserData(userDataBuffer, userDataBuffer.byteLength)
+        } catch (error) {
+          console.warn('[CubismModel] 用户数据加载失败:', error)
+        }
+      }
+
       // 步骤9：设置呼吸效果
       this.breath = CubismBreath.create()
-      this.breath.setParameters([
-        {
-          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleX),
-          offset: 0.0,
-          peak: 15.0,
-          cycle: 6.5345,
-          weight: 0.5
-        },
-        {
-          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleY),
-          offset: 0.0,
-          peak: 8.0,
-          cycle: 3.5345,
-          weight: 0.5
-        },
-        {
-          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleZ),
-          offset: 0.0,
-          peak: 10.0,
-          cycle: 5.5345,
-          weight: 0.5
-        },
-        {
-          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBodyAngleX),
-          offset: 0.0,
-          peak: 4.0,
-          cycle: 15.5345,
-          weight: 0.5
-        },
-        {
-          parameterId: CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBreath),
-          offset: 0.5,
-          peak: 0.5,
-          cycle: 3.2345,
-          weight: 0.5
-        }
-      ])
+      const breathParameters = new csmVector<BreathParameterData>()
+      breathParameters.pushBack(new BreathParameterData(
+        CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleX),
+        0.0,
+        15.0,
+        6.5345,
+        0.5
+      ))
+      breathParameters.pushBack(new BreathParameterData(
+        CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleY),
+        0.0,
+        8.0,
+        3.5345,
+        0.5
+      ))
+      breathParameters.pushBack(new BreathParameterData(
+        CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamAngleZ),
+        0.0,
+        10.0,
+        5.5345,
+        0.5
+      ))
+      breathParameters.pushBack(new BreathParameterData(
+        CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBodyAngleX),
+        0.0,
+        4.0,
+        15.5345,
+        0.5
+      ))
+      breathParameters.pushBack(new BreathParameterData(
+        CubismFramework.getIdManager().getId(CubismDefaultParameterId.ParamBreath),
+        0.5,
+        0.5,
+        3.2345,
+        0.5
+      ))
+      this.breath.setParameters(breathParameters)
 
       this.state = LoadStep.CompleteSetup
       this.isInitialized = true
@@ -357,7 +373,7 @@ export class CubismModel {
     for (let i = 0; i < eyeBlinkCount; i++) {
       const id = this.modelSetting.getEyeBlinkParameterId(i)
       if (id) {
-        this.eyeBlinkIds.push(id as unknown as string)
+        this.eyeBlinkIds.push(id)
       }
     }
 
@@ -366,8 +382,12 @@ export class CubismModel {
     for (let i = 0; i < lipSyncCount; i++) {
       const id = this.modelSetting.getLipSyncParameterId(i)
       if (id) {
-        this.lipSyncIds.push(id as unknown as string)
+        this.lipSyncIds.push(id)
       }
+    }
+
+    if (this.lipSyncIds.length > 0) {
+      this.lipSyncParamId = this.lipSyncIds[0].getString().s
     }
   }
 
@@ -394,7 +414,9 @@ export class CubismModel {
 
       try {
         const expressionBuffer = await this.loadFileAsArrayBuffer(expressionPath)
-        const expression = CubismExpressionMotion.create(expressionBuffer, expressionBuffer.byteLength)
+        const expression = this.userModel
+          ? this.userModel.loadExpression(expressionBuffer, expressionBuffer.byteLength, name) as CubismExpressionMotion
+          : CubismExpressionMotion.create(expressionBuffer, expressionBuffer.byteLength)
         this.expressionFiles.push({
           name,
           file: expressionFileName,
@@ -469,6 +491,12 @@ export class CubismModel {
     }
 
     console.log(`[CubismModel] 加载 ${motionGroupCount} 个动作组`)
+    this.hitAreaNames = []
+
+    const hitAreaCount = this.modelSetting.getHitAreasCount()
+    for (let i = 0; i < hitAreaCount; i++) {
+      this.hitAreaNames.push(this.modelSetting.getHitAreaName(i))
+    }
 
     for (let i = 0; i < motionGroupCount; i++) {
       const groupName = this.modelSetting.getMotionGroupName(i)
@@ -484,8 +512,26 @@ export class CubismModel {
 
         try {
           const motionBuffer = await this.loadFileAsArrayBuffer(motionPath)
-          const motion = CubismMotion.create(motionBuffer, motionBuffer.byteLength)
-          motion.setEffectIds(this.eyeBlinkIds, this.lipSyncIds)
+          const motion = this.userModel
+            ? this.userModel.loadMotion(
+                motionBuffer,
+                motionBuffer.byteLength,
+                `${groupName}_${j}`,
+                undefined,
+                undefined,
+                this.modelSetting,
+                groupName,
+                j,
+                false
+              )
+            : CubismMotion.create(motionBuffer, motionBuffer.byteLength)
+          if (motion) {
+            const eyeBlinkIds = new csmVector<CubismIdHandle>()
+            const lipSyncIds = new csmVector<CubismIdHandle>()
+            this.eyeBlinkIds.forEach((id) => eyeBlinkIds.pushBack(id))
+            this.lipSyncIds.forEach((id) => lipSyncIds.pushBack(id))
+            motion.setEffectIds(eyeBlinkIds, lipSyncIds)
+          }
           motions.push({
             file: motionFileName,
             motion
@@ -516,6 +562,8 @@ export class CubismModel {
 
     console.log(`[CubismModel] 加载 ${textureCount} 个纹理`)
 
+    const failedTextures: string[] = []
+
     for (let i = 0; i < textureCount; i++) {
       const textureFileName = this.modelSetting.getTextureFileName(i)
       if (!textureFileName) continue
@@ -534,7 +582,12 @@ export class CubismModel {
         console.log(`[CubismModel] 纹理 ${i} 加载完成: ${texturePath}`)
       } catch (error) {
         console.warn(`[CubismModel] 纹理加载失败: ${texturePath}`, error)
+        failedTextures.push(texturePath)
       }
+    }
+
+    if (failedTextures.length > 0) {
+      throw new Error(`纹理加载失败: ${failedTextures.join(', ')}`)
     }
   }
 
@@ -558,6 +611,7 @@ export class CubismModel {
           }
 
           this.gl!.bindTexture(this.gl!.TEXTURE_2D, texture)
+          this.gl!.pixelStorei(this.gl!.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1)
           this.gl!.texImage2D(
             this.gl!.TEXTURE_2D,
             0,
@@ -572,6 +626,7 @@ export class CubismModel {
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_WRAP_T, this.gl!.CLAMP_TO_EDGE)
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MIN_FILTER, this.gl!.LINEAR)
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MAG_FILTER, this.gl!.LINEAR)
+          this.gl!.bindTexture(this.gl!.TEXTURE_2D, null)
 
           resolve(texture)
         } catch (error) {
@@ -601,7 +656,15 @@ export class CubismModel {
     this.canvas = canvas
 
     // 获取 WebGL 上下文
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    const contextAttributes: WebGLContextAttributes = {
+      alpha: true,
+      premultipliedAlpha: true,
+      antialias: true,
+      preserveDrawingBuffer: false
+    }
+    const gl = canvas.getContext('webgl2', contextAttributes)
+      || canvas.getContext('webgl', contextAttributes)
+      || canvas.getContext('experimental-webgl', contextAttributes)
     if (!gl) {
       throw new Error('无法获取 WebGL 上下文')
     }
@@ -613,18 +676,18 @@ export class CubismModel {
 
     // 创建渲染器
     if (this.userModel) {
-      this.userModel.createRenderer(canvas.width, canvas.height)
+      this.userModel.createRenderer()
       this.renderer = this.userModel.getRenderer() as CubismRenderer_WebGL
 
       if (this.renderer) {
         this.renderer.startUp(this.gl)
         this.renderer.setIsPremultipliedAlpha(true)
-        this.renderer.loadShaders('/framework/rendering/')
       }
     }
 
     // 设置模型初始位置和大小
     this.setupModelTransform(initialPosition)
+    this.lastUpdateTime = performance.now() / 1000
 
     this.isInitialized = true
     console.log('[CubismModel] WebGL 初始化完成')
@@ -642,37 +705,115 @@ export class CubismModel {
     // 获取模型矩阵
     this.modelMatrix = this.userModel.getModelMatrix()
 
-    // 计算模型缩放
     const model = this.userModel.getModel()
-    const modelWidth = model ? model.getCanvasWidth() : 1
-    const modelHeight = model ? model.getCanvasHeight() : 1
 
-    const scale = Math.min(
-      width / modelWidth,
-      height / modelHeight
-    ) * 0.3 // 缩放系数：0.3 = 占屏幕 30%
+    this.projectionMatrix.loadIdentity()
+    if (model && model.getCanvasWidth() > 1.0 && width < height) {
+      this.projectionMatrix.scale(1.0, width / height)
+    } else {
+      this.projectionMatrix.scale(height / width, 1.0)
+    }
 
     // 设置模型矩阵
     if (this.modelMatrix) {
       this.modelMatrix.loadIdentity()
-      this.modelMatrix.scale(scale, scale)
 
-      // 设置模型位置
+      const layout = new csmMap<string, number>()
+      const hasLayout = this.modelSetting?.getLayoutMap(layout) ?? false
+
+      if (hasLayout) {
+        this.modelMatrix.setupFromLayout(layout)
+      } else if (model && model.getCanvasWidth() > 1.0 && width < height) {
+        this.modelMatrix.setWidth(0.72)
+      } else {
+        this.modelMatrix.setHeight(0.72)
+      }
+
       if (initialPosition) {
-        const centerX = (initialPosition.x - width / 2) / scale
-        const centerY = (height - initialPosition.y - height / 2) / scale
-        this.modelMatrix.translate(centerX, centerY)
+        this.modelX = initialPosition.x
+        this.modelY = initialPosition.y
+        this.modelMatrix.centerX(this.pixelToLogicalX(initialPosition.x))
+        this.modelMatrix.centerY(this.pixelToLogicalY(initialPosition.y))
         console.log('[CubismModel] 使用保存的位置:', initialPosition)
       } else {
+        this.modelX = width / 2
+        this.modelY = height / 2
+        this.modelMatrix.centerX(0)
+        this.modelMatrix.centerY(0)
         console.log('[CubismModel] 使用默认中心位置')
       }
     }
 
-    // 设置投影矩阵
-    this.projectionMatrix.loadIdentity()
-    this.projectionMatrix.scale(width / 2, height / 2)
+    console.log(`[CubismModel] 模型变换设置完成: 画布=${width}x${height}`)
+  }
 
-    console.log(`[CubismModel] 模型变换设置完成: 缩放=${scale.toFixed(2)}, 画布=${width}x${height}`)
+  private pixelToLogicalX(pixelX: number): number {
+    if (!this.canvas) return 0
+    const screenX = (pixelX / this.canvas.width) * 2 - 1
+    return this.projectionMatrix.invertTransformX(screenX)
+  }
+
+  private pixelToLogicalY(pixelY: number): number {
+    if (!this.canvas) return 0
+    const screenY = 1 - (pixelY / this.canvas.height) * 2
+    return this.projectionMatrix.invertTransformY(screenY)
+  }
+
+  private logicalToPixelX(logicalX: number): number {
+    if (!this.canvas) return logicalX
+    return (logicalX + 1) * this.canvas.width * 0.5
+  }
+
+  private logicalToPixelY(logicalY: number): number {
+    if (!this.canvas) return logicalY
+    return (1 - logicalY) * this.canvas.height * 0.5
+  }
+
+  private getRenderMatrix(): CubismMatrix44 {
+    const matrix = new CubismMatrix44()
+    matrix.loadIdentity()
+    matrix.setMatrix(this.projectionMatrix.getArray())
+    if (this.modelMatrix) {
+      matrix.multiplyByMatrix(this.modelMatrix)
+    }
+    return matrix
+  }
+
+  private getDrawableBounds(drawableIndex: number, matrix: CubismMatrix44): ModelBounds | null {
+    if (!this.userModel) return null
+
+    const model = this.userModel.getModel()
+    const vertexCount = model.getDrawableVertexCount(drawableIndex)
+    const vertices = model.getDrawableVertices(drawableIndex)
+    let left = Number.POSITIVE_INFINITY
+    let right = Number.NEGATIVE_INFINITY
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+
+    for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+      const rawX = vertices[vertexIndex * 2]
+      const rawY = vertices[vertexIndex * 2 + 1]
+      const transformedX = this.logicalToPixelX(matrix.transformX(rawX))
+      const transformedY = this.logicalToPixelY(matrix.transformY(rawY))
+
+      left = Math.min(left, transformedX)
+      right = Math.max(right, transformedX)
+      top = Math.min(top, transformedY)
+      bottom = Math.max(bottom, transformedY)
+    }
+
+    if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
+      return null
+    }
+
+    return {
+      left,
+      right,
+      top,
+      bottom,
+      width: right - left,
+      height: bottom - top
+    }
   }
 
   // ============================================================================
@@ -697,42 +838,42 @@ export class CubismModel {
     // 更新拖拽管理器
     this.dragManager.update(deltaTimeSeconds)
 
-    // 保存参数
-    this.userModel.getModel().saveParameters()
+    const model = this.userModel.getModel()
+    model.loadParameters()
 
-    // 更新动作
+    let motionUpdated = false
     if (this.motionManager) {
       if (this.motionManager.isFinished()) {
         // 播放随机待机动作
-        this.startRandomMotion('Idle', MotionPriority.Idle)
-      } else {
-        this.motionManager.updateMotion(this.userModel.getModel(), deltaTimeSeconds)
+        if (this.motionGroups.has('Idle')) {
+          this.startRandomMotion('Idle', MotionPriority.Idle)
+        }
       }
+      motionUpdated = this.motionManager.updateMotion(model, deltaTimeSeconds)
+    }
+
+    if (!motionUpdated && this.eyeBlink) {
+      this.eyeBlink.updateParameters(model, deltaTimeSeconds)
     }
 
     // 更新表情
     if (this.expressionManager) {
-      this.expressionManager.updateMotion(this.userModel.getModel(), deltaTimeSeconds)
-    }
-
-    // 更新眼睛眨动
-    if (this.eyeBlink) {
-      this.eyeBlink.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+      this.expressionManager.updateMotion(model, deltaTimeSeconds)
     }
 
     // 更新呼吸效果
     if (this.breath) {
-      this.breath.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+      this.breath.updateParameters(model, deltaTimeSeconds)
     }
 
     // 更新物理
     if (this.physics) {
-      this.physics.evaluate(this.userModel.getModel(), deltaTimeSeconds)
+      this.physics.evaluate(model, deltaTimeSeconds)
     }
 
     // 更新姿势
     if (this.pose) {
-      this.pose.updateParameters(this.userModel.getModel(), deltaTimeSeconds)
+      this.pose.updateParameters(model, deltaTimeSeconds)
     }
 
     // 更新眼睛注视
@@ -740,7 +881,6 @@ export class CubismModel {
     const dragY = this.dragManager.getY()
 
     // 设置角度参数
-    const model = this.userModel.getModel()
     model.addParameterValueById('ParamAngleX', dragX * 30)
     model.addParameterValueById('ParamAngleY', dragY * 30)
     model.addParameterValueById('ParamAngleZ', dragX * dragY * -30)
@@ -754,7 +894,8 @@ export class CubismModel {
     }
 
     // 更新模型
-    this.userModel.getModel().update()
+    model.saveParameters()
+    model.update()
 
     // 更新 FPS
     this.updateFps()
@@ -789,23 +930,19 @@ export class CubismModel {
     // 设置视口与渲染状态
     if (this.canvas) {
       const viewport = [0, 0, this.canvas.width, this.canvas.height]
-      this.renderer.setRenderState(null as any, viewport)
+      const frameBuffer = this.gl.getParameter(this.gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null
+      this.renderer.setRenderState(frameBuffer, viewport)
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
     }
 
     // 组合 projection × modelMatrix
-    const mvpMatrix = new CubismMatrix44()
-    mvpMatrix.loadIdentity()
-    mvpMatrix.setMatrix(this.projectionMatrix.getArray())
-    if (this.modelMatrix) {
-      mvpMatrix.multiplyByMatrix(this.modelMatrix)
-    }
+    const mvpMatrix = this.getRenderMatrix()
 
     // 设置投影矩阵
     this.renderer.setMvpMatrix(mvpMatrix)
 
     // 渲染模型
-    this.renderer.drawModel('/framework/rendering/')
+    this.renderer.drawModel()
   }
 
   // ============================================================================
@@ -1053,19 +1190,36 @@ export class CubismModel {
     if (!this.canvas || !this.userModel) return null
 
     const model = this.userModel.getModel()
-    const modelWidth = model ? model.getCanvasWidth() : 200
-    const modelHeight = model ? model.getCanvasHeight() : 200
+    const drawableCount = model.getDrawableCount()
+    const renderMatrix = this.getRenderMatrix()
+    let left = Number.POSITIVE_INFINITY
+    let right = Number.NEGATIVE_INFINITY
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
 
-    const centerX = this.canvas.width / 2
-    const centerY = this.canvas.height / 2
+    for (let drawableIndex = 0; drawableIndex < drawableCount; drawableIndex++) {
+      const bounds = this.getDrawableBounds(drawableIndex, renderMatrix)
+      if (!bounds) {
+        continue
+      }
+
+      left = Math.min(left, bounds.left)
+      right = Math.max(right, bounds.right)
+      top = Math.min(top, bounds.top)
+      bottom = Math.max(bottom, bounds.bottom)
+    }
+
+    if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
+      return null
+    }
 
     return {
-      left: centerX - modelWidth / 2,
-      right: centerX + modelWidth / 2,
-      top: centerY - modelHeight / 2,
-      bottom: centerY + modelHeight / 2,
-      width: modelWidth,
-      height: modelHeight
+      left,
+      right,
+      top,
+      bottom,
+      width: right - left,
+      height: bottom - top
     }
   }
 
@@ -1163,11 +1317,28 @@ export class CubismModel {
    * 检查点是否在模型内
    */
   isPointInModel(x: number, y: number): boolean {
+    if (!this.userModel || !this.modelSetting) return false
+
+    const renderMatrix = this.getRenderMatrix()
+    const model = this.userModel.getModel()
+    const hitAreaCount = this.modelSetting.getHitAreasCount()
+    for (let i = 0; i < hitAreaCount; i++) {
+      const hitAreaId = this.modelSetting.getHitAreaId(i)
+      const drawableIndex = model.getDrawableIndex(hitAreaId)
+      if (drawableIndex < 0) {
+        continue
+      }
+
+      const bounds = this.getDrawableBounds(drawableIndex, renderMatrix)
+      if (bounds && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom) {
+        return true
+      }
+    }
+
     const bounds = this.getModelBounds()
     if (!bounds) return false
 
-    return x >= bounds.left && x <= bounds.right &&
-           y >= bounds.top && y <= bounds.bottom
+    return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
   }
 
   // ============================================================================
@@ -1180,13 +1351,40 @@ export class CubismModel {
   setModelPosition(x: number, y: number): void {
     this.modelX = x
     this.modelY = y
-    
-    // 重新设置模型变换
+
     if (this.isInitialized) {
       this.setupModelTransform({ x, y })
+
+      if (this.canvas) {
+        const margin = 24
+        const bounds = this.getModelBounds()
+
+        if (bounds) {
+          let adjustedX = this.modelX
+          let adjustedY = this.modelY
+
+          if (bounds.left < margin) {
+            adjustedX += margin - bounds.left
+          } else if (bounds.right > this.canvas.width - margin) {
+            adjustedX -= bounds.right - (this.canvas.width - margin)
+          }
+
+          if (bounds.top < margin) {
+            adjustedY += margin - bounds.top
+          } else if (bounds.bottom > this.canvas.height - margin) {
+            adjustedY -= bounds.bottom - (this.canvas.height - margin)
+          }
+
+          if (adjustedX !== this.modelX || adjustedY !== this.modelY) {
+            this.modelX = adjustedX
+            this.modelY = adjustedY
+            this.setupModelTransform({ x: adjustedX, y: adjustedY })
+          }
+        }
+      }
     }
-    
-    console.log('[CubismModel] 模型位置已设置:', { x, y })
+
+    console.log('[CubismModel] 模型位置已设置:', { x: this.modelX, y: this.modelY })
   }
 
   /**
@@ -1219,7 +1417,10 @@ export class CubismModel {
     }
 
     // 重新设置模型变换
-    this.setupModelTransform()
+    this.setupModelTransform({
+      x: this.modelX || width / 2,
+      y: this.modelY || height / 2
+    })
 
     console.log(`[CubismModel] 画布大小调整为: ${width}x${height}`)
   }
@@ -1248,14 +1449,12 @@ export class CubismModel {
     }
 
     // 释放渲染器
-    if (this.renderer) {
-      this.renderer = null
-    }
-
-    // 释放用户模型
     if (this.userModel) {
+      this.userModel.release()
       this.userModel = null
     }
+
+    this.renderer = null
 
     // 重置状态
     this.isInitialized = false
@@ -1268,6 +1467,7 @@ export class CubismModel {
     this.pose = null
     this.motionGroups.clear()
     this.expressionFiles = []
+    this.hitAreaNames = []
 
     console.log('[CubismModel] 模型销毁完成')
   }

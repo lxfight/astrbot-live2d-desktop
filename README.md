@@ -33,7 +33,7 @@
 | 状态管理 | Pinia |
 | 图表 | ECharts |
 | 数据存储 | Better-SQLite3 |
-| Live2D | pixi-live2d-display |
+| Live2D | 官方 Cubism SDK for Web（5-r.4 基线） |
 
 ## 用户快速开始
 
@@ -160,7 +160,6 @@ astrbot-live2d-desktop/
 
 - [AstrBot](https://github.com/Soulter/AstrBot)
 - [astrbot_plugin_live2d_adapter](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
-- [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [Live2D Cubism SDK](https://www.live2d.com/download/cubism-sdk/)
 
 ## License

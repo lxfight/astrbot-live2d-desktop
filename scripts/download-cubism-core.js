@@ -9,11 +9,14 @@ import http from 'http'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { readCubismConfig } from './cubism-config.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const cubismConfig = readCubismConfig()
 
 const PUBLIC_LIB_DIR = path.join(__dirname, '..', 'public', 'lib')
+const CORE_METADATA_PATH = path.join(PUBLIC_LIB_DIR, 'live2dcubismcore.version.json')
 
 // 确保目录存在
 if (!fs.existsSync(PUBLIC_LIB_DIR)) {
@@ -25,9 +28,9 @@ if (!fs.existsSync(PUBLIC_LIB_DIR)) {
 // 官方 CDN 会自动提供最新版本
 const files = [
   {
-    name: 'live2dcubismcore.min.js',
-    url: 'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
-    description: 'Cubism Core (最新版本)'
+    name: cubismConfig.core.filename,
+    url: cubismConfig.core.downloadUrl,
+    description: `Cubism Core (${cubismConfig.sdkBaseline})`
   }
 ]
 
@@ -79,7 +82,7 @@ function downloadFile(url, dest) {
  * 主函数
  */
 async function main() {
-  console.log('[Cubism Core] 开始下载...\n')
+  console.log(`[Cubism Core] 开始下载 ${cubismConfig.sdkBaseline} 基线 Core...\n`)
 
   // 清理已停用的 Cubism 2 Core 文件，避免被打包再分发
   const deprecatedCorePath = path.join(PUBLIC_LIB_DIR, 'live2d.min.js')
@@ -110,6 +113,19 @@ async function main() {
       process.exit(1)
     }
   }
+
+  fs.writeFileSync(CORE_METADATA_PATH, JSON.stringify({
+    sdkBaseline: cubismConfig.sdkBaseline,
+    frameworkTag: cubismConfig.frameworkTag,
+    frameworkCommit: cubismConfig.frameworkCommit,
+    samplesTag: cubismConfig.samplesTag,
+    samplesCommit: cubismConfig.samplesCommit,
+    downloadUrl: cubismConfig.core.downloadUrl,
+    runtimeSource: cubismConfig.core.runtimeSource,
+    generatedAt: new Date().toISOString()
+  }, null, 2))
+
+  console.log(`[写入] ${path.basename(CORE_METADATA_PATH)}`)
 
   console.log('\n[Cubism Core] 下载完成')
 }

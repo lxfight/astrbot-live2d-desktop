@@ -5,10 +5,55 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { app, dialog, net, protocol } from 'electron'
 
-const CUBISM_CORE_URL = 'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js'
-const CUBISM_CORE_FILENAME = 'live2dcubismcore.min.js'
 const CUBISM_PROTOCOL_SCHEME = 'cubism'
-const CUBISM_PROTOCOL_URL = `${CUBISM_PROTOCOL_SCHEME}://core/${CUBISM_CORE_FILENAME}`
+
+type CubismRuntimeConfig = {
+  sdkBaseline: string
+  core: {
+    filename: string
+    downloadUrl: string
+  }
+}
+
+let cachedCubismConfig: CubismRuntimeConfig | null = null
+
+function getPackageJsonPath(): string {
+  if (!app.isPackaged) {
+    return path.join(process.cwd(), 'package.json')
+  }
+
+  return path.join(app.getAppPath(), 'package.json')
+}
+
+function getCubismRuntimeConfig(): CubismRuntimeConfig {
+  if (cachedCubismConfig) {
+    return cachedCubismConfig
+  }
+
+  const packageJsonPath = getPackageJsonPath()
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as {
+    cubism?: CubismRuntimeConfig
+  }
+
+  if (!packageJson.cubism?.core?.filename || !packageJson.cubism?.core?.downloadUrl) {
+    throw new Error(`package.json 中缺少 cubism.core 配置: ${packageJsonPath}`)
+  }
+
+  cachedCubismConfig = packageJson.cubism
+  return cachedCubismConfig
+}
+
+function getCubismCoreFilename(): string {
+  return getCubismRuntimeConfig().core.filename
+}
+
+function getCubismCoreDownloadUrl(): string {
+  return getCubismRuntimeConfig().core.downloadUrl
+}
+
+function getCubismCoreProtocolRuntimeUrl(): string {
+  return `${CUBISM_PROTOCOL_SCHEME}://core/${getCubismCoreFilename()}`
+}
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -41,7 +86,7 @@ function getLegacyPackagedCubismCorePath(): string | null {
     return null
   }
 
-  return path.join(app.getAppPath(), 'dist', 'lib', CUBISM_CORE_FILENAME)
+  return path.join(app.getAppPath(), 'dist', 'lib', getCubismCoreFilename())
 }
 
 function getCubismCoreCandidatePaths(): string[] {
@@ -81,18 +126,18 @@ function ensureDestinationDirectory(dest: string): void {
  */
 export function getCubismCorePath(): string {
   if (!app.isPackaged) {
-    return path.join(process.cwd(), 'public', 'lib', CUBISM_CORE_FILENAME)
+    return path.join(process.cwd(), 'public', 'lib', getCubismCoreFilename())
   }
 
   if (isPortableMode()) {
-    return path.join(getPortableDataDir(), 'lib', CUBISM_CORE_FILENAME)
+    return path.join(getPortableDataDir(), 'lib', getCubismCoreFilename())
   }
 
-  return path.join(app.getPath('userData'), 'lib', CUBISM_CORE_FILENAME)
+  return path.join(app.getPath('userData'), 'lib', getCubismCoreFilename())
 }
 
 export function getCubismCoreProtocolUrl(): string {
-  return CUBISM_PROTOCOL_URL
+  return getCubismCoreProtocolRuntimeUrl()
 }
 
 export function registerCubismCoreProtocol(): void {
@@ -187,7 +232,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
  */
 export async function downloadCubismCore(): Promise<void> {
   const corePath = getCubismCorePath()
-  await downloadFile(CUBISM_CORE_URL, corePath)
+  await downloadFile(getCubismCoreDownloadUrl(), corePath)
 }
 
 /**
@@ -195,11 +240,11 @@ export async function downloadCubismCore(): Promise<void> {
  */
 export async function showDownloadDialog(): Promise<boolean> {
   const result = await dialog.showMessageBox({
-    type: 'info',
-    title: 'Live2D SDK 下载',
-    message: '首次使用需要下载 Live2D Cubism SDK',
-    detail: '应用需要下载 Live2D Cubism Core 文件才能正常运行。\n\n该文件来自 Live2D 官方网站，仅用于本地渲染。\n\n点击"确定"开始下载（约 200KB）。',
-    buttons: ['确定', '取消'],
+     type: 'info',
+     title: 'Live2D SDK 下载',
+     message: '首次使用需要下载 Live2D Cubism SDK',
+     detail: `应用需要下载 Live2D Cubism Core 文件才能正常运行。\n\n当前基线：${getCubismRuntimeConfig().sdkBaseline}\n来源：${getCubismCoreDownloadUrl()}\n\n点击"确定"开始下载（约 200KB）。`,
+     buttons: ['确定', '取消'],
     defaultId: 0,
     cancelId: 1
   })

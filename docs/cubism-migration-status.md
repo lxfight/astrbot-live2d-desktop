@@ -1,6 +1,11 @@
 # Live2D Cubism SDK 迁移状态
 
-## 当前状态：🔴 进行中
+> [!WARNING]
+> 本文档为历史状态记录，内容已过时。
+> 当前代码已迁移到 **官方 Cubism SDK for Web 5-r.4** 基线，并移除了旧 `pixi-live2d-display` 运行时与相关依赖。
+> 以当前代码与验证结果（`pnpm test` / `pnpm run typecheck` / `pnpm run build:prepare`）为准。
+
+## 当前状态：🟡 历史记录（已过时）
 
 迁移工作正在进行中，基础架构已经搭建完成。
 

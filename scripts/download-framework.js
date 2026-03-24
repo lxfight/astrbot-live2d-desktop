@@ -1,27 +1,29 @@
 /**
  * 下载和复制 Cubism Framework 源码
- * 从 Live2D 官方 GitHub 仓库下载最新的 Framework 源码
+ * 从 Live2D 官方 GitHub 仓库下载固定版本 Framework 到源码目录外
  * 
- * 注意：Framework 源码不能放在项目仓库中，需要在构建时下载
+ * 注意：Framework 源码不能放在项目 src/ 中，需要在构建时下载到生成目录
  */
 
 import fs from 'fs'
 import path from 'path'
-import https from 'https'
-import http from 'http'
 import { fileURLToPath } from 'url'
 import { execSync } from 'child_process'
+import { readCubismConfig } from './cubism-config.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const PROJECT_ROOT = path.join(__dirname, '..')
-const FRAMEWORK_DIR = path.join(PROJECT_ROOT, 'src', 'framework')
+const GENERATED_ROOT = path.join(PROJECT_ROOT, '.generated', 'cubism-framework')
+const FRAMEWORK_DIR = path.join(GENERATED_ROOT, 'src')
+const LEGACY_FRAMEWORK_DIR = path.join(PROJECT_ROOT, 'src', 'framework')
 const TEMP_DIR = path.join(PROJECT_ROOT, '.temp')
 
-// GitHub 仓库配置
-// Framework 是 CubismWebSamples 的 submodule，直接从 CubismWebFramework 仓库下载
-const GITHUB_REPO = 'https://github.com/Live2D/CubismWebFramework.git'
+const cubismConfig = readCubismConfig()
+const FRAMEWORK_REPO = cubismConfig.frameworkRepo
+const FRAMEWORK_TAG = cubismConfig.frameworkTag
+const FRAMEWORK_COMMIT = cubismConfig.frameworkCommit
 
 // 强制重新下载
 const FORCE_DOWNLOAD = process.argv.includes('--force')
@@ -30,11 +32,12 @@ const FORCE_DOWNLOAD = process.argv.includes('--force')
 const FORCE_COPY = process.argv.includes('--force')
 
 /**
- * 从 GitHub 下载 Framework 源码
+ * 从固定版本下载 Framework 源码
  */
 function downloadFrameworkFromGitHub() {
-  console.log('[下载] 从 GitHub 下载 Cubism Framework...')
-  console.log(`[仓库] ${GITHUB_REPO}`)
+  console.log('[下载] 获取固定版本 Cubism Framework...')
+  console.log(`[仓库] ${FRAMEWORK_REPO}`)
+  console.log(`[版本] ${cubismConfig.sdkBaseline} / tag ${FRAMEWORK_TAG}`)
 
   // 创建临时目录
   if (!fs.existsSync(TEMP_DIR)) {
@@ -50,12 +53,21 @@ function downloadFrameworkFromGitHub() {
       fs.rmSync(tempRepoDir, { recursive: true, force: true })
     }
 
-    // 直接克隆 CubismWebFramework 仓库（浅克隆）
-    console.log('[下载] 克隆 CubismWebFramework 仓库...')
+    // 直接克隆固定 tag，避免 develop / HEAD 漂移
+    console.log('[下载] 克隆固定 tag 的 CubismWebFramework 仓库...')
     execSync(
-      `git clone --depth 1 ${GITHUB_REPO} "${tempRepoDir}"`,
+      `git clone --branch ${FRAMEWORK_TAG} --depth 1 ${FRAMEWORK_REPO} "${tempRepoDir}"`,
       { stdio: 'pipe', timeout: 180000 }
     )
+
+    const resolvedCommit = execSync('git rev-parse HEAD', {
+      cwd: tempRepoDir,
+      stdio: ['ignore', 'pipe', 'pipe']
+    }).toString().trim()
+
+    if (resolvedCommit !== FRAMEWORK_COMMIT) {
+      throw new Error(`Framework 版本校验失败：期望 ${FRAMEWORK_COMMIT}，实际 ${resolvedCommit}`)
+    }
 
     // 检查 src 目录是否存在
     const frameworkSrc = path.join(tempRepoDir, 'src')
@@ -142,6 +154,7 @@ function createIndexFile() {
  * CubismWebFramework 入口文件
  * 
  * 注意：此文件由 download-framework.js 自动生成
+ * 基线：Cubism SDK for Web ${cubismConfig.sdkBaseline}
  * 不要手动编辑此文件
  */
 
@@ -238,6 +251,11 @@ function showDownloadError() {
  * 主函数
  */
 async function main() {
+  if (fs.existsSync(LEGACY_FRAMEWORK_DIR)) {
+    console.log(`[清理] 删除旧源码目录中的 Framework 副本: ${LEGACY_FRAMEWORK_DIR}`)
+    removeDirectory(LEGACY_FRAMEWORK_DIR)
+  }
+
   // 如果目标目录已存在且不是强制模式，跳过
   if (fs.existsSync(FRAMEWORK_DIR) && !FORCE_DOWNLOAD) {
     console.log(`[Cubism Framework] ✓ Framework 已存在`)
@@ -251,7 +269,7 @@ async function main() {
     removeDirectory(FRAMEWORK_DIR)
   }
 
-  console.log('[Cubism Framework] 开始获取源码...\n')
+  console.log(`[Cubism Framework] 开始获取 ${cubismConfig.sdkBaseline} 基线源码...\n`)
 
   // 从 GitHub 下载 Framework
   const sourceDir = downloadFrameworkFromGitHub()

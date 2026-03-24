@@ -131,6 +131,17 @@ declare global {
           modelPath?: string;
           chosenFile?: string;
           modelFiles?: string[];
+          warnings?: string[];
+          manifest?: {
+            modelFile: string;
+            moc: string;
+            textures: string[];
+            motions: string[];
+            expressions: string[];
+            physics?: string;
+            pose?: string;
+            userData?: string;
+          };
           error?: string
         }>
         getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>

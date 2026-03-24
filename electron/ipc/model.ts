@@ -3,6 +3,7 @@ import { getMainWindow } from '../windows/mainWindow'
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cubismAssetManifest'
 
 /**
  * 获取模型存储目录
@@ -144,6 +145,16 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       return { success: false, error: '该文件夹内未找到 .model3.json 模型文件' }
     }
     const chosenModelFile = pickBestModelFile(sourceDir, modelFiles)
+    const validationResult = validateCubismModelAssets(chosenModelFile)
+    const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
+    const optionalIssues = validationResult.issues.filter((issue) => issue.severity === 'optional')
+
+    if (requiredIssues.length > 0) {
+      return {
+        success: false,
+        error: `模型资源不完整：${formatCubismAssetIssues(requiredIssues).join(', ')}`
+      }
+    }
 
     // 创建目标目录
     const modelsDir = getModelsDir()
@@ -167,7 +178,9 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       success: true,
       modelPath,
       chosenFile: relChosen,
-      modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f)))
+      modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f))),
+      warnings: formatCubismAssetIssues(optionalIssues),
+      manifest: validationResult.manifest
     }
   } catch (error: any) {
     console.error('[IPC] 导入模型失败:', error)

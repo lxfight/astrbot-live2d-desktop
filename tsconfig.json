@@ -19,10 +19,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@electron/*": ["electron/*"]
+      "@electron/*": ["electron/*"],
+      "@cubism-framework": [".generated/cubism-framework/src/index.ts"],
+      "@cubism-framework/*": [".generated/cubism-framework/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "electron/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "electron/**/*.ts", ".generated/cubism-framework/src/**/*.ts"],
   "exclude": ["src/framework/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

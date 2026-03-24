@@ -2,15 +2,26 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const projectRoot = process.cwd()
+const frameworkRoot = '.generated/cubism-framework/src'
 
 const patches = [
   {
     name: 'cubismmotion-effect-ids',
-    file: 'src/framework/motion/cubismmotion.ts',
+    file: `${frameworkRoot}/motion/cubismmotion.ts`,
     replacements: [
       {
         oldString: '    this._eyeBlinkParameterIds = null;\n    this._lipSyncParameterIds = null;\n',
         newString: '    this._eyeBlinkParameterIds = [];\n    this._lipSyncParameterIds = [];\n'
+      }
+    ]
+  },
+  {
+    name: 'cubismrenderer-null-framebuffer',
+    file: `${frameworkRoot}/rendering/cubismrenderer_webgl.ts`,
+    replacements: [
+      {
+        oldString: '  public setRenderState(fbo: WebGLFramebuffer, viewport: number[]): void {\n',
+        newString: '  public setRenderState(fbo: WebGLFramebuffer | null, viewport: number[]): void {\n'
       }
     ]
   }
