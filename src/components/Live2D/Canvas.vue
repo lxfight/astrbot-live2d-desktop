@@ -4,10 +4,35 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Live2DModel } from '@/utils/Live2DModel'
+import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
+let renderFrameId: number | null = null
+
+function stopRenderLoop() {
+  if (renderFrameId !== null) {
+    cancelAnimationFrame(renderFrameId)
+    renderFrameId = null
+  }
+}
+
+function startRenderLoop() {
+  stopRenderLoop()
+
+  const renderFrame = () => {
+    if (!model) {
+      renderFrameId = null
+      return
+    }
+
+    model.update()
+    model.render()
+    renderFrameId = requestAnimationFrame(renderFrame)
+  }
+
+  renderFrame()
+}
 
 const emit = defineEmits<{
   modelLoaded: []
@@ -36,6 +61,7 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     // 如果有旧模型，先销毁（仅移除模型，保留 Application）
     if (model) {
       console.log('[Live2D] 移除旧模型...')
+      stopRenderLoop()
       model.destroy()
       model = null
     }
@@ -43,8 +69,10 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     // 加载新模型
     model = await Live2DModel.from(modelPath)
 
-    // 初始化或更新 WebGL（复用 Application），传入初始位置
+    // 初始化 WebGL 并启动渲染循环，传入初始位置
     model.initWebGL(canvasRef.value, initialPosition)
+    await model.loadTextures()
+    startRenderLoop()
 
     console.log('[Live2D] 模型加载成功')
     emit('modelLoaded')
@@ -113,9 +141,8 @@ function playRandomMotion() {
  * 设置模型位置
  */
 function setModelPosition(x: number, y: number) {
-  if (!model || !model.pixiModel) return
-  model.pixiModel.x = x
-  model.pixiModel.y = y
+  if (!model) return
+  model.setModelPosition(x, y)
   console.log('[Live2D] 模型位置已设置:', { x, y })
 }
 
@@ -123,11 +150,8 @@ function setModelPosition(x: number, y: number) {
  * 获取模型位置
  */
 function getModelPosition(): { x: number; y: number } | null {
-  if (!model || !model.pixiModel) return null
-  return {
-    x: model.pixiModel.x,
-    y: model.pixiModel.y
-  }
+  if (!model) return null
+  return model.getModelPosition()
 }
 
 function getModelBounds(): {
@@ -138,22 +162,8 @@ function getModelBounds(): {
   width: number
   height: number
 } | null {
-  if (!model || !model.pixiModel) return null
-
-  const modelSprite = model.pixiModel
-  const width = modelSprite.width
-  const height = modelSprite.height
-  const anchorX = modelSprite.anchor?.x ?? 0.5
-  const anchorY = modelSprite.anchor?.y ?? 0.5
-
-  return {
-    left: modelSprite.x - width * anchorX,
-    right: modelSprite.x + width * (1 - anchorX),
-    top: modelSprite.y - height * anchorY,
-    bottom: modelSprite.y + height * (1 - anchorY),
-    width,
-    height,
-  }
+  if (!model) return null
+  return model.getModelBounds()
 }
 
 // 拖动相关状态
@@ -161,35 +171,19 @@ let isDragging = false
 let isDragStartedOnModel = false // 标记拖动是否从模型上开始
 let dragStartX = 0
 let dragStartY = 0
-let modelOffsetX = 0
-let modelOffsetY = 0
-const DRAG_THRESHOLD = 5 // 拖动阈值（像素）
+let cursorOffsetX = 0
+let cursorOffsetY = 0
+const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
 let isFullPassThroughMode = false // 是否处于完全穿透模式
 let supportsDynamicPassThrough = true
 
 /**
- * 检查点是否在模型范围内（使用简单的矩形检测，避免 GPU ReadPixels）
+ * 检查点是否在模型内
  */
 function isPointInModel(x: number, y: number): boolean {
-  if (!model || !model.pixiModel) return false
-
-  const modelSprite = model.pixiModel
-  const modelX = modelSprite.x
-  const modelY = modelSprite.y
-  const modelWidth = modelSprite.width
-  const modelHeight = modelSprite.height
-  const anchorX = modelSprite.anchor?.x ?? 0.5
-  const anchorY = modelSprite.anchor?.y ?? 0.5
-
-  // 计算模型的边界框
-  const left = modelX - modelWidth * anchorX
-  const right = modelX + modelWidth * (1 - anchorX)
-  const top = modelY - modelHeight * anchorY
-  const bottom = modelY + modelHeight * (1 - anchorY)
-
-  // 简单的矩形碰撞检测
-  return x >= left && x <= right && y >= top && y <= bottom
+  if (!model) return false
+  return model.isPointInModel(x, y)
 }
 
 /**
@@ -216,9 +210,10 @@ function handleMouseDown(event: MouseEvent) {
     dragStartY = event.clientY
 
     // 获取当前模型位置
-    if (model.pixiModel) {
-      modelOffsetX = model.pixiModel.x
-      modelOffsetY = model.pixiModel.y
+    const position = model.getModelPosition()
+    if (position) {
+      cursorOffsetX = x - position.x
+      cursorOffsetY = y - position.y
     }
 
     event.preventDefault()
@@ -232,27 +227,34 @@ function handleMouseMove(event: MouseEvent) {
   // 如果处于完全穿透模式，不处理任何鼠标事件
   if (isFullPassThroughMode) return
 
-  if (!model || !model.pixiModel) return
+  if (!model) return
 
   // 只有当拖动从模型上开始时才允许拖动
   if (event.buttons === 1 && isDragStartedOnModel) {
+    const rect = canvasRef.value?.getBoundingClientRect()
+    if (!rect) return
+
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
     const deltaX = event.clientX - dragStartX
     const deltaY = event.clientY - dragStartY
 
     // 判断是否超过拖动阈值
-    if (!isDragging && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
+    if (!isDragging && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
       isDragging = true
     }
 
     // 如果正在拖动，更新模型位置
     if (isDragging) {
-      model.pixiModel.x = modelOffsetX + deltaX
-      model.pixiModel.y = modelOffsetY + deltaY
+      const newX = pointerX - cursorOffsetX
+      const newY = pointerY - cursorOffsetY
+      model.setModelPosition(newX, newY)
+      const actualPosition = model.getModelPosition()
 
       // 发射模型位置变化事件
       emit('modelPositionChanged', {
-        x: model.pixiModel.x,
-        y: model.pixiModel.y
+        x: actualPosition?.x ?? newX,
+        y: actualPosition?.y ?? newY
       })
 
       event.preventDefault()
@@ -309,7 +311,7 @@ function handleContextMenu(event: MouseEvent) {
     event.stopPropagation()
 
     // 发射右键点击事件，传递鼠标点击位置（屏幕坐标）
-    if (model && model.pixiModel) {
+    if (model) {
       emit('modelRightClick', {
         x: event.clientX,
         y: event.clientY
@@ -475,13 +477,15 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopRenderLoop()
+
   if (model) {
     model.destroy()
     model = null
   }
 
-  // 只在组件卸载时销毁整个 Application
-  Live2DModel.destroyApp()
+  // 销毁全局资源
+  // CubismModel.destroyGlobal()
 
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('mousedown', handleMouseDown)
@@ -497,17 +501,15 @@ onUnmounted(() => {
 // 暴露方法给父组件
 defineExpose({
   loadModel,
+  getModelInfo,
   playMotion,
   setExpression,
   playRandomMotion,
-  getModelInfo,
-  disablePassThrough,
-  enablePassThrough,
-  setModelPosition,
   getModelPosition,
+  setModelPosition,
   getModelBounds,
-  getTextureSources: () => model?.getTextureSources() || [],
   getTextureSource: () => model?.getTextureSource(),
+  getTextureSources: () => model?.getTextureSources() || [],
   startLipSync: (audioElement: HTMLAudioElement) => {
     if (model) {
       model.startLipSync(audioElement)
@@ -515,8 +517,16 @@ defineExpose({
   },
   stopLipSync: () => {
     model?.stopLipSync()
-  }
+  },
+  disablePassThrough,
+  enablePassThrough
 })
+</script>
+
+<script lang="ts">
+export default {
+  name: 'Live2DCanvas'
+}
 </script>
 
 <style scoped>

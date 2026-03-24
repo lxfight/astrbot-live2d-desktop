@@ -105,8 +105,10 @@ contextBridge.exposeInMainWorld('electron', {
     updateWatcherConfig: (config: any) => ipcRenderer.invoke('window:updateWatcherConfig', config),
     resetWatcherConfig: () => ipcRenderer.invoke('window:resetWatcherConfig'),
     onWindowEvent: (callback: (event: any) => void) => {
-      ipcRenderer.removeAllListeners('window:event')
-      ipcRenderer.on('window:event', (_event: any, event: any) => callback(event))
+      const listener = (_event: any, event: any) => callback(event)
+      ipcRenderer.on('window:event', listener)
+      // 返回取消订阅函数
+      return () => ipcRenderer.removeListener('window:event', listener)
     }
   },
 

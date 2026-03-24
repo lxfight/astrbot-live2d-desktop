@@ -309,6 +309,10 @@ import type { WindowEvent } from '../utils/windowWatcher'
 // 存储已注册的渲染进程
 const registeredRenderers = new Set<BrowserWindow>()
 
+// 全局事件监听器（只注册一次）
+let globalListenerRegistered = false
+let removeGlobalListener: (() => void) | null = null
+
 // 窗口事件监听器注册
 ipcMain.handle('window:startWatching', async (event) => {
   const window = BrowserWindow.fromWebContents(event.sender)
@@ -327,23 +331,30 @@ ipcMain.handle('window:startWatching', async (event) => {
     await watcher.start()
   }
   
-  // 添加事件监听器
-  const removeListener = watcher.onWindowEvent((windowEvent: WindowEvent) => {
-    // 向所有已注册的渲染进程发送事件
-    for (const renderer of registeredRenderers) {
-      if (!renderer.isDestroyed()) {
-        renderer.webContents.send('window:event', windowEvent)
+  // 只注册一次全局事件监听器
+  if (!globalListenerRegistered) {
+    globalListenerRegistered = true
+    removeGlobalListener = watcher.onWindowEvent((windowEvent: WindowEvent) => {
+      // 向所有已注册的渲染进程发送事件
+      for (const renderer of registeredRenderers) {
+        if (!renderer.isDestroyed()) {
+          renderer.webContents.send('window:event', windowEvent)
+        }
       }
-    }
-  })
+    })
+  }
   
-  // 窗口关闭时移除监听器
+  // 窗口关闭时移除渲染进程
   window.on('closed', () => {
     registeredRenderers.delete(window)
-    removeListener()
     
-    // 如果没有渲染进程了，停止监听器
+    // 如果没有渲染进程了，停止监听器并移除全局监听器
     if (registeredRenderers.size === 0) {
+      if (removeGlobalListener) {
+        removeGlobalListener()
+        removeGlobalListener = null
+        globalListenerRegistered = false
+      }
       watcher.stop()
     }
   })

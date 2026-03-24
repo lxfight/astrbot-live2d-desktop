@@ -12,6 +12,20 @@
     "live2d",
     "astrbot"
   ],
+  "cubism": {
+    "sdkBaseline": "5-r.4",
+    "frameworkRepo": "https://github.com/Live2D/CubismWebFramework.git",
+    "frameworkTag": "5-r.4",
+    "frameworkCommit": "8df84780f2aa1298f3b30965cdae143e049f3c8e",
+    "samplesRepo": "https://github.com/Live2D/CubismWebSamples.git",
+    "samplesTag": "5-r.4",
+    "samplesCommit": "435707a4676c19de754a8a557638450f889dcd2c",
+    "core": {
+      "filename": "live2dcubismcore.min.js",
+      "downloadUrl": "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
+      "runtimeSource": "official-sdk-download"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
@@ -21,7 +35,11 @@
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
     "rebuild": "node scripts/rebuild-native.js",
     "rebuild:optional": "node scripts/rebuild-native.js --optional",
-    "postinstall": "node scripts/rebuild-native.js --optional",
+    "cubism:patch": "node scripts/apply-cubism-framework-patches.mjs",
+    "postinstall": "node scripts/rebuild-native.js --optional && node scripts/download-cubism-core.js && node scripts/download-framework.js && node scripts/apply-cubism-framework-patches.mjs",
+    "setup:framework": "node scripts/download-framework.js",
+    "setup:framework:force": "node scripts/download-framework.js --force",
+    "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:prepare:fast": "pnpm exec vite build",
     "pack": "pnpm exec electron-builder --publish never",
@@ -40,6 +58,7 @@
     "build:ci:linux": "pnpm run build:prepare && pnpm run pack:linux"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
     "@types/uuid": "^10.0.0",
@@ -79,8 +98,6 @@
     "node-addon-api": "^2.0.0",
     "node-gyp-build": "^4.8.4",
     "pinia": "^2.1.0",
-    "pixi-live2d-display": "^0.4.0",
-    "pixi.js": "^7.4.3",
     "simplex-noise": "^4.0.3",
     "uuid": "^9.0.0",
     "vue": "^3.4.0",
@@ -133,7 +150,6 @@
       "!dist/models/**/node_modules/**",
       "!dist/models/**/{test,tests,__tests__,example,examples}/**",
       "!dist/models/package.json/**",
-      "!dist/models/pixi-live2d-display/**",
       "!dist/models/temp/**",
       "!dist/wakeword/**",
       "!**/*.map",

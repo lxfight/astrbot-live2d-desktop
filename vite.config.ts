@@ -5,6 +5,19 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'preserve-cubism-core-script',
+      enforce: 'pre',
+      transformIndexHtml: {
+        order: 'pre',
+        handler(html) {
+          return html.replace(
+            /<script\s+src="cubism:\/\/core\/live2dcubismcore\.min\.js"\s+data-cubism-core><\/script>/,
+            '<script src="cubism://core/live2dcubismcore.min.js"></script>'
+          )
+        }
+      }
+    },
     vue(),
     electron([
       {
@@ -44,7 +57,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@electron': resolve(__dirname, 'electron')
+      '@electron': resolve(__dirname, 'electron'),
+      '@cubism-framework': resolve(__dirname, '.generated/cubism-framework/src')
     }
   },
   css: {

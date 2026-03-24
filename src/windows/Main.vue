@@ -276,7 +276,7 @@ const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { palette, sourceRgb } = storeToRefs(themeStore)
 
-const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
+const live2dCanvasRef = ref<any>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 
 let audioEndResolvers: Array<() => void> = []
@@ -674,7 +674,8 @@ function updateStackPositions() {
 
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  const anchorX = modelPositionX
+  const overlayAnchor = resolveModelOverlayAnchor()
+  const anchorX = overlayAnchor.anchorX
   const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
 
   // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
@@ -695,7 +696,7 @@ function updateStackPositions() {
 
   const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
   const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
-  const idealAnchor = modelPositionY - BUBBLE_VERTICAL_OFFSET
+  const idealAnchor = overlayAnchor.statusTop - BUBBLE_VERTICAL_OFFSET
 
   let anchorBottom: number
   let finalHeights: number[]
@@ -979,6 +980,10 @@ async function handleImportModel() {
 
     if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
       showBaseEventStatus(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`, 'info')
+    }
+
+    if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
+      showModelStatus(`模型存在可降级资源缺失：${importResult.warnings.join('；')}`, 'warning', 5200)
     }
 
     // 加载模型，传入保存的位置（如果有）
