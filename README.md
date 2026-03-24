@@ -12,6 +12,7 @@
 
 - 详细使用教程：[`docs/USAGE_TUTORIAL.zh-CN.md`](./docs/USAGE_TUTORIAL.zh-CN.md)
 - 平台支持矩阵：[`docs/PLATFORM_SUPPORT.zh-CN.md`](./docs/PLATFORM_SUPPORT.zh-CN.md)
+- Cubism 接入说明：[`docs/CUBISM_RUNTIME.zh-CN.md`](./docs/CUBISM_RUNTIME.zh-CN.md)
 - 协议文档：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/API.md`
 - 适配器部署教程：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/TUTORIAL.zh-CN.md`
 
@@ -45,7 +46,7 @@
 - macOS: `AstrBot-Live2D-x.x.x-mac.dmg`
 - Linux: `AstrBot-Live2D-x.x.x-linux.AppImage`
 
-> 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
+> 首次启动时，应用会提示下载 Live2D Cubism Core 运行时文件（约 200KB），点击确定即可自动下载。
 
 ### 2) 准备服务端
 
@@ -78,6 +79,13 @@
 pnpm install
 ```
 
+安装阶段会自动：
+
+- 下载官方 Cubism Core 到 `public/lib/`
+- 从官方仓库拉取固定版本 framework
+- 生成 `.generated/cubism-framework/`
+- 应用项目本地 patch
+
 ### 常用命令
 
 ```bash
@@ -104,6 +112,8 @@ pnpm run typecheck
 - Windows 便携版：`astrbot-live2d-desktop-v<version>-portable-<arch>.exe`
 
 > 注意：构建产物不包含 Live2D Cubism SDK，应用首次启动时会提示用户下载。
+
+> 补充：仓库不会把官方 framework 源码直接放进 `src/`；当前接入细节见 `docs/CUBISM_RUNTIME.zh-CN.md`。
 
 ### 原生依赖构建说明（Windows）
 
