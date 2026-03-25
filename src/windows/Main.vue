@@ -311,7 +311,9 @@ let lastPerformReceiveTime = 0
 const NORMAL_TYPEWRITER_INTERVAL = 50
 const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_EDGE_PADDING = 16
-const BUBBLE_VERTICAL_OFFSET = 200
+const BUBBLE_MODEL_GAP = 14
+const STATUS_MODEL_GAP = 30
+const RECORDING_STATUS_GAP = 44
 const BUBBLE_GAP = 10          // 堆叠气泡间距 px
 const BUBBLE_STACK_MAX = 3     // 最大气泡数量
 const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
@@ -595,18 +597,18 @@ function getTierCSSMaxHeight(tier: number, vh: number): number {
 }
 
 function resolveModelOverlayAnchor() {
-  const modelBounds = live2dCanvasRef.value?.getModelBounds?.()
+  const modelBounds = live2dCanvasRef.value?.getModelOverlayBounds?.()
   if (modelBounds) {
-    const anchorX = (modelBounds.left + modelBounds.right) / 2
-    const statusTop = Math.max(18, modelBounds.top - 56)
-    const recordingTop = Math.max(18, statusTop - 52)
-    const inputTop = Math.min(modelBounds.bottom + 22, window.innerHeight - 76)
+    const statusTop = Math.max(18, modelBounds.topCenterY - STATUS_MODEL_GAP)
+    const recordingTop = Math.max(18, statusTop - RECORDING_STATUS_GAP)
+    const inputTop = Math.min(modelBounds.bottomCenterY + 22, window.innerHeight - 76)
 
     return {
-      anchorX,
+      anchorX: modelBounds.anchorX,
       statusTop,
       recordingTop,
       inputTop,
+      bubbleBottom: Math.max(18, modelBounds.topCenterY - BUBBLE_MODEL_GAP),
     }
   }
 
@@ -615,6 +617,7 @@ function resolveModelOverlayAnchor() {
     statusTop: Math.max(18, modelPositionY - 280),
     recordingTop: Math.max(18, modelPositionY - 330),
     inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
+    bubbleBottom: Math.max(18, modelPositionY - 130),
   }
 }
 
@@ -696,7 +699,7 @@ function updateStackPositions() {
 
   const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
   const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
-  const idealAnchor = overlayAnchor.statusTop - BUBBLE_VERTICAL_OFFSET
+  const idealAnchor = overlayAnchor.bubbleBottom
 
   let anchorBottom: number
   let finalHeights: number[]

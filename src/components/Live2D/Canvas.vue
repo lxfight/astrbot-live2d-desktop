@@ -166,6 +166,21 @@ function getModelBounds(): {
   return model.getModelBounds()
 }
 
+function getModelOverlayBounds(): {
+  left: number
+  right: number
+  top: number
+  bottom: number
+  width: number
+  height: number
+  anchorX: number
+  topCenterY: number
+  bottomCenterY: number
+} | null {
+  if (!model) return null
+  return model.getModelOverlayBounds()
+}
+
 // 拖动相关状态
 let isDragging = false
 let isDragStartedOnModel = false // 标记拖动是否从模型上开始
@@ -508,6 +523,7 @@ defineExpose({
   getModelPosition,
   setModelPosition,
   getModelBounds,
+  getModelOverlayBounds,
   getTextureSource: () => model?.getTextureSource(),
   getTextureSources: () => model?.getTextureSources() || [],
   startLipSync: (audioElement: HTMLAudioElement) => {

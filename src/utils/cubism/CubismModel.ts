@@ -34,6 +34,7 @@ import { BreathParameterData } from '@cubism-framework/effect/cubismbreath'
 import type {
   CubismModelInfo,
   ModelBounds,
+  ModelOverlayBounds,
   Position
 } from './index'
 
@@ -99,6 +100,8 @@ export class CubismModel {
   // WebGL 上下文
   private gl: WebGLRenderingContext | null = null
   private canvas: HTMLCanvasElement | null = null
+  private viewportWidth: number = 0
+  private viewportHeight: number = 0
 
   // Cubism Framework 对象
   private userModel: CubismUserModel | null = null
@@ -151,6 +154,8 @@ export class CubismModel {
 
   // 纹理
   private textures: WebGLTexture[] = []
+
+  private static readonly MODEL_BOUNDS_PADDING = 8
 
   // 动作和表情文件
   private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion }>> = new Map()
@@ -624,7 +629,13 @@ export class CubismModel {
           // 设置纹理参数
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_WRAP_S, this.gl!.CLAMP_TO_EDGE)
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_WRAP_T, this.gl!.CLAMP_TO_EDGE)
-          this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MIN_FILTER, this.gl!.LINEAR)
+          const canUseMipmaps = this.canUseMipmaps(image.width, image.height)
+          if (canUseMipmaps) {
+            this.gl!.generateMipmap(this.gl!.TEXTURE_2D)
+            this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MIN_FILTER, this.gl!.LINEAR_MIPMAP_LINEAR)
+          } else {
+            this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MIN_FILTER, this.gl!.LINEAR)
+          }
           this.gl!.texParameteri(this.gl!.TEXTURE_2D, this.gl!.TEXTURE_MAG_FILTER, this.gl!.LINEAR)
           this.gl!.bindTexture(this.gl!.TEXTURE_2D, null)
 
@@ -670,9 +681,7 @@ export class CubismModel {
     }
     this.gl = gl as WebGLRenderingContext
 
-    // 设置画布尺寸
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+    this.updateCanvasSize(window.innerWidth, window.innerHeight)
 
     // 创建渲染器
     if (this.userModel) {
@@ -699,8 +708,8 @@ export class CubismModel {
   private setupModelTransform(initialPosition?: Position): void {
     if (!this.canvas || !this.userModel) return
 
-    const width = this.canvas.width
-    const height = this.canvas.height
+    const width = this.getViewportWidth()
+    const height = this.getViewportHeight()
 
     // 获取模型矩阵
     this.modelMatrix = this.userModel.getModelMatrix()
@@ -748,25 +757,25 @@ export class CubismModel {
   }
 
   private pixelToLogicalX(pixelX: number): number {
-    if (!this.canvas) return 0
-    const screenX = (pixelX / this.canvas.width) * 2 - 1
+    const viewportWidth = this.getViewportWidth()
+    if (viewportWidth <= 0) return 0
+    const screenX = (pixelX / viewportWidth) * 2 - 1
     return this.projectionMatrix.invertTransformX(screenX)
   }
 
   private pixelToLogicalY(pixelY: number): number {
-    if (!this.canvas) return 0
-    const screenY = 1 - (pixelY / this.canvas.height) * 2
+    const viewportHeight = this.getViewportHeight()
+    if (viewportHeight <= 0) return 0
+    const screenY = 1 - (pixelY / viewportHeight) * 2
     return this.projectionMatrix.invertTransformY(screenY)
   }
 
   private logicalToPixelX(logicalX: number): number {
-    if (!this.canvas) return logicalX
-    return (logicalX + 1) * this.canvas.width * 0.5
+    return (logicalX + 1) * this.getViewportWidth() * 0.5
   }
 
   private logicalToPixelY(logicalY: number): number {
-    if (!this.canvas) return logicalY
-    return (1 - logicalY) * this.canvas.height * 0.5
+    return (1 - logicalY) * this.getViewportHeight() * 0.5
   }
 
   private getRenderMatrix(): CubismMatrix44 {
@@ -953,11 +962,13 @@ export class CubismModel {
    * 让模型注视指定屏幕坐标
    */
   focus(x: number, y: number): void {
-    if (!this.canvas) return
+    const viewportWidth = this.getViewportWidth()
+    const viewportHeight = this.getViewportHeight()
+    if (viewportWidth <= 0 || viewportHeight <= 0) return
 
     // 转换为标准化坐标 (-1 到 1)
-    const normalizedX = (x / this.canvas.width) * 2 - 1
-    const normalizedY = (y / this.canvas.height) * 2 - 1
+    const normalizedX = (x / viewportWidth) * 2 - 1
+    const normalizedY = (y / viewportHeight) * 2 - 1
 
     this.dragManager.set(normalizedX, normalizedY)
   }
@@ -1198,6 +1209,14 @@ export class CubismModel {
     let bottom = Number.NEGATIVE_INFINITY
 
     for (let drawableIndex = 0; drawableIndex < drawableCount; drawableIndex++) {
+      if (!model.getDrawableDynamicFlagIsVisible(drawableIndex)) {
+        continue
+      }
+
+      if (model.getDrawableOpacity(drawableIndex) <= 0.01) {
+        continue
+      }
+
       const bounds = this.getDrawableBounds(drawableIndex, renderMatrix)
       if (!bounds) {
         continue
@@ -1213,13 +1232,20 @@ export class CubismModel {
       return null
     }
 
+    return this.createPaddedBounds(left, right, top, bottom)
+  }
+
+  getModelOverlayBounds(): ModelOverlayBounds | null {
+    const bounds = this.getModelBounds()
+    if (!bounds) {
+      return null
+    }
+
     return {
-      left,
-      right,
-      top,
-      bottom,
-      width: right - left,
-      height: bottom - top
+      ...bounds,
+      anchorX: (bounds.left + bounds.right) * 0.5,
+      topCenterY: bounds.top,
+      bottomCenterY: bounds.bottom,
     }
   }
 
@@ -1329,6 +1355,14 @@ export class CubismModel {
         continue
       }
 
+      if (!model.getDrawableDynamicFlagIsVisible(drawableIndex)) {
+        continue
+      }
+
+      if (model.getDrawableOpacity(drawableIndex) <= 0.01) {
+        continue
+      }
+
       const bounds = this.getDrawableBounds(drawableIndex, renderMatrix)
       if (bounds && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom) {
         return true
@@ -1358,6 +1392,8 @@ export class CubismModel {
       if (this.canvas) {
         const margin = 24
         const bounds = this.getModelBounds()
+        const viewportWidth = this.getViewportWidth()
+        const viewportHeight = this.getViewportHeight()
 
         if (bounds) {
           let adjustedX = this.modelX
@@ -1365,14 +1401,14 @@ export class CubismModel {
 
           if (bounds.left < margin) {
             adjustedX += margin - bounds.left
-          } else if (bounds.right > this.canvas.width - margin) {
-            adjustedX -= bounds.right - (this.canvas.width - margin)
+          } else if (bounds.right > viewportWidth - margin) {
+            adjustedX -= bounds.right - (viewportWidth - margin)
           }
 
           if (bounds.top < margin) {
             adjustedY += margin - bounds.top
-          } else if (bounds.bottom > this.canvas.height - margin) {
-            adjustedY -= bounds.bottom - (this.canvas.height - margin)
+          } else if (bounds.bottom > viewportHeight - margin) {
+            adjustedY -= bounds.bottom - (viewportHeight - margin)
           }
 
           if (adjustedX !== this.modelX || adjustedY !== this.modelY) {
@@ -1409,12 +1445,7 @@ export class CubismModel {
   resize(width: number, height: number): void {
     if (!this.canvas) return
 
-    this.canvas.width = width
-    this.canvas.height = height
-
-    if (this.gl) {
-      this.gl.viewport(0, 0, width, height)
-    }
+    this.updateCanvasSize(width, height)
 
     // 重新设置模型变换
     this.setupModelTransform({
@@ -1423,6 +1454,69 @@ export class CubismModel {
     })
 
     console.log(`[CubismModel] 画布大小调整为: ${width}x${height}`)
+  }
+
+  private getViewportWidth(): number {
+    return this.viewportWidth || this.canvas?.clientWidth || this.canvas?.width || window.innerWidth
+  }
+
+  private getViewportHeight(): number {
+    return this.viewportHeight || this.canvas?.clientHeight || this.canvas?.height || window.innerHeight
+  }
+
+  private updateCanvasSize(width: number, height: number): void {
+    if (!this.canvas) return
+
+    const safeWidth = Math.max(1, Math.round(width))
+    const safeHeight = Math.max(1, Math.round(height))
+    const pixelRatio = typeof window === 'undefined' ? 1 : Math.max(window.devicePixelRatio || 1, 1)
+
+    this.viewportWidth = safeWidth
+    this.viewportHeight = safeHeight
+
+    this.canvas.style.width = `${safeWidth}px`
+    this.canvas.style.height = `${safeHeight}px`
+    this.canvas.width = Math.max(1, Math.round(safeWidth * pixelRatio))
+    this.canvas.height = Math.max(1, Math.round(safeHeight * pixelRatio))
+
+    if (this.gl) {
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
+    }
+  }
+
+  private canUseMipmaps(width: number, height: number): boolean {
+    if (!this.gl) {
+      return false
+    }
+
+    if (typeof WebGL2RenderingContext !== 'undefined' && this.gl instanceof WebGL2RenderingContext) {
+      return true
+    }
+
+    return this.isPowerOfTwo(width) && this.isPowerOfTwo(height)
+  }
+
+  private isPowerOfTwo(value: number): boolean {
+    return value > 0 && (value & (value - 1)) === 0
+  }
+
+  private createPaddedBounds(left: number, right: number, top: number, bottom: number): ModelBounds {
+    const viewportWidth = this.getViewportWidth()
+    const viewportHeight = this.getViewportHeight()
+    const padding = CubismModel.MODEL_BOUNDS_PADDING
+    const clampedLeft = Math.max(0, left - padding)
+    const clampedRight = Math.min(viewportWidth, right + padding)
+    const clampedTop = Math.max(0, top - padding)
+    const clampedBottom = Math.min(viewportHeight, bottom + padding)
+
+    return {
+      left: clampedLeft,
+      right: clampedRight,
+      top: clampedTop,
+      bottom: clampedBottom,
+      width: clampedRight - clampedLeft,
+      height: clampedBottom - clampedTop,
+    }
   }
 
   // ============================================================================
