@@ -55,6 +55,12 @@ export type ModelBounds = {
   height: number
 }
 
+export type ModelOverlayBounds = ModelBounds & {
+  anchorX: number
+  topCenterY: number
+  bottomCenterY: number
+}
+
 /**
  * 位置
  */
