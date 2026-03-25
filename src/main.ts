@@ -38,7 +38,16 @@ async function ensureCubismCoreLoaded(): Promise<void> {
 
 function waitForScriptLoad(script: HTMLScriptElement): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (script.dataset.loaded === 'true') {
+    const scriptReadyState = (script as HTMLScriptElement & { readyState?: string }).readyState
+
+    if (script.dataset.loaded === 'true' || typeof Live2DCubismCore !== 'undefined') {
+      script.dataset.loaded = 'true'
+      resolve()
+      return
+    }
+
+    if (scriptReadyState === 'complete' || scriptReadyState === 'loaded') {
+      script.dataset.loaded = 'true'
       resolve()
       return
     }

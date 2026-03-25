@@ -1457,11 +1457,21 @@ export class CubismModel {
   }
 
   private getViewportWidth(): number {
-    return this.viewportWidth || this.canvas?.clientWidth || this.canvas?.width || window.innerWidth
+    if (this.viewportWidth > 0) {
+      return this.viewportWidth
+    }
+
+    const canvasWidth = this.canvas?.clientWidth || this.canvas?.width || 0
+    return canvasWidth > 0 ? canvasWidth : 0
   }
 
   private getViewportHeight(): number {
-    return this.viewportHeight || this.canvas?.clientHeight || this.canvas?.height || window.innerHeight
+    if (this.viewportHeight > 0) {
+      return this.viewportHeight
+    }
+
+    const canvasHeight = this.canvas?.clientHeight || this.canvas?.height || 0
+    return canvasHeight > 0 ? canvasHeight : 0
   }
 
   private updateCanvasSize(width: number, height: number): void {
