@@ -311,7 +311,6 @@ let lastPerformReceiveTime = 0
 const NORMAL_TYPEWRITER_INTERVAL = 50
 const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
 const BUBBLE_EDGE_PADDING = 16
-const BUBBLE_MODEL_GAP = 14
 const STATUS_MODEL_GAP = 30
 const RECORDING_STATUS_GAP = 44
 const BUBBLE_GAP = 10          // 堆叠气泡间距 px
@@ -589,7 +588,7 @@ function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
 // ─── 堆叠定位 ────────────────────────────────────────────────────────────────
 
 // 各层级 CSS max-height 对应的 vh 系数（须与 CSS 保持一致）
-const TIER_VH_FACTORS = [0.40, 0.32, 0.24]
+const TIER_VH_FACTORS = [0.18, 0.26, 0.20]
 
 function getTierCSSMaxHeight(tier: number, vh: number): number {
   const factor = TIER_VH_FACTORS[Math.min(tier, 2)]
@@ -608,7 +607,7 @@ function resolveModelOverlayAnchor() {
       statusTop,
       recordingTop,
       inputTop,
-      bubbleBottom: Math.max(18, modelBounds.topCenterY - BUBBLE_MODEL_GAP),
+      bubbleBottom: statusTop,
     }
   }
 
@@ -617,7 +616,7 @@ function resolveModelOverlayAnchor() {
     statusTop: Math.max(18, modelPositionY - 280),
     recordingTop: Math.max(18, modelPositionY - 330),
     inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
-    bubbleBottom: Math.max(18, modelPositionY - 130),
+    bubbleBottom: Math.max(18, modelPositionY - 280),
   }
 }
 
@@ -2171,6 +2170,7 @@ onBeforeUnmount(() => {
 }
 
 .bubble {
+  --bubble-max-height: min(18vh, calc(100vh - 32px));
   position: absolute;
   background: rgba(26, 26, 26, 0.95);
   color: var(--color-text-primary);
@@ -2178,8 +2178,8 @@ onBeforeUnmount(() => {
   border-radius: var(--radius);
   font-size: 14px;
   width: max-content;
-  max-width: min(450px, calc(100vw - 32px));
-  max-height: min(40vh, calc(100vh - 32px));
+  max-width: min(560px, calc(100vw - 32px));
+  max-height: var(--bubble-max-height);
   box-shadow: var(--shadow-md);
   z-index: 100;
   overflow: hidden;
@@ -2192,25 +2192,26 @@ onBeforeUnmount(() => {
 }
 
 .bubble-tier-1 {
+  --bubble-max-height: min(26vh, calc(100vh - 32px));
   opacity: 0.72;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
   filter: blur(0.3px);
-  max-height: min(32vh, calc(100vh - 32px));
 }
 
 .bubble-tier-2 {
+  --bubble-max-height: min(20vh, calc(100vh - 32px));
   opacity: 0.48;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
   filter: blur(0.6px);
-  max-height: min(24vh, calc(100vh - 32px));
 }
 
 .bubble-content {
   overflow-y: auto;
   overflow-x: hidden;
+  max-height: calc(var(--bubble-max-height) - 24px);
   line-height: 1.6;
-  word-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
@@ -2220,7 +2221,7 @@ onBeforeUnmount(() => {
     margin: 12px 0 8px 0;
     font-weight: 600;
     line-height: 1.4;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   :deep(h1) { font-size: 1.6em; }
@@ -2230,8 +2231,8 @@ onBeforeUnmount(() => {
 
   :deep(p) {
     margin: 6px 0;
-    word-wrap: break-word;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   :deep(ul), :deep(ol) {
@@ -2241,8 +2242,8 @@ onBeforeUnmount(() => {
 
   :deep(li) {
     margin: 3px 0;
-    word-wrap: break-word;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   :deep(code) {
@@ -2274,7 +2275,7 @@ onBeforeUnmount(() => {
     padding-left: 10px;
     margin: 6px 0;
     color: var(--color-text-secondary);
-    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   :deep(a) {
