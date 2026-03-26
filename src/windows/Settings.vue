@@ -1781,9 +1781,41 @@ async function loadWatcherConfig() {
   }
 }
 
+function createWatcherConfigPayload(): WindowWatcherConfig {
+  return {
+    enabled: watcherConfig.value.enabled,
+    throttle: {
+      globalInterval: watcherConfig.value.throttle.globalInterval,
+      perWindowInterval: watcherConfig.value.throttle.perWindowInterval,
+      minInterval: watcherConfig.value.throttle.minInterval,
+    },
+    events: {
+      focus: watcherConfig.value.events.focus,
+      blur: watcherConfig.value.events.blur,
+      create: watcherConfig.value.events.create,
+      destroy: watcherConfig.value.events.destroy,
+      fullscreen: watcherConfig.value.events.fullscreen,
+      windowed: watcherConfig.value.events.windowed,
+      resize: watcherConfig.value.events.resize,
+      move: watcherConfig.value.events.move,
+      minimize: watcherConfig.value.events.minimize,
+      maximize: watcherConfig.value.events.maximize,
+      restore: watcherConfig.value.events.restore,
+    },
+    ignore: {
+      processNames: [...watcherConfig.value.ignore.processNames],
+      titleKeywords: [...watcherConfig.value.ignore.titleKeywords],
+    },
+    aiResponse: {
+      mode: watcherConfig.value.aiResponse.mode,
+      specificApps: [...watcherConfig.value.aiResponse.specificApps],
+    },
+  }
+}
+
 async function saveWatcherConfig() {
   try {
-    await window.electron.window.updateWatcherConfig(watcherConfig.value)
+    await window.electron.window.updateWatcherConfig(createWatcherConfigPayload())
     message.success('窗口监听配置已保存')
   } catch (error: any) {
     message.error(`保存失败: ${error.message}`)
