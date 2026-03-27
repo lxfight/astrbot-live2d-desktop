@@ -665,7 +665,7 @@ async function extractAndApplyModelTheme(modelPath: string) {
       return
     }
 
-    const extractedColor = await extractModelThemeColor(textureCanvases)
+    const extractedColor = extractModelThemeColor(textureCanvases)
     if (!extractedColor) {
       await sleep(300)
       continue
