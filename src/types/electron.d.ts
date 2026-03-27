@@ -6,6 +6,9 @@ import type {
   WindowEvent as _WindowEvent, 
   WindowWatcherConfig as _WindowWatcherConfig 
 } from '../../electron/utils/windowWatcher'
+import type { DesktopFeatureSettings as _DesktopFeatureSettings } from '../utils/desktopFeatureSettings'
+import type { UpdaterSettings as _UpdaterSettings } from '../utils/updaterSettings'
+import type { ScreenshotSettings as _ScreenshotSettings } from '../utils/screenshotSettings'
 
 declare global {
   // 重新导出窗口相关类型
@@ -13,6 +16,9 @@ declare global {
   type WindowInfo = _WindowInfo
   type WindowEvent = _WindowEvent
   type WindowWatcherConfig = _WindowWatcherConfig
+  type DesktopFeatureSettings = _DesktopFeatureSettings
+  type UpdaterSettings = _UpdaterSettings
+  type ScreenshotSettings = _ScreenshotSettings
   interface BridgeSessionState {
     sessionId: string
     userId: string
@@ -82,6 +88,10 @@ declare global {
         setSize: (width: number, height: number) => Promise<{ success: boolean }>
         resetSize: () => Promise<{ success: boolean }>
         getPassThroughMode: () => Promise<boolean>
+        getDesktopFeatureSettings: () => Promise<DesktopFeatureSettings>
+        updateDesktopFeatureSettings: (config: Partial<DesktopFeatureSettings>) => Promise<DesktopFeatureSettings>
+        getScreenshotSettings: () => Promise<ScreenshotSettings>
+        updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>
         onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
         onMaximizedChanged: (callback: (maximized: boolean) => void) => void
         openExternal: (url: string) => Promise<{ success: boolean }>
@@ -169,6 +179,8 @@ declare global {
       update: {
         check: () => Promise<UpdateCheckResult>
         getState: () => Promise<UpdateState>
+        getSettings: () => Promise<UpdaterSettings>
+        updateSettings: (settings: Partial<UpdaterSettings>) => Promise<UpdaterSettings>
         quitAndInstall: () => Promise<{ success: boolean; message: string }>
         onStateChanged: (callback: (state: UpdateState) => void) => void
       }

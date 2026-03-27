@@ -2,8 +2,8 @@ import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
-import { getUserConfig } from '../database/schema'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
+import { loadDesktopFeatureSettings } from '../utils/desktopFeatureSettings'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -84,11 +84,9 @@ export function createMainWindow(): BrowserWindow {
 
       // 重新应用置顶设置（因为某些情况下初始置顶可能失效）
       try {
-        const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
-        // 默认为 true
-        const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
-        mainWindow.setAlwaysOnTop(isAlwaysOnTop)
-        console.log(`[主窗口] 重新应用置顶设置: ${isAlwaysOnTop}`)
+        const desktopFeatureSettings = loadDesktopFeatureSettings()
+        mainWindow.setAlwaysOnTop(desktopFeatureSettings.alwaysOnTop)
+        console.log(`[主窗口] 重新应用置顶设置: ${desktopFeatureSettings.alwaysOnTop}`)
       } catch (error) {
         console.error('[主窗口] 重新应用置顶设置失败:', error)
       }
@@ -108,9 +106,8 @@ export function createMainWindow(): BrowserWindow {
     // 使用 setTimeout 避开录屏软件可能的窗口钩子竞争
     setTimeout(() => {
       try {
-        const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
-        const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
-        if (isAlwaysOnTop) {
+        const desktopFeatureSettings = loadDesktopFeatureSettings()
+        if (desktopFeatureSettings.alwaysOnTop) {
           setAlwaysOnTop(true)
         }
       } catch (error) {
@@ -154,16 +151,14 @@ export function hideMainWindow(): void {
 export function setAlwaysOnTop(flag: boolean): void {
   if (mainWindow) {
     if (flag) {
-      // 强制刷新置顶状态：先取消再重新设置
-      // 这有助于解决部分录屏软件或全屏应用导致的层级失效问题
-      mainWindow.setAlwaysOnTop(false)
-      if (platformCapabilities.alwaysOnTopLevel === 'screen-saver') {
-        mainWindow.setAlwaysOnTop(true, 'screen-saver')
-      } else {
-        mainWindow.setAlwaysOnTop(true)
+      // 仅在当前不是置顶状态时才设置，避免重复操作导致桌面软件闪烁
+      if (!mainWindow.isAlwaysOnTop()) {
+        if (platformCapabilities.alwaysOnTopLevel === 'screen-saver') {
+          mainWindow.setAlwaysOnTop(true, 'screen-saver')
+        } else {
+          mainWindow.setAlwaysOnTop(true)
+        }
       }
-      // 额外调用 moveTop 确保在最前
-      mainWindow.moveTop()
     } else {
       mainWindow.setAlwaysOnTop(false)
     }

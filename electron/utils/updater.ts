@@ -3,6 +3,8 @@ import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-update
 import fs from 'node:fs'
 import path from 'node:path'
 import { writeLogEntry } from './logger'
+import { loadUpdaterSettings, saveUpdaterSettings } from './updaterSettings'
+import type { UpdaterSettings } from '../../src/utils/updaterSettings'
 
 type UpdateStatus =
   | 'disabled'
@@ -48,6 +50,10 @@ function isAutoUpdateSupportedPlatform(): boolean {
 
 function isAutoUpdateEnabled(): boolean {
   return app.isPackaged && isAutoUpdateSupportedPlatform() && !isPortableBuild() && hasUpdateConfigFile()
+}
+
+function isAutoUpdateCheckEnabled(): boolean {
+  return loadUpdaterSettings().autoUpdateEnabled
 }
 
 function hasUpdateConfigFile(): boolean {
@@ -230,10 +236,42 @@ export function initializeAutoUpdater(): void {
     `自动更新已启用，平台=${process.platform}，当前版本=${app.getVersion()}，allowPrerelease=${autoUpdater.allowPrerelease}`
   )
 
+  if (!isAutoUpdateCheckEnabled()) {
+    setUpdateState({
+      status: 'idle',
+      message: '自动检查更新已关闭，可手动检查更新',
+    })
+    writeLogEntry('info', 'updater', '用户已关闭自动检查更新')
+    return
+  }
+
   // 稍后自动检查，避免影响窗口初始化速度。
   setTimeout(() => {
     void checkForAppUpdates(false)
   }, 8000)
+}
+
+export function getUpdaterSettings(): UpdaterSettings {
+  return loadUpdaterSettings()
+}
+
+export function updateUpdaterSettings(patch: Partial<UpdaterSettings>): UpdaterSettings {
+  const nextSettings = saveUpdaterSettings(patch)
+  if (!nextSettings.autoUpdateEnabled && checkInProgress) {
+    setUpdateState({
+      status: 'idle',
+      message: '自动检查更新已关闭，可手动检查更新',
+      progress: undefined,
+    })
+  }
+  if (!nextSettings.autoUpdateEnabled && updateState.status !== 'downloaded') {
+    setUpdateState({
+      status: 'idle',
+      message: '自动检查更新已关闭，可手动检查更新',
+      progress: undefined,
+    })
+  }
+  return nextSettings
 }
 
 export async function checkForAppUpdates(manual = true): Promise<UpdateCheckResult> {

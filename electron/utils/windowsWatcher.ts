@@ -3,14 +3,15 @@
  * 
  * 使用 Windows API 的 SetWinEventHook 实现事件驱动的窗口监听
  * 相比轮询方案，响应延迟从 2 秒降低到 <10ms
+ * 
+ * FFI 层使用 koffi（预编译二进制，无需 node-gyp 编译）
  */
 
 import { screen } from 'electron'
 import { createRequire } from 'module'
 import type { 
   PlatformWatcher, 
-  WindowInfo, 
-  WindowEvent
+  WindowInfo
 } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
 
@@ -41,103 +42,57 @@ const windowCache = new Map<string, WindowInfo>()
 // 上一个活跃窗口
 let previousActiveWindow: WindowInfo | null = null
 
-// 回调函数引用（防止 GC）
-let eventCallback: ((event: WindowEvent) => void) | null = null
-let hookHandle: bigint | null = null
+// koffi 实例（延迟加载）
+let koffi: any = null
 
 // FFI 库
 let user32: any = null
 let kernel32: any = null
 
+// 已注册的回调（防止 GC）
+let registeredCallback: any = null
+let hookHandle: bigint | null = null
+
 /**
- * 初始化 Windows API
+ * 初始化 Windows API（koffi）
  */
 function initWindowsApi(): boolean {
   try {
-    const ffi = require('ffi-napi')
-    const ref = require('ref-napi')
-    
-    // 定义回调函数类型
-    const WinEventProc = ffi.Function(ref.types.void, [
-      ref.types.int,      // HWINEVENTHOOK
-      ref.types.uint32,   // event
-      ref.types.int64,    // hwnd
-      ref.types.int32,    // idObject
-      ref.types.int32,    // idChild
-      ref.types.uint32,   // idEventThread
-      ref.types.uint32,   // dwmsEventTime
-    ])
-    
-    user32 = new ffi.Library('user32', {
-      'SetWinEventHook': [
-        ref.types.int64,  // HWINEVENTHOOK
-        [
-          ref.types.uint32,  // eventMin
-          ref.types.uint32,  // eventMax
-          ref.types.int64,   // hmodWinEventProc (HMODULE)
-          WinEventProc,      // lpfnWinEventProc
-          ref.types.uint32,  // idProcess
-          ref.types.uint32,  // idThread
-          ref.types.uint32,  // dwFlags
-        ]
-      ],
-      'UnhookWinEvent': [
-        ref.types.int,
-        [ref.types.int64]  // hWinEventHook
-      ],
-      'GetForegroundWindow': [
-        ref.types.int64,
-        []
-      ],
-      'GetWindowTextW': [
-        ref.types.int32,
-        [ref.types.int64, 'string', ref.types.int32]
-      ],
-      'GetWindowTextLengthW': [
-        ref.types.int32,
-        [ref.types.int64]
-      ],
-      'GetWindowThreadProcessId': [
-        ref.types.uint32,
-        [ref.types.int64, ref.refType(ref.types.uint32)]
-      ],
-      'GetWindowRect': [
-        ref.types.int,
-        [ref.types.int64, 'void*']
-      ],
-      'IsWindowVisible': [
-        ref.types.int,
-        [ref.types.int64]
-      ],
-      'IsIconic': [
-        ref.types.int,
-        [ref.types.int64]
-      ],
-      'IsZoomed': [
-        ref.types.int,
-        [ref.types.int64]
-      ],
-      'GetClassNameW': [
-        ref.types.int32,
-        [ref.types.int64, 'string', ref.types.int32]
-      ],
-    })
-    
-    kernel32 = new ffi.Library('kernel32', {
-      'OpenProcess': [
-        ref.types.int64,
-        [ref.types.uint32, ref.types.int, ref.types.uint32]
-      ],
-      'CloseHandle': [
-        ref.types.int,
-        [ref.types.int64]
-      ],
-      'GetModuleFileNameExW': [
-        ref.types.uint32,
-        [ref.types.int64, ref.types.int64, 'string', ref.types.uint32]
-      ],
-    })
-    
+    koffi = require('koffi')
+
+    // 回调类型：WINEVENTPROC
+    // void CALLBACK WinEventProc(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD)
+    koffi.proto(
+      'void WinEventProc(int64 hWinEventHook, uint32 event, int64 hwnd, int idObject, int idChild, uint32 idEventThread, uint32 dwmsEventTime)'
+    )
+
+    // user32.dll
+    const lib = koffi.load('user32.dll')
+
+    const SetWinEventHook = lib.func('int64 SetWinEventHook(uint32 eventMin, uint32 eventMax, int64 hmodWinEventProc, WinEventProc *lpfnWinEventProc, uint32 idProcess, uint32 idThread, uint32 dwFlags)')
+    const UnhookWinEvent = lib.func('int UnhookWinEvent(int64 hWinEventHook)')
+    const GetForegroundWindow = lib.func('int64 GetForegroundWindow()')
+    const GetWindowTextLengthW = lib.func('int GetWindowTextLengthW(int64 hWnd)')
+    const GetWindowTextW = lib.func('int GetWindowTextW(int64 hWnd, void *lpString, int nMaxCount)')
+    const GetWindowThreadProcessId = lib.func('uint32 GetWindowThreadProcessId(int64 hWnd, uint32 *lpdwProcessId)')
+    const GetWindowRect = lib.func('int GetWindowRect(int64 hWnd, void *lpRect)')
+    const IsWindowVisible = lib.func('int IsWindowVisible(int64 hWnd)')
+    const IsIconic = lib.func('int IsIconic(int64 hWnd)')
+    const IsZoomed = lib.func('int IsZoomed(int64 hWnd)')
+    const GetClassNameW = lib.func('int GetClassNameW(int64 hWnd, void *lpClassName, int nMaxCount)')
+
+    // kernel32.dll
+    const k32 = koffi.load('kernel32.dll')
+    const OpenProcess = k32.func('int64 OpenProcess(uint32 dwDesiredAccess, int bInheritHandle, uint32 dwProcessId)')
+    const CloseHandle = k32.func('int CloseHandle(int64 hObject)')
+    const GetModuleFileNameExW = (() => {
+      const psapi = koffi.load('Psapi.dll')
+      return psapi.func('uint32 GetModuleFileNameExW(int64 hProcess, int64 hModule, void *lpFilename, uint32 nSize)')
+    })()
+
+    user32 = { SetWinEventHook, UnhookWinEvent, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, GetWindowRect, IsWindowVisible, IsIconic, IsZoomed, GetClassNameW }
+    kernel32 = { OpenProcess, CloseHandle, GetModuleFileNameExW }
+
     return true
   } catch (error) {
     console.error('[窗口监听] 初始化 Windows API 失败:', error)
@@ -152,10 +107,9 @@ function getWindowTitle(hwnd: bigint): string {
   try {
     const length = user32.GetWindowTextLengthW(hwnd)
     if (length === 0) return ''
-    
-    const buffer = Buffer.alloc((length + 1) * 2)  // UTF-16
-    user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return buffer.toString('utf16le').replace(/\0+$/, '')
+    const buf = Buffer.alloc((length + 1) * 2)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
+    return buf.toString('utf16le', 0, length * 2)
   } catch {
     return ''
   }
@@ -166,10 +120,10 @@ function getWindowTitle(hwnd: bigint): string {
  */
 function getWindowClassName(hwnd: bigint): string {
   try {
-    const buffer = Buffer.alloc(256 * 2)
-    const length = user32.GetClassNameW(hwnd, buffer, 256)
+    const buf = Buffer.alloc(256 * 2)
+    const length = user32.GetClassNameW(hwnd, buf, 256)
     if (length === 0) return ''
-    return buffer.toString('utf16le', 0, length * 2)
+    return buf.toString('utf16le', 0, length * 2)
   } catch {
     return ''
   }
@@ -180,20 +134,15 @@ function getWindowClassName(hwnd: bigint): string {
  */
 function getWindowBounds(hwnd: bigint): { x: number; y: number; width: number; height: number } | null {
   try {
-    const rect = Buffer.alloc(16)  // RECT 结构体
+    const rect = Buffer.alloc(16)  // RECT 结构体：4 个 LONG
     const result = user32.GetWindowRect(hwnd, rect)
     if (result === 0) return null
-    
-    const left = rect.readInt32LE(0)
-    const top = rect.readInt32LE(4)
-    const right = rect.readInt32LE(8)
-    const bottom = rect.readInt32LE(12)
-    
+
     return {
-      x: left,
-      y: top,
-      width: right - left,
-      height: bottom - top,
+      x: rect.readInt32LE(0),
+      y: rect.readInt32LE(4),
+      width: rect.readInt32LE(8) - rect.readInt32LE(0),
+      height: rect.readInt32LE(12) - rect.readInt32LE(4),
     }
   } catch {
     return null
@@ -204,50 +153,41 @@ function getWindowBounds(hwnd: bigint): { x: number; y: number; width: number; h
  * 获取进程信息
  */
 function getProcessInfo(pid: number): ProcessInfo {
-  // 检查缓存
   if (processCache.has(pid)) {
     return processCache.get(pid)!
   }
-  
+
   const info: ProcessInfo = { name: '', path: '' }
-  
+
   try {
-    // 打开进程
     const PROCESS_QUERY_INFORMATION = 0x0400
     const PROCESS_VM_READ = 0x0010
-    const processHandle = kernel32.OpenProcess(
-      PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
-      0,
-      pid
-    )
-    
+    const processHandle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid)
+
     if (processHandle !== 0n) {
-      // 获取进程路径
       const buffer = Buffer.alloc(1024 * 2)
       const size = kernel32.GetModuleFileNameExW(processHandle, 0n, buffer, 1024)
-      
+
       if (size > 0) {
         info.path = buffer.toString('utf16le', 0, size * 2)
         info.name = info.path.split('\\').pop() || ''
       }
-      
+
       kernel32.CloseHandle(processHandle)
     }
   } catch (error) {
     console.warn('[窗口监听] 获取进程信息失败:', error)
   }
-  
-  // 缓存结果
+
   processCache.set(pid, info)
-  
-  // 定期清理缓存
+
   if (processCache.size > 1000) {
     const keys = Array.from(processCache.keys())
     for (let i = 0; i < keys.length / 2; i++) {
       processCache.delete(keys[i])
     }
   }
-  
+
   return info
 }
 
@@ -256,9 +196,9 @@ function getProcessInfo(pid: number): ProcessInfo {
  */
 function getWindowProcessId(hwnd: bigint): number {
   try {
-    const pidBuffer = Buffer.alloc(4)
-    user32.GetWindowThreadProcessId(hwnd, pidBuffer)
-    return pidBuffer.readUInt32LE(0)
+    const pidRef = [0]
+    user32.GetWindowThreadProcessId(hwnd, pidRef)
+    return pidRef[0]
   } catch {
     return 0
   }
@@ -276,27 +216,25 @@ function hwndToString(hwnd: bigint): string {
  */
 function getWindowInfo(hwnd: bigint): WindowInfo | null {
   try {
-    // 检查窗口是否可见
     if (user32.IsWindowVisible(hwnd) === 0) {
       return null
     }
-    
+
     const id = hwndToString(hwnd)
     const title = getWindowTitle(hwnd)
     const className = getWindowClassName(hwnd)
     const bounds = getWindowBounds(hwnd)
     const pid = getWindowProcessId(hwnd)
     const processInfo = getProcessInfo(pid)
-    
-    // 获取屏幕尺寸以判断全屏
+
     const primaryDisplay = screen.getPrimaryDisplay()
     const screenWidth = primaryDisplay.bounds.width
     const screenHeight = primaryDisplay.bounds.height
-    
+
     const isMinimized = user32.IsIconic(hwnd) !== 0
     const isMaximized = user32.IsZoomed(hwnd) !== 0
     const isFullscreen = bounds ? isWindowFullscreen(bounds, screenWidth, screenHeight) : false
-    
+
     return {
       id,
       title,
@@ -316,127 +254,84 @@ function getWindowInfo(hwnd: bigint): WindowInfo | null {
 }
 
 /**
- * 处理窗口事件
- */
-function handleWindowEvent(
-  eventType: number,
-  hwnd: bigint,
-  eventTypeMap: Map<number, WindowEventType>
-): void {
-  if (!eventCallback) return
-  
-  const type = eventTypeMap.get(eventType)
-  if (!type) return
-  
-  const windowInfo = getWindowInfo(hwnd)
-  if (!windowInfo) return
-  
-  // 更新缓存
-  if (type === 'destroy') {
-    windowCache.delete(windowInfo.id)
-  } else {
-    windowCache.set(windowInfo.id, windowInfo)
-  }
-  
-  const event: WindowEvent = {
-    type,
-    timestamp: Date.now(),
-    window: windowInfo,
-    previousWindow: type === 'focus' ? previousActiveWindow : undefined,
-  }
-  
-  // 更新上一个活跃窗口
-  if (type === 'focus') {
-    previousActiveWindow = windowInfo
-  }
-  
-  // 触发回调
-  eventCallback(event)
-}
-
-/**
- * 创建事件类型映射
- */
-function createEventTypeMap(): Map<number, WindowEventType> {
-  return new Map([
-    [EVENT_SYSTEM_FOREGROUND, 'focus'],
-    [EVENT_OBJECT_CREATE, 'create'],
-    [EVENT_OBJECT_DESTROY, 'destroy'],
-    [EVENT_OBJECT_LOCATIONCHANGE, 'move'],
-    [EVENT_OBJECT_STATECHANGE, 'resize'],
-  ])
-}
-
-/**
  * Windows 平台监听器实现
  */
 export class WindowsWatcher implements PlatformWatcher {
   private eventCallback: ((rawEvent: any) => void) | null = null
-  private eventTypeMap = createEventTypeMap()
+  private eventTypeMap = new Map([
+    [EVENT_SYSTEM_FOREGROUND, 'focus' as const],
+    [EVENT_OBJECT_CREATE, 'create' as const],
+    [EVENT_OBJECT_DESTROY, 'destroy' as const],
+    [EVENT_OBJECT_LOCATIONCHANGE, 'move' as const],
+    [EVENT_OBJECT_STATECHANGE, 'resize' as const],
+  ])
   private isRunning = false
-  
+
   start(callback: (rawEvent: any) => void): void {
     if (this.isRunning) {
       console.warn('[窗口监听] 监听器已在运行')
       return
     }
-    
-    // 初始化 Windows API
+
     if (!initWindowsApi()) {
       console.error('[窗口监听] 无法启动监听器')
       return
     }
-    
+
     this.eventCallback = callback
-    
-    // 创建回调函数
-    const winEventProc = (
-      _hWinEventHook: number,
-      event: number,
-      hwnd: bigint,
-      _idObject: number,
-      _idChild: number,
-      _idEventThread: number,
-      _dwmsEventTime: number
-    ) => {
-      handleWindowEvent(event, hwnd, this.eventTypeMap)
-      
-      // 调用外部回调
-      if (this.eventCallback) {
-        const type = this.eventTypeMap.get(event)
-        if (type) {
-          const windowInfo = getWindowInfo(hwnd)
-          if (windowInfo) {
-            this.eventCallback({
-              type,
-              timestamp: Date.now(),
-              window: windowInfo,
-            })
-          }
-        }
+
+    // 创建事件处理回调
+    const handleEvent = (_hWinEventHook: bigint, event: number, hwnd: bigint, _idObject: number, _idChild: number, _idEventThread: number, _dwmsEventTime: number) => {
+      if (!this.eventCallback) return
+
+      const type = this.eventTypeMap.get(event)
+      if (!type) return
+
+      const windowInfo = getWindowInfo(hwnd)
+      if (!windowInfo) return
+
+      // 维护窗口缓存
+      if (type === 'destroy') {
+        windowCache.delete(windowInfo.id)
+      } else {
+        windowCache.set(windowInfo.id, windowInfo)
+      }
+
+      this.eventCallback({
+        type,
+        timestamp: Date.now(),
+        window: windowInfo,
+        previousWindow: type === 'focus' ? previousActiveWindow : undefined,
+      })
+
+      if (type === 'focus') {
+        previousActiveWindow = windowInfo
       }
     }
-    
-    // 设置事件钩子
+
     try {
+      // 注册回调（防止 GC + 允许异步调用）
+      registeredCallback = koffi.register(handleEvent, 'WinEventProc *')
+
+      // 设置事件钩子
       hookHandle = user32.SetWinEventHook(
         EVENT_SYSTEM_FOREGROUND,
         EVENT_OBJECT_STATECHANGE,
-        0n,                    // 所有模块
-        winEventProc,
-        0,                     // 所有进程
-        0,                     // 所有线程
+        0n,
+        registeredCallback,
+        0,
+        0,
         WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
       )
-      
+
       if (hookHandle === 0n) {
         console.error('[窗口监听] SetWinEventHook 失败')
         return
       }
-      
+
       this.isRunning = true
-      console.log('[窗口监听] Windows 原生事件监听已启动')
-      
+      console.log('[窗口监听] Windows 原生事件监听已启动 (koffi)')
+
       // 获取当前活跃窗口
       const activeHwnd = user32.GetForegroundWindow()
       if (activeHwnd !== 0n) {
@@ -454,43 +349,46 @@ export class WindowsWatcher implements PlatformWatcher {
       console.error('[窗口监听] 启动监听失败:', error)
     }
   }
-  
+
   stop(): void {
     if (!this.isRunning) return
-    
+
     try {
       if (hookHandle !== null && hookHandle !== 0n) {
         user32.UnhookWinEvent(hookHandle)
         hookHandle = null
       }
-      
+
+      if (registeredCallback) {
+        koffi.unregister(registeredCallback)
+        registeredCallback = null
+      }
+
       this.isRunning = false
       this.eventCallback = null
-      eventCallback = null
-      
+
       console.log('[窗口监听] Windows 原生事件监听已停止')
     } catch (error) {
       console.error('[窗口监听] 停止监听失败:', error)
     }
   }
-  
+
   getActiveWindow(): WindowInfo | null {
     try {
       if (!user32) {
         if (!initWindowsApi()) return null
       }
-      
+
       const hwnd = user32.GetForegroundWindow()
       if (hwnd === 0n) return null
-      
+
       return getWindowInfo(hwnd)
     } catch {
       return null
     }
   }
-  
+
   getAllWindows(): WindowInfo[] {
-    // 返回缓存的所有窗口
     return Array.from(windowCache.values())
   }
 }

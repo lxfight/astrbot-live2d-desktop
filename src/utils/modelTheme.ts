@@ -1,218 +1,78 @@
 import type { ThemeRgb } from '@/utils/themePalette'
 
-type Bucket = {
-  score: number
-  red: number
-  green: number
-  blue: number
-  saturation: number
-  lightness: number
-  samples: number
-}
+const MAX_TEXTURES = 4
+const SAMPLE_STRIDE = 8  // 每 8 个像素采样一次（性能）
 
-type HslColor = {
-  h: number
-  s: number
-  l: number
-}
+/**
+ * 从 canvas 中采样像素并分析主题色
+ * 直接读取 WebGL readPixels 产生的像素数据，不依赖外部库
+ */
+export function extractModelThemeColor(canvases: HTMLCanvasElement[]): ThemeRgb | null {
+  const buckets = new Map<string, { r: number; g: number; b: number; count: number }>()
 
-const MAX_TEXTURES = 6
-const MAX_SAMPLE_SIDE = 96
-const PIXEL_STRIDE = 16
-const MIN_ALPHA = 56
+  for (const canvas of canvases.slice(0, MAX_TEXTURES)) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) continue
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
-function rgbToHsl(rgb: ThemeRgb): HslColor {
-  const r = rgb.r / 255
-  const g = rgb.g / 255
-  const b = rgb.b / 255
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  const delta = max - min
-  const lightness = (max + min) / 2
-
-  if (delta === 0) {
-    return { h: 0, s: 0, l: lightness }
-  }
-
-  const saturation = delta / (1 - Math.abs(2 * lightness - 1))
-  let hue = 0
-
-  switch (max) {
-    case r:
-      hue = ((g - b) / delta) % 6
-      break
-    case g:
-      hue = (b - r) / delta + 2
-      break
-    default:
-      hue = (r - g) / delta + 4
-      break
-  }
-
-  return {
-    h: (hue * 60 + 360) % 360,
-    s: saturation,
-    l: lightness,
-  }
-}
-
-function buildBucketKey(hsl: HslColor): string {
-  if (hsl.s < 0.12) {
-    return `neutral:${Math.round(hsl.l * 6)}`
-  }
-
-  return [
-    Math.round(hsl.h / 18) * 18,
-    Math.round(hsl.s * 6),
-    Math.round(hsl.l * 5),
-  ].join(':')
-}
-
-function pushBucket(
-  buckets: Map<string, Bucket>,
-  key: string,
-  rgb: ThemeRgb,
-  hsl: HslColor,
-  weight: number,
-) {
-  if (weight <= 0) {
-    return
-  }
-
-  const bucket = buckets.get(key) || {
-    score: 0,
-    red: 0,
-    green: 0,
-    blue: 0,
-    saturation: 0,
-    lightness: 0,
-    samples: 0,
-  }
-
-  bucket.score += weight
-  bucket.red += rgb.r * weight
-  bucket.green += rgb.g * weight
-  bucket.blue += rgb.b * weight
-  bucket.saturation += hsl.s
-  bucket.lightness += hsl.l
-  bucket.samples += 1
-  buckets.set(key, bucket)
-}
-
-function resolveBucketColor(bucket: Bucket): ThemeRgb {
-  return {
-    r: Math.round(bucket.red / bucket.score),
-    g: Math.round(bucket.green / bucket.score),
-    b: Math.round(bucket.blue / bucket.score),
-  }
-}
-
-function pickBestBucket(buckets: Map<string, Bucket>): ThemeRgb | null {
-  let winner: Bucket | null = null
-  let winnerScore = -1
-
-  for (const bucket of buckets.values()) {
-    if (bucket.score <= 0 || bucket.samples === 0) {
+    let data: Uint8ClampedArray
+    try {
+      data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    } catch {
       continue
     }
 
-    const avgSaturation = bucket.saturation / bucket.samples
-    const avgLightness = bucket.lightness / bucket.samples
-    const chromaBoost = 1 + avgSaturation * 0.85
-    const tonePenalty = avgLightness < 0.12 || avgLightness > 0.9 ? 0.72 : 1
-    const sampleBoost = 1 + Math.min(bucket.samples / 36, 0.25)
-    const score = bucket.score * chromaBoost * tonePenalty * sampleBoost
+    for (let i = 0; i < data.length; i += 4 * SAMPLE_STRIDE) {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3]
+      if (a < 100) continue
 
-    if (score > winnerScore) {
-      winner = bucket
-      winnerScore = score
+      // 跳过接近纯黑/纯白
+      const lightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255
+      if (lightness > 0.93 || lightness < 0.07) continue
+
+      // 跳过低饱和度（灰色系）
+      const max = Math.max(r, g, b), min = Math.min(r, g, b)
+      const saturation = max === 0 ? 0 : (max - min) / max
+      if (saturation < 0.12) continue
+
+      // 分桶（RGB 量化到 12 级，约 216 桶）
+      const key = `${Math.round(r / 22)}:${Math.round(g / 22)}:${Math.round(b / 22)}`
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, count: 0 }
+      bucket.r += r; bucket.g += g; bucket.b += b; bucket.count++
+      buckets.set(key, bucket)
     }
   }
 
-  return winner ? resolveBucketColor(winner) : null
-}
+  if (buckets.size === 0) return null
 
-function createSampleCanvas(image: HTMLImageElement): [HTMLCanvasElement, CanvasRenderingContext2D] | null {
-  if (typeof document === 'undefined' || !image.naturalWidth || !image.naturalHeight) {
-    return null
-  }
+  // 按数量排序，取前 8 个桶
+  const top = Array.from(buckets.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
 
-  const scale = Math.min(1, MAX_SAMPLE_SIDE / Math.max(image.naturalWidth, image.naturalHeight))
-  const width = Math.max(1, Math.round(image.naturalWidth * scale))
-  const height = Math.max(1, Math.round(image.naturalHeight * scale))
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
+  let best: ThemeRgb | null = null
+  let bestScore = -1
 
-  if (!context) {
-    return null
-  }
+  for (const bucket of top) {
+    const r = Math.round(bucket.r / bucket.count)
+    const g = Math.round(bucket.g / bucket.count)
+    const b = Math.round(bucket.b / bucket.count)
 
-  canvas.width = width
-  canvas.height = height
-  context.clearRect(0, 0, width, height)
-  context.drawImage(image, 0, 0, width, height)
+    const max = Math.max(r, g, b), min = Math.min(r, g, b)
+    const saturation = max === 0 ? 0 : (max - min) / max
+    const lightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255
 
-  return [canvas, context]
-}
+    // 评分：饱和度权重最高，亮度偏好中间调，频率作为次要因素
+    const lightnessTarget = 1 - Math.abs(lightness - 0.42) * 2.4
+    const frequencyRatio = bucket.count / top[0].count
+    const score = saturation * 0.55
+      + Math.max(0, lightnessTarget) * 0.30
+      + frequencyRatio * 0.15
 
-function sampleTexture(
-  image: HTMLImageElement,
-  accentBuckets: Map<string, Bucket>,
-  overallBuckets: Map<string, Bucket>,
-) {
-  const sampled = createSampleCanvas(image)
-  if (!sampled) {
-    return
-  }
-
-  const [canvas, context] = sampled
-
-  let pixels: Uint8ClampedArray
-  try {
-    pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
-  } catch (error) {
-    console.warn('[Theme] 读取模型纹理像素失败:', error)
-    return
-  }
-
-  for (let index = 0; index < pixels.length; index += PIXEL_STRIDE) {
-    const alpha = pixels[index + 3]
-    if (alpha < MIN_ALPHA) {
-      continue
-    }
-
-    const rgb = {
-      r: pixels[index],
-      g: pixels[index + 1],
-      b: pixels[index + 2],
-    }
-    const hsl = rgbToHsl(rgb)
-    const alphaWeight = alpha / 255
-    const saturationScore = clamp((hsl.s - 0.08) / 0.92, 0, 1)
-    const lightnessScore = 1 - Math.min(1, Math.abs(hsl.l - 0.52) / 0.52)
-    const baseWeight = alphaWeight * (0.4 + saturationScore * 0.9 + lightnessScore * 0.55)
-    const key = buildBucketKey(hsl)
-
-    pushBucket(overallBuckets, key, rgb, hsl, baseWeight)
-
-    if (hsl.s >= 0.16 && hsl.l >= 0.16 && hsl.l <= 0.84) {
-      const accentWeight = baseWeight * (0.8 + saturationScore * 1.25)
-      pushBucket(accentBuckets, key, rgb, hsl, accentWeight)
+    if (score > bestScore) {
+      best = { r, g, b }
+      bestScore = score
     }
   }
-}
 
-export function extractModelThemeColor(images: HTMLImageElement[]): ThemeRgb | null {
-  const accentBuckets = new Map<string, Bucket>()
-  const overallBuckets = new Map<string, Bucket>()
-
-  for (const image of images.slice(0, MAX_TEXTURES)) {
-    sampleTexture(image, accentBuckets, overallBuckets)
-  }
-
-  return pickBestBucket(accentBuckets) || pickBestBucket(overallBuckets)
+  return best
 }

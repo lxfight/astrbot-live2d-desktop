@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
+import { ADVANCED_SETTINGS_KEY, loadAdvancedSettings } from '@/utils/advancedSettings'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
@@ -192,6 +193,18 @@ const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
 let isFullPassThroughMode = false // 是否处于完全穿透模式
 let supportsDynamicPassThrough = true
+
+function syncPassThroughSettingFromStorage() {
+  passThroughEnabled = loadAdvancedSettings().dynamicPassThroughEnabled
+}
+
+function handleAdvancedSettingsStorageChange(event: StorageEvent) {
+  if (event.key && event.key !== ADVANCED_SETTINGS_KEY) {
+    return
+  }
+
+  syncPassThroughSettingFromStorage()
+}
 
 /**
  * 检查点是否在模型内
@@ -435,6 +448,7 @@ function enablePassThrough() {
 }
 
 onMounted(() => {
+  syncPassThroughSettingFromStorage()
   if (canvasRef.value) {
     // 设置画布大小
     canvasRef.value.width = window.innerWidth
@@ -451,6 +465,7 @@ onMounted(() => {
 
     // 监听窗口大小变化
     window.addEventListener('resize', handleResize)
+    window.addEventListener('storage', handleAdvancedSettingsStorageChange)
 
     // 初始化平台能力（不支持 forward 时关闭动态穿透，避免窗口卡死在穿透态）
     window.electron.window.getPlatformCapabilities().then((capabilities: PlatformCapabilities) => {
@@ -511,6 +526,7 @@ onUnmounted(() => {
 
   window.removeEventListener('mousemove', handleMouseMoveForPassThrough)
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('storage', handleAdvancedSettingsStorageChange)
 })
 
 // 暴露方法给父组件

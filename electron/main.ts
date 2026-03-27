@@ -5,7 +5,7 @@ import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
-import { startAppLaunchWatcher, stopAppLaunchWatcher } from './ipc/desktop'
+import { stopAppLaunchWatcher, syncAppLaunchWatcherWithConfig } from './ipc/desktop'
 import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
@@ -124,8 +124,10 @@ export function initBridgeClient() {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('bridge:connected', payload)
     })
-    // 启动应用启动监听
-    startAppLaunchWatcher()
+    // 按窗口监听配置同步应用启动监听
+    void syncAppLaunchWatcherWithConfig().catch((error) => {
+      console.error('[主进程] 同步应用启动监听失败:', error)
+    })
   })
 
   bridgeClient.on('disconnected', (info) => {
@@ -219,4 +221,3 @@ app.on('before-quit', () => {
 export function getBridgeClient(): L2DBridgeClient | null {
   return bridgeClient
 }
-

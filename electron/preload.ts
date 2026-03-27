@@ -81,6 +81,10 @@ contextBridge.exposeInMainWorld('electron', {
     setSize: (width: number, height: number) => ipcRenderer.invoke('window:setSize', width, height),
     resetSize: () => ipcRenderer.invoke('window:resetSize'),
     getPassThroughMode: () => ipcRenderer.invoke('window:getPassThroughMode'),
+    getDesktopFeatureSettings: () => ipcRenderer.invoke('window:getDesktopFeatureSettings'),
+    updateDesktopFeatureSettings: (config: any) => ipcRenderer.invoke('window:updateDesktopFeatureSettings', config),
+    getScreenshotSettings: () => ipcRenderer.invoke('window:getScreenshotSettings'),
+    updateScreenshotSettings: (settings: any) => ipcRenderer.invoke('window:updateScreenshotSettings', settings),
     onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
       ipcRenderer.removeAllListeners('window:passThroughModeChanged')
       ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
@@ -185,6 +189,8 @@ contextBridge.exposeInMainWorld('electron', {
   update: {
     check: () => ipcRenderer.invoke('update:check'),
     getState: () => ipcRenderer.invoke('update:getState'),
+    getSettings: () => ipcRenderer.invoke('update:getSettings'),
+    updateSettings: (settings: any) => ipcRenderer.invoke('update:updateSettings', settings),
     quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
     onStateChanged: (callback: (state: any) => void) => {
       ipcRenderer.removeAllListeners('update:stateChanged')

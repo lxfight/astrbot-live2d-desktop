@@ -1,6 +1,6 @@
 {
   "name": "astrbot-live2d-desktop",
-  "version": "1.1.0-beta.13",
+  "version": "1.1.0-beta.14",
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -92,6 +92,7 @@
     "extract-file-icon": "^0.3.2",
     "howler": "^2.2.3",
     "katex": "^0.16.28",
+    "koffi": "^2.15.2",
     "lucide-vue-next": "^0.563.0",
     "marked": "^17.0.1",
     "naive-ui": "^2.37.0",

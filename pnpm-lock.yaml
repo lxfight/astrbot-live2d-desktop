@@ -47,6 +47,9 @@ importers:
       katex:
         specifier: ^0.16.28
         version: 0.16.33
+      koffi:
+        specifier: ^2.15.2
+        version: 2.15.2
       lucide-vue-next:
         specifier: ^0.563.0
         version: 0.563.0(vue@3.5.29(typescript@5.9.3))
@@ -2087,6 +2090,9 @@ packages:
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
+
+  koffi@2.15.2:
+    resolution: {integrity: sha512-r9tjJLVRSOhCRWdVyQlF3/Ugzeg13jlzS4czS82MAgLff4W+BcYOW7g8Y62t9O5JYjYOLAjAovAZDNlDfZNu+g==}
 
   lazy-val@1.0.5:
     resolution: {integrity: sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==}
@@ -5326,6 +5332,8 @@ snapshots:
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
+
+  koffi@2.15.2: {}
 
   lazy-val@1.0.5: {}
 

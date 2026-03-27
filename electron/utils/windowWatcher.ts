@@ -56,6 +56,7 @@ export type WindowEventCallback = (event: WindowEvent) => void
  */
 export interface WindowWatcherConfig {
   enabled: boolean
+  appLaunchEnabled: boolean
   throttle: {
     globalInterval: number
     perWindowInterval: number
@@ -121,6 +122,9 @@ export function isWindowFullscreen(
  * 4. AI 上下文构建
  * 5. 节流控制（防止频繁触发）
  */
+import * as windowWatcherConfigModule from './windowWatcherConfig'
+import { WindowThrottler } from './windowThrottler'
+
 export class WindowWatcherManager {
   private platformWatcher: PlatformWatcher | null = null
   private listeners: Set<WindowEventCallback> = new Set()
@@ -175,8 +179,7 @@ export class WindowWatcherManager {
     if (this.configModule) return
     
     try {
-      this.configModule = await import('./windowWatcherConfig')
-      const { WindowThrottler } = await import('./windowThrottler')
+      this.configModule = windowWatcherConfigModule
       
       // 加载配置
       this.config = await this.configModule.loadConfig()
@@ -254,6 +257,10 @@ export class WindowWatcherManager {
       this.throttler.destroy()
       this.throttler = null
     }
+
+    this.currentWindow = null
+    this.previousWindow = null
+    this.windowHistory = []
     
     this.isRunning = false
     console.log('[窗口监听] WindowWatcherManager 已停止')
@@ -407,6 +414,14 @@ export class WindowWatcherManager {
     // 更新节流器配置
     if (this.throttler) {
       this.throttler.updateConfig(this.config)
+    }
+
+    if (!this.config.enabled && this.isRunning) {
+      this.stop()
+    }
+
+    if (this.config.enabled && !this.isRunning) {
+      await this.start()
     }
     
     console.log('[窗口监听] 配置已重置')

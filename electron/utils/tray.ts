@@ -3,44 +3,53 @@ import { showMainWindow, setMousePassThrough, getMainWindow, setAlwaysOnTop } fr
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow } from '../windows/historyWindow'
 import { enableGameMode, disableGameMode, isGameModeActive } from './gameMode'
-import { getUserConfig, setUserConfig } from '../database/schema'
 import { resolveAppIconPath } from './icon'
 import { getPlatformCapabilities } from './platformCapabilities'
+import { loadDesktopFeatureSettings, saveDesktopFeatureSettings } from './desktopFeatureSettings'
+import type { DesktopFeatureSettings } from '../../src/utils/desktopFeatureSettings'
 
 let tray: Tray | null = null
-let isPassThroughMode = false // 穿透模式状态
-let isAlwaysOnTop = true // 窗口置顶状态，默认为 true
 const platformCapabilities = getPlatformCapabilities()
 
 /**
- * 加载托盘配置
+ * 应用桌面功能设置
  */
-function loadTrayConfig(): void {
-  // 从数据库加载配置
-  const passThroughConfig = getUserConfig('tray_pass_through_mode')
-  const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
-  const gameModeConfig = getUserConfig('tray_game_mode')
+export function applyDesktopFeatureSettings(settings: DesktopFeatureSettings): void {
+  setAlwaysOnTop(settings.alwaysOnTop)
+  setMousePassThrough(settings.fullPassThrough)
 
-  // 恢复穿透模式
-  if (passThroughConfig !== null) {
-    isPassThroughMode = passThroughConfig === 'true'
-    setMousePassThrough(isPassThroughMode)
-    const mainWindow = getMainWindow()
-    if (mainWindow) {
-      mainWindow.webContents.send('window:passThroughModeChanged', isPassThroughMode)
+  const mainWindow = getMainWindow()
+  if (mainWindow) {
+    mainWindow.webContents.send('window:passThroughModeChanged', settings.fullPassThrough)
+  }
+
+  if (!platformCapabilities.gameMode.supported) {
+    if (isGameModeActive()) {
+      disableGameMode()
     }
+    return
   }
 
-  // 恢复窗口置顶
-  if (alwaysOnTopConfig !== null) {
-    isAlwaysOnTop = alwaysOnTopConfig === 'true'
-    setAlwaysOnTop(isAlwaysOnTop)
-  }
-
-  // 恢复游戏模式
-  if (platformCapabilities.gameMode.supported && gameModeConfig === 'true' && !isGameModeActive()) {
+  if (settings.autoDetectFullscreen && !isGameModeActive()) {
     enableGameMode()
   }
+
+  if (!settings.autoDetectFullscreen && isGameModeActive()) {
+    disableGameMode()
+  }
+}
+
+export function getDesktopFeatureSettings(): DesktopFeatureSettings {
+  return loadDesktopFeatureSettings()
+}
+
+export function updateDesktopFeatureSettings(
+  patch: Partial<DesktopFeatureSettings>,
+): DesktopFeatureSettings {
+  const nextSettings = saveDesktopFeatureSettings(patch)
+  applyDesktopFeatureSettings(nextSettings)
+  updateTrayMenu()
+  return nextSettings
 }
 
 /**
@@ -77,8 +86,7 @@ export function createTray(): Tray | null {
 
   tray.setToolTip('AstrBot Live2D')
 
-  // 加载保存的配置
-  loadTrayConfig()
+  applyDesktopFeatureSettings(loadDesktopFeatureSettings())
 
   // 更新托盘菜单
   updateTrayMenu()
@@ -110,57 +118,6 @@ function updateTrayMenu(): void {
     {
       label: '历史记录',
       click: () => showHistoryWindow()
-    },
-    { type: 'separator' },
-    {
-      label: '窗口置顶',
-      type: 'checkbox',
-      checked: isAlwaysOnTop,
-      click: () => {
-        isAlwaysOnTop = !isAlwaysOnTop
-        setAlwaysOnTop(isAlwaysOnTop)
-        setUserConfig('tray_always_on_top', isAlwaysOnTop.toString())
-        console.log(`[系统托盘] 窗口置顶: ${isAlwaysOnTop ? '开启' : '关闭'}`)
-        updateTrayMenu()
-      }
-    },
-    {
-      label: '完全穿透模式',
-      type: 'checkbox',
-      checked: isPassThroughMode,
-      click: () => {
-        isPassThroughMode = !isPassThroughMode
-        setMousePassThrough(isPassThroughMode)
-        setUserConfig('tray_pass_through_mode', isPassThroughMode.toString())
-
-        // 通知渲染进程穿透模式状态变化
-        const mainWindow = getMainWindow()
-        if (mainWindow) {
-          mainWindow.webContents.send('window:passThroughModeChanged', isPassThroughMode)
-        }
-
-        updateTrayMenu()
-      }
-    },
-    {
-      label: platformCapabilities.gameMode.supported
-        ? '自动检测全屏应用'
-        : `自动检测全屏应用（不可用：${platformCapabilities.gameMode.reason || '当前平台暂不支持'}）`,
-      type: 'checkbox',
-      checked: platformCapabilities.gameMode.supported && isGameModeActive(),
-      enabled: platformCapabilities.gameMode.supported,
-      click: () => {
-        if (!platformCapabilities.gameMode.supported) return
-
-        if (isGameModeActive()) {
-          disableGameMode()
-          setUserConfig('tray_game_mode', 'false')
-        } else {
-          enableGameMode()
-          setUserConfig('tray_game_mode', 'true')
-        }
-        updateTrayMenu()
-      }
     },
     { type: 'separator' },
     {

@@ -1252,28 +1252,32 @@ export class CubismModel {
   /**
    * 获取纹理源列表（用于颜色提取）
    */
-  getTextureSources(): HTMLImageElement[] {
+  getTextureSources(): HTMLCanvasElement[] {
     if (!this.renderer || !this.gl) return []
 
     try {
       const textures = (this.renderer as any).getBindedTextures?.()
-      if (!textures || textures.size === 0) return []
+      const textureCount = typeof textures?.getSize === 'function' ? textures.getSize() : 0
+      if (!textures || textureCount === 0) return []
 
-      const sources: HTMLImageElement[] = []
+      const sources: HTMLCanvasElement[] = []
 
-      // 遍历所有纹理
-      textures.forEach((glTexture: WebGLTexture, index: number) => {
-        if (!glTexture) return
+      // 遍历所有纹理（csmMap 使用 _keyValues 数组而非 forEach）
+      const keyValues = textures._keyValues || []
+      for (let i = 0; i < keyValues.length; i++) {
+        const pair = keyValues[i]
+        const glTexture = pair?.second as WebGLTexture | undefined
+        if (!glTexture) continue
 
         try {
           // 创建临时 canvas 来读取纹理数据
           const tempCanvas = document.createElement('canvas')
           const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) return
+          if (!tempCtx) continue
 
           // 使用固定尺寸（因为 WebGL 不提供直接获取纹理尺寸的方法）
-          const width = 256
-          const height = 256
+          const width = 512
+          const height = 512
 
           tempCanvas.width = width
           tempCanvas.height = height
@@ -1289,7 +1293,7 @@ export class CubismModel {
             console.warn(`[CubismModel] Framebuffer 不完整: ${status}`)
             this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, null)
             this.gl!.deleteFramebuffer(framebuffer)
-            return
+            continue
           }
 
           const pixels = new Uint8Array(width * height * 4)
@@ -1316,14 +1320,11 @@ export class CubismModel {
 
           tempCtx.putImageData(imageData, 0, 0)
 
-          // 创建 HTMLImageElement
-          const img = new Image()
-          img.src = tempCanvas.toDataURL()
-          sources.push(img)
+          sources.push(tempCanvas)
         } catch (e) {
-          console.warn(`[CubismModel] 读取纹理 ${index} 失败:`, e)
+          console.warn(`[CubismModel] 读取纹理 ${i} 失败:`, e)
         }
-      })
+      }
 
       return sources
     } catch (e) {
@@ -1335,7 +1336,7 @@ export class CubismModel {
   /**
    * 获取纹理源（用于颜色提取）
    */
-  getTextureSource(): HTMLImageElement | null {
+  getTextureSource(): HTMLCanvasElement | null {
     return this.getTextureSources()[0] || null
   }
 

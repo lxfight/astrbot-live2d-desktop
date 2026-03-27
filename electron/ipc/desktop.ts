@@ -6,6 +6,8 @@
 import { BrowserWindow, desktopCapturer, screen } from 'electron'
 import { bridgeClient } from '../main'
 import { getUserName } from '../database/schema'
+import { loadConfig as loadWindowWatcherConfig } from '../utils/windowWatcherConfig'
+import { loadScreenshotSettings } from '../utils/screenshotSettings'
 import {
   getActiveWindow as loadActiveWindow,
   safeGetActiveWindow as safeLoadActiveWindow,
@@ -210,12 +212,13 @@ export async function captureScreenshot(
   uploadFn?: (jpegBuf: Buffer, mime: string) => Promise<string | null>,
   options: CaptureScreenshotOptions = {}
 ): Promise<DesktopCaptureResponsePayload> {
-  const target = req.target || 'active'
+  const screenshotSettings = loadScreenshotSettings()
+  const target = req.target || screenshotSettings.defaultTarget
   const activeWin = await safeGetActiveWin()
-  const maxWidth = Math.min(req.maxWidth || 1280, 1920)
+  const maxWidth = Math.min(req.maxWidth || screenshotSettings.maxWidth, 3840)
   const thumbSize = { width: maxWidth, height: Math.round(maxWidth * 0.5625) }
   const inlineThreshold = Math.max(64 * 1024, options.maxInlineBytes ?? 512 * 1024)
-  const quality = req.quality || 80
+  const quality = req.quality || screenshotSettings.quality
 
   const getDesktopSource = async (): Promise<Electron.DesktopCapturerSource> => {
     const targetDisplay = getDisplayFromActiveWindow(activeWin)
@@ -462,6 +465,12 @@ function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): s
 }
 
 export async function startAppLaunchWatcher() {
+  const watcherConfig = await loadWindowWatcherConfig()
+  if (!watcherConfig.enabled || !watcherConfig.appLaunchEnabled) {
+    stopAppLaunchWatcher()
+    return
+  }
+
   if (watchTimer) {
     clearInterval(watchTimer)
     watchTimer = null
@@ -551,6 +560,16 @@ export function stopAppLaunchWatcher() {
   knownAppKeys.clear()
 }
 
+export async function syncAppLaunchWatcherWithConfig(): Promise<void> {
+  const watcherConfig = await loadWindowWatcherConfig()
+  if (!watcherConfig.enabled || !watcherConfig.appLaunchEnabled || !bridgeClient?.isConnected()) {
+    stopAppLaunchWatcher()
+    return
+  }
+
+  await startAppLaunchWatcher()
+}
+
 // ──────── 工具声明与调用分发 ────────
 
 /**
@@ -579,10 +598,11 @@ const toolHandlers: Record<string, (args: Record<string, any>, ctx: ToolCallCont
     return await getActiveWindow()
   },
   capture_screenshot: async (args, ctx) => {
+    const screenshotSettings = loadScreenshotSettings()
     const req: DesktopCaptureRequestPayload = {
-      target: args.target || 'active',
-      quality: 80,
-      maxWidth: 1920,
+      target: args.target || screenshotSettings.defaultTarget,
+      quality: screenshotSettings.quality,
+      maxWidth: screenshotSettings.maxWidth,
     }
     return await captureScreenshot(req, ctx.uploadFn, { maxInlineBytes: ctx.maxInlineBytes })
   },
