@@ -4,9 +4,10 @@ import path from 'path'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { getMainWindow, setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
-import { getUserConfig } from '../database/schema'
+import { setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
+import { getDesktopFeatureSettings, updateDesktopFeatureSettings } from '../utils/tray'
+import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:'])
@@ -166,7 +167,7 @@ ipcMain.handle('window:closeWelcome', async () => {
  * 设置窗口置顶
  */
 ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
-  setAlwaysOnTop(flag)
+  updateDesktopFeatureSettings({ alwaysOnTop: flag })
   return { success: true }
 })
 
@@ -174,8 +175,7 @@ ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
  * 获取窗口置顶状态
  */
 ipcMain.handle('window:getAlwaysOnTop', async () => {
-  const mainWindow = getMainWindow()
-  return mainWindow ? mainWindow.isAlwaysOnTop() : false
+  return getDesktopFeatureSettings().alwaysOnTop
 })
 
 /**
@@ -183,10 +183,9 @@ ipcMain.handle('window:getAlwaysOnTop', async () => {
  * 只有当配置为“始终置顶”时才执行操作
  */
 ipcMain.handle('window:refreshAlwaysOnTop', async () => {
-  const alwaysOnTopConfig = getUserConfig('tray_always_on_top')
-  const isAlwaysOnTop = alwaysOnTopConfig === null || alwaysOnTopConfig === 'true'
+  const { alwaysOnTop } = getDesktopFeatureSettings()
   
-  if (isAlwaysOnTop) {
+  if (alwaysOnTop) {
     setAlwaysOnTop(true)
   }
   return { success: true }
@@ -204,9 +203,23 @@ ipcMain.handle('window:setIgnoreMouseEvents', async (_event, ignore: boolean) =>
  * 获取当前穿透模式状态
  */
 ipcMain.handle('window:getPassThroughMode', async () => {
-  const passThroughConfig = getUserConfig('tray_pass_through_mode')
-  const isPassThroughMode = passThroughConfig === 'true'
-  return isPassThroughMode
+  return getDesktopFeatureSettings().fullPassThrough
+})
+
+ipcMain.handle('window:getDesktopFeatureSettings', async () => {
+  return getDesktopFeatureSettings()
+})
+
+ipcMain.handle('window:updateDesktopFeatureSettings', async (_event, config) => {
+  return updateDesktopFeatureSettings(config)
+})
+
+ipcMain.handle('window:getScreenshotSettings', async () => {
+  return loadScreenshotSettings()
+})
+
+ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
+  return saveScreenshotSettings(settings)
 })
 
 /**
@@ -305,6 +318,7 @@ ipcMain.handle('window:getPlatformCapabilities', async () => {
  */
 import { getWindowWatcher } from '../utils/windowWatcher'
 import type { WindowEvent } from '../utils/windowWatcher'
+import { syncAppLaunchWatcherWithConfig } from './desktop'
 
 // 存储已注册的渲染进程
 const registeredRenderers = new Set<BrowserWindow>()
@@ -396,6 +410,7 @@ ipcMain.handle('window:getWatcherConfig', async () => {
 ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
   const watcher = getWindowWatcher()
   await watcher.updateConfig(config)
+  await syncAppLaunchWatcherWithConfig()
   return { success: true }
 })
 
@@ -403,5 +418,6 @@ ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
 ipcMain.handle('window:resetWatcherConfig', async () => {
   const watcher = getWindowWatcher()
   await watcher.resetConfig()
+  await syncAppLaunchWatcherWithConfig()
   return { success: true, config: await watcher.getConfig() }
 })

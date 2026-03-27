@@ -198,7 +198,7 @@
                   {{ currentModelStatusLabel }}
                 </span>
               </div>
-              <p class="settings-section__desc">查看当前加载的 Live2D 模型信息。</p>
+              <p class="settings-section__desc">查看当前加载的 Live2D 模型信息，并确认当前主题色是否来自模型配色。</p>
 
               <template v-if="currentModelPath">
                 <div class="current-model-info">
@@ -217,9 +217,18 @@
 
             <section class="settings-section">
               <div class="settings-section__header">
-                <h2>主题同步</h2>
+                <h2>模型偏好</h2>
               </div>
-              <p class="settings-section__desc">应用主题色会自动跟随当前加载的 Live2D 模型配色方案。</p>
+              <p class="settings-section__desc">配置主题色跟随策略。切换后立即生效。</p>
+
+              <n-form label-placement="top">
+                <n-form-item label="主题色跟随当前模型">
+                  <n-switch v-model:value="advancedSettings.themeFollowModel" @update:value="handleThemeFollowChange" />
+                  <template #feedback>
+                    启用后，界面主题会跟随当前模型配色；关闭后将保留手动或已有主题设置。
+                  </template>
+                </n-form-item>
+              </n-form>
 
               <div class="settings-kv-list">
                 <div class="settings-kv-list__row">
@@ -228,7 +237,7 @@
                 </div>
                 <div class="settings-kv-list__row">
                   <span>同步状态</span>
-                  <strong>{{ currentModelPath ? '跟随当前模型' : '等待模型加载' }}</strong>
+                  <strong>{{ advancedSettings.themeFollowModel ? (currentModelPath ? '跟随当前模型' : '等待模型加载') : '已关闭自动同步' }}</strong>
                 </div>
               </div>
             </section>
@@ -448,28 +457,130 @@
               <div class="settings-section__header">
                 <h2>行为配置</h2>
               </div>
-              <p class="settings-section__desc">配置应用启动行为和通知策略。</p>
+              <p class="settings-section__desc">配置应用启动行为、通知策略和日志级别。切换后立即生效。</p>
 
               <n-form label-placement="top">
-                <n-form-item label="启动时自动连接">
-                  <n-switch v-model:value="advancedSettings.autoConnect" />
-                </n-form-item>
+                <div class="settings-toggle-item">
+                  <div class="settings-toggle-item__main">
+                    <div class="settings-toggle-item__label">启动时自动连接</div>
+                  </div>
+                  <n-switch v-model:value="advancedSettings.autoConnect" @update:value="applyAdvancedSettingChange" />
+                </div>
+                <div class="settings-toggle-item">
+                  <div class="settings-toggle-item__main">
+                    <div class="settings-toggle-item__label">音频播放时启用口型同步</div>
+                    <div class="settings-toggle-item__desc">关闭后仍会播放音频，但不会再驱动模型口型变化。</div>
+                  </div>
+                  <n-switch v-model:value="advancedSettings.lipSyncEnabled" @update:value="applyAdvancedSettingChange" />
+                </div>
+                <div class="settings-toggle-item">
+                  <div class="settings-toggle-item__main">
+                    <div class="settings-toggle-item__label">录音时启用静音检测</div>
+                    <div class="settings-toggle-item__desc">长时间未检测到声音时自动结束录音，减少空白语音片段。</div>
+                  </div>
+                  <n-switch v-model:value="advancedSettings.silenceDetectionEnabled" @update:value="applyAdvancedSettingChange" />
+                </div>
+                <div class="settings-toggle-item">
+                  <div class="settings-toggle-item__main">
+                    <div class="settings-toggle-item__label">启用动态穿透</div>
+                    <div class="settings-toggle-item__desc">关闭后，角色窗口将不再根据鼠标位置自动切换穿透状态；不支持的平台会自动禁用此项。</div>
+                  </div>
+                  <n-switch v-model:value="advancedSettings.dynamicPassThroughEnabled" :disabled="!platformCapabilities?.mousePassthroughForward" @update:value="applyAdvancedSettingChange" />
+                </div>
                 <n-form-item label="基础事件弹窗提示">
-                  <n-switch v-model:value="advancedSettings.showBaseEventNotifications" />
+                  <n-switch v-model:value="advancedSettings.showBaseEventNotifications" @update:value="applyAdvancedSettingChange" />
                 </n-form-item>
                 <n-form-item label="日志级别">
-                  <n-radio-group v-model:value="advancedSettings.logLevel">
+                  <n-radio-group v-model:value="advancedSettings.logLevel" @update:value="applyAdvancedSettingChange">
                     <n-space>
                       <n-radio-button value="info">Info</n-radio-button>
                       <n-radio-button value="debug">Debug</n-radio-button>
                     </n-space>
                   </n-radio-group>
                 </n-form-item>
+                <n-form-item label="最大气泡数量">
+                  <n-space align="center">
+                    <n-input-number v-model:value="advancedSettings.bubbleStackMax" :min="1" :max="10" :precision="0" @update:value="applyAdvancedSettingChange" />
+                    <span>条</span>
+                  </n-space>
+                </n-form-item>
+                <n-form-item label="气泡追加时间窗口">
+                  <n-space align="center">
+                    <n-input-number v-model:value="advancedSettings.bubbleFollowUpWindowMs" :min="500" :max="15000" :step="500" :precision="0" @update:value="applyAdvancedSettingChange" />
+                    <span>毫秒</span>
+                  </n-space>
+                </n-form-item>
+                <n-form-item label="图片内联阈值">
+                  <n-space align="center">
+                    <n-input-number v-model:value="advancedSettings.imageInlineThresholdKb" :min="64" :max="2048" :step="64" :precision="0" @update:value="applyAdvancedSettingChange" />
+                    <span>KB</span>
+                  </n-space>
+                </n-form-item>
+                <n-form-item label="图片大小上限">
+                  <n-space align="center">
+                    <n-input-number v-model:value="advancedSettings.imageMaxSizeMb" :min="1" :max="50" :step="1" :precision="0" @update:value="applyAdvancedSettingChange" />
+                    <span>MB</span>
+                  </n-space>
+                </n-form-item>
+                <n-form-item label="截图默认目标">
+                  <n-radio-group :value="screenshotSettings.defaultTarget" @update:value="(value: 'active' | 'desktop') => updateScreenshotSettings({ defaultTarget: value })">
+                    <n-space>
+                      <n-radio-button value="active">当前窗口</n-radio-button>
+                      <n-radio-button value="desktop">整个桌面</n-radio-button>
+                    </n-space>
+                  </n-radio-group>
+                </n-form-item>
+                <n-form-item label="截图质量">
+                  <n-space align="center">
+                    <n-input-number :value="screenshotSettings.quality" :min="30" :max="100" :step="5" :precision="0" @update:value="(value: number | null) => updateScreenshotSettings({ quality: value ?? 80 })" />
+                    <span>%</span>
+                  </n-space>
+                </n-form-item>
+                <n-form-item label="截图最大宽度">
+                  <n-space align="center">
+                    <n-input-number :value="screenshotSettings.maxWidth" :min="640" :max="3840" :step="160" :precision="0" @update:value="(value: number | null) => updateScreenshotSettings({ maxWidth: value ?? 1920 })" />
+                    <span>像素</span>
+                  </n-space>
+                </n-form-item>
               </n-form>
+            </section>
 
-              <div class="settings-section__actions">
-                <n-button type="primary" @click="saveAdvancedSettings">保存设置</n-button>
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>桌面交互</h2>
               </div>
+              <p class="settings-section__desc">控制桌面窗口的置顶、穿透和全屏应用检测行为。此处开关会在切换后立即保存并生效。</p>
+
+              <n-form label-placement="top">
+                <n-form-item label="始终置顶显示">
+                  <n-switch
+                    :value="desktopFeatureSettings.alwaysOnTop"
+                    @update:value="(value: boolean) => updateDesktopFeatureSetting('alwaysOnTop', value)"
+                  />
+                  <template #feedback>
+                    保持桌面角色窗口位于普通应用之上，适合需要持续显示角色的场景。
+                  </template>
+                </n-form-item>
+                <n-form-item label="启用完全穿透模式">
+                  <n-switch
+                    :value="desktopFeatureSettings.fullPassThrough"
+                    @update:value="(value: boolean) => updateDesktopFeatureSetting('fullPassThrough', value)"
+                  />
+                  <template #feedback>
+                    启用后整个桌面角色窗口将不再接收鼠标点击；关闭后恢复正常交互。
+                  </template>
+                </n-form-item>
+                <n-form-item label="自动检测全屏应用">
+                  <n-switch
+                    :value="desktopFeatureSettings.autoDetectFullscreen"
+                    :disabled="!platformCapabilities?.gameMode.supported"
+                    @update:value="(value: boolean) => updateDesktopFeatureSetting('autoDetectFullscreen', value)"
+                  />
+                  <template #feedback>
+                    检测到游戏或其他全屏应用时，自动配合桌面模式调整窗口行为；当前平台不支持时会禁用此选项。
+                  </template>
+                </n-form-item>
+              </n-form>
             </section>
 
             <section class="settings-section">
@@ -533,15 +644,12 @@
                       :min="1"
                       :max="60"
                       :precision="0"
+                      @update:value="applyAdvancedSettingChange"
                     />
                     <span>秒（上限 60 秒）</span>
                   </n-space>
                 </n-form-item>
               </n-form>
-
-              <div class="settings-section__actions">
-                <n-button type="primary" @click="saveAdvancedSettings">保存设置</n-button>
-              </div>
             </section>
           </template>
 
@@ -556,6 +664,22 @@
                 />
               </div>
               <p class="settings-section__desc">监听窗口变化，让 AI 主动感知你的操作。启用后，AI 会在你打开应用时主动响应。</p>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section__header">
+                <h2>主动触发策略</h2>
+              </div>
+              <p class="settings-section__desc">将应用启动时的主动提醒拆分为单独开关，便于只保留窗口上下文感知。</p>
+
+              <n-form label-placement="top">
+                <n-form-item label="启用应用启动监听">
+                  <n-switch v-model:value="watcherConfig.appLaunchEnabled" @update:value="saveWatcherConfig" />
+                  <template #feedback>
+                    关闭后不会再因检测到新应用启动而主动发送桌面事件，但窗口监听的其他配置仍可保留。
+                  </template>
+                </n-form-item>
+              </n-form>
             </section>
 
             <section class="settings-section">
@@ -776,10 +900,23 @@
                   <strong>{{ updateStatusLabel }}</strong>
                 </div>
                 <div class="settings-kv-list__row">
+                  <span>自动检查更新</span>
+                  <strong>{{ updaterSettings.autoUpdateEnabled ? '已启用' : '已关闭' }}</strong>
+                </div>
+                <div class="settings-kv-list__row">
                   <span>作者</span>
                   <strong>lxfight</strong>
                 </div>
               </div>
+
+              <n-form label-placement="top" style="margin-top: 16px;">
+                <n-form-item label="启动后自动检查更新">
+                  <n-switch :value="updaterSettings.autoUpdateEnabled" @update:value="updateAutoUpdateSetting" />
+                  <template #feedback>
+                    关闭后不会在启动时自动检查更新，但手动“检查更新”仍可继续使用。
+                  </template>
+                </n-form-item>
+              </n-form>
 
               <div class="settings-section__actions">
                 <n-button :loading="checkingUpdate" @click="handleCheckUpdates">检查更新</n-button>
@@ -920,6 +1057,19 @@ const checkingUpdate = ref(false)
 const advancedSettings = ref({
   ...DEFAULT_ADVANCED_SETTINGS,
 })
+const desktopFeatureSettings = ref({
+  alwaysOnTop: false,
+  fullPassThrough: false,
+  autoDetectFullscreen: false,
+})
+const updaterSettings = ref({
+  autoUpdateEnabled: true,
+})
+const screenshotSettings = ref({
+  defaultTarget: 'active' as 'active' | 'desktop',
+  quality: 80,
+  maxWidth: 1920,
+})
 const shortcutRegistered = ref(false)
 const isWindowMaximized = ref(false)
 
@@ -928,6 +1078,7 @@ type AIResponseMode = 'first-open' | 'every-switch' | 'specific-apps'
 
 const watcherConfig = ref({
   enabled: true,
+  appLaunchEnabled: true,
   throttle: {
     globalInterval: 1000,
     perWindowInterval: 3000,
@@ -1177,6 +1328,9 @@ onMounted(async () => {
 
   await loadModelList()
   loadSettings()
+  await loadDesktopFeatureSettings()
+  await loadUpdaterSettings()
+  await loadScreenshotSettings()
   themeStore.syncFromStorage()
   await loadWatcherConfig()
 
@@ -1304,6 +1458,120 @@ async function applyLogLevelSetting(level: 'info' | 'debug') {
 function loadSettings() {
   advancedSettings.value = loadAdvancedSettings()
   void applyLogLevelSetting(advancedSettings.value.logLevel)
+}
+
+async function loadDesktopFeatureSettings() {
+  try {
+    const settings = await window.electron.window.getDesktopFeatureSettings()
+    desktopFeatureSettings.value = {
+      alwaysOnTop: Boolean(settings.alwaysOnTop),
+      fullPassThrough: Boolean(settings.fullPassThrough),
+      autoDetectFullscreen: Boolean(settings.autoDetectFullscreen),
+    }
+  } catch (error) {
+    console.warn('[设置] 加载桌面功能设置失败:', error)
+  }
+}
+
+async function loadUpdaterSettings() {
+  try {
+    const settings = await window.electron.update.getSettings()
+    updaterSettings.value = {
+      autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
+    }
+  } catch (error) {
+    console.warn('[设置] 加载自动更新设置失败:', error)
+  }
+}
+
+async function loadScreenshotSettings() {
+  try {
+    const settings = await window.electron.window.getScreenshotSettings()
+    screenshotSettings.value = {
+      defaultTarget: settings.defaultTarget === 'desktop' ? 'desktop' : 'active',
+      quality: Number(settings.quality) || 80,
+      maxWidth: Number(settings.maxWidth) || 1920,
+    }
+  } catch (error) {
+    console.warn('[设置] 加载截图策略设置失败:', error)
+  }
+}
+
+async function updateDesktopFeatureSetting(
+  key: 'alwaysOnTop' | 'fullPassThrough' | 'autoDetectFullscreen',
+  value: boolean,
+) {
+  const previousSettings = { ...desktopFeatureSettings.value }
+  const nextSettings = {
+    ...desktopFeatureSettings.value,
+    [key]: value,
+  }
+
+  desktopFeatureSettings.value = nextSettings
+
+  try {
+    const savedSettings = await window.electron.window.updateDesktopFeatureSettings({
+      alwaysOnTop: nextSettings.alwaysOnTop,
+      fullPassThrough: nextSettings.fullPassThrough,
+      autoDetectFullscreen: nextSettings.autoDetectFullscreen,
+    })
+    desktopFeatureSettings.value = {
+      alwaysOnTop: Boolean(savedSettings.alwaysOnTop),
+      fullPassThrough: Boolean(savedSettings.fullPassThrough),
+      autoDetectFullscreen: Boolean(savedSettings.autoDetectFullscreen),
+    }
+    message.success('桌面交互设置已保存')
+  } catch (error: any) {
+    desktopFeatureSettings.value = previousSettings
+    message.error(`保存失败: ${error?.message || String(error)}`)
+  }
+}
+
+async function updateAutoUpdateSetting(value: boolean) {
+  const previousSettings = { ...updaterSettings.value }
+  updaterSettings.value = { autoUpdateEnabled: value }
+
+  try {
+    const nextSettings = await window.electron.update.updateSettings({
+      autoUpdateEnabled: value,
+    })
+    updaterSettings.value = {
+      autoUpdateEnabled: Boolean(nextSettings.autoUpdateEnabled),
+    }
+    message.success('自动更新设置已保存')
+  } catch (error: any) {
+    updaterSettings.value = previousSettings
+    message.error(`保存失败: ${error?.message || String(error)}`)
+  }
+}
+
+function createScreenshotSettingsPayload() {
+  return {
+    defaultTarget: screenshotSettings.value.defaultTarget,
+    quality: screenshotSettings.value.quality,
+    maxWidth: screenshotSettings.value.maxWidth,
+  }
+}
+
+async function updateScreenshotSettings(patch: Partial<typeof screenshotSettings.value>) {
+  const previousSettings = { ...screenshotSettings.value }
+  screenshotSettings.value = {
+    ...screenshotSettings.value,
+    ...patch,
+  }
+
+  try {
+    const nextSettings = await window.electron.window.updateScreenshotSettings(createScreenshotSettingsPayload())
+    screenshotSettings.value = {
+      defaultTarget: nextSettings.defaultTarget === 'desktop' ? 'desktop' : 'active',
+      quality: Number(nextSettings.quality) || 80,
+      maxWidth: Number(nextSettings.maxWidth) || 1920,
+    }
+    message.success('截图策略已保存')
+  } catch (error: any) {
+    screenshotSettings.value = previousSettings
+    message.error(`保存失败: ${error?.message || String(error)}`)
+  }
 }
 
 async function loadModelList() {
@@ -1766,6 +2034,18 @@ async function saveAdvancedSettings() {
   message.success('高级设置已保存')
 }
 
+/** 即时保存 advancedSettings，切换后立即生效 */
+async function applyAdvancedSettingChange() {
+  advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
+  await applyLogLevelSetting(advancedSettings.value.logLevel)
+}
+
+/** 处理主题色跟随开关变化，开启时立即重新提取主题色 */
+async function handleThemeFollowChange(value: boolean) {
+  await applyAdvancedSettingChange()
+  // storage 事件通知主窗口，主窗口的 handleStorageChange 会处理提取
+}
+
 // 窗口监听配置相关方法
 async function loadWatcherConfig() {
   try {
@@ -1784,6 +2064,7 @@ async function loadWatcherConfig() {
 function createWatcherConfigPayload(): WindowWatcherConfig {
   return {
     enabled: watcherConfig.value.enabled,
+    appLaunchEnabled: watcherConfig.value.appLaunchEnabled,
     throttle: {
       globalInterval: watcherConfig.value.throttle.globalInterval,
       perWindowInterval: watcherConfig.value.throttle.perWindowInterval,
@@ -1912,6 +2193,7 @@ async function handleClearShortcut() {
   await window.electron.shortcut.unregister()
   advancedSettings.value.recordingShortcut = ''
   shortcutRegistered.value = false
+  await applyAdvancedSettingChange()
   message.success('快捷键已清除')
 }
 
@@ -2914,6 +3196,33 @@ function handleOpenLink(url: string) {
 
 .history-pagination {
   margin-top: 16px;
+}
+
+.settings-toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-toggle-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-toggle-item__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--desktop-text-primary);
+}
+
+.settings-toggle-item__desc {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--desktop-text-secondary);
 }
 
 // 图表网格

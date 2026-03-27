@@ -314,8 +314,8 @@ const BUBBLE_EDGE_PADDING = 16
 const STATUS_MODEL_GAP = 30
 const RECORDING_STATUS_GAP = 44
 const BUBBLE_GAP = 10          // 堆叠气泡间距 px
-const BUBBLE_STACK_MAX = 3     // 最大气泡数量
-const FOLLOW_UP_WINDOW_MS = 4000  // 追加消息时间窗口 ms
+const DEFAULT_BUBBLE_STACK_MAX = 3
+const DEFAULT_FOLLOW_UP_WINDOW_MS = 4000
 const showInput = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const inputStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
@@ -366,6 +366,22 @@ type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
 const modelStatus = ref<{ text: string; type: ModelStatusType } | null>(null)
 const modelStatusStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 const recordingToastStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
+
+function getBubbleStackMax(): number {
+  return advancedSettings.value.bubbleStackMax || DEFAULT_BUBBLE_STACK_MAX
+}
+
+function getBubbleFollowUpWindowMs(): number {
+  return advancedSettings.value.bubbleFollowUpWindowMs || DEFAULT_FOLLOW_UP_WINDOW_MS
+}
+
+function getImageInlineThresholdBytes(): number {
+  return Math.max(64, advancedSettings.value.imageInlineThresholdKb || 256) * 1024
+}
+
+function getImageMaxSizeBytes(): number {
+  return Math.max(1, advancedSettings.value.imageMaxSizeMb || 10) * 1024 * 1024
+}
 
 function showModelStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
   modelStatus.value = { text, type }
@@ -644,30 +660,48 @@ function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
 }
 
 async function extractAndApplyModelTheme(modelPath: string) {
+  if (!advancedSettings.value.themeFollowModel) {
+    return
+  }
+
   const extractionRevision = ++themeExtractionRevision
-  const textureSources = live2dCanvasRef.value?.getTextureSources?.() || []
 
-  if (!textureSources.length) {
+  // 重试最多 3 次，因为 WebGL 纹理可能需要时间绑定
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (extractionRevision !== themeExtractionRevision) {
+      return
+    }
+
+    const textureSources = live2dCanvasRef.value?.getTextureSources?.() || []
+    if (!textureSources.length) {
+      // 纹理尚未就绪，等待后重试
+      await sleep(200)
+      continue
+    }
+
+    const images = textureSources.slice(0, 6)
+    await Promise.all(images.map(waitForImageReady))
+
+    if (extractionRevision !== themeExtractionRevision) {
+      return
+    }
+
+    const extractedColor = await extractModelThemeColor(images)
+    if (!extractedColor) {
+      // 颜色提取失败，等待后重试
+      await sleep(200)
+      continue
+    }
+
+    themeStore.applyModelTheme({
+      modelPath,
+      rgb: extractedColor,
+    })
+    console.log('[主窗口] 提取主题色:', rgbToHexString(extractedColor))
     return
   }
 
-  const images = textureSources.slice(0, 6)
-  await Promise.all(images.map(waitForImageReady))
-
-  if (extractionRevision !== themeExtractionRevision) {
-    return
-  }
-
-  const extractedColor = extractModelThemeColor(images)
-  if (!extractedColor) {
-    return
-  }
-
-  themeStore.applyModelTheme({
-    modelPath,
-    rgb: extractedColor,
-  })
-  console.log('[主窗口] 提取主题色:', rgbToHexString(extractedColor))
+  console.warn('[主窗口] 主题色提取失败，已重试 3 次')
 }
 
 function updateStackPositions() {
@@ -862,7 +896,7 @@ function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, inte
   }
 
   // 超过最大数量时驱逐最老的
-  if (bubbleStack.value.length >= BUBBLE_STACK_MAX) {
+  if (bubbleStack.value.length >= getBubbleStackMax()) {
     const oldest = bubbleStack.value[0]
     freezeEntry(oldest)
     bubbleStack.value.splice(0, 1)
@@ -1287,8 +1321,8 @@ function handleSelectImage() {
     if (!files || files.length === 0) return
 
     const file = files[0]
-    if (file.size > 10 * 1024 * 1024) {
-      showModelStatus('图片大小不能超过 10MB', 'warning')
+    if (file.size > getImageMaxSizeBytes()) {
+      showModelStatus(`图片大小不能超过 ${advancedSettings.value.imageMaxSizeMb}MB`, 'warning')
       return
     }
 
@@ -1377,7 +1411,16 @@ function handleStorageChange(event: StorageEvent) {
     return
   }
 
+  const wasThemeFollowModel = advancedSettings.value.themeFollowModel
   refreshAdvancedSettings()
+
+  // themeFollowModel 从 false 变为 true 时，立即重新提取主题色
+  if (!wasThemeFollowModel && advancedSettings.value.themeFollowModel) {
+    const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
+    if (activeModelPath) {
+      void extractAndApplyModelTheme(activeModelPath)
+    }
+  }
 }
 
 interface StartRecordingOptions {
@@ -1408,8 +1451,12 @@ async function startRecording(options: StartRecordingOptions | MouseEvent = {}) 
       sampleRate: 16000,
       channelCount: 1,
       silenceDetection: {
-        enabled: false
+        enabled: advancedSettings.value.silenceDetectionEnabled
       }
+    })
+
+    audioRecorder.onSilenceDetected(() => {
+      void stopRecording({ reason: 'max-duration' })
     })
 
     await audioRecorder.start()
@@ -1549,6 +1596,9 @@ async function sendAudioMessage(audioBlob: Blob) {
 // 处理音频开始播放（启动口型同步）
 function handleAudioStart(audioElement: HTMLAudioElement) {
   console.log('[主窗口] 音频开始播放，启动口型同步')
+  if (!advancedSettings.value.lipSyncEnabled) {
+    return
+  }
   live2dCanvasRef.value?.startLipSync(audioElement)
 }
 
@@ -1582,8 +1632,7 @@ async function handleSendMessage() {
     if (selectedImage.value) {
       const file = selectedImage.value.file
 
-      // 小于 256KB 使用 inline base64
-      if (file.size < 256 * 1024) {
+      if (file.size < getImageInlineThresholdBytes()) {
         const base64 = await fileToBase64(file)
         content.push({ type: 'image', inline: base64 })
       } else {
@@ -1713,7 +1762,7 @@ onMounted(async () => {
 
     const now = Date.now()
     // 4s 窗口内的连续消息视为追加（不中断），超出则中断旧内容
-    const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < FOLLOW_UP_WINDOW_MS
+    const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < getBubbleFollowUpWindowMs()
     lastPerformReceiveTime = now
 
     // interrupt=true 且不是追加时才中断旧表演

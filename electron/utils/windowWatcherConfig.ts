@@ -65,6 +65,7 @@ export const BUILTIN_IGNORE_RULES = {
 export interface WindowWatcherConfig {
   // 基础开关
   enabled: boolean
+  appLaunchEnabled: boolean
   
   // 频率限制（毫秒）
   throttle: {
@@ -106,6 +107,7 @@ export interface WindowWatcherConfig {
  */
 export const DEFAULT_CONFIG: WindowWatcherConfig = {
   enabled: true,
+  appLaunchEnabled: true,
   throttle: {
     globalInterval: 1000,       // 1秒
     perWindowInterval: 3000,    // 3秒
@@ -169,6 +171,10 @@ export function validateConfig(config: Partial<WindowWatcherConfig>): WindowWatc
   // 基础开关
   if (typeof config.enabled === 'boolean') {
     validated.enabled = config.enabled
+  }
+
+  if (typeof config.appLaunchEnabled === 'boolean') {
+    validated.appLaunchEnabled = config.appLaunchEnabled
   }
   
   // 节流配置

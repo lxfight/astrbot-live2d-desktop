@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { checkForAppUpdates, getUpdateState, quitAndInstallUpdate } from '../utils/updater'
+import { checkForAppUpdates, getUpdateState, getUpdaterSettings, quitAndInstallUpdate, updateUpdaterSettings } from '../utils/updater'
 
 ipcMain.handle('update:getState', async () => {
   return getUpdateState()
@@ -11,4 +11,12 @@ ipcMain.handle('update:check', async () => {
 
 ipcMain.handle('update:quitAndInstall', async () => {
   return quitAndInstallUpdate()
+})
+
+ipcMain.handle('update:getSettings', async () => {
+  return getUpdaterSettings()
+})
+
+ipcMain.handle('update:updateSettings', async (_event, settings) => {
+  return updateUpdaterSettings(settings)
 })
