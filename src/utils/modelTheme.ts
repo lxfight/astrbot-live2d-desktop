@@ -101,7 +101,7 @@ function pickFromBuckets(buckets: { r: number; g: number; b: number; count: numb
 async function extractVibrant(canvas: HTMLCanvasElement): Promise<ThemeRgb | null> {
   try {
     const dataUrl = canvas.toDataURL('image/png')
-    const palette = await Vibrant.from(dataUrl, { quality: 1, colorCount: 64 }).getPalette()
+    const palette = await Vibrant.from(dataUrl).maxColorCount(64).quality(1).getPalette()
 
     const order = ['Vibrant', 'DarkVibrant', 'LightVibrant', 'Muted', 'DarkMuted', 'LightMuted']
     for (const name of order) {

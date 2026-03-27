@@ -2041,7 +2041,7 @@ async function applyAdvancedSettingChange() {
 }
 
 /** 处理主题色跟随开关变化，开启时立即重新提取主题色 */
-async function handleThemeFollowChange(value: boolean) {
+async function handleThemeFollowChange(_value: boolean) {
   await applyAdvancedSettingChange()
   // storage 事件通知主窗口，主窗口的 handleStorageChange 会处理提取
 }
