@@ -636,23 +636,6 @@ function resolveModelOverlayAnchor() {
   }
 }
 
-function waitForImageReady(image: HTMLImageElement): Promise<void> {
-  if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
-    return Promise.resolve()
-  }
-
-  return new Promise((resolve) => {
-    const finalize = () => {
-      image.removeEventListener('load', finalize)
-      image.removeEventListener('error', finalize)
-      resolve()
-    }
-
-    image.addEventListener('load', finalize, { once: true })
-    image.addEventListener('error', finalize, { once: true })
-  })
-}
-
 function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
   return `#${[rgb.r, rgb.g, rgb.b]
     .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
@@ -672,24 +655,19 @@ async function extractAndApplyModelTheme(modelPath: string) {
       return
     }
 
-    const textureSources = live2dCanvasRef.value?.getTextureSources?.() || []
-    if (!textureSources.length) {
-      // 纹理尚未就绪，等待后重试
-      await sleep(200)
+    const textureCanvases = live2dCanvasRef.value?.getTextureSources?.() || []
+    if (!textureCanvases.length) {
+      await sleep(300)
       continue
     }
-
-    const images = textureSources.slice(0, 6)
-    await Promise.all(images.map(waitForImageReady))
 
     if (extractionRevision !== themeExtractionRevision) {
       return
     }
 
-    const extractedColor = await extractModelThemeColor(images)
+    const extractedColor = await extractModelThemeColor(textureCanvases)
     if (!extractedColor) {
-      // 颜色提取失败，等待后重试
-      await sleep(200)
+      await sleep(300)
       continue
     }
 

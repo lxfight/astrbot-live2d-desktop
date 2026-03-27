@@ -1252,7 +1252,7 @@ export class CubismModel {
   /**
    * 获取纹理源列表（用于颜色提取）
    */
-  getTextureSources(): HTMLImageElement[] {
+  getTextureSources(): HTMLCanvasElement[] {
     if (!this.renderer || !this.gl) return []
 
     try {
@@ -1260,7 +1260,7 @@ export class CubismModel {
       const textureCount = typeof textures?.getSize === 'function' ? textures.getSize() : 0
       if (!textures || textureCount === 0) return []
 
-      const sources: HTMLImageElement[] = []
+      const sources: HTMLCanvasElement[] = []
 
       // 遍历所有纹理（csmMap 使用 _keyValues 数组而非 forEach）
       const keyValues = textures._keyValues || []
@@ -1320,10 +1320,7 @@ export class CubismModel {
 
           tempCtx.putImageData(imageData, 0, 0)
 
-          // 创建 HTMLImageElement
-          const img = new Image()
-          img.src = tempCanvas.toDataURL()
-          sources.push(img)
+          sources.push(tempCanvas)
         } catch (e) {
           console.warn(`[CubismModel] 读取纹理 ${i} 失败:`, e)
         }
@@ -1339,7 +1336,7 @@ export class CubismModel {
   /**
    * 获取纹理源（用于颜色提取）
    */
-  getTextureSource(): HTMLImageElement | null {
+  getTextureSource(): HTMLCanvasElement | null {
     return this.getTextureSources()[0] || null
   }
 
