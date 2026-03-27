@@ -8,11 +8,14 @@
  */
 
 import { screen } from 'electron'
+import { createRequire } from 'module'
 import type { 
   PlatformWatcher, 
   WindowInfo
 } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
+
+const require = createRequire(import.meta.url)
 
 // Windows API 常量
 const EVENT_SYSTEM_FOREGROUND = 0x0003
@@ -70,13 +73,13 @@ function initWindowsApi(): boolean {
     const UnhookWinEvent = lib.func('int UnhookWinEvent(int64 hWinEventHook)')
     const GetForegroundWindow = lib.func('int64 GetForegroundWindow()')
     const GetWindowTextLengthW = lib.func('int GetWindowTextLengthW(int64 hWnd)')
-    const GetWindowTextW = lib.func('int GetWindowTextW(int64 hWnd, str16 lpString, int nMaxCount)')
+    const GetWindowTextW = lib.func('int GetWindowTextW(int64 hWnd, void *lpString, int nMaxCount)')
     const GetWindowThreadProcessId = lib.func('uint32 GetWindowThreadProcessId(int64 hWnd, uint32 *lpdwProcessId)')
     const GetWindowRect = lib.func('int GetWindowRect(int64 hWnd, void *lpRect)')
     const IsWindowVisible = lib.func('int IsWindowVisible(int64 hWnd)')
     const IsIconic = lib.func('int IsIconic(int64 hWnd)')
     const IsZoomed = lib.func('int IsZoomed(int64 hWnd)')
-    const GetClassNameW = lib.func('int GetClassNameW(int64 hWnd, str16 lpClassName, int nMaxCount)')
+    const GetClassNameW = lib.func('int GetClassNameW(int64 hWnd, void *lpClassName, int nMaxCount)')
 
     // kernel32.dll
     const k32 = koffi.load('kernel32.dll')
@@ -104,7 +107,9 @@ function getWindowTitle(hwnd: bigint): string {
   try {
     const length = user32.GetWindowTextLengthW(hwnd)
     if (length === 0) return ''
-    return user32.GetWindowTextW(hwnd, '', length + 1) || ''
+    const buf = Buffer.alloc((length + 1) * 2)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
+    return buf.toString('utf16le', 0, length * 2)
   } catch {
     return ''
   }
@@ -115,7 +120,10 @@ function getWindowTitle(hwnd: bigint): string {
  */
 function getWindowClassName(hwnd: bigint): string {
   try {
-    return user32.GetClassNameW(hwnd, '', 256) || ''
+    const buf = Buffer.alloc(256 * 2)
+    const length = user32.GetClassNameW(hwnd, buf, 256)
+    if (length === 0) return ''
+    return buf.toString('utf16le', 0, length * 2)
   } catch {
     return ''
   }
@@ -281,6 +289,13 @@ export class WindowsWatcher implements PlatformWatcher {
 
       const windowInfo = getWindowInfo(hwnd)
       if (!windowInfo) return
+
+      // 维护窗口缓存
+      if (type === 'destroy') {
+        windowCache.delete(windowInfo.id)
+      } else {
+        windowCache.set(windowInfo.id, windowInfo)
+      }
 
       this.eventCallback({
         type,
