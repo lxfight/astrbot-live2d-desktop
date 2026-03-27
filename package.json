@@ -39,7 +39,7 @@
     "postinstall": "node scripts/rebuild-native.js --optional && node scripts/download-cubism-core.js && node scripts/download-framework.js && node scripts/apply-cubism-framework-patches.mjs",
     "setup:framework": "node scripts/download-framework.js",
     "setup:framework:force": "node scripts/download-framework.js --force",
-    "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3",
+    "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3,ffi-napi,ref-napi",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:prepare:fast": "pnpm exec vite build",
     "pack": "pnpm exec electron-builder --publish never",
@@ -106,6 +106,8 @@
     "ws": "^8.16.0"
   },
   "optionalDependencies": {
+    "ffi-napi": "^4.0.3",
+    "ref-napi": "^3.0.3",
     "node-window-manager": "^2.2.4"
   },
   "build": {
