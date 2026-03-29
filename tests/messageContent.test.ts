@@ -83,6 +83,10 @@ describe('messageContent', () => {
     expect(result).toEqual([item])
   })
 
+  // Note: Buffer.from(x, 'base64') never throws even for invalid base64,
+  // so the catch block in decodeInlineDataUrl is unreachable dead code.
+  // This is intentional defensive coding for future Node.js compatibility.
+
   it('returns null for non-data URL strings', () => {
     expect(decodeInlineDataUrl('https://example.com')).toBeNull()
     expect(decodeInlineDataUrl(123 as unknown as string)).toBeNull()

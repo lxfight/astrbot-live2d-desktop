@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   ADVANCED_SETTINGS_KEY,
   DEFAULT_ADVANCED_SETTINGS,
@@ -106,6 +106,10 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
       removeItem: vi.fn((key: string) => { delete store[key] }),
       clear: vi.fn(() => { store = {} }),
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('returns defaults when localStorage is empty', () => {
