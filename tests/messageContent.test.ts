@@ -59,4 +59,65 @@ describe('messageContent', () => {
       prepareMessageContentForTransport([{ type: 'image', inline }], { maxInlineBytes: 1024 })
     ).rejects.toThrow('服务端未提供资源上传能力')
   })
+
+  it('decodes ArrayBuffer binary payloads (not just Uint8Array)', () => {
+    const arrayBuffer = new Uint8Array([7, 8, 9]).buffer
+    const decoded = decodeBinaryPayload({
+      type: 'image',
+      mime: 'image/png',
+      bytes: arrayBuffer
+    })
+
+    expect(decoded?.mime).toBe('image/png')
+    expect(Array.from(decoded?.buffer || [])).toEqual([7, 8, 9])
+  })
+
+  it('returns null when bytes is falsy', () => {
+    expect(decodeBinaryPayload({ type: 'text' })).toBeNull()
+    expect(decodeBinaryPayload({ type: 'text', bytes: undefined })).toBeNull()
+  })
+
+  it('passes through items with neither inline nor bytes fields', async () => {
+    const item = { type: 'text', text: 'hello' }
+    const result = await prepareMessageContentForTransport([item as unknown as any])
+    expect(result).toEqual([item])
+  })
+
+  it('returns null for non-data URL strings', () => {
+    expect(decodeInlineDataUrl('https://example.com')).toBeNull()
+    expect(decodeInlineDataUrl(123 as unknown as string)).toBeNull()
+  })
+
+  it('returns null when inline data URL has no base64 segment', () => {
+    expect(decodeInlineDataUrl('data:text/plain,plain-text-here')).toBeNull()
+  })
+
+  it('uses default mime when inline data URL omits mime type', () => {
+    const decoded = decodeInlineDataUrl('data:;base64,aGVsbG8=')
+    expect(decoded?.mime).toBe('application/octet-stream')
+  })
+
+  it('preserves original item when preparedResource is null', async () => {
+    const item = { type: 'text', text: 'no binary or inline' }
+    const result = await prepareMessageContentForTransport([item])
+    expect(result).toEqual([item])
+  })
+
+  it('throws when uploadInlineResource returns null', async () => {
+    const inline = `data:application/octet-stream;base64,${Buffer.alloc(4096, 1).toString('base64')}`
+    const uploadInlineResource = vi.fn().mockResolvedValue(null)
+
+    await expect(
+      prepareMessageContentForTransport(
+        [{ type: 'image', inline, name: 'big.bin' }],
+        { maxInlineBytes: 1024, uploadInlineResource }
+      )
+    ).rejects.toThrow('资源上传失败')
+  })
+
+  it('uses default inline limit when maxInlineBytes is invalid', async () => {
+    const small = { type: 'audio', bytes: new Uint8Array([1, 2, 3]), mime: 'audio/webm' }
+    const result = await prepareMessageContentForTransport([small], { maxInlineBytes: -1 })
+    expect(result[0].inline).toBeDefined()
+  })
 })

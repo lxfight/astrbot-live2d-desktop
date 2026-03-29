@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
+  ADVANCED_SETTINGS_KEY,
   DEFAULT_ADVANCED_SETTINGS,
   clampBubbleFollowUpWindowMs,
   clampBubbleStackMax,
@@ -7,6 +8,8 @@ import {
   clampImageMaxSizeMb,
   clampMaxRecordingSeconds,
   normalizeAdvancedSettings,
+  loadAdvancedSettings,
+  saveAdvancedSettings,
 } from '../src/utils/advancedSettings'
 
 describe('advancedSettings', () => {
@@ -89,5 +92,77 @@ describe('advancedSettings', () => {
     expect(normalized.bubbleFollowUpWindowMs).toBe(4000)
     expect(normalized.imageInlineThresholdKb).toBe(256)
     expect(normalized.imageMaxSizeMb).toBe(10)
+  })
+})
+
+describe('loadAdvancedSettings / saveAdvancedSettings', () => {
+  let store: Record<string, string>
+
+  beforeEach(() => {
+    store = {}
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => store[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => { store[key] = value }),
+      removeItem: vi.fn((key: string) => { delete store[key] }),
+      clear: vi.fn(() => { store = {} }),
+    })
+  })
+
+  it('returns defaults when localStorage is empty', () => {
+    const settings = loadAdvancedSettings()
+    expect(settings).toEqual(DEFAULT_ADVANCED_SETTINGS)
+  })
+
+  it('loads and normalizes valid JSON from localStorage', () => {
+    store[ADVANCED_SETTINGS_KEY] = JSON.stringify({
+      recordingShortcut: 'Ctrl+Q',
+      autoConnect: false,
+      logLevel: 'debug',
+      maxRecordingSeconds: 25,
+    })
+
+    const settings = loadAdvancedSettings()
+    expect(settings.recordingShortcut).toBe('Ctrl+Q')
+    expect(settings.autoConnect).toBe(false)
+    expect(settings.logLevel).toBe('debug')
+    expect(settings.maxRecordingSeconds).toBe(25)
+    // missing fields filled from defaults
+    expect(settings.bubbleStackMax).toBe(DEFAULT_ADVANCED_SETTINGS.bubbleStackMax)
+  })
+
+  it('returns defaults when localStorage contains invalid JSON', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    store[ADVANCED_SETTINGS_KEY] = '{invalid json}'
+
+    const settings = loadAdvancedSettings()
+    expect(settings).toEqual(DEFAULT_ADVANCED_SETTINGS)
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('normalizes and persists settings to localStorage', () => {
+    const saved = saveAdvancedSettings({
+      recordingShortcut: 'Ctrl+W',
+      autoConnect: false,
+      maxRecordingSeconds: 999,
+      logLevel: 'debug',
+    })
+
+    expect(saved.recordingShortcut).toBe('Ctrl+W')
+    expect(saved.maxRecordingSeconds).toBe(60) // clamped
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      ADVANCED_SETTINGS_KEY,
+      expect.any(String)
+    )
+
+    const stored = JSON.parse(store[ADVANCED_SETTINGS_KEY])
+    expect(stored.recordingShortcut).toBe('Ctrl+W')
+    expect(stored.logLevel).toBe('debug')
+  })
+
+  it('normalizes and persists default settings when called with null', () => {
+    const saved = saveAdvancedSettings(null)
+    expect(saved).toEqual(DEFAULT_ADVANCED_SETTINGS)
+    expect(localStorage.setItem).toHaveBeenCalled()
   })
 })
