@@ -14,6 +14,7 @@ export default defineConfig({
             outDir: 'dist-electron',
             minify: process.env.NODE_ENV === 'production',
             rollupOptions: {
+              // ws 不可列入 external：打包产物必须自包含，否则在缺少 node_modules/ws 的安装/便携形态下会导致主进程启动失败
               external: ['electron', 'better-sqlite3'],
               output: {
                 format: 'es'
