@@ -491,12 +491,13 @@ export function setUserConfig(key: string, value: string): void {
 
 /**
  * 获取或生成用户ID
+ * user_id 是设备级标识，首次生成后永不变更，与用户名无关
  */
 export function getUserId(): string {
   let userId = getUserConfig('user_id')
   if (!userId) {
-    // 生成默认用户ID（时间戳）
-    userId = Date.now().toString()
+    // 生成设备级 UUID，确保跨设备唯一性
+    userId = crypto.randomUUID()
     setUserConfig('user_id', userId)
   }
   return userId
@@ -519,10 +520,6 @@ export function getUserName(): string | null {
  */
 export function setUserName(name: string): void {
   setUserConfig('user_name', name)
-  // 同时更新 user_id 为名称的哈希值（确保唯一性）
-  const hash = crypto.createHash('md5').update(name).digest('hex')
-  const userId = hash.substring(0, 15) // 取前15位作为数字ID
-  setUserConfig('user_id', parseInt(userId, 16).toString())
 }
 
 /**
