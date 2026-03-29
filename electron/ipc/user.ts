@@ -9,17 +9,25 @@ import { initBridgeClient } from '../main'
  * 设置用户名称
  */
 ipcMain.handle('user:setUserName', async (_event, name: string) => {
-  setUserName(name)
+  try {
+    setUserName(name)
 
-  // 关闭欢迎窗口，创建主窗口
-  closeWelcomeWindow()
-  createMainWindow()
-  createTray()
+    // 关闭欢迎窗口，创建主窗口
+    closeWelcomeWindow()
+    createMainWindow()
+    createTray()
 
-  // 初始化 Bridge 客户端
-  initBridgeClient()
+    // 初始化 Bridge 客户端
+    initBridgeClient()
 
-  return { success: true }
+    return { success: true }
+  } catch (error) {
+    console.error('[用户] 设置用户名失败:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '设置用户名时发生未知错误'
+    }
+  }
 })
 
 /**

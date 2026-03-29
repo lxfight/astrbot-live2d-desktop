@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
 import { initDatabase, closeDatabase, getUserName } from './database/schema'
@@ -77,7 +77,17 @@ function resumeBackgroundActivities(reason: string): void {
  */
 async function initialize() {
   // 初始化数据库
-  initDatabase()
+  try {
+    initDatabase()
+  } catch (error) {
+    console.error('[主进程] 数据库初始化失败:', error)
+    dialog.showErrorBox(
+      '数据库初始化失败',
+      `无法创建或打开数据库文件，应用将退出。\n\n错误详情: ${error instanceof Error ? error.message : String(error)}`
+    )
+    app.quit()
+    return
+  }
 
   // 检查 Cubism Core 是否存在
   if (!checkCubismCoreExists()) {
@@ -205,13 +215,21 @@ app.on('window-all-closed', () => {
  * 应用退出前清理
  */
 app.on('before-quit', () => {
-  if (bridgeClient) {
-    bridgeClient.disconnect()
+  try {
+    if (bridgeClient) {
+      bridgeClient.disconnect()
+    }
+  } catch (err) {
+    console.error('[主进程] 断开 Bridge 连接失败:', err)
   }
   stopAppLaunchWatcher()
   cleanupShortcuts()
   destroyTray()
-  closeDatabase()
+  try {
+    closeDatabase()
+  } catch (err) {
+    console.error('[主进程] 关闭数据库失败:', err)
+  }
   shutdownMainLogger()
 })
 
