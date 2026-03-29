@@ -15,9 +15,11 @@ export function createWelcomeWindow(): BrowserWindow {
   welcomeWindow = new BrowserWindow({
     width: 980,
     height: 720,
+    minWidth: 640,
+    minHeight: 480,
     center: true,
     icon: resolveAppIconPath(),
-    resizable: false,
+    resizable: true,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
