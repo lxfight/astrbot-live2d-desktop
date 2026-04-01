@@ -45,20 +45,25 @@ contextBridge.exposeInMainWorld('electron', {
     sendTouch: (x: number, y: number, action: string) => ipcRenderer.invoke('bridge:sendTouch', x, y, action),
     sendState: (op: string, payload: any) => ipcRenderer.invoke('bridge:sendState', op, payload),
 
-    // 事件监听
+    // 事件监听（单订阅模式，避免重复注册堆积）
     onConnected: (callback: (payload: any) => void) => {
+      ipcRenderer.removeAllListeners('bridge:connected')
       ipcRenderer.on('bridge:connected', (_event: any, payload: any) => callback(payload))
     },
     onDisconnected: (callback: (info: any) => void) => {
+      ipcRenderer.removeAllListeners('bridge:disconnected')
       ipcRenderer.on('bridge:disconnected', (_event: any, info: any) => callback(info))
     },
     onError: (callback: (error: any) => void) => {
+      ipcRenderer.removeAllListeners('bridge:error')
       ipcRenderer.on('bridge:error', (_event: any, error: any) => callback(error))
     },
     onPerformShow: (callback: (payload: any) => void) => {
+      ipcRenderer.removeAllListeners('perform:show')
       ipcRenderer.on('perform:show', (_event: any, payload: any) => callback(payload))
     },
     onPerformInterrupt: (callback: () => void) => {
+      ipcRenderer.removeAllListeners('perform:interrupt')
       ipcRenderer.on('perform:interrupt', () => callback())
     }
   },
@@ -120,8 +125,7 @@ contextBridge.exposeInMainWorld('electron', {
   settings: {
     getPendingPage: () => ipcRenderer.invoke('settings:getPendingPage'),
     onNavigateTo: (callback: (page: string) => void) => {
-      // 移除之前的监听器，避免重复
-      ipcRenderer.removeListener('settings:navigateTo', callback as any)
+      ipcRenderer.removeAllListeners('settings:navigateTo')
       ipcRenderer.on('settings:navigateTo', (_event: any, page: string) => callback(page))
     }
   },
