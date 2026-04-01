@@ -3,6 +3,8 @@ import { useConnectionStore } from '@/stores/connection'
 import type { AdvancedSettings } from '@/utils/advancedSettings'
 import type { FloatingOverlayStyle } from './useBubbleStack'
 
+export type { FloatingOverlayStyle }
+
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
 
 interface UseInputPanelOptions {

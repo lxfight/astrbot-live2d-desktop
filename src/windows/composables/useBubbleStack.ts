@@ -1,6 +1,4 @@
 import { ref, nextTick, watch, type Ref } from 'vue'
-import { storeToRefs } from 'pinia'
-import type { useThemeStore } from '@/stores/theme'
 import {
   computeBubbleAutoHideDelay,
   type BubbleRenderableItem,
@@ -421,6 +419,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     pushBubble,
     clearAllBubbles,
     checkFollowUp,
+    getBubbleFollowUpWindowMs,
     generateMessageId,
   }
 }

@@ -1,4 +1,4 @@
-import { ref, computed, nextTick, type Ref } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { useThemeStore } from '@/stores/theme'
 import { withAlpha } from '@/utils/themePalette'

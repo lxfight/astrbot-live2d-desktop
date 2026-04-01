@@ -181,7 +181,7 @@
             placeholder="输入消息... (Ctrl+V 粘贴)"
             @keydown.enter.exact="handleSendMessage"
             @paste="handlePasteEvent"
-            ref="inputRef"
+            :ref="(el: any) => inputPanel.inputRef = el"
           />
           
           <div class="action-buttons">
@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
@@ -243,7 +243,7 @@ import { useInputPanel, type FloatingOverlayStyle } from './composables/useInput
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
-const { palette, sourceRgb } = storeToRefs(themeStore)
+const { sourceRgb } = storeToRefs(themeStore)
 
 const live2dCanvasRef = ref<any>()
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -336,13 +336,6 @@ function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void
 
 // ─── Composable 初始化 ──────────────────────────────────────────
 
-// 构造一个 reactive 代理供 composable 通过 .value 读写 modelPosition
-const modelPositionRef = computed(() => ({ x: modelPositionX, y: modelPositionY }))
-function setModelPosition(x: number, y: number) {
-  modelPositionX = x
-  modelPositionY = y
-}
-
 // useBubbleStack：无外部依赖
 const {
   bubbleStack,
@@ -356,8 +349,8 @@ const {
   updateStackPositions,
   pushBubble,
   clearAllBubbles,
-  checkFollowUp,
   generateMessageId,
+  getBubbleFollowUpWindowMs,
 } = useBubbleStack({
   live2dCanvasRef,
   advancedSettings,
@@ -377,7 +370,6 @@ const {
   menuThemeColorHover,
   menuItems,
   handleModelRightClick: _handleModelRightClick,
-  startMenuAutoCloseTimer,
   clearMenuAutoCloseTimer,
   handleMenuMouseEnter,
   handleMenuMouseLeave,
@@ -389,21 +381,7 @@ const {
   openInput: () => openInput(),
 })
 
-const {
-  showInput,
-  inputRef,
-  inputStyle,
-  inputText,
-  selectedImage,
-  handleSelectImage,
-  handlePasteEvent,
-  clearImage,
-  applySelectedImage,
-  closeInputPanel,
-  openInput: _openInput,
-  handleSendMessage,
-  fileToBase64,
-} = useInputPanel({
+const inputPanel = useInputPanel({
   connectionStore,
   currentUserName,
   advancedSettings,
@@ -415,13 +393,25 @@ const {
 })
 
 const {
+  showInput,
+  inputStyle,
+  inputText,
+  selectedImage,
+  handleSelectImage,
+  handlePasteEvent,
+  clearImage,
+  closeInputPanel,
+  openInput: _openInput,
+  handleSendMessage,
+} = inputPanel
+
+const {
   isRecording,
   recordingDuration,
   recordingHintText,
   startRecording,
   stopRecording,
   cancelRecordingIfActive,
-  sendAudioMessage,
   cleanup: cleanupRecording,
 } = useRecording({
   connectionStore,
@@ -594,6 +584,8 @@ async function extractAndApplyModelTheme(modelPath: string) {
 
   console.warn('[主窗口] 主题色提取失败，已重试 3 次')
 }
+
+let lastPerformReceiveTime = 0
 
 // Create performance queue
 const performQueue = new PerformanceQueue()
@@ -839,13 +831,6 @@ function handleWindowClick(event: MouseEvent) {
   }
 }
 
-// 打开历史记录窗口（现在合并到设置窗口中）
-async function openHistory() {
-  showMenu.value = false
-  clearMenuAutoCloseTimer()
-  await window.electron.window.openSettings('history')
-}
-
 // 打开设置窗口
 async function openSettings() {
   showMenu.value = false
@@ -890,7 +875,6 @@ function handleStorageChange(event: StorageEvent) {
   }
 }
 
-async function applyLogLevelFromAdvancedSettings() {
 function handleAudioStart(audioElement: HTMLAudioElement) {
   console.log('[主窗口] 音频开始播放，启动口型同步')
   if (!advancedSettings.value.lipSyncEnabled) {
@@ -899,84 +883,11 @@ function handleAudioStart(audioElement: HTMLAudioElement) {
   live2dCanvasRef.value?.startLipSync(audioElement)
 }
 
-// 处理音频播放结束
 function handleAudioEnd() {
   console.log('[主窗口] 音频播放结束')
   live2dCanvasRef.value?.stopLipSync()
   const resolve = audioEndResolvers.shift()
   if (resolve) resolve()
-}
-
-// 发送消息
-async function handleSendMessage() {
-  const rawTextToStore = inputText.value.trim()
-  if (!rawTextToStore && !selectedImage.value) return
-
-  if (!connectionStore.isConnected) {
-    showModelStatus('未连接到服务器', 'error')
-    return
-  }
-
-  try {
-    const content: any[] = []
-
-    // 添加文本
-    if (rawTextToStore) {
-      content.push({ type: 'text', text: rawTextToStore })
-    }
-
-    // 添加图片
-    if (selectedImage.value) {
-      const file = selectedImage.value.file
-
-      if (file.size < getImageInlineThresholdBytes()) {
-        const base64 = await fileToBase64(file)
-        content.push({ type: 'image', inline: base64 })
-      } else {
-        showBaseEventStatus('正在处理图片...', 'info')
-        content.push({
-          type: 'image',
-          bytes: new Uint8Array(await file.arrayBuffer()),
-          mime: file.type || 'image/png',
-          name: file.name,
-        })
-      }
-    }
-
-    const result = await connectionStore.sendMessage(content, {
-      userId: connectionStore.userId || 'desktop-user',
-      userName: currentUserName.value || '桌面用户',
-      sessionId: connectionStore.sessionId,
-      messageType: 'friend'
-    })
-
-    if (result.success) {
-      showBaseEventStatus('消息已发送', 'success')
-      closeInputPanel()
-      inputText.value = ''
-
-      // 保存消息记录
-      try {
-        await window.electron.history.saveMessage({
-          messageId: generateMessageId(),
-          sessionId: connectionStore.sessionId || 'default',
-          userId: connectionStore.userId || 'desktop-user',
-          userName: currentUserName.value || '桌面用户',
-          messageType: 'friend',
-          direction: 'outgoing',
-          content: result.content || content,
-          rawText: rawTextToStore,
-          timestamp: Date.now()
-        })
-      } catch (error) {
-        console.error('[主窗口] 保存消息记录失败:', error)
-      }
-    } else {
-      showModelStatus(`发送失败: ${result.error}`, 'error')
-    }
-  } catch (error: any) {
-    showModelStatus(`发送失败: ${error.message}`, 'error')
-  }
 }
 
 // 监听表演指令

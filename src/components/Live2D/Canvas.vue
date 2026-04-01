@@ -515,7 +515,7 @@ onUnmounted(() => {
   }
 
   // 销毁全局资源（WASM 内存）
-  CubismModel.destroyGlobal()
+  Live2DModel.destroyGlobal()
 
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('mousedown', handleMouseDown)
