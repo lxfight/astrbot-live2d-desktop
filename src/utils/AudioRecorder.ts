@@ -77,6 +77,11 @@ export class AudioRecorder {
    * 开始录音
    */
   async start(): Promise<void> {
+    // 清理上次可能残留的录音状态，防止 AudioContext 泄漏
+    if (this.mediaRecorder || this.stream || this.audioContext) {
+      this.cancel()
+    }
+
     try {
       // 请求麦克风权限
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -210,7 +215,9 @@ export class AudioRecorder {
     }
 
     try {
-      this.audioContext = new AudioContext()
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new AudioContext()
+      }
       const source = this.audioContext.createMediaStreamSource(this.stream)
       this.analyser = this.audioContext.createAnalyser()
       this.analyser.fftSize = 2048
@@ -260,14 +267,18 @@ export class AudioRecorder {
       this.silenceCheckTimer = null
     }
 
+    this.analyser = null
+  }
+
+  /**
+   * 销毁 AudioRecorder，释放所有资源
+   */
+  dispose(): void {
+    this.cancel()
     if (this.audioContext) {
-      this.audioContext.close().catch(() => {
-        // ignore
-      })
+      this.audioContext.close().catch(() => {})
       this.audioContext = null
     }
-
-    this.analyser = null
   }
 
   /**
