@@ -98,6 +98,7 @@ export class L2DBridgeClient extends EventEmitter {
           this.isConnecting = false
           this.stopHeartbeat()
           this.emit('disconnected', { code, reason: reason.toString() })
+          // close 在所有断连场景都会触发（含 error 后），仅在此处安排重连
           if (this.shouldReconnect) {
             this.scheduleReconnect()
           }
@@ -308,6 +309,10 @@ export class L2DBridgeClient extends EventEmitter {
   private scheduleReconnect(): void {
     if (!this.shouldReconnect) {
       return
+    }
+
+    if (this.reconnectTimer) {
+      return // 已安排重连，去重
     }
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
