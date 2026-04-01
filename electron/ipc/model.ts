@@ -20,7 +20,7 @@ function toPosixPath(p: string): string {
   return p.replace(/\\/g, '/')
 }
 
-function findModelJsonFiles(rootDir: string): string[] {
+function findModelFiles(rootDir: string, predicate: (name: string) => boolean): string[] {
   const results: string[] = []
 
   function walk(currentDir: string) {
@@ -33,8 +33,7 @@ function findModelJsonFiles(rootDir: string): string[] {
       }
       if (!entry.isFile()) continue
 
-      const lower = entry.name.toLowerCase()
-      if (lower.endsWith('.model3.json')) {
+      if (predicate(entry.name.toLowerCase())) {
         results.push(fullPath)
       }
     }
@@ -44,28 +43,12 @@ function findModelJsonFiles(rootDir: string): string[] {
   return results
 }
 
+function findModelJsonFiles(rootDir: string): string[] {
+  return findModelFiles(rootDir, lower => lower.endsWith('.model3.json'))
+}
+
 function findCubism2ModelJsonFiles(rootDir: string): string[] {
-  const results: string[] = []
-
-  function walk(currentDir: string) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name)
-      if (entry.isDirectory()) {
-        walk(fullPath)
-        continue
-      }
-      if (!entry.isFile()) continue
-
-      const lower = entry.name.toLowerCase()
-      if (lower.endsWith('.model.json') && !lower.endsWith('.model3.json')) {
-        results.push(fullPath)
-      }
-    }
-  }
-
-  walk(rootDir)
-  return results
+  return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
 }
 
 function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {

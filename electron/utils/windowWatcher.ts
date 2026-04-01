@@ -1,18 +1,6 @@
-/**
- * 窗口事件类型
- */
-export type WindowEventType = 
-  | 'focus'      // 窗口获得焦点
-  | 'blur'       // 窗口失去焦点
-  | 'create'     // 窗口创建
-  | 'destroy'    // 窗口销毁
-  | 'resize'     // 窗口大小变化
-  | 'move'       // 窗口位置变化
-  | 'minimize'   // 窗口最小化
-  | 'maximize'   // 窗口最大化
-  | 'restore'    // 窗口恢复
-  | 'fullscreen' // 窗口进入全屏
-  | 'windowed'   // 窗口退出全屏
+import type { WindowEventType } from './windowWatcherConfig'
+export type { WindowEventType, WindowWatcherConfig } from './windowWatcherConfig'
+import * as windowWatcherConfigModule from './windowWatcherConfig'
 
 /**
  * 窗口信息
@@ -52,40 +40,6 @@ export interface WindowEvent {
 export type WindowEventCallback = (event: WindowEvent) => void
 
 /**
- * 窗口监听器配置
- */
-export interface WindowWatcherConfig {
-  enabled: boolean
-  appLaunchEnabled: boolean
-  throttle: {
-    globalInterval: number
-    perWindowInterval: number
-    minInterval: number
-  }
-  events: {
-    focus: boolean
-    blur: boolean
-    create: boolean
-    destroy: boolean
-    fullscreen: boolean
-    windowed: boolean
-    resize: boolean
-    move: boolean
-    minimize: boolean
-    maximize: boolean
-    restore: boolean
-  }
-  ignore: {
-    processNames: string[]
-    titleKeywords: string[]
-  }
-  aiResponse: {
-    mode: 'first-open' | 'every-switch' | 'specific-apps'
-    specificApps: string[]
-  }
-}
-
-/**
  * 平台特定的窗口监听器接口
  */
 export interface PlatformWatcher {
@@ -122,7 +76,6 @@ export function isWindowFullscreen(
  * 4. AI 上下文构建
  * 5. 节流控制（防止频繁触发）
  */
-import * as windowWatcherConfigModule from './windowWatcherConfig'
 import { WindowThrottler } from './windowThrottler'
 
 export class WindowWatcherManager {
