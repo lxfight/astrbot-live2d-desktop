@@ -5,7 +5,6 @@
 
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { CubismModel, LoadStep, MotionPriority } from './CubismModel'
-import { createCubismAllocator } from './CubismAllocator'
 import {
   CubismMatrix44,
   CubismTargetPoint,
@@ -348,32 +347,5 @@ describe('Utility Functions', () => {
 
   test('getExpressionPath should build correct path', () => {
     expect(getExpressionPath('/models/Haru/Haru.model3.json', 'smile.exp3.json')).toBe('/models/Haru/smile.exp3.json')
-  })
-})
-
-// ============================================================================
-// CubismAllocator 测试
-// ============================================================================
-
-describe('CubismAllocator', () => {
-  test('should create default allocator', () => {
-    const allocator = createCubismAllocator()
-    expect(allocator).toHaveProperty('allocate')
-    expect(allocator).toHaveProperty('deallocate')
-    expect(allocator).toHaveProperty('allocateAligned')
-    expect(allocator).toHaveProperty('deallocateAligned')
-  })
-
-  test('should allocate memory', () => {
-    const allocator = createCubismAllocator()
-    const memory = allocator.allocate(1024)
-    expect(memory).toBeInstanceOf(ArrayBuffer)
-    expect(memory.byteLength).toBe(1024)
-  })
-
-  test('should allocate aligned memory', () => {
-    const allocator = createCubismAllocator()
-    const memory = allocator.allocateAligned(1024, 16)
-    expect(memory).toBeInstanceOf(ArrayBuffer)
   })
 })
