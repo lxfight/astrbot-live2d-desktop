@@ -16,7 +16,7 @@ import {
 /**
  * 查询消息历史
  */
-ipcMain.handle('history:getMessages', async (_event, options: {
+ipcMain.handle('history:getMessages', (_event, options: {
   limit?: number
   offset?: number
   startDate?: number
@@ -38,7 +38,7 @@ ipcMain.handle('history:getMessages', async (_event, options: {
 /**
  * 保存消息记录
  */
-ipcMain.handle('history:saveMessage', async (_event, record: MessageRecord) => {
+ipcMain.handle('history:saveMessage', (_event, record: MessageRecord) => {
   try {
     saveMessage(record)
     return { success: true }
@@ -51,7 +51,7 @@ ipcMain.handle('history:saveMessage', async (_event, record: MessageRecord) => {
 /**
  * 保存表演记录
  */
-ipcMain.handle('history:savePerformance', async (_event, record: PerformanceRecord) => {
+ipcMain.handle('history:savePerformance', (_event, record: PerformanceRecord) => {
   try {
     savePerformance(record)
     return { success: true }
@@ -64,7 +64,7 @@ ipcMain.handle('history:savePerformance', async (_event, record: PerformanceReco
 /**
  * 更新统计数据
  */
-ipcMain.handle('history:updateStatistics', async (_event, data: StatisticsData) => {
+ipcMain.handle('history:updateStatistics', (_event, data: StatisticsData) => {
   try {
     updateStatistics(data)
     return { success: true }
@@ -77,7 +77,7 @@ ipcMain.handle('history:updateStatistics', async (_event, data: StatisticsData) 
 /**
  * 获取统计数据
  */
-ipcMain.handle('history:getStatistics', async (_event, startDate: string, endDate: string) => {
+ipcMain.handle('history:getStatistics', (_event, startDate: string, endDate: string) => {
   try {
     const statistics = getStatistics(startDate, endDate)
     return { success: true, data: statistics }
@@ -87,7 +87,7 @@ ipcMain.handle('history:getStatistics', async (_event, startDate: string, endDat
   }
 })
 
-ipcMain.handle('history:getAverageResponseTime', async (_event, startDate: number, endDate: number) => {
+ipcMain.handle('history:getAverageResponseTime', (_event, startDate: number, endDate: number) => {
   try {
     const averageResponseTime = getAverageResponseTime(startDate, endDate)
     return { success: true, data: averageResponseTime }
@@ -100,7 +100,7 @@ ipcMain.handle('history:getAverageResponseTime', async (_event, startDate: numbe
 /**
  * 清空历史记录
  */
-ipcMain.handle('history:clearHistory', async () => {
+ipcMain.handle('history:clearHistory', () => {
   try {
     clearHistory()
     return { success: true }

@@ -230,10 +230,7 @@ import {
   resolvePerformMediaSource,
   splitPerformSequenceForBubble,
 } from '@/utils/bubbleContent'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
+import { configureMarked, renderBubbleMarkdown } from '@/utils/markedLatex'
 import { extractModelThemeColor } from '@/utils/modelTheme'
 import { useBubbleStack } from './composables/useBubbleStack'
 import { useRecording } from './composables/useRecording'
@@ -463,78 +460,8 @@ watch(hasModel, async (value) => {
   }
 })
 
-// 配置 marked（与 History.vue 相同）
-marked.setOptions({
-  breaks: true,
-  gfm: true
-})
-
-marked.use({
-  extensions: [
-    {
-      name: 'latex-inline',
-      level: 'inline',
-      start(src: string) { return src.indexOf('$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$([^\$]+)\$/)
-        if (match) {
-          return {
-            type: 'latex-inline',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, { throwOnError: false })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    },
-    {
-      name: 'latex-block',
-      level: 'block',
-      start(src: string) { return src.indexOf('$$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$\$([^\$]+)\$\$/)
-        if (match) {
-          return {
-            type: 'latex-block',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, {
-            displayMode: true,
-            throwOnError: false
-          })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    }
-  ]
-})
-
-// 渲染气泡 Markdown
-function renderBubbleMarkdown(text: string): string {
-  if (!text) return ''
-  try {
-    const renderedHtml = marked.parse(text) as string
-    return DOMPurify.sanitize(renderedHtml, {
-      USE_PROFILES: { html: true },
-      ALLOW_DATA_ATTR: false
-    })
-  } catch (error) {
-    console.error('[Main] Markdown渲染失败:', error)
-    return text
-  }
-}
+// 初始化 marked + LaTeX 扩展（幂等）
+configureMarked()
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

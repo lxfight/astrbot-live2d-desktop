@@ -150,7 +150,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     const resolvedSource = path.resolve(sourceDir).toLowerCase()
     const resolvedTarget = path.resolve(targetDir).toLowerCase()
     if (resolvedSource !== resolvedTarget) {
-      copyDirectory(sourceDir, targetDir)
+      await copyDirectory(sourceDir, targetDir)
     }
 
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
@@ -241,18 +241,18 @@ ipcMain.handle('model:load', async (_event, modelPath: string) => {
   }
 })
 
-function copyDirectory(source: string, target: string) {
-  const files = fs.readdirSync(source, { withFileTypes: true })
+async function copyDirectory(source: string, target: string): Promise<void> {
+  const entries = await fs.promises.readdir(source, { withFileTypes: true })
 
-  for (const file of files) {
-    const sourcePath = path.join(source, file.name)
-    const targetPath = path.join(target, file.name)
+  for (const entry of entries) {
+    const sourcePath = path.join(source, entry.name)
+    const targetPath = path.join(target, entry.name)
 
-    if (file.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true })
-      copyDirectory(sourcePath, targetPath)
+    if (entry.isDirectory()) {
+      await fs.promises.mkdir(targetPath, { recursive: true })
+      await copyDirectory(sourcePath, targetPath)
     } else {
-      fs.copyFileSync(sourcePath, targetPath)
+      await fs.promises.copyFile(sourcePath, targetPath)
     }
   }
 }

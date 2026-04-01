@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { deriveHttpBaseUrlFromWsUrl } from '../../electron/utils/urlNormalize'
+import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
 
 function buildDefaultLocalServerUrl(): string {
   const url = new URL('http://127.0.0.1:9090/astrbot/live2d')

@@ -259,20 +259,16 @@ export function savePerformance(record: PerformanceRecord): void {
   )
 }
 
-/**
- * 查询消息历史
- */
-export function getMessages(options: {
-  limit?: number
-  offset?: number
+type MessageFilterOptions = {
   startDate?: number
   endDate?: number
   messageType?: string
   direction?: string
   keyword?: string
-}): any[] {
-  const db = getDatabase()
-  let sql = 'SELECT * FROM messages WHERE 1=1'
+}
+
+function buildMessageWhereClause(options: MessageFilterOptions): { clause: string; params: any[] } {
+  let sql = ' WHERE 1=1'
   const params: any[] = []
 
   if (options.startDate) {
@@ -293,7 +289,7 @@ export function getMessages(options: {
   if (options.direction) {
     const normalizedDirection = normalizeMessageDirection(options.direction)
     if (!normalizedDirection) {
-      return []
+      return { clause: '__INVALID__', params: [] }
     }
     sql += ' AND direction = ?'
     params.push(normalizedDirection)
@@ -305,6 +301,26 @@ export function getMessages(options: {
     params.push(...searchCondition.params)
   }
 
+  return { clause: sql, params }
+}
+
+/**
+ * 查询消息历史
+ */
+export function getMessages(options: {
+  limit?: number
+  offset?: number
+  startDate?: number
+  endDate?: number
+  messageType?: string
+  direction?: string
+  keyword?: string
+}): any[] {
+  const db = getDatabase()
+  const { clause, params } = buildMessageWhereClause(options)
+  if (clause === '__INVALID__') return []
+
+  let sql = `SELECT * FROM messages${clause}`
   sql += ' ORDER BY timestamp ASC'
 
   if (options.limit) {
@@ -412,40 +428,10 @@ export function getMessagesCount(options: {
   keyword?: string
 }): number {
   const db = getDatabase()
-  let sql = 'SELECT COUNT(*) as count FROM messages WHERE 1=1'
-  const params: any[] = []
+  const { clause, params } = buildMessageWhereClause(options)
+  if (clause === '__INVALID__') return 0
 
-  if (options.startDate) {
-    sql += ' AND timestamp >= ?'
-    params.push(options.startDate)
-  }
-
-  if (options.endDate) {
-    sql += ' AND timestamp <= ?'
-    params.push(options.endDate)
-  }
-
-  if (options.messageType) {
-    sql += ' AND message_type = ?'
-    params.push(options.messageType)
-  }
-
-  if (options.direction) {
-    const normalizedDirection = normalizeMessageDirection(options.direction)
-    if (!normalizedDirection) {
-      return 0
-    }
-    sql += ' AND direction = ?'
-    params.push(normalizedDirection)
-  }
-
-  if (options.keyword) {
-    const searchCondition = buildMessageKeywordSearchCondition(options.keyword)
-    sql += searchCondition.clause
-    params.push(...searchCondition.params)
-  }
-
-  const stmt = db.prepare(sql)
+  const stmt = db.prepare(`SELECT COUNT(*) as count FROM messages${clause}`)
   const result = stmt.get(...params) as any
   return result.count
 }

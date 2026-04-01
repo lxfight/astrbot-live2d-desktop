@@ -334,10 +334,6 @@ import { useMessage, useDialog } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
 import { endOfDay, format, startOfDay } from 'date-fns'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
@@ -346,6 +342,7 @@ import {
   resolveHistoryImageSource,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
+import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
 import {
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
   MessageSquare, Activity, Smile, Clock, HelpCircle,
@@ -359,64 +356,8 @@ const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
 const { palette } = storeToRefs(themeStore)
 
-// 配置 marked
-marked.setOptions({
-  breaks: true,
-  gfm: true
-})
-
-// 使用 marked 的扩展系统来支持 LaTeX
-marked.use({
-  extensions: [
-    {
-      name: 'latex-inline',
-      level: 'inline',
-      start(src: string) { return src.indexOf('$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$([^\$]+)\$/)
-        if (match) {
-          return {
-            type: 'latex-inline',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, { throwOnError: false })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    },
-    {
-      name: 'latex-block',
-      level: 'block',
-      start(src: string) { return src.indexOf('$$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$\$([^\$]+)\$\$/)
-        if (match) {
-          return {
-            type: 'latex-block',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, {
-            displayMode: true,
-            throwOnError: false
-          })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    }
-  ]
-})
+// 初始化 marked + LaTeX 扩展（幂等）
+configureMarked()
 
 const activeTab = ref('statistics')
 const isWindowMaximized = ref(false)
@@ -1040,17 +981,8 @@ function renderMarkdown(text: string): string {
     return cached
   }
 
-  try {
-    const renderedHtml = marked.parse(text) as string
-    const sanitized = DOMPurify.sanitize(renderedHtml, {
-      USE_PROFILES: { html: true },
-      ALLOW_DATA_ATTR: false
-    }).trim()
-    return setCacheEntry(markdownRenderCache, text, sanitized, MARKDOWN_CACHE_LIMIT)
-  } catch (error) {
-    console.error('[History] Markdown渲染失败:', error)
-    return text
-  }
+  const rendered = renderMarkdownFromShared(text).trim()
+  return setCacheEntry(markdownRenderCache, text, rendered, MARKDOWN_CACHE_LIMIT)
 }
 
 function parseContent(content: string): any[] {

@@ -257,6 +257,9 @@ ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
  * 设置窗口大小
  */
 ipcMain.handle('window:setSize', async (_event, width: number, height: number) => {
+  if (typeof width !== 'number' || typeof height !== 'number' || !Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+    return { success: false, error: 'width 和 height 必须为正整数' }
+  }
   setWindowSize(width, height)
   return { success: true }
 })
