@@ -13,6 +13,7 @@ import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogg
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
 import './ipc/window'
+import { cleanupAllTempResources } from './ipc/window'
 import './ipc/history'
 import './ipc/model'
 import './ipc/shortcut'
@@ -225,6 +226,7 @@ app.on('before-quit', () => {
   stopAppLaunchWatcher()
   cleanupShortcuts()
   destroyTray()
+  cleanupAllTempResources()
   try {
     closeDatabase()
   } catch (err) {

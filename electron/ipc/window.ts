@@ -11,6 +11,37 @@ import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screens
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:'])
+const TEMP_RESOURCE_DIR = path.join(app.getPath('temp'), 'astrbot-live2d-history')
+
+/**
+ * 清理临时资源目录（删除超过 1 小时的文件）
+ */
+async function cleanupTempResources(): Promise<void> {
+  try {
+    await fs.mkdir(TEMP_RESOURCE_DIR, { recursive: true })
+    const entries = await fs.readdir(TEMP_RESOURCE_DIR)
+    const maxAge = Date.now() - 3600_000
+
+    for (const name of entries) {
+      const filePath = path.join(TEMP_RESOURCE_DIR, name)
+      try {
+        const stat = await fs.stat(filePath)
+        if (stat.isFile() && stat.mtimeMs < maxAge) {
+          await fs.unlink(filePath)
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+/**
+ * 清理全部临时资源（应用退出时调用）
+ */
+export async function cleanupAllTempResources(): Promise<void> {
+  try {
+    await fs.rm(TEMP_RESOURCE_DIR, { recursive: true, force: true })
+  } catch {}
+}
 
 function toSafeExternalUrl(rawUrl: unknown): string | null {
   if (typeof rawUrl !== 'string') {
@@ -259,8 +290,8 @@ ipcMain.handle('window:openResource', async (_event, source: string, suggestedNa
 
   try {
     const fileName = sanitizeSuggestedFileName(suggestedName, 'resource.bin')
-    const tempDir = path.join(app.getPath('temp'), 'astrbot-live2d-history')
-    const tempFilePath = path.join(tempDir, `${Date.now()}-${fileName}`)
+    await cleanupTempResources()
+    const tempFilePath = path.join(TEMP_RESOURCE_DIR, `${Date.now()}-${fileName}`)
 
     await writeResourceToPath(safeSource, tempFilePath)
     const openError = await shell.openPath(tempFilePath)
