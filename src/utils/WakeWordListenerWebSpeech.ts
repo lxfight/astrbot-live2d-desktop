@@ -529,7 +529,7 @@ export class WakeWordListener {
   }
 
   private isTokenActive(token: number): boolean {
-    return token === this.lifecycleToken
+    return this.running && token === this.lifecycleToken
   }
 
   private formatRecognitionError(event: SpeechRecognitionErrorEventLike): string {
