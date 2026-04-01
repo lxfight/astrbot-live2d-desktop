@@ -8,6 +8,7 @@ import https from 'https'
 import http from 'http'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 import { readCubismConfig } from './cubism-config.js'
 
@@ -36,6 +37,43 @@ const files = [
 
 // 强制重新下载（删除已存在的文件）
 const FORCE_DOWNLOAD = process.argv.includes('--force')
+
+/**
+ * 计算文件 SHA256 哈希
+ */
+function computeFileHash(filePath) {
+  const data = fs.readFileSync(filePath)
+  return crypto.createHash('sha256').update(data).digest('hex')
+}
+
+/**
+ * 校验文件完整性
+ */
+function verifyIntegrity(filePath, expectedHash) {
+  if (!expectedHash) {
+    console.log('[校验] 未配置 expectedHash，跳过完整性校验')
+    return true
+  }
+
+  const prefix = 'sha256-'
+  if (!expectedHash.startsWith(prefix)) {
+    console.error(`[校验] expectedHash 格式错误，应以 "${prefix}" 开头`)
+    return false
+  }
+
+  const expected = expectedHash.slice(prefix.length)
+  const actual = computeFileHash(filePath)
+
+  if (actual !== expected) {
+    console.error(`[校验] 哈希不匹配!`)
+    console.error(`  期望: ${expected}`)
+    console.error(`  实际: ${actual}`)
+    return false
+  }
+
+  console.log(`[校验] SHA256 验证通过`)
+  return true
+}
 
 /**
  * 下载文件
@@ -94,9 +132,25 @@ async function main() {
   for (const file of files) {
     const destPath = path.join(PUBLIC_LIB_DIR, file.name)
 
-    // 如果文件已存在且不是强制模式，跳过
+    // 如果文件已存在且不是强制模式，校验后跳过
     if (fs.existsSync(destPath) && !FORCE_DOWNLOAD) {
-      console.log(`[跳过] ${file.name} 已存在 (使用 --force 强制重新下载)`)
+      if (!verifyIntegrity(destPath, cubismConfig.core.expectedHash)) {
+        console.log(`[重试] ${file.name} 校验失败，重新下载...`)
+        fs.unlinkSync(destPath)
+        try {
+          await downloadFile(file.url, destPath)
+          if (!verifyIntegrity(destPath, cubismConfig.core.expectedHash)) {
+            fs.unlinkSync(destPath)
+            console.error(`[错误] ${file.name} 重新下载后仍校验失败`)
+            process.exit(1)
+          }
+        } catch (error) {
+          console.error(`[错误] 重新下载 ${file.description} 失败:`, error.message)
+          process.exit(1)
+        }
+      } else {
+        console.log(`[跳过] ${file.name} 已存在 (使用 --force 强制重新下载)`)
+      }
       continue
     }
 
@@ -110,6 +164,13 @@ async function main() {
       await downloadFile(file.url, destPath)
     } catch (error) {
       console.error(`[错误] 下载 ${file.description} 失败:`, error.message)
+      process.exit(1)
+    }
+
+    // 完整性校验
+    if (!verifyIntegrity(destPath, cubismConfig.core.expectedHash)) {
+      fs.unlinkSync(destPath)
+      console.error(`[错误] ${file.name} 完整性校验失败，文件已删除`)
       process.exit(1)
     }
   }
