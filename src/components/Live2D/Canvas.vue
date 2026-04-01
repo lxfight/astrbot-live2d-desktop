@@ -514,8 +514,8 @@ onUnmounted(() => {
     model = null
   }
 
-  // 销毁全局资源
-  // CubismModel.destroyGlobal()
+  // 销毁全局资源（WASM 内存）
+  CubismModel.destroyGlobal()
 
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('mousedown', handleMouseDown)
