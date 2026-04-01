@@ -40,13 +40,8 @@ export class DefaultCubismAllocator implements CubismAllocator {
   /**
    * 释放内存
    */
-  deallocate(memory: any): void {
-    // JavaScript 自动垃圾回收，无需手动释放
-    // 但我们可以清除引用
-    if (memory instanceof ArrayBuffer) {
-      // 无法强制释放 ArrayBuffer，但可以通知 GC
-      memory = null;
-    }
+  deallocate(_memory: any): void {
+    // JavaScript 由 GC 自动回收，无需手动释放
   }
   
   /**
@@ -104,8 +99,7 @@ export class DebugCubismAllocator implements CubismAllocator {
   }
   
   deallocate(memory: any): void {
-    this.untrackAllocation(memory);
-    // JavaScript 自动垃圾回收
+    this.untrackAllocation(memory)
   }
   
   allocateAligned(size: number, _alignment: number): any {
