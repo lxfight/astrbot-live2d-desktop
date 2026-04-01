@@ -45,6 +45,9 @@ export const BUILTIN_IGNORE_RULES = {
     'StartMenuExperienceHost.exe', // Start Menu
     'TextInputHost.exe',        // 文本输入
     'SecurityHealthSystray.exe', // 安全中心托盘
+    'ScreenClippingHost.exe',   // 截图工具
+    'SnippingTool.exe',         // 截图工具
+    'GameViewer.exe',           // 远程控制
   ],
   titleKeywords: [
     'Program Manager',
@@ -56,6 +59,58 @@ export const BUILTIN_IGNORE_RULES = {
     'Windows 输入体验',
     'Task Switching',
     'Task View',
+    // 来自原 desktop.ts 忽略列表
+    'Explorer',
+    'Windows Explorer',
+    'File Explorer',
+    '资源管理器',
+    '文件资源管理器',
+    'Windows Input Experience',
+    'Microsoft Text Input Application',
+    'Settings',
+    'Task Manager',
+    'Search',
+    'Start',
+    'Action center',
+    'Notification Center',
+    'NVIDIA GeForce Overlay',
+    'Desktop Window Manager',
+    'GameViewer',
+    'Snipping Tool',
+    'ScreenClippingHost',
+    'Screenshot',
+    'QQ Screenshot',
+    'Snip & Sketch',
+    'Windows Security',
+    'Microsoft Store',
+    'Calculator',
+    'Photos',
+    'Movies & TV',
+    'Groove Music',
+    'Mail',
+    'Calendar',
+    'Xbox Game Bar',
+    'Input Indicator',
+  ],
+  // 额外忽略关键词（部分匹配）
+  ignoreKeywords: [
+    '隐私',
+    'privacy',
+    'monitor',
+    'overlay',
+    'gameviewer',
+    'screenshot',
+    '截图',
+    'snip',
+    'snippingtool',
+    'screenclippinghost',
+    'screen clipping',
+    'clipping',
+    'explorer',
+    'windows explorer',
+    'file explorer',
+    '资源管理器',
+    '文件资源管理器',
   ],
 }
 

@@ -5,7 +5,6 @@ import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
-import { stopAppLaunchWatcher, syncAppLaunchWatcherWithConfig } from './ipc/desktop'
 import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
 import { hideMainWindow, showMainWindow } from './windows/mainWindow'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
@@ -49,7 +48,6 @@ function pauseBackgroundActivities(reason: string): void {
 
   console.log(`[主进程] 暂停后台活动: ${reason}`)
   gameModeBeforeLock = isGameModeActive()
-  stopAppLaunchWatcher()
   if (gameModeBeforeLock) disableGameMode()
   hideMainWindow()
   if (bridgeClient) bridgeClient.disconnect()
@@ -135,10 +133,7 @@ export function initBridgeClient() {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('bridge:connected', payload)
     })
-    // 按窗口监听配置同步应用启动监听
-    void syncAppLaunchWatcherWithConfig().catch((error) => {
-      console.error('[主进程] 同步应用启动监听失败:', error)
-    })
+    // 应用启动检测已整合到 WindowWatcherManager，由 IPC 层管理
   })
 
   bridgeClient.on('disconnected', (info) => {
@@ -230,7 +225,6 @@ app.on('before-quit', () => {
   } catch (err) {
     console.error('[主进程] 断开 Bridge 连接失败:', err)
   }
-  stopAppLaunchWatcher()
   cleanupShortcuts()
   destroyTray()
   cleanupAllTempResources()
