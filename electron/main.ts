@@ -175,7 +175,14 @@ export function initBridgeClient() {
 app.whenReady().then(() => {
   registerCubismCoreProtocol()
   initializeAutoUpdater()
-  initialize()
+  initialize().catch(err => {
+    console.error('[主进程] 初始化失败:', err)
+    dialog.showErrorBox(
+      '初始化失败',
+      `应用初始化过程中发生错误，将退出。\n\n${err instanceof Error ? err.message : String(err)}`
+    )
+    app.quit()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
