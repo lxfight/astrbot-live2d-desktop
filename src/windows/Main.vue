@@ -213,14 +213,13 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
 import {
-  Drama, FolderOpen, ChartColumn, Settings, MessageCircle,
+  Drama, FolderOpen,
   Image as ImageIcon, Disc, Mic, X,
   CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
-import { AudioRecorder } from '@/utils/AudioRecorder'
 import {
   ADVANCED_SETTINGS_KEY,
   clampMaxRecordingSeconds,
@@ -228,48 +227,18 @@ import {
   type AdvancedSettings
 } from '@/utils/advancedSettings'
 import {
-  computeBubbleAutoHideDelay,
   resolvePerformMediaSource,
   splitPerformSequenceForBubble,
-  type BubbleRenderableItem,
 } from '@/utils/bubbleContent'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { withAlpha } from '@/utils/themePalette'
 import { extractModelThemeColor } from '@/utils/modelTheme'
-
-type BubbleTextItem = {
-  id: string
-  type: 'text'
-  fullText: string
-  renderedText: string
-}
-
-type BubbleImageItem = {
-  id: string
-  type: 'image'
-  src: string
-  alt: string
-}
-
-type BubbleItem = BubbleTextItem | BubbleImageItem
-
-// 气泡栈条目，每个条目独立维护打字机状态和生命周期
-type BubbleEntry = {
-  id: string
-  items: BubbleItem[]
-  offsetX: number        // 随机水平偏移 px（±30px）
-  typingIdx: number      // 下一个待打字的 item 下标
-  typingVer: number      // 递增取消令牌，与打字协程绑定
-  typingDone: boolean    // 所有 item 打字完成
-  hideTimerId: number | null
-  pinned: boolean        // 鼠标悬停，抑制自动隐藏
-  styleLeft: string
-  styleTop: string
-  styleMaxHeight: string // 动态 max-height，空字符串时使用 CSS 默认值
-}
+import { useBubbleStack } from './composables/useBubbleStack'
+import { useRecording } from './composables/useRecording'
+import { useRadialMenu } from './composables/useRadialMenu'
+import { useInputPanel, type FloatingOverlayStyle } from './composables/useInputPanel'
 
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
@@ -286,10 +255,7 @@ function waitForNextAudioEnd(): Promise<void> {
     audioEndResolvers.push(resolve)
   })
 }
-const showMenu = ref(false)
-const menuStyle = ref({ left: '0px', top: '0px' })
-const menuThemeColor = computed(() => withAlpha(palette.value.accent, 0.14))
-const menuThemeColorHover = computed(() => withAlpha(palette.value.accent, 0.24))
+
 const themeRgb = computed(() => sourceRgb.value)
 const mainWindowStyle = computed(() => ({
   '--model-r': themeRgb.value.r,
@@ -299,89 +265,24 @@ const mainWindowStyle = computed(() => ({
   '--model-color-soft': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.15)`,
   '--model-color-glow': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.35)`,
 }))
-let menuAutoCloseTimer: number | null = null
-// 气泡栈：index 0 = 最老（顶部），index length-1 = 最新（底部）
-const bubbleStack = ref<BubbleEntry[]>([])
-// DOM 元素引用（非响应式 Map，通过 :ref 回调维护）
-const bubbleElMap = new Map<string, HTMLElement>()
-const bubbleContentElMap = new Map<string, HTMLElement>()
-// 追踪上次收到表演包的时间，用于判断追加消息
-let lastPerformReceiveTime = 0
 
-const NORMAL_TYPEWRITER_INTERVAL = 50
-const TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS = 4
-const BUBBLE_EDGE_PADDING = 16
-const STATUS_MODEL_GAP = 30
-const RECORDING_STATUS_GAP = 44
-const BUBBLE_GAP = 10          // 堆叠气泡间距 px
-const DEFAULT_BUBBLE_STACK_MAX = 3
-const DEFAULT_FOLLOW_UP_WINDOW_MS = 4000
-const showInput = ref(false)
-const inputRef = ref<HTMLInputElement | null>(null)
-const inputStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
-const inputText = ref('')
-const currentUserName = ref('桌面用户')
-const hasModel = ref(true) // 默认为 true，避免启动时闪现导入界面
-const selectedImage = ref<{ file: File; preview: string } | null>(null)
-const loadingModelPath = ref('')
-type RecordingSource = 'manual' | 'shortcut'
-type StopReason = 'manual' | 'shortcut' | 'max-duration'
-type FloatingOverlayStyle = {
-  left: string
-  top?: string
-  bottom?: string
-}
-let themeExtractionRevision = 0
-
-const isRecording = ref(false)
-const recordingDuration = ref(0)
-const currentRecordingSource = ref<RecordingSource>('manual')
-const recordingHintText = computed(() => {
-  if (currentRecordingSource.value === 'shortcut') {
-    return '再次按下快捷键停止'
-  }
-
-  return '点击麦克风按钮停止'
-})
-
-const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
-let messageIdSequence = 0
-
-function generateMessageId(prefix = 'msg'): string {
-  messageIdSequence += 1
-  const randomSegment = Math.random().toString(36).slice(2, 10)
-  return `${prefix}_${Date.now()}_${messageIdSequence}_${randomSegment}`
-}
-
-let audioRecorder: AudioRecorder | null = null
-let recordingTimer: NodeJS.Timeout | null = null
-let isStoppingRecording = false
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
 let alwaysOnTopBeforeImport: boolean | null = null
 const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 
-// 模型状态提示
+const currentUserName = ref('桌面用户')
+const hasModel = ref(true)
+const loadingModelPath = ref('')
+let themeExtractionRevision = 0
+
+const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
+
+// ─── 模型状态提示 ─────────────────────────────────────────────────
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
 const modelStatus = ref<{ text: string; type: ModelStatusType } | null>(null)
 const modelStatusStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
 const recordingToastStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
-
-function getBubbleStackMax(): number {
-  return advancedSettings.value.bubbleStackMax || DEFAULT_BUBBLE_STACK_MAX
-}
-
-function getBubbleFollowUpWindowMs(): number {
-  return advancedSettings.value.bubbleFollowUpWindowMs || DEFAULT_FOLLOW_UP_WINDOW_MS
-}
-
-function getImageInlineThresholdBytes(): number {
-  return Math.max(64, advancedSettings.value.imageInlineThresholdKb || 256) * 1024
-}
-
-function getImageMaxSizeBytes(): number {
-  return Math.max(1, advancedSettings.value.imageMaxSizeMb || 10) * 1024 * 1024
-}
 
 function showModelStatus(text: string, type: ModelStatusType = 'info', duration = 3000) {
   modelStatus.value = { text, type }
@@ -433,6 +334,119 @@ function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void
   showModelStatus(hint.text, hint.type, hint.duration)
 }
 
+// ─── Composable 初始化 ──────────────────────────────────────────
+
+// 构造一个 reactive 代理供 composable 通过 .value 读写 modelPosition
+const modelPositionRef = computed(() => ({ x: modelPositionX, y: modelPositionY }))
+function setModelPosition(x: number, y: number) {
+  modelPositionX = x
+  modelPositionY = y
+}
+
+// useBubbleStack：无外部依赖
+const {
+  bubbleStack,
+  setBubbleEl,
+  setBubbleContentEl,
+  bubbleTierClass,
+  handleBubbleMediaLoad,
+  handleBubbleMouseEnter,
+  handleBubbleMouseLeave,
+  resolveModelOverlayAnchor,
+  updateStackPositions,
+  pushBubble,
+  clearAllBubbles,
+  checkFollowUp,
+  generateMessageId,
+} = useBubbleStack({
+  live2dCanvasRef,
+  advancedSettings,
+  modelPositionX: { get value() { return modelPositionX }, set value(v: number) { modelPositionX = v } },
+  modelPositionY: { get value() { return modelPositionY }, set value(v: number) { modelPositionY = v } },
+})
+
+// useInputPanel：需要 openInput 在 Main.vue 定义，先声明后传参
+// 但 openInput 依赖 radialMenu 的 showMenu/clearMenuAutoCloseTimer，
+// 所以需要先初始化 radialMenu 的 showMenu ref。
+// 解法：先创建 radialMenu，再创建 inputPanel，再定义 openInput 等包装函数。
+
+const {
+  showMenu,
+  menuStyle,
+  menuThemeColor,
+  menuThemeColorHover,
+  menuItems,
+  handleModelRightClick: _handleModelRightClick,
+  startMenuAutoCloseTimer,
+  clearMenuAutoCloseTimer,
+  handleMenuMouseEnter,
+  handleMenuMouseLeave,
+  getMenuItemStyle,
+} = useRadialMenu({
+  themeStore,
+  openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history') },
+  openSettings: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings() },
+  openInput: () => openInput(),
+})
+
+const {
+  showInput,
+  inputRef,
+  inputStyle,
+  inputText,
+  selectedImage,
+  handleSelectImage,
+  handlePasteEvent,
+  clearImage,
+  applySelectedImage,
+  closeInputPanel,
+  openInput: _openInput,
+  handleSendMessage,
+  fileToBase64,
+} = useInputPanel({
+  connectionStore,
+  currentUserName,
+  advancedSettings,
+  live2dCanvasRef,
+  showModelStatus,
+  showBaseEventStatus,
+  updateUIPositions: () => updateUIPositions(),
+  generateMessageId,
+})
+
+const {
+  isRecording,
+  recordingDuration,
+  recordingHintText,
+  startRecording,
+  stopRecording,
+  cancelRecordingIfActive,
+  sendAudioMessage,
+  cleanup: cleanupRecording,
+} = useRecording({
+  connectionStore,
+  currentUserName,
+  advancedSettings,
+  showModelStatus,
+  showBaseEventStatus,
+  updateUIPositions: () => updateUIPositions(),
+  generateMessageId,
+})
+
+// 包装 openInput，因为 radialMenu 需要调用它来关闭菜单并打开输入框
+function openInput() {
+  showMenu.value = false
+  clearMenuAutoCloseTimer()
+  _openInput()
+}
+
+// 包装 handleModelRightClick，传入 modelPositionRef
+function handleModelRightClick(position: { x: number; y: number }) {
+  modelPositionX = position.x
+  modelPositionY = position.y
+  _handleModelRightClick(position, { x: modelPositionX, y: modelPositionY })
+}
+
 // 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
 watch(hasModel, async (value) => {
   try {
@@ -458,11 +472,6 @@ watch(hasModel, async (value) => {
     console.warn('[主窗口] 设置窗口置顶/大小状态失败:', error)
   }
 })
-
-// 气泡栈变化时重新计算堆叠位置
-watch(bubbleStack, () => {
-  nextTick(() => updateStackPositions())
-}, { deep: false })
 
 // 配置 marked（与 History.vue 相同）
 marked.setOptions({
@@ -537,103 +546,8 @@ function renderBubbleMarkdown(text: string): string {
   }
 }
 
-// ─── 气泡栈辅助函数 ───────────────────────────────────────────────────────────
-
-function setBubbleEl(id: string, el: HTMLElement | null) {
-  if (el) {
-    bubbleElMap.set(id, el)
-  } else {
-    bubbleElMap.delete(id)
-  }
-}
-
-function setBubbleContentEl(id: string, el: HTMLElement | null) {
-  if (el) {
-    bubbleContentElMap.set(id, el)
-  } else {
-    bubbleContentElMap.delete(id)
-  }
-}
-
-// 返回气泡层级 CSS 类名（0=最新/底部，1=上一层，2=更上层）
-function bubbleTierClass(tier: number): string {
-  if (tier === 0) return 'bubble-tier-0'
-  if (tier === 1) return 'bubble-tier-1'
-  return 'bubble-tier-2'
-}
-
-function scheduleBubbleLayoutUpdate() {
-  nextTick(() => {
-    updateStackPositions()
-    // 滚动最新气泡内容到底部
-    const stack = bubbleStack.value
-    if (stack.length > 0) {
-      const el = bubbleContentElMap.get(stack[stack.length - 1].id)
-      if (el) el.scrollTop = el.scrollHeight
-    }
-  })
-}
-
-function handleBubbleMediaLoad(entryId: string) {
-  nextTick(() => {
-    updateStackPositions()
-    const el = bubbleContentElMap.get(entryId)
-    if (el) el.scrollTop = el.scrollHeight
-  })
-}
-
-function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
-  return items.map((item) => {
-    if (item.type === 'text') {
-      return {
-        id: generateMessageId('bubble_text'),
-        type: 'text' as const,
-        fullText: item.text,
-        renderedText: '',
-      }
-    }
-    return {
-      id: generateMessageId('bubble_image'),
-      type: 'image' as const,
-      src: item.src,
-      alt: item.alt,
-    }
-  })
-}
-
-// ─── 堆叠定位 ────────────────────────────────────────────────────────────────
-
-// 各层级 CSS max-height 对应的 vh 系数（须与 CSS 保持一致）
-const TIER_VH_FACTORS = [0.18, 0.26, 0.20]
-
-function getTierCSSMaxHeight(tier: number, vh: number): number {
-  const factor = TIER_VH_FACTORS[Math.min(tier, 2)]
-  return Math.min(factor * vh, vh - 32)
-}
-
-function resolveModelOverlayAnchor() {
-  const modelBounds = live2dCanvasRef.value?.getModelOverlayBounds?.()
-  if (modelBounds) {
-    const statusTop = Math.max(18, modelBounds.topCenterY - STATUS_MODEL_GAP)
-    const recordingTop = Math.max(18, statusTop - RECORDING_STATUS_GAP)
-    const inputTop = Math.min(modelBounds.bottomCenterY + 22, window.innerHeight - 76)
-
-    return {
-      anchorX: modelBounds.anchorX,
-      statusTop,
-      recordingTop,
-      inputTop,
-      bubbleBottom: statusTop,
-    }
-  }
-
-  return {
-    anchorX: modelPositionX,
-    statusTop: Math.max(18, modelPositionY - 280),
-    recordingTop: Math.max(18, modelPositionY - 330),
-    inputTop: Math.min(modelPositionY + 150, window.innerHeight - 76),
-    bubbleBottom: Math.max(18, modelPositionY - 280),
-  }
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
@@ -649,7 +563,6 @@ async function extractAndApplyModelTheme(modelPath: string) {
 
   const extractionRevision = ++themeExtractionRevision
 
-  // 重试最多 3 次，因为 WebGL 纹理可能需要时间绑定
   for (let attempt = 0; attempt < 3; attempt++) {
     if (extractionRevision !== themeExtractionRevision) {
       return
@@ -680,229 +593,6 @@ async function extractAndApplyModelTheme(modelPath: string) {
   }
 
   console.warn('[主窗口] 主题色提取失败，已重试 3 次')
-}
-
-function updateStackPositions() {
-  const stack = bubbleStack.value
-  if (!stack.length) return
-
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const overlayAnchor = resolveModelOverlayAnchor()
-  const anchorX = overlayAnchor.anchorX
-  const usableHeight = viewportHeight - 2 * BUBBLE_EDGE_PADDING
-
-  // 测量每个气泡的自然高度（scrollHeight 不受 max-height 约束）
-  const data = stack.map((entry, i) => {
-    const el = bubbleElMap.get(entry.id)
-    const contentEl = bubbleContentElMap.get(entry.id)
-    const tier = stack.length - 1 - i
-    const cssMaxH = getTierCSSMaxHeight(tier, viewportHeight)
-    const contentScrollH = contentEl?.scrollHeight ?? 56
-    // 自然高度 = 内容高度 + 气泡 padding，再不超过 CSS 层级上限
-    const naturalH = Math.min(contentScrollH + 24, cssMaxH)
-    return {
-      entry,
-      naturalHeight: naturalH,
-      width: el?.offsetWidth ?? 300,
-    }
-  })
-
-  const totalGaps = Math.max(0, stack.length - 1) * BUBBLE_GAP
-  const totalNaturalHeight = data.reduce((s, d) => s + d.naturalHeight, 0) + totalGaps
-  const idealAnchor = overlayAnchor.bubbleBottom
-
-  let anchorBottom: number
-  let finalHeights: number[]
-
-  if (totalNaturalHeight <= idealAnchor - BUBBLE_EDGE_PADDING) {
-    anchorBottom = idealAnchor
-    finalHeights = data.map(d => d.naturalHeight)
-    for (const d of data) d.entry.styleMaxHeight = ''
-  } else if (totalNaturalHeight <= usableHeight) {
-    anchorBottom = BUBBLE_EDGE_PADDING + totalNaturalHeight
-    finalHeights = data.map(d => d.naturalHeight)
-    for (const d of data) d.entry.styleMaxHeight = ''
-  } else {
-    anchorBottom = viewportHeight - BUBBLE_EDGE_PADDING
-    const usableForBubbles = Math.max(0, usableHeight - totalGaps)
-    const totalNatural = data.reduce((s, d) => s + d.naturalHeight, 0)
-    const scale = totalNatural > 0 ? usableForBubbles / totalNatural : 1
-    const MIN_BUBBLE_H = 60
-    finalHeights = data.map(d => Math.max(MIN_BUBBLE_H, Math.floor(d.naturalHeight * scale)))
-    for (let i = 0; i < data.length; i++) {
-      data[i].entry.styleMaxHeight = `${finalHeights[i]}px`
-    }
-  }
-
-  // 从最新（底部）往最老（顶部）依次放置，绝不重叠
-  let currentBottom = anchorBottom
-  for (let i = data.length - 1; i >= 0; i--) {
-    const { entry, width: elW } = data[i]
-    const elH = finalHeights[i]
-    const halfW = elW / 2
-    const minLeft = BUBBLE_EDGE_PADDING + halfW
-    const maxLeft = viewportWidth - BUBBLE_EDGE_PADDING - halfW
-    const rawLeft = anchorX + entry.offsetX
-    const clampedLeft = Math.min(Math.max(rawLeft, minLeft), maxLeft)
-
-    entry.styleLeft = `${clampedLeft}px`
-    entry.styleTop = `${currentBottom - elH}px`
-    currentBottom = currentBottom - elH - BUBBLE_GAP
-  }
-}
-
-// ─── 独立打字机 ───────────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function typeItemChars(item: BubbleTextItem, entry: BubbleEntry, localVer: number) {
-  let idx = item.renderedText.length
-  let sinceLayout = 0
-
-  while (idx < item.fullText.length) {
-    if (entry.typingVer !== localVer) return
-    item.renderedText += item.fullText.charAt(idx)
-    idx++
-    sinceLayout++
-    if (sinceLayout >= TYPEWRITER_LAYOUT_UPDATE_INTERVAL_CHARS || idx >= item.fullText.length) {
-      sinceLayout = 0
-      scheduleBubbleLayoutUpdate()
-    }
-    await sleep(NORMAL_TYPEWRITER_INTERVAL)
-  }
-}
-
-async function runEntryTypewriter(entry: BubbleEntry) {
-  const localVer = entry.typingVer
-
-  while (entry.typingIdx < entry.items.length) {
-    if (entry.typingVer !== localVer) return
-    const item = entry.items[entry.typingIdx]
-    entry.typingIdx++
-
-    if (item.type === 'text') {
-      await typeItemChars(item as BubbleTextItem, entry, localVer)
-    } else {
-      scheduleBubbleLayoutUpdate()
-    }
-    if (entry.typingVer !== localVer) return
-  }
-
-  // 所有 item 打字完成
-  if (entry.typingVer === localVer) {
-    entry.typingDone = true
-    startEntryHideTimer(entry)
-  }
-}
-
-// 强制冻结条目（将所有文本跳到最终状态，取消打字机）
-function freezeEntry(entry: BubbleEntry) {
-  entry.typingVer++  // 取消正在运行的打字协程
-  for (const item of entry.items) {
-    if (item.type === 'text') {
-      (item as BubbleTextItem).renderedText = (item as BubbleTextItem).fullText
-    }
-  }
-  entry.typingDone = true
-}
-
-// ─── 自动隐藏 ─────────────────────────────────────────────────────────────────
-
-function computeEntryAutoHideDelay(entry: BubbleEntry): number {
-  return computeBubbleAutoHideDelay(
-    entry.items.map((item) => {
-      if (item.type === 'text') return { type: 'text' as const, text: (item as BubbleTextItem).fullText }
-      return { type: 'image' as const, src: (item as BubbleImageItem).src, alt: (item as BubbleImageItem).alt }
-    })
-  )
-}
-
-function startEntryHideTimer(entry: BubbleEntry) {
-  if (entry.pinned) return  // 悬停时不启动
-  if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
-  const delay = computeEntryAutoHideDelay(entry)
-  entry.hideTimerId = window.setTimeout(() => {
-    removeEntry(entry.id)
-  }, delay)
-}
-
-function removeEntry(id: string) {
-  const idx = bubbleStack.value.findIndex((e) => e.id === id)
-  if (idx === -1) return
-  const entry = bubbleStack.value[idx]
-  if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
-  entry.typingVer++  // 取消打字协程
-  bubbleStack.value.splice(idx, 1)
-}
-
-function clearAllBubbles() {
-  for (const entry of bubbleStack.value) {
-    if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
-    entry.typingVer++
-  }
-  bubbleStack.value = []
-}
-
-// ─── 鼠标交互 ─────────────────────────────────────────────────────────────────
-
-function handleBubbleMouseEnter(entry: BubbleEntry) {
-  entry.pinned = true
-  if (entry.hideTimerId !== null) {
-    clearTimeout(entry.hideTimerId)
-    entry.hideTimerId = null
-  }
-}
-
-function handleBubbleMouseLeave(entry: BubbleEntry) {
-  entry.pinned = false
-  if (entry.typingDone) {
-    // 离开后 3s 隐藏
-    entry.hideTimerId = window.setTimeout(() => removeEntry(entry.id), 3000)
-  }
-}
-
-// ─── 主入口：推入新气泡 ───────────────────────────────────────────────────────
-
-function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, interrupt: boolean) {
-  if (!bubbleItems.length) return
-
-  if (interrupt) {
-    clearAllBubbles()
-  }
-
-  // 超过最大数量时驱逐最老的
-  if (bubbleStack.value.length >= getBubbleStackMax()) {
-    const oldest = bubbleStack.value[0]
-    freezeEntry(oldest)
-    bubbleStack.value.splice(0, 1)
-  }
-
-  const runtimeItems = createBubbleItems(bubbleItems)
-  const offsetX = Math.round((Math.random() - 0.5) * 50)  // ±25px 随机偏移
-  const entry: BubbleEntry = {
-    id: generateMessageId('bubble'),
-    items: runtimeItems,
-    offsetX,
-    typingIdx: 0,
-    typingVer: 0,
-    typingDone: false,
-    hideTimerId: null,
-    pinned: false,
-    styleLeft: '0px',
-    styleTop: '0px',
-    styleMaxHeight: '',
-  }
-
-  bubbleStack.value.push(entry)
-  // push 后必须从数组取响应式代理，否则修改 renderedText 不触发重渲染
-  const reactiveEntry = bubbleStack.value[bubbleStack.value.length - 1]
-  nextTick(() => {
-    updateStackPositions()
-    void runEntryTypewriter(reactiveEntry)
-  })
 }
 
 // Create performance queue
@@ -1080,68 +770,6 @@ async function handleModelInfoChanged(modelInfo: {
   }
 }
 
-// 模型右键点击
-function handleModelRightClick(position: { x: number; y: number }) {
-  console.log('[主窗口] 右键点击模型:', position)
-
-  // 更新模型位置
-  modelPositionX = position.x
-  modelPositionY = position.y
-
-  // 更新菜单位置
-  menuStyle.value = {
-    left: `${position.x + 30}px`,
-    top: `${position.y + 30}px`
-  }
-
-  // 如果菜单已显示，先关闭再打开以触发动画
-  if (showMenu.value) {
-    showMenu.value = false
-    nextTick(() => {
-      showMenu.value = true
-    })
-  } else {
-    showMenu.value = true
-  }
-
-  // 启动自动关闭定时器（3秒后自动关闭）
-  startMenuAutoCloseTimer()
-}
-
-// 启动菜单自动关闭定时器
-function startMenuAutoCloseTimer() {
-  // 清除之前的定时器
-  if (menuAutoCloseTimer !== null) {
-    clearTimeout(menuAutoCloseTimer)
-  }
-
-  // 2秒后自动关闭菜单
-  menuAutoCloseTimer = window.setTimeout(() => {
-    showMenu.value = false
-    menuAutoCloseTimer = null
-  }, 2000)
-}
-
-// 清除菜单自动关闭定时器
-function clearMenuAutoCloseTimer() {
-  if (menuAutoCloseTimer !== null) {
-    clearTimeout(menuAutoCloseTimer)
-    menuAutoCloseTimer = null
-  }
-}
-
-// 鼠标进入菜单
-function handleMenuMouseEnter() {
-  // 鼠标进入菜单时，清除自动关闭定时器
-  clearMenuAutoCloseTimer()
-}
-
-// 鼠标离开菜单
-function handleMenuMouseLeave() {
-  // 鼠标离开菜单时，重新启动自动关闭定时器
-  startMenuAutoCloseTimer()
-}
-
 // 模型位置变化（拖动时）
 function handleModelPositionChanged(position: { x: number; y: number }) {
   modelPositionX = position.x
@@ -1211,13 +839,6 @@ function handleWindowClick(event: MouseEvent) {
   }
 }
 
-function closeInputPanel() {
-  showInput.value = false
-  inputText.value = ''
-  selectedImage.value = null
-  live2dCanvasRef.value?.enablePassThrough()
-}
-
 // 打开历史记录窗口（现在合并到设置窗口中）
 async function openHistory() {
   showMenu.value = false
@@ -1230,138 +851,6 @@ async function openSettings() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
   await window.electron.window.openSettings()
-}
-
-// 打开输入框
-function openInput() {
-  showMenu.value = false
-  clearMenuAutoCloseTimer()
-  const wasOpen = showInput.value
-  showInput.value = true
-  if (!wasOpen) {
-    updateUIPositions()
-  }
-  // 禁用动态穿透，让整个窗口可以接收点击事件
-  live2dCanvasRef.value?.disablePassThrough()
-  nextTick(() => {
-    inputRef.value?.focus()
-  })
-}
-
-function applySelectedImage(file: File, preview: string) {
-  selectedImage.value = { file, preview }
-
-  if (!showInput.value) {
-    openInput()
-    return
-  }
-
-  live2dCanvasRef.value?.disablePassThrough()
-  nextTick(() => {
-    inputRef.value?.focus()
-  })
-}
-
-// 菜单配置
-const menuItems = computed(() => [
-  { key: 'history', icon: ChartColumn, label: '历史', action: openHistory },
-  { key: 'settings', icon: Settings, label: '设置', action: openSettings },
-  { key: 'talk', icon: MessageCircle, label: '对话', action: openInput }
-])
-
-const MENU_RADIUS = 100
-
-function getMenuItemStyle(index: number, total: number) {
-  // 从 -90 度（正上方）开始
-  const startAngle = -90
-  const angleStep = 360 / total
-  const angle = startAngle + index * angleStep
-  const radian = (angle * Math.PI) / 180
-
-  const x = Math.cos(radian) * MENU_RADIUS
-  const y = Math.sin(radian) * MENU_RADIUS
-
-  return {
-    '--tx': `${x}px`,
-    '--ty': `${y}px`,
-    '--delay': `${index * 0.05}s`
-  }
-}
-
-// 选择图片
-function handleSelectImage() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-
-  input.onchange = (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
-    if (!files || files.length === 0) return
-
-    const file = files[0]
-    if (file.size > getImageMaxSizeBytes()) {
-      showModelStatus(`图片大小不能超过 ${advancedSettings.value.imageMaxSizeMb}MB`, 'warning')
-      return
-    }
-
-    // 创建预览
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      applySelectedImage(file, e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  input.click()
-}
-
-// 处理粘贴事件
-function handlePasteEvent(e: ClipboardEvent) {
-  const items = e.clipboardData?.items
-  if (!items) return
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    if (item.type.startsWith('image/')) {
-      e.preventDefault()
-      const file = item.getAsFile()
-      if (!file) continue
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        applySelectedImage(file, e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-      break
-    }
-  }
-}
-
-// 清除图片
-function clearImage() {
-  selectedImage.value = null
-}
-
-// 文件转 base64
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-// 开始录音
-function clearRecordingTimer() {
-  if (recordingTimer) {
-    clearInterval(recordingTimer)
-    recordingTimer = null
-  }
-}
-
-function getMaxRecordingSeconds(): number {
-  return clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
 }
 
 async function applyLogLevelFromAdvancedSettings() {
@@ -1401,177 +890,7 @@ function handleStorageChange(event: StorageEvent) {
   }
 }
 
-interface StartRecordingOptions {
-  source?: RecordingSource
-}
-
-interface StopRecordingOptions {
-  reason?: StopReason
-}
-
-async function startRecording(options: StartRecordingOptions | MouseEvent = {}) {
-  if (isRecording.value || isStoppingRecording) {
-    return
-  }
-
-  if (!AudioRecorder.isSupported()) {
-    showModelStatus('您的浏览器不支持录音功能', 'error')
-    return
-  }
-
-  const source = (typeof options === 'object' && options !== null && 'source' in options
-    ? (options as StartRecordingOptions).source
-    : 'manual') || 'manual'
-  const maxRecordingSeconds = getMaxRecordingSeconds()
-
-  try {
-    audioRecorder = new AudioRecorder({
-      sampleRate: 16000,
-      channelCount: 1,
-      silenceDetection: {
-        enabled: advancedSettings.value.silenceDetectionEnabled
-      }
-    })
-
-    audioRecorder.onSilenceDetected(() => {
-      void stopRecording({ reason: 'max-duration' })
-    })
-
-    await audioRecorder.start()
-    isRecording.value = true
-    updateUIPositions()
-    currentRecordingSource.value = source
-    recordingDuration.value = 0
-
-    recordingTimer = setInterval(() => {
-      if (!audioRecorder) {
-        return
-      }
-
-      recordingDuration.value = Math.floor(audioRecorder.getDuration() / 1000)
-      if (recordingDuration.value >= maxRecordingSeconds) {
-        void stopRecording({ reason: 'max-duration' })
-      }
-    }, 100)
-
-    console.log('[主窗口] 开始录音，来源:', source)
-  } catch (error: any) {
-    showModelStatus(`录音失败: ${error.message}`, 'error')
-    isRecording.value = false
-    recordingDuration.value = 0
-    currentRecordingSource.value = 'manual'
-    audioRecorder = null
-    clearRecordingTimer()
-  }
-}
-
-// Stop recording and send
-async function stopRecording(_options: StopRecordingOptions | MouseEvent = {}) {
-  if (!audioRecorder || !isRecording.value || isStoppingRecording) {
-    return
-  }
-
-  const currentRecorder = audioRecorder
-  isStoppingRecording = true
-
-  try {
-    clearRecordingTimer()
-    const audioBlob = await currentRecorder.stop()
-    isRecording.value = false
-    audioRecorder = null
-
-    console.log('[主窗口] 录音完成，大小:', audioBlob.size, '字节')
-
-    if (audioBlob.size < 1000) {
-      showModelStatus('录音时间太短', 'warning')
-      return
-    }
-
-    if (!connectionStore.isConnected) {
-      showModelStatus('未连接到服务器', 'error')
-      return
-    }
-
-    await sendAudioMessage(audioBlob)
-  } catch (error: any) {
-    showModelStatus(`停止录音失败: ${error.message}`, 'error')
-    } finally {
-      isRecording.value = false
-      recordingDuration.value = 0
-      currentRecordingSource.value = 'manual'
-      audioRecorder = null
-      isStoppingRecording = false
-    }
-}
-
-// Cancel recording
-function cancelRecordingIfActive() {
-  if (!audioRecorder || !isRecording.value) {
-    return
-  }
-
-  audioRecorder.cancel()
-  isRecording.value = false
-  recordingDuration.value = 0
-  currentRecordingSource.value = 'manual'
-  audioRecorder = null
-  isStoppingRecording = false
-  clearRecordingTimer()
-
-  console.log('[主窗口] 录音已取消')
-}
-
-async function sendAudioMessage(audioBlob: Blob) {
-  try {
-    showBaseEventStatus('正在发送语音...', 'info')
-
-    // 获取音频格式
-    const format = audioBlob.type.split('/')[1] || 'webm'
-
-    const content: any[] = [
-      {
-        type: 'audio',
-        bytes: new Uint8Array(await audioBlob.arrayBuffer()),
-        mime: audioBlob.type || 'audio/webm',
-        name: `voice.${format}`
-      }
-    ]
-
-    const result = await connectionStore.sendMessage(content, {
-      userId: connectionStore.userId || 'desktop-user',
-      userName: currentUserName.value || '桌面用户',
-      sessionId: connectionStore.sessionId,
-      messageType: 'friend'
-    })
-
-    if (result.success) {
-      showBaseEventStatus('语音已发送', 'success')
-
-      // 保存语音消息记录
-      try {
-        await window.electron.history.saveMessage({
-          messageId: generateMessageId(),
-          sessionId: connectionStore.sessionId || 'default',
-          userId: connectionStore.userId || 'desktop-user',
-          userName: currentUserName.value || '桌面用户',
-          messageType: 'friend',
-          direction: 'outgoing',
-          content: result.content || content,
-          rawText: '[语音消息]',
-          timestamp: Date.now()
-        })
-      } catch (error) {
-        console.error('[主窗口] 保存语音消息记录失败:', error)
-      }
-    } else {
-      showModelStatus(`发送失败: ${result.error}`, 'error')
-    }
-  } catch (error: any) {
-    showModelStatus(`发送失败: ${error.message}`, 'error')
-  }
-}
-
-// 处理音频开始播放（启动口型同步）
+async function applyLogLevelFromAdvancedSettings() {
 function handleAudioStart(audioElement: HTMLAudioElement) {
   console.log('[主窗口] 音频开始播放，启动口型同步')
   if (!advancedSettings.value.lipSyncEnabled) {
@@ -1943,13 +1262,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
-  clearRecordingTimer()
   clearAllBubbles()
-
-  if (audioRecorder && isRecording.value) {
-    audioRecorder.cancel()
-    audioRecorder = null
-  }
+  cleanupRecording()
 })
 </script>
 
