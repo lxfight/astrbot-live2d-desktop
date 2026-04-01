@@ -165,9 +165,9 @@ export class L2DBridgeClient extends EventEmitter {
    * 处理接收到的数据包
    */
   private handlePacket(packet: BasePacket): void {
-    // 过滤心跳日志，避免刷屏
     if (packet.op !== OPS.SYS_PONG) {
-      console.log('[L2D] 收到数据包:', packet.op, packet.payload)
+      const safePayload = this.sanitizeForLog(packet.payload)
+      console.log('[L2D] 收到数据包:', packet.op, safePayload)
     }
 
     // 拦截等待中的请求响应（按 packet.id 匹配）
@@ -390,6 +390,36 @@ export class L2DBridgeClient extends EventEmitter {
       ts: Date.now(),
       payload
     })
+  }
+
+  /**
+   * 脱敏处理用于日志输出
+   */
+  private sanitizeForLog(payload: any): any {
+    if (!payload || typeof payload !== 'object') return payload
+    const sensitiveKeys = ['token', 'password', 'secret', 'apiKey', 'accessKey']
+    const MAX_STRING_LEN = 200
+
+    const sanitize = (obj: any): any => {
+      if (Array.isArray(obj)) return `[Array:${obj.length}]`
+      if (!obj || typeof obj !== 'object') {
+        if (typeof obj === 'string' && obj.length > MAX_STRING_LEN) {
+          return obj.slice(0, MAX_STRING_LEN) + '...'
+        }
+        return obj
+      }
+      const result: Record<string, any> = {}
+      for (const [key, value] of Object.entries(obj)) {
+        if (sensitiveKeys.some(k => key.toLowerCase().includes(k))) {
+          result[key] = '***'
+        } else {
+          result[key] = sanitize(value)
+        }
+      }
+      return result
+    }
+
+    return sanitize(payload)
   }
 
   /**
