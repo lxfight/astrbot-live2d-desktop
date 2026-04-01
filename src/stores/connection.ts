@@ -275,13 +275,16 @@ export const useConnectionStore = defineStore('connection', () => {
     return connected
   }
 
+  function onStorageChange(event: StorageEvent) {
+    if (event.key !== null && event.key !== CONNECTION_SETTINGS_KEY) {
+      return
+    }
+    reloadPersistedSettings()
+  }
+
   if (typeof window !== 'undefined') {
-    window.addEventListener('storage', (event: StorageEvent) => {
-      if (event.key !== null && event.key !== CONNECTION_SETTINGS_KEY) {
-        return
-      }
-      reloadPersistedSettings()
-    })
+    window.removeEventListener('storage', onStorageChange)
+    window.addEventListener('storage', onStorageChange)
   }
 
   async function sendMessage(content: any[], metadata: any) {

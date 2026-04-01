@@ -56,8 +56,6 @@ function readPersistedTheme(): ThemePersistedState {
   }
 }
 
-let isStorageListenerBound = false
-
 export const useThemeStore = defineStore('theme', () => {
   const persisted = readPersistedTheme()
   const currentModelPath = ref(persisted.currentModelPath)
@@ -111,15 +109,17 @@ export const useThemeStore = defineStore('theme', () => {
     persistState()
   }
 
-  if (typeof window !== 'undefined' && !isStorageListenerBound) {
-    window.addEventListener('storage', (event: StorageEvent) => {
-      if (event.key !== null && event.key !== THEME_STORAGE_KEY && event.key !== 'lastModelPath') {
-        return
-      }
+  function onThemeStorageChange(event: StorageEvent) {
+    if (event.key !== null && event.key !== THEME_STORAGE_KEY && event.key !== 'lastModelPath') {
+      return
+    }
 
-      syncFromStorage()
-    })
-    isStorageListenerBound = true
+    syncFromStorage()
+  }
+
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('storage', onThemeStorageChange)
+    window.addEventListener('storage', onThemeStorageChange)
   }
 
   return {
