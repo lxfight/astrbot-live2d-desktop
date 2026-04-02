@@ -25,6 +25,48 @@
       "downloadUrl": "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
       "runtimeSource": "official-sdk-download",
       "expectedHash": "sha256-25ae938cb4fe282ce189b357bcc97e603d1e1f7ec78bf04150d401c23cdc792f"
+      }
+  },
+  "desktopMetadata": {
+    "protocol": {
+      "version": "1.0.0"
+    },
+    "links": {
+      "astrbot": "https://github.com/AstrBotDevs/AstrBot",
+      "repository": "https://github.com/lxfight/astrbot-live2d-desktop",
+      "adapterPlugin": "https://github.com/lxfight/astrbot_plugin_live2d_adapter"
+    },
+    "storage": {
+      "local": {
+        "advancedSettings": {
+          "key": "advancedSettings",
+          "version": 1
+        },
+        "connectionSettings": {
+          "key": "connectionSettings",
+          "version": 2
+        },
+        "modelPositions": {
+          "key": "modelPositions",
+          "version": 1
+        },
+        "themeState": {
+          "key": "rendererThemeState",
+          "version": 1
+        },
+        "lastModelPath": {
+          "key": "lastModelPath"
+        }
+      },
+      "userConfig": {
+        "autoUpdateEnabled": "app_auto_update_enabled",
+        "screenshotDefaultTarget": "desktop_capture_default_target",
+        "screenshotQuality": "desktop_capture_quality",
+        "screenshotMaxWidth": "desktop_capture_max_width",
+        "alwaysOnTop": "tray_always_on_top",
+        "fullPassThrough": "tray_pass_through_mode",
+        "autoDetectFullscreen": "tray_game_mode"
+      }
     }
   },
   "scripts": {
@@ -188,7 +230,6 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AstrBot Live2D Desktop",
       "deleteAppDataOnUninstall": false
     },
     "portable": {
