@@ -37,4 +37,24 @@ describe('resourceUrl', () => {
       })
     ).toBe('https://cdn.example.com/image.png')
   })
+
+  it('rejects unsafe direct urls', () => {
+    expect(
+      resolveResourceSource({
+        url: 'javascript:alert(1)',
+      })
+    ).toBeNull()
+  })
+
+  it('rejects non-data inline payloads', () => {
+    expect(
+      resolveResourceSource({
+        inline: 'not-a-data-url',
+      })
+    ).toBeNull()
+  })
+
+  it('rejects rid path traversal fragments', () => {
+    expect(() => resolveResourceRidUrl('../secret.txt')).toThrow('资源标识包含非法路径片段')
+  })
 })
