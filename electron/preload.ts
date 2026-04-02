@@ -1,4 +1,12 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, safeStorage } = require('electron')
+
+function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: T) => void) {
+  const listener = (_event: unknown, ...args: T) => callback(...args)
+  ipcRenderer.on(channel, listener)
+  return () => {
+    ipcRenderer.removeListener(channel, listener)
+  }
+}
 
 function normalizeRendererLogArg(arg: any): string {
   if (typeof arg === 'string') {
@@ -46,26 +54,11 @@ contextBridge.exposeInMainWorld('electron', {
     sendState: (op: string, payload: any) => ipcRenderer.invoke('bridge:sendState', op, payload),
 
     // 事件监听（单订阅模式，避免重复注册堆积）
-    onConnected: (callback: (payload: any) => void) => {
-      ipcRenderer.removeAllListeners('bridge:connected')
-      ipcRenderer.on('bridge:connected', (_event: any, payload: any) => callback(payload))
-    },
-    onDisconnected: (callback: (info: any) => void) => {
-      ipcRenderer.removeAllListeners('bridge:disconnected')
-      ipcRenderer.on('bridge:disconnected', (_event: any, info: any) => callback(info))
-    },
-    onError: (callback: (error: any) => void) => {
-      ipcRenderer.removeAllListeners('bridge:error')
-      ipcRenderer.on('bridge:error', (_event: any, error: any) => callback(error))
-    },
-    onPerformShow: (callback: (payload: any) => void) => {
-      ipcRenderer.removeAllListeners('perform:show')
-      ipcRenderer.on('perform:show', (_event: any, payload: any) => callback(payload))
-    },
-    onPerformInterrupt: (callback: () => void) => {
-      ipcRenderer.removeAllListeners('perform:interrupt')
-      ipcRenderer.on('perform:interrupt', () => callback())
-    }
+    onConnected: (callback: (payload: any) => void) => subscribeIpc('bridge:connected', callback),
+    onDisconnected: (callback: (info: any) => void) => subscribeIpc('bridge:disconnected', callback),
+    onError: (callback: (error: any) => void) => subscribeIpc('bridge:error', callback),
+    onPerformShow: (callback: (payload: any) => void) => subscribeIpc('perform:show', callback),
+    onPerformInterrupt: (callback: () => void) => subscribeIpc('perform:interrupt', callback)
   },
 
   // 窗口管理
@@ -90,14 +83,8 @@ contextBridge.exposeInMainWorld('electron', {
     updateDesktopFeatureSettings: (config: any) => ipcRenderer.invoke('window:updateDesktopFeatureSettings', config),
     getScreenshotSettings: () => ipcRenderer.invoke('window:getScreenshotSettings'),
     updateScreenshotSettings: (settings: any) => ipcRenderer.invoke('window:updateScreenshotSettings', settings),
-    onPassThroughModeChanged: (callback: (enabled: boolean) => void) => {
-      ipcRenderer.removeAllListeners('window:passThroughModeChanged')
-      ipcRenderer.on('window:passThroughModeChanged', (_event: any, enabled: boolean) => callback(enabled))
-    },
-    onMaximizedChanged: (callback: (maximized: boolean) => void) => {
-      ipcRenderer.removeAllListeners('window:maximizedChanged')
-      ipcRenderer.on('window:maximizedChanged', (_event: any, maximized: boolean) => callback(maximized))
-    },
+    onPassThroughModeChanged: (callback: (enabled: boolean) => void) => subscribeIpc('window:passThroughModeChanged', callback),
+    onMaximizedChanged: (callback: (maximized: boolean) => void) => subscribeIpc('window:maximizedChanged', callback),
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
     openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
     saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
@@ -125,8 +112,7 @@ contextBridge.exposeInMainWorld('electron', {
   settings: {
     getPendingPage: () => ipcRenderer.invoke('settings:getPendingPage'),
     onNavigateTo: (callback: (page: string) => void) => {
-      ipcRenderer.removeAllListeners('settings:navigateTo')
-      ipcRenderer.on('settings:navigateTo', (_event: any, page: string) => callback(page))
+      return subscribeIpc('settings:navigateTo', callback)
     }
   },
 
@@ -156,9 +142,7 @@ contextBridge.exposeInMainWorld('electron', {
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),
     load: (modelPath: string) => ipcRenderer.invoke('model:load', modelPath),
     onLoad: (callback: (modelPath: string) => void) => {
-      // 移除旧的监听器，避免重复
-      ipcRenderer.removeAllListeners('model:load')
-      ipcRenderer.on('model:load', (_event: any, modelPath: string) => callback(modelPath))
+      return subscribeIpc('model:load', callback)
     }
   },
 
@@ -167,14 +151,8 @@ contextBridge.exposeInMainWorld('electron', {
     register: (accelerator: string) => ipcRenderer.invoke('shortcut:register', accelerator),
     unregister: () => ipcRenderer.invoke('shortcut:unregister'),
     isRegistered: (accelerator: string) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
-    onRecordingStart: (callback: () => void) => {
-      ipcRenderer.removeAllListeners('shortcut:recording-start')
-      ipcRenderer.on('shortcut:recording-start', () => callback())
-    },
-    onRecordingStop: (callback: () => void) => {
-      ipcRenderer.removeAllListeners('shortcut:recording-stop')
-      ipcRenderer.on('shortcut:recording-stop', () => callback())
-    }
+    onRecordingStart: (callback: () => void) => subscribeIpc('shortcut:recording-start', callback),
+    onRecordingStop: (callback: () => void) => subscribeIpc('shortcut:recording-stop', callback)
   },
 
   // 日志
@@ -196,9 +174,28 @@ contextBridge.exposeInMainWorld('electron', {
     getSettings: () => ipcRenderer.invoke('update:getSettings'),
     updateSettings: (settings: any) => ipcRenderer.invoke('update:updateSettings', settings),
     quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
-    onStateChanged: (callback: (state: any) => void) => {
-      ipcRenderer.removeAllListeners('update:stateChanged')
-      ipcRenderer.on('update:stateChanged', (_event: any, state: any) => callback(state))
+    onStateChanged: (callback: (state: any) => void) => subscribeIpc('update:stateChanged', callback)
+  },
+
+  secureStorage: {
+    isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+    encryptString: (value: string) => {
+      if (!safeStorage.isEncryptionAvailable()) {
+        return value
+      }
+
+      return safeStorage.encryptString(value).toString('base64')
+    },
+    decryptString: (value: string) => {
+      if (!safeStorage.isEncryptionAvailable()) {
+        return value
+      }
+
+      try {
+        return safeStorage.decryptString(Buffer.from(value, 'base64'))
+      } catch {
+        return value
+      }
     }
   }
 })

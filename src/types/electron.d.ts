@@ -11,6 +11,7 @@ import type { UpdaterSettings as _UpdaterSettings } from '../utils/updaterSettin
 import type { ScreenshotSettings as _ScreenshotSettings } from '../utils/screenshotSettings'
 
 declare global {
+  type Unsubscribe = () => void
   // 重新导出窗口相关类型
   type WindowEventType = _WindowEventType
   type WindowInfo = _WindowInfo
@@ -66,11 +67,11 @@ declare global {
         sendMessage: (payload: any) => Promise<{ success: boolean; error?: string; content?: any[] }>
         sendTouch: (x: number, y: number, action: string) => Promise<{ success: boolean; error?: string }>
         sendState: (op: string, payload: any) => Promise<{ success: boolean; error?: string }>
-        onConnected: (callback: (payload: any) => void) => void
-        onDisconnected: (callback: (info: any) => void) => void
-        onError: (callback: (error: any) => void) => void
-        onPerformShow: (callback: (payload: any) => void) => void
-        onPerformInterrupt: (callback: () => void) => void
+        onConnected: (callback: (payload: any) => void) => Unsubscribe
+        onDisconnected: (callback: (info: any) => void) => Unsubscribe
+        onError: (callback: (error: any) => void) => Unsubscribe
+        onPerformShow: (callback: (payload: any) => void) => Unsubscribe
+        onPerformInterrupt: (callback: () => void) => Unsubscribe
       }
       window: {
         openSettings: (page?: string) => Promise<{ success: boolean }>
@@ -92,8 +93,8 @@ declare global {
         updateDesktopFeatureSettings: (config: Partial<DesktopFeatureSettings>) => Promise<DesktopFeatureSettings>
         getScreenshotSettings: () => Promise<ScreenshotSettings>
         updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>
-        onPassThroughModeChanged: (callback: (enabled: boolean) => void) => void
-        onMaximizedChanged: (callback: (maximized: boolean) => void) => void
+        onPassThroughModeChanged: (callback: (enabled: boolean) => void) => Unsubscribe
+        onMaximizedChanged: (callback: (maximized: boolean) => void) => Unsubscribe
         openExternal: (url: string) => Promise<{ success: boolean }>
         openResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
@@ -114,11 +115,11 @@ declare global {
         getWatcherConfig: () => Promise<WindowWatcherConfig>
         updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
         resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
-        onWindowEvent: (callback: (event: WindowEvent) => void) => () => void
+        onWindowEvent: (callback: (event: WindowEvent) => void) => Unsubscribe
       }
       settings: {
         getPendingPage: () => Promise<string | null>
-        onNavigateTo: (callback: (page: string) => void) => void
+        onNavigateTo: (callback: (page: string) => void) => Unsubscribe
       }
       user: {
         setUserName: (name: string) => Promise<{ success: boolean }>
@@ -157,14 +158,14 @@ declare global {
         getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>
         delete: (modelName: string) => Promise<{ success: boolean; error?: string }>
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>
-        onLoad: (callback: (modelPath: string) => void) => void
+        onLoad: (callback: (modelPath: string) => void) => Unsubscribe
       }
       shortcut: {
         register: (accelerator: string) => Promise<{ success: boolean; error?: string }>
         unregister: () => Promise<{ success: boolean; error?: string }>
         isRegistered: (accelerator: string) => Promise<boolean>
-        onRecordingStart: (callback: () => void) => void
-        onRecordingStop: (callback: () => void) => void
+        onRecordingStart: (callback: () => void) => Unsubscribe
+        onRecordingStop: (callback: () => void) => Unsubscribe
       }
       log: {
         debug: (...args: any[]) => void
@@ -182,7 +183,12 @@ declare global {
         getSettings: () => Promise<UpdaterSettings>
         updateSettings: (settings: Partial<UpdaterSettings>) => Promise<UpdaterSettings>
         quitAndInstall: () => Promise<{ success: boolean; message: string }>
-        onStateChanged: (callback: (state: UpdateState) => void) => void
+        onStateChanged: (callback: (state: UpdateState) => void) => Unsubscribe
+      }
+      secureStorage: {
+        isEncryptionAvailable: () => boolean
+        encryptString: (value: string) => string
+        decryptString: (value: string) => string
       }
     }
   }
