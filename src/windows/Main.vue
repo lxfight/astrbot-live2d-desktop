@@ -170,14 +170,14 @@
             <ImageIcon :size="20" />
           </button>
           
-          <input
-            v-model="inputText"
-            class="transparent-input"
-            placeholder="输入消息... (Ctrl+V 粘贴)"
-            @keydown.enter.exact="handleSendMessage"
-            @paste="handlePasteEvent"
-            :ref="(el: any) => inputPanel.inputRef = el"
-          />
+            <input
+              v-model="inputText"
+              class="transparent-input"
+              placeholder="输入消息... (Ctrl+V 粘贴)"
+              @keydown.enter.exact="handleSendMessage"
+              @paste="handlePasteEvent"
+              :ref="(el) => inputPanel.inputRef.value = el as HTMLInputElement | null"
+            />
           
           <div class="action-buttons">
             <button
@@ -204,6 +204,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import type { PerformElement, PerformSequence } from '@/types/protocol'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
@@ -227,6 +228,8 @@ import {
 } from '@/utils/bubbleContent'
 import { configureMarked, renderBubbleMarkdown } from '@/utils/markedLatex'
 import { extractModelThemeColor } from '@/utils/modelTheme'
+import { sleep } from '@/utils/async'
+import { rgbToHexString } from '@/utils/color'
 import { useBubbleStack } from './composables/useBubbleStack'
 import { useRecording } from './composables/useRecording'
 import { useRadialMenu } from './composables/useRadialMenu'
@@ -237,15 +240,57 @@ const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { sourceRgb } = storeToRefs(themeStore)
 
-const live2dCanvasRef = ref<any>()
+const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas> | null>(null)
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
 
-let audioEndResolvers: Array<() => void> = []
+const AUDIO_END_TIMEOUT_MS = 30000
 
-function waitForNextAudioEnd(): Promise<void> {
+type AudioWaiter = {
+  resolve: () => void
+  timeoutId: number | null
+}
+
+let audioWaiters: AudioWaiter[] = []
+const mainWindowDisposers: Unsubscribe[] = []
+
+function settleAudioWaiter(waiter: AudioWaiter) {
+  if (waiter.timeoutId !== null) {
+    clearTimeout(waiter.timeoutId)
+    waiter.timeoutId = null
+  }
+  waiter.resolve()
+}
+
+function waitForNextAudioEnd(timeoutMs = AUDIO_END_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve) => {
-    audioEndResolvers.push(resolve)
+    const waiter: AudioWaiter = {
+      resolve,
+      timeoutId: null,
+    }
+
+    waiter.timeoutId = window.setTimeout(() => {
+      audioWaiters = audioWaiters.filter((item) => item !== waiter)
+      settleAudioWaiter(waiter)
+    }, timeoutMs)
+
+    audioWaiters.push(waiter)
   })
+}
+
+function resolveNextAudioWaiter() {
+  const waiter = audioWaiters.shift()
+  if (waiter) {
+    settleAudioWaiter(waiter)
+  }
+}
+
+function releaseAllAudioWaiters() {
+  while (audioWaiters.length > 0) {
+    const waiter = audioWaiters.shift()
+    if (waiter) {
+      settleAudioWaiter(waiter)
+    }
+  }
 }
 
 const themeRgb = computed(() => sourceRgb.value)
@@ -267,6 +312,7 @@ const currentUserName = ref('桌面用户')
 const hasModel = ref(true)
 const loadingModelPath = ref('')
 let themeExtractionRevision = 0
+let modelLoadInFlight = false
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
 
@@ -341,8 +387,9 @@ const {
   updateStackPositions,
   pushBubble,
   clearAllBubbles,
+  cleanup: cleanupBubbleStack,
+  checkFollowUp,
   generateMessageId,
-  getBubbleFollowUpWindowMs,
 } = useBubbleStack({
   live2dCanvasRef,
   advancedSettings,
@@ -366,11 +413,11 @@ const {
   handleMenuMouseEnter,
   handleMenuMouseLeave,
   getMenuItemStyle,
+  setOpenInput,
 } = useRadialMenu({
   themeStore,
   openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history') },
   openSettings: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings() },
-  openInput: () => openInput(),
 })
 
 const inputPanel = useInputPanel({
@@ -415,12 +462,13 @@ const {
   generateMessageId,
 })
 
-// 包装 openInput，因为 radialMenu 需要调用它来关闭菜单并打开输入框
 function openInput() {
   showMenu.value = false
   clearMenuAutoCloseTimer()
   _openInput()
 }
+
+setOpenInput(openInput)
 
 // 包装 handleModelRightClick，传入 modelPositionRef
 function handleModelRightClick(position: { x: number; y: number }) {
@@ -457,16 +505,6 @@ watch(hasModel, async (value) => {
 
 // 初始化 marked + LaTeX 扩展（幂等）
 configureMarked()
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function rgbToHexString(rgb: { r: number; g: number; b: number }): string {
-  return `#${[rgb.r, rgb.g, rgb.b]
-    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
-    .join('')}`
-}
 
 async function extractAndApplyModelTheme(modelPath: string) {
   if (!advancedSettings.value.themeFollowModel) {
@@ -506,8 +544,6 @@ async function extractAndApplyModelTheme(modelPath: string) {
 
   console.warn('[主窗口] 主题色提取失败，已重试 3 次')
 }
-
-let lastPerformReceiveTime = 0
 
 // Create performance queue
 const performQueue = new PerformanceQueue()
@@ -554,6 +590,30 @@ performQueue.onVideo((url) => {
   mediaPlayerRef.value?.playVideo(url)
 })
 
+function applyModelPositionState(savedPosition: { x: number; y: number } | null) {
+  if (savedPosition) {
+    console.log('[主窗口] 使用保存的模型位置:', savedPosition)
+    modelPositionX = savedPosition.x
+    modelPositionY = savedPosition.y
+  } else {
+    console.log('[主窗口] 使用默认中心位置')
+    modelPositionX = window.innerWidth / 2
+    modelPositionY = window.innerHeight / 2
+  }
+
+  updateUIPositions()
+}
+
+async function loadModelWithState(modelPath: string) {
+  const savedPosition = modelStore.getModelPosition(modelPath)
+  loadingModelPath.value = modelPath
+  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
+  hasModel.value = true
+  modelStore.setCurrentModel(modelPath)
+  themeStore.setCurrentModel(modelPath)
+  applyModelPositionState(savedPosition)
+}
+
 function interruptPerformance() {
   performQueue.interrupt()
 
@@ -563,11 +623,7 @@ function interruptPerformance() {
   mediaPlayerRef.value?.hideImage()
   mediaPlayerRef.value?.hideVideo()
 
-  // Ensure any awaiting audio tasks are released
-  while (audioEndResolvers.length > 0) {
-    const resolve = audioEndResolvers.shift()
-    if (resolve) resolve()
-  }
+  releaseAllAudioWaiters()
 }
 
 // 导入模型
@@ -604,25 +660,7 @@ async function handleImportModel() {
       showModelStatus(`模型存在可降级资源缺失：${importResult.warnings.join('；')}`, 'warning', 5200)
     }
 
-    // 加载模型，传入保存的位置（如果有）
-    const savedPosition = modelStore.getModelPosition(importResult.modelPath!)
-    loadingModelPath.value = importResult.modelPath!
-    await live2dCanvasRef.value?.loadModel(importResult.modelPath!, savedPosition || undefined)
-    hasModel.value = true
-    modelStore.setCurrentModel(importResult.modelPath!)
-    themeStore.setCurrentModel(importResult.modelPath!)
-
-    // 如果有保存的位置，更新本地变量
-    if (savedPosition) {
-      console.log('[主窗口] 使用保存的模型位置:', savedPosition)
-      modelPositionX = savedPosition.x
-      modelPositionY = savedPosition.y
-    } else {
-      // 如果没有保存的位置，重置为中心
-      console.log('[主窗口] 使用默认中心位置')
-      modelPositionX = window.innerWidth / 2
-      modelPositionY = window.innerHeight / 2
-    }
+    await loadModelWithState(importResult.modelPath!)
 
     showBaseEventStatus('模型导入成功', 'success')
   } catch (error: any) {
@@ -808,8 +846,7 @@ function handleAudioStart(audioElement: HTMLAudioElement) {
 function handleAudioEnd() {
   console.log('[主窗口] 音频播放结束')
   live2dCanvasRef.value?.stopLipSync()
-  const resolve = audioEndResolvers.shift()
-  if (resolve) resolve()
+  resolveNextAudioWaiter()
 }
 
 // 监听表演指令
@@ -826,6 +863,8 @@ onMounted(async () => {
 
   // 监听全局快捷键录音
   initializeAdvancedSettingsForSession()
+  connectionStore.startStorageSync()
+  themeStore.startStorageSync()
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('resize', updateUIPositions)
 
@@ -836,64 +875,42 @@ onMounted(async () => {
     // ignore capability lookup failures in startup flow
   }
 
-  window.electron.shortcut.onRecordingStart(() => {
+  mainWindowDisposers.push(window.electron.shortcut.onRecordingStart(() => {
     console.log('[主窗口] 全局快捷键：开始录音')
     void startRecording({ source: 'shortcut' })
-  })
+  }))
 
-  window.electron.shortcut.onRecordingStop(() => {
+  mainWindowDisposers.push(window.electron.shortcut.onRecordingStop(() => {
     console.log('[主窗口] 全局快捷键：停止录音')
     void stopRecording({ reason: 'shortcut' })
-  })
+  }))
 
   // 监听从设置页面加载模型的指令（只显示一次提示）
-  let isLoadingModel = false
-  window.electron.model.onLoad(async (modelPath: string) => {
-    if (isLoadingModel) {
+  mainWindowDisposers.push(window.electron.model.onLoad(async (modelPath: string) => {
+    if (modelLoadInFlight) {
       console.log('[主窗口] 模型正在加载中，忽略重复请求')
       return
     }
 
     console.log('[主窗口] 收到模型加载指令:', modelPath)
-    isLoadingModel = true
+    modelLoadInFlight = true
 
     try {
-      // 获取保存的位置并传入 loadModel
-      const savedPosition = modelStore.getModelPosition(modelPath)
-      loadingModelPath.value = modelPath
-      await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
-      hasModel.value = true
-      modelStore.setCurrentModel(modelPath)
-      themeStore.setCurrentModel(modelPath)
-
-      // 如果有保存的位置，更新本地变量
-      if (savedPosition) {
-        console.log('[主窗口] 使用保存的模型位置:', savedPosition)
-        modelPositionX = savedPosition.x
-        modelPositionY = savedPosition.y
-      } else {
-        // 如果没有保存的位置，重置为中心
-        console.log('[主窗口] 使用默认中心位置')
-        modelPositionX = window.innerWidth / 2
-        modelPositionY = window.innerHeight / 2
-      }
+      await loadModelWithState(modelPath)
 
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
       loadingModelPath.value = ''
       showModelStatus(`模型加载失败: ${error.message}`, 'error')
     } finally {
-      isLoadingModel = false
+      modelLoadInFlight = false
     }
-  })
+  }))
 
-  window.electron.bridge.onPerformShow((payload: any) => {
+  mainWindowDisposers.push(window.electron.bridge.onPerformShow((payload: PerformSequence) => {
     console.log('收到表演指令:', payload)
 
-    const now = Date.now()
-    // 4s 窗口内的连续消息视为追加（不中断），超出则中断旧内容
-    const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < getBubbleFollowUpWindowMs()
-    lastPerformReceiveTime = now
+    const { isFollowUp } = checkFollowUp()
 
     // interrupt=true 且不是追加时才中断旧表演
     const shouldInterrupt = payload.interrupt !== false && !isFollowUp
@@ -919,7 +936,7 @@ onMounted(async () => {
 
       if (remainingSequence.length > 0) {
         performQueue.enqueue({
-          sequence: remainingSequence as any[],
+          sequence: remainingSequence as PerformElement[],
           interruptible: payload.interruptible !== false
         })
       }
@@ -963,7 +980,7 @@ onMounted(async () => {
         const motionUsage: Record<string, number> = {}
         const expressionUsage: Record<string, number> = {}
 
-        payload.sequence.forEach((element: any) => {
+        payload.sequence.forEach((element: PerformElement & { expressionId?: string }) => {
           switch (element.type) {
             case 'text':
               textCount++
@@ -979,15 +996,19 @@ onMounted(async () => {
               videoCount++
               break
             case 'motion':
+            {
               const motionKey = `${element.group}_${element.index}`
               motionUsage[motionKey] = (motionUsage[motionKey] || 0) + 1
               break
+            }
             case 'expression':
+            {
               const exprKey = element.expressionId || element.id
               if (exprKey) {
                 expressionUsage[exprKey] = (expressionUsage[exprKey] || 0) + 1
               }
               break
+            }
           }
         })
 
@@ -1009,31 +1030,31 @@ onMounted(async () => {
         console.error('[主窗口] 处理表演记录失败:', error)
       }
     }
-  })
+  }))
 
-  window.electron.bridge.onPerformInterrupt(() => {
+  mainWindowDisposers.push(window.electron.bridge.onPerformInterrupt(() => {
     console.log('收到中断指令')
     interruptPerformance()
-  })
+  }))
 
-  window.electron.bridge.onConnected((payload: any) => {
+  mainWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
     showBaseEventStatus('已连接到服务器', 'success')
     console.log('连接信息:', payload)
 
-    connectionStore.isConnected = true
-    connectionStore.applySessionState(payload)
-  })
+    connectionStore.handleConnected(payload)
+  }))
 
-  window.electron.bridge.onDisconnected((info: any) => {
+  mainWindowDisposers.push(window.electron.bridge.onDisconnected((info: unknown) => {
     showBaseEventStatus('已断开连接', 'warning')
     console.log('断开信息:', info)
 
-    connectionStore.resetSessionState()
-  })
+    connectionStore.handleDisconnected()
+  }))
 
-  window.electron.bridge.onError((error: any) => {
-    showModelStatus(`连接错误: ${error.message || error}`, 'error')
-  })
+  mainWindowDisposers.push(window.electron.bridge.onError((error: { message?: string } | string) => {
+    const errorMessage = typeof error === 'string' ? error : (error.message || '未知错误')
+    showModelStatus(`连接错误: ${errorMessage}`, 'error')
+  }))
 
   // 检查初始连接状态
   await connectionStore.checkConnection()
@@ -1054,20 +1075,8 @@ onMounted(async () => {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
 
     try {
-      // 获取保存的位置并传入 loadModel
-      const savedPosition = modelStore.getModelPosition(lastModelPath)
-      loadingModelPath.value = lastModelPath
-      await live2dCanvasRef.value?.loadModel(lastModelPath, savedPosition || undefined)
-      modelStore.setCurrentModel(lastModelPath)
-      themeStore.setCurrentModel(lastModelPath)
+      await loadModelWithState(lastModelPath)
       console.log('[主窗口] 自动加载成功')
-
-      // 如果有保存的位置，更新本地变量
-      if (savedPosition) {
-        console.log('[主窗口] 使用保存的模型位置:', savedPosition)
-        modelPositionX = savedPosition.x
-        modelPositionY = savedPosition.y
-      }
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
       loadingModelPath.value = ''
@@ -1090,12 +1099,19 @@ onMounted(async () => {
       console.warn('[Main] Shortcut register failed:', result.error)
     }
   }
+
 })
 
 onBeforeUnmount(() => {
+  for (const dispose of mainWindowDisposers.splice(0)) {
+    dispose()
+  }
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
-  clearAllBubbles()
+  connectionStore.stopStorageSync()
+  themeStore.stopStorageSync()
+  cleanupBubbleStack()
+  releaseAllAudioWaiters()
   cleanupRecording()
 })
 </script>

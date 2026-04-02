@@ -192,7 +192,17 @@ let cursorOffsetY = 0
 const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
 let passThroughEnabled = true // 是否启用动态穿透
 let isFullPassThroughMode = false // 是否处于完全穿透模式
-let supportsDynamicPassThrough = true
+let supportsDynamicPassThrough = false
+let pendingPassThroughEvent: MouseEvent | null = null
+let passThroughFrameId: number | null = null
+
+function stopPassThroughDetection() {
+  if (passThroughFrameId !== null) {
+    cancelAnimationFrame(passThroughFrameId)
+    passThroughFrameId = null
+  }
+  pendingPassThroughEvent = null
+}
 
 function syncPassThroughSettingFromStorage() {
   passThroughEnabled = loadAdvancedSettings().dynamicPassThroughEnabled
@@ -395,35 +405,41 @@ function handleMouseMoveForPassThrough(event: MouseEvent) {
   if (!passThroughEnabled) return
   if (!supportsDynamicPassThrough) return
 
-  if (!canvasRef.value || !model) return
+  pendingPassThroughEvent = event
+  if (passThroughFrameId !== null) {
+    return
+  }
 
-  const rect = canvasRef.value.getBoundingClientRect()
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
+  passThroughFrameId = requestAnimationFrame(() => {
+    passThroughFrameId = null
 
-  // 检查鼠标是否在模型上
-  const isOnModel = isPointInModel(x, y)
-  // 检查鼠标是否在需要交互的 UI 元素上（如消息气泡）
-  const isOnInteractiveUI = isPointOnInteractiveUI(event.clientX, event.clientY)
-  const shouldCaptureMouse = isOnModel || isOnInteractiveUI
-
-  // 动态设置窗口穿透
-  // 参数说明：
-  // - ignore: true = 穿透，false = 不穿透
-  // - options.forward: true = 将事件转发给下层窗口
-  if (shouldCaptureMouse) {
-    // 鼠标在模型或交互 UI 上：不穿透，不转发
-    if (currentIgnoreMouseEvents) {
-      window.electron.window.setIgnoreMouseEvents(false)
-      currentIgnoreMouseEvents = false
+    if (!canvasRef.value || !model || !pendingPassThroughEvent) {
+      return
     }
-  } else {
-    // 鼠标不在模型和交互 UI 上：穿透，转发给桌面
+
+    const latestEvent = pendingPassThroughEvent
+    pendingPassThroughEvent = null
+    const rect = canvasRef.value.getBoundingClientRect()
+    const x = latestEvent.clientX - rect.left
+    const y = latestEvent.clientY - rect.top
+
+    const isOnModel = isPointInModel(x, y)
+    const isOnInteractiveUI = isPointOnInteractiveUI(latestEvent.clientX, latestEvent.clientY)
+    const shouldCaptureMouse = isOnModel || isOnInteractiveUI
+
+    if (shouldCaptureMouse) {
+      if (currentIgnoreMouseEvents) {
+        window.electron.window.setIgnoreMouseEvents(false)
+        currentIgnoreMouseEvents = false
+      }
+      return
+    }
+
     if (!currentIgnoreMouseEvents) {
       window.electron.window.setIgnoreMouseEvents(true)
       currentIgnoreMouseEvents = true
     }
-  }
+  })
 }
 
 /**
@@ -447,7 +463,9 @@ function enablePassThrough() {
   // 恢复动态穿透，等待下一次鼠标移动事件来更新状态
 }
 
-onMounted(() => {
+let disposePassThroughModeListener: Unsubscribe | null = null
+
+onMounted(async () => {
   syncPassThroughSettingFromStorage()
   if (canvasRef.value) {
     // 设置画布大小
@@ -467,8 +485,8 @@ onMounted(() => {
     window.addEventListener('resize', handleResize)
     window.addEventListener('storage', handleAdvancedSettingsStorageChange)
 
-    // 初始化平台能力（不支持 forward 时关闭动态穿透，避免窗口卡死在穿透态）
-    window.electron.window.getPlatformCapabilities().then((capabilities: PlatformCapabilities) => {
+    try {
+      const capabilities = await window.electron.window.getPlatformCapabilities()
       supportsDynamicPassThrough = capabilities.mousePassthroughForward
       if (!supportsDynamicPassThrough) {
         passThroughEnabled = false
@@ -476,12 +494,15 @@ onMounted(() => {
         window.electron.window.setIgnoreMouseEvents(false)
         console.warn('[Live2D] 当前平台不支持穿透事件转发，已禁用动态穿透')
       }
-    }).catch(() => {
-      // 获取失败时保持默认行为
-    })
+    } catch {
+      supportsDynamicPassThrough = false
+      passThroughEnabled = false
+      currentIgnoreMouseEvents = false
+      window.electron.window.setIgnoreMouseEvents(false)
+    }
 
     // 监听完全穿透模式变化
-    window.electron.window.onPassThroughModeChanged((enabled: boolean) => {
+    disposePassThroughModeListener = window.electron.window.onPassThroughModeChanged((enabled: boolean) => {
       console.log('[Live2D] 完全穿透模式:', enabled ? '开启' : '关闭')
       isFullPassThroughMode = enabled
 
@@ -508,6 +529,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopRenderLoop()
+  stopPassThroughDetection()
 
   if (model) {
     model.destroy()
@@ -527,6 +549,8 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMoveForPassThrough)
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('storage', handleAdvancedSettingsStorageChange)
+  disposePassThroughModeListener?.()
+  disposePassThroughModeListener = null
 })
 
 // 暴露方法给父组件
