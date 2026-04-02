@@ -1,7 +1,9 @@
 import { ref, nextTick, type Ref } from 'vue'
+import type { MessageContent } from '@/types/protocol'
 import { useConnectionStore } from '@/stores/connection'
 import type { AdvancedSettings } from '@/utils/advancedSettings'
 import type { FloatingOverlayStyle } from './useBubbleStack'
+import type { Live2DCanvasApi } from './live2dCanvasApi'
 
 export type { FloatingOverlayStyle }
 
@@ -11,7 +13,7 @@ interface UseInputPanelOptions {
   connectionStore: ReturnType<typeof useConnectionStore>
   currentUserName: Ref<string>
   advancedSettings: Ref<AdvancedSettings>
-  live2dCanvasRef: Ref<any>
+  live2dCanvasRef: Ref<Live2DCanvasApi | null>
   showModelStatus: (text: string, type: ModelStatusType, duration?: number) => void
   showBaseEventStatus: (text: string, type: ModelStatusType, duration?: number) => void
   updateUIPositions: () => void
@@ -61,7 +63,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
       return
     }
 
-    live2dCanvasRef.value?.disablePassThrough()
+    live2dCanvasRef.value?.disablePassThrough?.()
     nextTick(() => {
       inputRef.value?.focus()
     })
@@ -120,7 +122,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
   function openInput() {
     showInput.value = true
     updateUIPositions()
-    live2dCanvasRef.value?.disablePassThrough()
+    live2dCanvasRef.value?.disablePassThrough?.()
     nextTick(() => {
       inputRef.value?.focus()
     })
@@ -130,7 +132,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
     showInput.value = false
     inputText.value = ''
     selectedImage.value = null
-    live2dCanvasRef.value?.enablePassThrough()
+    live2dCanvasRef.value?.enablePassThrough?.()
   }
 
   async function handleSendMessage() {
@@ -143,7 +145,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
     }
 
     try {
-      const content: any[] = []
+        const content: MessageContent[] = []
 
       if (rawTextToStore) {
         content.push({ type: 'text', text: rawTextToStore })

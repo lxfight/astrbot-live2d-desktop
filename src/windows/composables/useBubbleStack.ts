@@ -1,9 +1,12 @@
-import { ref, nextTick, watch, type Ref } from 'vue'
+import { ref, nextTick, type Ref } from 'vue'
 import {
   computeBubbleAutoHideDelay,
   type BubbleRenderableItem,
 } from '@/utils/bubbleContent'
 import type { AdvancedSettings } from '@/utils/advancedSettings'
+import { sleep } from '@/utils/async'
+import { generateMessageId } from '@/utils/id'
+import type { Live2DCanvasApi } from './live2dCanvasApi'
 
 type BubbleTextItem = {
   id: string
@@ -50,20 +53,8 @@ const DEFAULT_BUBBLE_STACK_MAX = 3
 const DEFAULT_FOLLOW_UP_WINDOW_MS = 4000
 const TIER_VH_FACTORS = [0.18, 0.26, 0.20]
 
-let messageIdSequence = 0
-
-function generateMessageId(prefix = 'msg'): string {
-  messageIdSequence += 1
-  const randomSegment = Math.random().toString(36).slice(2, 10)
-  return `${prefix}_${Date.now()}_${messageIdSequence}_${randomSegment}`
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 interface UseBubbleStackOptions {
-  live2dCanvasRef: Ref<any>
+  live2dCanvasRef: Ref<Live2DCanvasApi | null>
   advancedSettings: Ref<AdvancedSettings>
   modelPositionX: { value: number }
   modelPositionY: { value: number }
@@ -304,6 +295,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
     entry.typingVer++
     bubbleStack.value.splice(idx, 1)
+    bubbleElMap.delete(id)
+    bubbleContentElMap.delete(id)
   }
 
   function clearAllBubbles() {
@@ -312,6 +305,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
       entry.typingVer++
     }
     bubbleStack.value = []
+    bubbleElMap.clear()
+    bubbleContentElMap.clear()
   }
 
   // ─── 鼠标交互 ──────────────────────────────────────────────
@@ -393,18 +388,17 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
 
   // ─── 追踪表演时间 ──────────────────────────────────────────
 
-  function checkFollowUp(): { isFollowUp: boolean; lastPerformReceiveTime: number } {
+  function checkFollowUp(): { isFollowUp: boolean; timestamp: number } {
     const now = Date.now()
     const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < getBubbleFollowUpWindowMs()
     lastPerformReceiveTime = now
-    return { isFollowUp, lastPerformReceiveTime }
+    return { isFollowUp, timestamp: now }
   }
 
-  // ─── watch ─────────────────────────────────────────────────
-
-  watch(bubbleStack, () => {
-    nextTick(() => updateStackPositions())
-  }, { deep: false })
+  function cleanup() {
+    clearAllBubbles()
+    lastPerformReceiveTime = 0
+  }
 
   return {
     bubbleStack,
@@ -418,6 +412,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     updateStackPositions,
     pushBubble,
     clearAllBubbles,
+    cleanup,
     checkFollowUp,
     getBubbleFollowUpWindowMs,
     generateMessageId,

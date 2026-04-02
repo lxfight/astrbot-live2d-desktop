@@ -12,12 +12,13 @@ interface UseRadialMenuOptions {
   themeStore: ReturnType<typeof useThemeStore>
   openHistory: () => Promise<void>
   openSettings: () => Promise<void>
-  openInput: () => void
+  openInput?: () => void
 }
 
 export function useRadialMenu(options: UseRadialMenuOptions) {
-  const { themeStore, openHistory, openSettings, openInput } = options
+  const { themeStore, openHistory, openSettings } = options
   const { palette } = storeToRefs(themeStore)
+  let openInput = options.openInput ?? (() => {})
 
   const showMenu = ref(false)
   const menuStyle = ref({ left: '0px', top: '0px' })
@@ -95,6 +96,10 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
     }
   }
 
+  function setOpenInput(handler: () => void) {
+    openInput = handler
+  }
+
   return {
     showMenu,
     menuStyle,
@@ -107,5 +112,6 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
     handleMenuMouseEnter,
     handleMenuMouseLeave,
     getMenuItemStyle,
+    setOpenInput,
   }
 }
