@@ -7,9 +7,12 @@ import {
   hexToRgb,
   type ThemeRgb,
 } from '@/utils/themePalette'
+import { rgbToHexString } from '@/utils/color'
+import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
 const THEME_STORAGE_KEY = 'rendererThemeState'
 const DEFAULT_THEME_HEX = '#74a5ff'
+const THEME_STORAGE_VERSION = 1
 
 type ThemePersistedState = {
   currentModelPath: string
@@ -31,21 +34,25 @@ function readPersistedTheme(): ThemePersistedState {
   }
 
   try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY)
-    if (!raw) {
-      return {
+    return readJsonStorage(THEME_STORAGE_KEY, {
+      fallback: {
         currentModelPath: localStorage.getItem('lastModelPath') || '',
         currentModelName: '',
         sourceColor: DEFAULT_THEME_HEX,
-      }
-    }
+      },
+      normalize: (value) => {
+        const parsed = value && typeof value === 'object'
+          ? value as Partial<ThemePersistedState>
+          : {}
 
-    const parsed = JSON.parse(raw) as Partial<ThemePersistedState>
-    return {
-      currentModelPath: typeof parsed.currentModelPath === 'string' ? parsed.currentModelPath : '',
-      currentModelName: typeof parsed.currentModelName === 'string' ? parsed.currentModelName : '',
-      sourceColor: typeof parsed.sourceColor === 'string' ? parsed.sourceColor : DEFAULT_THEME_HEX,
-    }
+        return {
+          currentModelPath: typeof parsed.currentModelPath === 'string' ? parsed.currentModelPath : '',
+          currentModelName: typeof parsed.currentModelName === 'string' ? parsed.currentModelName : '',
+          sourceColor: typeof parsed.sourceColor === 'string' ? parsed.sourceColor : DEFAULT_THEME_HEX,
+        }
+      },
+      version: THEME_STORAGE_VERSION,
+    })
   } catch (error) {
     console.warn('[ThemeStore] 读取主题配置失败，使用默认值:', error)
     return {
@@ -79,7 +86,7 @@ export const useThemeStore = defineStore('theme', () => {
       sourceColor: sourceColor.value,
     }
 
-    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(payload))
+    writeJsonStorage(THEME_STORAGE_KEY, payload, { version: THEME_STORAGE_VERSION })
   }
 
   function syncFromStorage() {
@@ -98,9 +105,7 @@ export const useThemeStore = defineStore('theme', () => {
   function applyModelTheme(payload: { modelPath: string; modelName?: string; rgb: ThemeRgb }) {
     currentModelPath.value = payload.modelPath
     currentModelName.value = payload.modelName || getModelNameFromPath(payload.modelPath)
-    sourceColor.value = `#${[payload.rgb.r, payload.rgb.g, payload.rgb.b]
-      .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
-      .join('')}`
+    sourceColor.value = rgbToHexString(payload.rgb)
     persistState()
   }
 
@@ -117,9 +122,22 @@ export const useThemeStore = defineStore('theme', () => {
     syncFromStorage()
   }
 
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('storage', onThemeStorageChange)
+  function startStorageSync() {
+    if (storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+
     window.addEventListener('storage', onThemeStorageChange)
+    storageSyncBound = true
+  }
+
+  function stopStorageSync() {
+    if (!storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+
+    window.removeEventListener('storage', onThemeStorageChange)
+    storageSyncBound = false
   }
 
   return {
@@ -132,8 +150,11 @@ export const useThemeStore = defineStore('theme', () => {
     cssVars,
     naiveThemeOverrides,
     syncFromStorage,
+    startStorageSync,
+    stopStorageSync,
     setCurrentModel,
     setModelName,
     applyModelTheme,
   }
 })
+  let storageSyncBound = false

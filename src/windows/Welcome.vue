@@ -186,6 +186,7 @@ watch(userName, () => {
 
 onMounted(() => {
   themeStore.syncFromStorage()
+  themeStore.startStorageSync()
 
   introTimer = window.setTimeout(() => {
     stage.value = 'form'
@@ -197,6 +198,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  themeStore.stopStorageSync()
+
   if (introTimer !== null) {
     clearTimeout(introTimer)
   }

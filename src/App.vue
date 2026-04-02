@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
@@ -21,6 +21,11 @@ const { cssVars, naiveThemeOverrides } = storeToRefs(themeStore)
 
 onMounted(() => {
   themeStore.syncFromStorage()
+  themeStore.startStorageSync()
+})
+
+onBeforeUnmount(() => {
+  themeStore.stopStorageSync()
 })
 
 watch(cssVars, (vars) => {
