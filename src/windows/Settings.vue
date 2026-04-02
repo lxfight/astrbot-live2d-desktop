@@ -1289,6 +1289,7 @@ const updateStatusLabel = computed(() => {
 })
 
 const canInstallUpdate = computed(() => updateState.value?.status === 'downloaded')
+const settingsWindowDisposers: Unsubscribe[] = []
 
 // 监听
 watch([serverUrl, token], ([nextUrl, nextToken]) => {
@@ -1313,10 +1314,13 @@ watch([activeGroup, activeChild], async ([group, child]) => {
 onMounted(async () => {
   // 先设置监听，避免错过消息
   if (window.electron.settings?.onNavigateTo) {
-    window.electron.settings.onNavigateTo((page: string) => {
+    settingsWindowDisposers.push(window.electron.settings.onNavigateTo((page: string) => {
       navigateToPage(page)
-    })
+    }))
   }
+
+  themeStore.startStorageSync()
+  connectionStore.startStorageSync()
 
   // 主动请求待处理的页面参数
   if (window.electron.settings?.getPendingPage) {
@@ -1354,24 +1358,23 @@ onMounted(async () => {
     updateState.value = null
   }
 
-  window.electron.update.onStateChanged((state: UpdateState) => {
+  settingsWindowDisposers.push(window.electron.update.onStateChanged((state: UpdateState) => {
     updateState.value = state
-  })
+  }))
 
-  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+  settingsWindowDisposers.push(window.electron.window.onMaximizedChanged((maximized: boolean) => {
     isWindowMaximized.value = maximized
-  })
+  }))
 
   await checkShortcutRegistration()
 
-  window.electron.bridge.onConnected((payload: any) => {
-    connectionStore.isConnected = true
-    connectionStore.applySessionState(payload)
-  })
+  settingsWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
+    connectionStore.handleConnected(payload)
+  }))
 
-  window.electron.bridge.onDisconnected(() => {
-    connectionStore.resetSessionState()
-  })
+  settingsWindowDisposers.push(window.electron.bridge.onDisconnected(() => {
+    connectionStore.handleDisconnected()
+  }))
 
   await connectionStore.checkConnection()
 
@@ -1395,6 +1398,11 @@ onUnmounted(() => {
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
+  connectionStore.stopStorageSync()
+  themeStore.stopStorageSync()
+  for (const dispose of settingsWindowDisposers.splice(0)) {
+    dispose()
+  }
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('hashchange', navigateFromHash)
 })
