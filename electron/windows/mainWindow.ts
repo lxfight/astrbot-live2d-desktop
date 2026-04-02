@@ -11,8 +11,28 @@ const __dirname = path.dirname(__filename)
 let mainWindow: BrowserWindow | null = null
 const platformCapabilities = getPlatformCapabilities()
 
+function applyFocusabilityForMouseState(ignore: boolean): void {
+  if (!mainWindow || process.platform !== 'win32') return
+
+  if (ignore) {
+    if (mainWindow.isFocused()) {
+      mainWindow.blur()
+    }
+    if (mainWindow.isFocusable()) {
+      mainWindow.setFocusable(false)
+    }
+    return
+  }
+
+  if (!mainWindow.isFocusable()) {
+    mainWindow.setFocusable(true)
+  }
+}
+
 function applyIgnoreMouseEvents(ignore: boolean): void {
   if (!mainWindow) return
+
+  applyFocusabilityForMouseState(ignore)
 
   if (!ignore) {
     mainWindow.setIgnoreMouseEvents(false)
@@ -39,6 +59,7 @@ export function createMainWindow(): BrowserWindow {
     height: height,
     x: 0,
     y: 0,
+    title: '',
     icon: resolveAppIconPath(),
     frame: false,
     transparent: true,
@@ -47,9 +68,8 @@ export function createMainWindow(): BrowserWindow {
     skipTaskbar: false,
     resizable: false,
     hasShadow: false,
-    // Windows 特定配置
     ...(process.platform === 'win32' ? {
-      type: 'toolbar', // 工具窗口类型，有助于透明度
+      thickFrame: false,
     } : {}),
     webPreferences: {
       nodeIntegration: false,
