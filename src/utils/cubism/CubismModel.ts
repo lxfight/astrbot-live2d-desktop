@@ -96,6 +96,7 @@ export { CubismModelSettingJson, type ICubismModelSetting }
 export class CubismModel {
   private static frameworkStarted = false
   private static frameworkInitialized = false
+  private static activeInstances = 0
 
   // WebGL 上下文
   private gl: WebGLRenderingContext | null = null
@@ -166,12 +167,14 @@ export class CubismModel {
   private frameCount: number = 0
   private fps: number = 0
   private lastFpsUpdate: number = 0
+  private destroyed = false
 
   /**
    * 构造函数
    */
   constructor() {
     CubismModel.ensureFrameworkReady()
+    CubismModel.activeInstances += 1
     console.log('[CubismModel] 构造函数')
   }
 
@@ -1538,7 +1541,12 @@ export class CubismModel {
    * 销毁模型
    */
   destroy(): void {
+    if (this.destroyed) {
+      return
+    }
+
     console.log('[CubismModel] 销毁模型')
+    this.destroyed = true
 
     this.stopLipSync()
     this.destroyLipSyncPipeline()
@@ -1551,6 +1559,9 @@ export class CubismModel {
         }
       })
       this.textures = []
+
+      const loseContextExtension = this.gl.getExtension('WEBGL_lose_context')
+      loseContextExtension?.loseContext()
     }
 
     // 释放渲染器
@@ -1573,6 +1584,10 @@ export class CubismModel {
     this.motionGroups.clear()
     this.expressionFiles = []
     this.hitAreaNames = []
+    this.gl = null
+    this.canvas = null
+
+    CubismModel.activeInstances = Math.max(0, CubismModel.activeInstances - 1)
 
     console.log('[CubismModel] 模型销毁完成')
   }
@@ -1582,6 +1597,11 @@ export class CubismModel {
    */
   static destroyGlobal(): void {
     console.log('[CubismModel] 销毁全局资源')
+
+    if (CubismModel.activeInstances > 0) {
+      console.warn('[CubismModel] 仍有存活实例，跳过全局资源销毁')
+      return
+    }
 
     if (CubismModel.frameworkInitialized) {
       CubismFramework.dispose()
