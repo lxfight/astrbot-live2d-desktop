@@ -1,4 +1,5 @@
 import { getUserConfig, setUserConfig } from '../database/schema'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 import {
   DEFAULT_DESKTOP_FEATURE_SETTINGS,
   mergeDesktopFeatureSettings,
@@ -6,9 +7,9 @@ import {
 } from '../../src/utils/desktopFeatureSettings'
 
 const DESKTOP_FEATURE_SETTING_KEYS = {
-  alwaysOnTop: 'tray_always_on_top',
-  fullPassThrough: 'tray_pass_through_mode',
-  autoDetectFullscreen: 'tray_game_mode',
+  alwaysOnTop: USER_CONFIG_KEYS.alwaysOnTop,
+  fullPassThrough: USER_CONFIG_KEYS.fullPassThrough,
+  autoDetectFullscreen: USER_CONFIG_KEYS.autoDetectFullscreen,
 } as const
 
 function parseStoredBoolean(value: string | null, fallback: boolean): boolean {

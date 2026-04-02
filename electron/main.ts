@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
+import { APP_METADATA } from '../src/shared/metadata'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
 import { initDatabase, closeDatabase, getUserName } from './database/schema'
@@ -26,7 +27,7 @@ app.commandLine.appendSwitch('disable-gpu-program-cache')
 
 // Windows 任务栏图标/分组需要 AppUserModelID 才能稳定生效
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.astrbot.live2d.desktop')
+  app.setAppUserModelId(APP_METADATA.appId)
 }
 
 // 启用硬件加速以获得更好的性能

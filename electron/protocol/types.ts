@@ -1,5 +1,5 @@
 /**
- * L2D-Bridge Protocol v1.0 类型定义
+ * L2D-Bridge Protocol 类型定义
  */
 
 // 基础数据包结构

@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import { createHash } from 'crypto'
 import http from 'http'
 import https from 'https'
+import { PROTOCOL_VERSION } from '../../src/shared/metadata'
 import { getUserId } from '../database/schema'
 import { resolveHttpUrl } from '../utils/urlNormalize'
 import type {
@@ -148,7 +149,7 @@ export class L2DBridgeClient extends EventEmitter {
     const userId = getUserId()
 
     const payload: HandshakePayload = {
-      version: '1.0.0',
+      version: PROTOCOL_VERSION,
       clientId: userId,
       token: this.token,
       tools: getDesktopTools(),
