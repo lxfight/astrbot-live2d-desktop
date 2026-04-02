@@ -119,10 +119,13 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
 
   it('loads and normalizes valid JSON from localStorage', () => {
     store[ADVANCED_SETTINGS_KEY] = JSON.stringify({
-      recordingShortcut: 'Ctrl+Q',
-      autoConnect: false,
-      logLevel: 'debug',
-      maxRecordingSeconds: 25,
+      version: 1,
+      data: {
+        recordingShortcut: 'Ctrl+Q',
+        autoConnect: false,
+        logLevel: 'debug',
+        maxRecordingSeconds: 25,
+      },
     })
 
     const settings = loadAdvancedSettings()
@@ -160,8 +163,9 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
     )
 
     const stored = JSON.parse(store[ADVANCED_SETTINGS_KEY])
-    expect(stored.recordingShortcut).toBe('Ctrl+W')
-    expect(stored.logLevel).toBe('debug')
+    expect(stored.version).toBe(1)
+    expect(stored.data.recordingShortcut).toBe('Ctrl+W')
+    expect(stored.data.logLevel).toBe('debug')
   })
 
   it('normalizes and persists default settings when called with null', () => {

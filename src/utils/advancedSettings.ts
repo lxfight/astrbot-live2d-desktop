@@ -1,4 +1,7 @@
+import { readJsonStorage, writeJsonStorage } from './storage'
+
 export const ADVANCED_SETTINGS_KEY = 'advancedSettings'
+const ADVANCED_SETTINGS_VERSION = 1
 export const MAX_RECORDING_SECONDS_LIMIT = 60
 const MIN_RECORDING_SECONDS_LIMIT = 1
 const MIN_BUBBLE_STACK_LIMIT = 1
@@ -138,14 +141,15 @@ export function clampImageMaxSizeMb(value: unknown): number {
 }
 
 export function loadAdvancedSettings(): AdvancedSettings {
-  const rawValue = localStorage.getItem(ADVANCED_SETTINGS_KEY)
-  if (!rawValue) {
-    return { ...DEFAULT_ADVANCED_SETTINGS }
-  }
-
   try {
-    const parsed = JSON.parse(rawValue)
-    return normalizeAdvancedSettings(parsed)
+    return readJsonStorage(ADVANCED_SETTINGS_KEY, {
+      fallback: { ...DEFAULT_ADVANCED_SETTINGS },
+      normalize: normalizeAdvancedSettings,
+      version: ADVANCED_SETTINGS_VERSION,
+      onError: (error) => {
+        console.error('[高级设置] 解析失败，使用默认配置:', error)
+      },
+    })
   } catch (error) {
     console.error('[高级设置] 解析失败，使用默认配置:', error)
     return { ...DEFAULT_ADVANCED_SETTINGS }
@@ -154,6 +158,6 @@ export function loadAdvancedSettings(): AdvancedSettings {
 
 export function saveAdvancedSettings(settings: unknown): AdvancedSettings {
   const normalized = normalizeAdvancedSettings(settings)
-  localStorage.setItem(ADVANCED_SETTINGS_KEY, JSON.stringify(normalized))
+  writeJsonStorage(ADVANCED_SETTINGS_KEY, normalized, { version: ADVANCED_SETTINGS_VERSION })
   return normalized
 }
