@@ -5,7 +5,7 @@ export interface DesktopFeatureSettings {
 }
 
 export const DEFAULT_DESKTOP_FEATURE_SETTINGS: DesktopFeatureSettings = {
-  alwaysOnTop: true,
+  alwaysOnTop: false,
   fullPassThrough: false,
   autoDetectFullscreen: false,
 }
