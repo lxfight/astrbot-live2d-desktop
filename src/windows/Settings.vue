@@ -889,7 +889,7 @@
               <div class="settings-kv-list">
                 <div class="settings-kv-list__row">
                   <span>应用名称</span>
-                  <strong>AstrBot Live2D Desktop</strong>
+                  <strong>{{ APP_METADATA.displayName }}</strong>
                 </div>
                 <div class="settings-kv-list__row">
                   <span>版本</span>
@@ -905,7 +905,7 @@
                 </div>
                 <div class="settings-kv-list__row">
                   <span>作者</span>
-                  <strong>lxfight</strong>
+                  <strong>{{ APP_METADATA.authorName }}</strong>
                 </div>
               </div>
 
@@ -930,13 +930,13 @@
               </div>
 
               <div class="link-stack">
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.astrbot)">
                   AstrBot
                 </button>
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.repository)">
                   本项目仓库
                 </button>
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot_plugin_live2d_adapter')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.adapterPlugin)">
                   平台适配器插件
                 </button>
               </div>
@@ -971,6 +971,11 @@ import {
 } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
+import {
+  APP_LINKS,
+  APP_METADATA,
+  SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS,
+} from '@/shared/metadata'
 import {
   DEFAULT_ADVANCED_SETTINGS,
   clampMaxRecordingSeconds,
@@ -2266,17 +2271,15 @@ function handleClearCache() {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => {
-      const lastModelPath = localStorage.getItem('lastModelPath')
-      const advancedSettingsStr = localStorage.getItem('advancedSettings')
-      const connectionSettingsStr = localStorage.getItem('connectionSettings')
-      const themeStateStr = localStorage.getItem('rendererThemeState')
+      const preservedEntries = SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)] as const)
 
       localStorage.clear()
 
-      if (lastModelPath) localStorage.setItem('lastModelPath', lastModelPath)
-      if (advancedSettingsStr) localStorage.setItem('advancedSettings', advancedSettingsStr)
-      if (connectionSettingsStr) localStorage.setItem('connectionSettings', connectionSettingsStr)
-      if (themeStateStr) localStorage.setItem('rendererThemeState', themeStateStr)
+      for (const [key, value] of preservedEntries) {
+        if (value !== null) {
+          localStorage.setItem(key, value)
+        }
+      }
 
       message.success('缓存已清除')
     },

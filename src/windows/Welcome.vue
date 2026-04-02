@@ -11,7 +11,7 @@
     <header class="welcome-topbar">
       <div class="welcome-topbar__brand">
         <span class="welcome-topbar__eyebrow">AstrBot First Run</span>
-        <strong class="welcome-topbar__title">欢迎使用 AstrBot Live2D Desktop</strong>
+        <strong class="welcome-topbar__title">欢迎使用 {{ APP_METADATA.displayName }}</strong>
       </div>
 
       <button
@@ -31,8 +31,8 @@
             <span class="welcome-chip">首次启动</span>
             <p class="welcome-copy-panel__eyebrow">你的桌面身份正在准备接入舞台</p>
             <h1>
-              ASTRBOT
-              <span>LIVE2D DESKTOP</span>
+              {{ displayNamePrimary }}
+              <span>{{ displayNameSecondary }}</span>
             </h1>
             <p class="welcome-copy-panel__lead">
               更通透的界面、跟随模型的主题色，以及更具舞台感的交互入口，都从这一次命名开始。
@@ -152,6 +152,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { X } from 'lucide-vue-next'
+import { APP_METADATA } from '@/shared/metadata'
 import { useThemeStore } from '@/stores/theme'
 
 const themeStore = useThemeStore()
@@ -177,6 +178,11 @@ const welcomeThemeStyle = computed(() => ({
 
 const resolvedModelLabel = computed(() => resolvedModelName.value || 'AstrBot Live2D')
 const paletteHex = computed(() => sourceColor.value.toUpperCase())
+const displayNamePrimary = computed(() => APP_METADATA.displayName.split(' ')[0] || APP_METADATA.displayName)
+const displayNameSecondary = computed(() => {
+  const [, ...rest] = APP_METADATA.displayName.split(' ')
+  return rest.join(' ') || APP_METADATA.displayName
+})
 
 watch(userName, () => {
   if (submitError.value) {

@@ -8,11 +8,13 @@ import {
   type ThemeRgb,
 } from '@/utils/themePalette'
 import { rgbToHexString } from '@/utils/color'
+import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
-const THEME_STORAGE_KEY = 'rendererThemeState'
+const THEME_STORAGE_KEY = LOCAL_STORAGE_METADATA.themeState.key
 const DEFAULT_THEME_HEX = '#74a5ff'
-const THEME_STORAGE_VERSION = 1
+const THEME_STORAGE_VERSION = LOCAL_STORAGE_METADATA.themeState.version
+const LAST_MODEL_PATH_KEY = LOCAL_STORAGE_METADATA.lastModelPath.key
 
 type ThemePersistedState = {
   currentModelPath: string
@@ -35,8 +37,8 @@ function readPersistedTheme(): ThemePersistedState {
 
   try {
     return readJsonStorage(THEME_STORAGE_KEY, {
-      fallback: {
-        currentModelPath: localStorage.getItem('lastModelPath') || '',
+        fallback: {
+        currentModelPath: localStorage.getItem(LAST_MODEL_PATH_KEY) || '',
         currentModelName: '',
         sourceColor: DEFAULT_THEME_HEX,
       },
@@ -56,7 +58,7 @@ function readPersistedTheme(): ThemePersistedState {
   } catch (error) {
     console.warn('[ThemeStore] 读取主题配置失败，使用默认值:', error)
     return {
-      currentModelPath: localStorage.getItem('lastModelPath') || '',
+      currentModelPath: localStorage.getItem(LAST_MODEL_PATH_KEY) || '',
       currentModelName: '',
       sourceColor: DEFAULT_THEME_HEX,
     }
@@ -115,7 +117,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function onThemeStorageChange(event: StorageEvent) {
-    if (event.key !== null && event.key !== THEME_STORAGE_KEY && event.key !== 'lastModelPath') {
+    if (event.key !== null && event.key !== THEME_STORAGE_KEY && event.key !== LAST_MODEL_PATH_KEY) {
       return
     }
 

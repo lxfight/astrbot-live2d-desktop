@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { InputMessagePayload, MessageContent } from '@/types/protocol'
+import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
 import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
@@ -12,8 +13,8 @@ function buildDefaultLocalServerUrl(): string {
 
 const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
 const DEFAULT_RESOURCE_PATH = '/resources'
-const CONNECTION_SETTINGS_KEY = 'connectionSettings'
-const CONNECTION_SETTINGS_VERSION = 2
+const CONNECTION_SETTINGS_KEY = LOCAL_STORAGE_METADATA.connectionSettings.key
+const CONNECTION_SETTINGS_VERSION = LOCAL_STORAGE_METADATA.connectionSettings.version
 
 function getBridgeUrlValidationError(rawUrl: string): string | null {
   let parsedUrl: URL

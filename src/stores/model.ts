@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
-const MODEL_POSITIONS_KEY = 'modelPositions'
-const MODEL_POSITIONS_VERSION = 1
+const MODEL_POSITIONS_KEY = LOCAL_STORAGE_METADATA.modelPositions.key
+const MODEL_POSITIONS_VERSION = LOCAL_STORAGE_METADATA.modelPositions.version
 const MODEL_POSITION_WRITE_DELAY_MS = 200
+const LAST_MODEL_PATH_KEY = LOCAL_STORAGE_METADATA.lastModelPath.key
 
 export const useModelStore = defineStore('model', () => {
   const currentModel = ref<string>('')
@@ -35,14 +37,13 @@ export const useModelStore = defineStore('model', () => {
 
   function setCurrentModel(path: string) {
     currentModel.value = path
-    // 保存到 localStorage
     if (path) {
-      localStorage.setItem('lastModelPath', path)
+      localStorage.setItem(LAST_MODEL_PATH_KEY, path)
     }
   }
 
   function getLastModel(): string | null {
-    return localStorage.getItem('lastModelPath')
+    return localStorage.getItem(LAST_MODEL_PATH_KEY)
   }
 
   function setModelPosition(x: number, y: number) {

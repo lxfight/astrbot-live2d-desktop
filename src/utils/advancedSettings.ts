@@ -1,7 +1,8 @@
 import { readJsonStorage, writeJsonStorage } from './storage'
+import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 
-export const ADVANCED_SETTINGS_KEY = 'advancedSettings'
-const ADVANCED_SETTINGS_VERSION = 1
+export const ADVANCED_SETTINGS_KEY = LOCAL_STORAGE_METADATA.advancedSettings.key
+const ADVANCED_SETTINGS_VERSION = LOCAL_STORAGE_METADATA.advancedSettings.version
 export const MAX_RECORDING_SECONDS_LIMIT = 60
 const MIN_RECORDING_SECONDS_LIMIT = 1
 const MIN_BUBBLE_STACK_LIMIT = 1
