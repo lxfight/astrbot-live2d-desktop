@@ -1,11 +1,6 @@
 <template>
   <div class="main-window" :style="mainWindowStyle" @click="handleWindowClick">
-    <div class="main-stage-ambient" aria-hidden="true">
-      <span class="ambient-orb ambient-orb--primary"></span>
-      <span class="ambient-orb ambient-orb--secondary"></span>
-    </div>
-
-    <!-- 空状态提示 -->
+    <!-- Live2D 画布 -->
     <Transition name="fade">
       <div v-if="!hasModel" class="empty-state">
         <div class="empty-content">
@@ -1113,39 +1108,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: transparent;
   -webkit-app-region: no-drag;
-}
-
-.main-stage-ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.ambient-orb {
-  position: absolute;
-  display: block;
-}
-
-.ambient-orb {
-  border-radius: 999px;
-  filter: blur(68px);
-
-  &--primary {
-    top: -90px;
-    left: -40px;
-    width: 240px;
-    height: 240px;
-    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.18);
-  }
-
-  &--secondary {
-    right: -90px;
-    bottom: 120px;
-    width: 280px;
-    height: 280px;
-    background: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.12);
-  }
 }
 
 /* 需要交互的元素不穿透 */

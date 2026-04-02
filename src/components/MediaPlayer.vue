@@ -8,7 +8,6 @@
       <div v-if="currentImage" class="media-overlay image-overlay" @click="hideImage">
         <div class="media-card media-card--image" @click.stop>
           <div class="media-card__header">
-            <strong class="media-card__title">当前图片内容</strong>
             <button class="media-card__close" type="button" @click.stop="hideImage">关闭</button>
           </div>
           <img :src="currentImage" alt="表演图片" />
@@ -22,7 +21,6 @@
       <div v-if="currentVideo" class="media-overlay video-overlay" @click="hideVideo">
         <div class="media-card media-card--video" @click.stop>
           <div class="media-card__header">
-            <strong class="media-card__title">当前视频内容</strong>
             <button class="media-card__close" type="button" @click.stop="hideVideo">关闭</button>
           </div>
           <video
