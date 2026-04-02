@@ -5,6 +5,16 @@ import 'katex/dist/katex.min.css'
 
 let configured = false
 
+const MARKDOWN_ALLOWED_TAGS = [
+  'a', 'b', 'blockquote', 'br', 'code', 'del', 'div', 'em', 'hr', 'i', 'li', 'ol', 'p', 'pre', 'span', 'strong', 'ul',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  'math', 'semantics', 'mrow', 'mi', 'mn', 'mo', 'mspace', 'msup', 'msub', 'annotation', 'annotation-xml',
+]
+
+const MARKDOWN_ALLOWED_ATTR = [
+  'href', 'target', 'rel', 'class', 'aria-hidden', 'xmlns', 'encoding',
+]
+
 export function configureMarked(): void {
   if (configured) return
   configured = true
@@ -61,7 +71,8 @@ export function renderBubbleMarkdown(text: string): string {
   try {
     const renderedHtml = marked.parse(text) as string
     return DOMPurify.sanitize(renderedHtml, {
-      USE_PROFILES: { html: true },
+      ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
+      ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
       ALLOW_DATA_ATTR: false,
     })
   } catch (error) {
