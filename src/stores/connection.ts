@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import type { InputMessagePayload, MessageContent } from '@/types/protocol'
 import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
+import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
 function buildDefaultLocalServerUrl(): string {
   const url = new URL('http://127.0.0.1:9090/astrbot/live2d')
@@ -11,6 +13,7 @@ function buildDefaultLocalServerUrl(): string {
 const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
 const DEFAULT_RESOURCE_PATH = '/resources'
 const CONNECTION_SETTINGS_KEY = 'connectionSettings'
+const CONNECTION_SETTINGS_VERSION = 2
 
 function getBridgeUrlValidationError(rawUrl: string): string | null {
   let parsedUrl: URL
@@ -38,6 +41,13 @@ type ConnectionSettings = {
   resourceToken: string
 }
 
+type PersistedConnectionSettings = Omit<ConnectionSettings, 'token' | 'resourceToken'> & {
+  token?: string
+  resourceToken?: string
+  encryptedToken?: string
+  encryptedResourceToken?: string
+}
+
 function getDefaultConnectionSettings(): ConnectionSettings {
   return {
     serverUrl: DEFAULT_SERVER_URL,
@@ -50,58 +60,75 @@ function getDefaultConnectionSettings(): ConnectionSettings {
   }
 }
 
-function loadConnectionSettings(): ConnectionSettings {
-  try {
-    const raw = localStorage.getItem(CONNECTION_SETTINGS_KEY)
-    if (!raw) {
-      return getDefaultConnectionSettings()
-    }
-
-    const parsed = JSON.parse(raw) as {
-      serverUrl?: unknown
-      token?: unknown
-      resourceBaseUrl?: unknown
-      resourcePath?: unknown
-      resourceOverrideBaseUrl?: unknown
-      resourceOverridePath?: unknown
-      resourceToken?: unknown
-    }
-    const defaults = getDefaultConnectionSettings()
-
-    return {
-      serverUrl: typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
-        ? parsed.serverUrl.trim()
-        : defaults.serverUrl,
-      token: typeof parsed.token === 'string'
-        ? parsed.token.trim()
-        : defaults.token,
-      resourceBaseUrl: typeof parsed.resourceBaseUrl === 'string'
-        ? parsed.resourceBaseUrl.trim()
-        : defaults.resourceBaseUrl,
-      resourcePath: typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
-        ? parsed.resourcePath.trim()
-        : defaults.resourcePath,
-      resourceOverrideBaseUrl: typeof parsed.resourceOverrideBaseUrl === 'string'
-        ? parsed.resourceOverrideBaseUrl.trim()
-        : defaults.resourceOverrideBaseUrl,
-      resourceOverridePath: typeof parsed.resourceOverridePath === 'string'
-        ? parsed.resourceOverridePath.trim()
-        : defaults.resourceOverridePath,
-      resourceToken: typeof parsed.resourceToken === 'string'
-        ? parsed.resourceToken.trim()
-        : defaults.resourceToken,
-    }
-  } catch (error) {
-    console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
-    return getDefaultConnectionSettings()
+function decryptPersistedValue(value?: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
   }
+
+  return window.electron.secureStorage.decryptString(value).trim()
 }
 
 function saveConnectionSettings(settings: ConnectionSettings) {
   try {
-    localStorage.setItem(CONNECTION_SETTINGS_KEY, JSON.stringify(settings))
+    const encryptionAvailable = window.electron.secureStorage.isEncryptionAvailable()
+    const payload: PersistedConnectionSettings = {
+      serverUrl: settings.serverUrl,
+      resourceBaseUrl: settings.resourceBaseUrl,
+      resourcePath: settings.resourcePath,
+      resourceOverrideBaseUrl: settings.resourceOverrideBaseUrl,
+      resourceOverridePath: settings.resourceOverridePath,
+    }
+
+    if (encryptionAvailable) {
+      payload.encryptedToken = window.electron.secureStorage.encryptString(settings.token)
+      payload.encryptedResourceToken = window.electron.secureStorage.encryptString(settings.resourceToken)
+    }
+
+    writeJsonStorage(CONNECTION_SETTINGS_KEY, payload, { version: CONNECTION_SETTINGS_VERSION })
   } catch (error) {
     console.warn('[ConnectionStore] 保存连接配置失败:', error)
+  }
+}
+
+function normalizeConnectionSettings(value: unknown): ConnectionSettings {
+  const parsed = value && typeof value === 'object'
+    ? value as Partial<PersistedConnectionSettings>
+    : {}
+  const defaults = getDefaultConnectionSettings()
+
+  return {
+    serverUrl: typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
+      ? parsed.serverUrl.trim()
+      : defaults.serverUrl,
+    token: decryptPersistedValue(parsed.encryptedToken) || (typeof parsed.token === 'string' ? parsed.token.trim() : defaults.token),
+    resourceBaseUrl: typeof parsed.resourceBaseUrl === 'string'
+      ? parsed.resourceBaseUrl.trim()
+      : defaults.resourceBaseUrl,
+    resourcePath: typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
+      ? parsed.resourcePath.trim()
+      : defaults.resourcePath,
+    resourceOverrideBaseUrl: typeof parsed.resourceOverrideBaseUrl === 'string'
+      ? parsed.resourceOverrideBaseUrl.trim()
+      : defaults.resourceOverrideBaseUrl,
+    resourceOverridePath: typeof parsed.resourceOverridePath === 'string'
+      ? parsed.resourceOverridePath.trim()
+      : defaults.resourceOverridePath,
+    resourceToken: decryptPersistedValue(parsed.encryptedResourceToken) || (typeof parsed.resourceToken === 'string'
+      ? parsed.resourceToken.trim()
+      : defaults.resourceToken),
+  }
+}
+
+function loadConnectionSettings(): ConnectionSettings {
+  try {
+    return readJsonStorage(CONNECTION_SETTINGS_KEY, {
+      fallback: getDefaultConnectionSettings(),
+      normalize: normalizeConnectionSettings,
+      version: CONNECTION_SETTINGS_VERSION,
+    })
+  } catch (error) {
+    console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
+    return getDefaultConnectionSettings()
   }
 }
 
@@ -275,6 +302,15 @@ export const useConnectionStore = defineStore('connection', () => {
     return connected
   }
 
+  function handleConnected(session: BridgeSessionState | null | undefined) {
+    isConnected.value = true
+    applySessionState(session)
+  }
+
+  function handleDisconnected() {
+    resetSessionState()
+  }
+
   function onStorageChange(event: StorageEvent) {
     if (event.key !== null && event.key !== CONNECTION_SETTINGS_KEY) {
       return
@@ -282,16 +318,29 @@ export const useConnectionStore = defineStore('connection', () => {
     reloadPersistedSettings()
   }
 
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('storage', onStorageChange)
+  function startStorageSync() {
+    if (storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+
     window.addEventListener('storage', onStorageChange)
+    storageSyncBound = true
   }
 
-  async function sendMessage(content: any[], metadata: any) {
+  function stopStorageSync() {
+    if (!storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+
+    window.removeEventListener('storage', onStorageChange)
+    storageSyncBound = false
+  }
+
+  async function sendMessage(content: MessageContent[], metadata: InputMessagePayload['metadata']) {
     return await window.electron.bridge.sendMessage({ content, metadata })
   }
 
-  async function sendState(op: string, payload: any) {
+  async function sendState(op: string, payload: unknown) {
     return await window.electron.bridge.sendState(op, payload)
   }
 
@@ -313,6 +362,10 @@ export const useConnectionStore = defineStore('connection', () => {
     setConnectionConfig,
     setResourceConfig,
     reloadPersistedSettings,
+    startStorageSync,
+    stopStorageSync,
+    handleConnected,
+    handleDisconnected,
     connect,
     disconnect,
     checkConnection,
@@ -320,3 +373,4 @@ export const useConnectionStore = defineStore('connection', () => {
     sendState,
   }
 })
+  let storageSyncBound = false

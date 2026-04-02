@@ -9,6 +9,8 @@ export interface MessageContent {
   inline?: string
   rid?: string
   name?: string
+  bytes?: Uint8Array
+  mime?: string
 }
 
 export interface InputMessagePayload {
@@ -22,7 +24,7 @@ export interface InputMessagePayload {
 }
 
 export interface PerformElement {
-  type: 'text' | 'tts' | 'motion' | 'expression' | 'image' | 'video' | 'wait'
+  type: 'text' | 'tts' | 'audio' | 'motion' | 'expression' | 'image' | 'video' | 'wait'
 
   // 文字气泡
   content?: string
