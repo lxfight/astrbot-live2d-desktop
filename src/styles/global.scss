@@ -113,6 +113,11 @@
   box-sizing: border-box;
 }
 
+html {
+  background: transparent;
+  overflow: hidden;
+}
+
 html,
 body,
 #app {

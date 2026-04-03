@@ -46,6 +46,14 @@ function applyIgnoreMouseEvents(ignore: boolean): void {
   }
 }
 
+function refreshWindowComposition(): void {
+  if (!mainWindow || process.platform !== 'win32') return
+  mainWindow.setBackgroundColor('#00000000')
+  const focused = mainWindow.isFocusable()
+  mainWindow.setFocusable(!focused)
+  mainWindow.setFocusable(focused)
+}
+
 /**
  * 创建 Live2D 显示窗口
  */
@@ -121,19 +129,28 @@ export function createMainWindow(): BrowserWindow {
     mainWindow = null
   })
 
-  // 窗口获得焦点时重新应用置顶，防止被录屏遮挡
+  if (process.platform === 'win32') {
+    mainWindow.removeMenu()
+    mainWindow.setMenuBarVisibility(false)
+  }
+
   mainWindow.on('focus', () => {
-    // 使用 setTimeout 避开录屏软件可能的窗口钩子竞争
+    refreshWindowComposition()
     setTimeout(() => {
       try {
         const desktopFeatureSettings = loadDesktopFeatureSettings()
         if (desktopFeatureSettings.alwaysOnTop) {
           setAlwaysOnTop(true)
         }
+        refreshWindowComposition()
       } catch (error) {
         console.error('[主窗口] focus 时重新应用置顶失败:', error)
       }
-    }, 200)
+    }, 50)
+  })
+
+  mainWindow.on('blur', () => {
+    refreshWindowComposition()
   })
 
   return mainWindow
