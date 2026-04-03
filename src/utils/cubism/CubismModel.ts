@@ -841,7 +841,7 @@ export class CubismModel {
     this.isUpdating = true
 
     const now = performance.now() / 1000
-    this.deltaTime = now - this.lastUpdateTime
+    this.deltaTime = Math.min(now - this.lastUpdateTime, 0.1)
     this.lastUpdateTime = now
     this.userTimeSeconds += this.deltaTime
 
