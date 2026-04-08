@@ -38,7 +38,6 @@ describe('advancedSettings', () => {
       themeFollowModel: false,
       lipSyncEnabled: false,
       silenceDetectionEnabled: true,
-      dynamicPassThroughEnabled: false,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
       imageInlineThresholdKb: 512,
@@ -57,7 +56,6 @@ describe('advancedSettings', () => {
       themeFollowModel: false,
       lipSyncEnabled: false,
       silenceDetectionEnabled: true,
-      dynamicPassThroughEnabled: false,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
       imageInlineThresholdKb: 512,
@@ -87,7 +85,6 @@ describe('advancedSettings', () => {
     expect(normalized.themeFollowModel).toBe(true)
     expect(normalized.lipSyncEnabled).toBe(true)
     expect(normalized.silenceDetectionEnabled).toBe(false)
-    expect(normalized.dynamicPassThroughEnabled).toBe(true)
     expect(normalized.bubbleStackMax).toBe(3)
     expect(normalized.bubbleFollowUpWindowMs).toBe(4000)
     expect(normalized.imageInlineThresholdKb).toBe(256)

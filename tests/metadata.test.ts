@@ -46,6 +46,7 @@ describe('metadata', () => {
       screenshotMaxWidth: 'desktop_capture_max_width',
       alwaysOnTop: 'tray_always_on_top',
       fullPassThrough: 'tray_pass_through_mode',
+      dynamicPassThrough: 'desktop_dynamic_pass_through',
       autoDetectFullscreen: 'tray_game_mode',
     })
   })
