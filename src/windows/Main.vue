@@ -305,14 +305,14 @@ const mainWindowStyle = computed(() => ({
 
 let modelPositionX = window.innerWidth / 2
 let modelPositionY = window.innerHeight / 2
-let alwaysOnTopBeforeImport: boolean | null = null
 const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 
 const currentUserName = ref('桌面用户')
-const hasModel = ref(true)
+const hasModel = ref(false)
 const loadingModelPath = ref('')
 let themeExtractionRevision = 0
 let modelLoadInFlight = false
+let hasOpenedModelLibraryWindow = false
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
 
@@ -343,6 +343,14 @@ function showBaseEventStatus(text: string, type: ModelStatusType = 'info', durat
   showModelStatus(text, type, duration)
 }
 
+function openModelLibraryWindowOnce(): void {
+  if (hasOpenedModelLibraryWindow) {
+    return
+  }
+  hasOpenedModelLibraryWindow = true
+  void window.electron.window.openSettings('model/library')
+}
+
 function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void {
   if (sessionStorage.getItem(PLATFORM_COMPATIBILITY_HINT_KEY) === '1') {
     return
@@ -353,12 +361,12 @@ function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void
   if (capabilities.platform === 'linux') {
     hint = capabilities.linuxSessionType === 'wayland'
       ? {
-          text: '当前为 Linux Wayland 会话：动态穿透已禁用，自动检测全屏应用不可用。',
+          text: '当前为 Linux Wayland 会话：智能穿透与自动检测全屏应用不可用。',
           type: 'warning',
           duration: 5200,
         }
       : {
-          text: '当前为 Linux 会话：动态穿透已降级为基础穿透，自动更新需手动下载。',
+          text: '当前为 Linux 会话：智能穿透不可用，自动更新需手动下载。',
           type: 'info',
           duration: 4800,
         }
@@ -424,7 +432,6 @@ const inputPanel = useInputPanel({
   connectionStore,
   currentUserName,
   advancedSettings,
-  live2dCanvasRef,
   showModelStatus,
   showBaseEventStatus,
   updateUIPositions: () => updateUIPositions(),
@@ -477,31 +484,18 @@ function handleModelRightClick(position: { x: number; y: number }) {
   _handleModelRightClick(position, { x: modelPositionX, y: modelPositionY })
 }
 
-// 当进入“导入模型”空状态时，不要置顶（避免挡住其他窗口）；加载到模型后恢复到原状态
+// 主窗口可见性由主进程统一协调：只有模型加载成功后才显示透明桌面窗口
 watch(hasModel, async (value) => {
   try {
-    if (!value) {
-      if (alwaysOnTopBeforeImport === null) {
-        alwaysOnTopBeforeImport = await window.electron.window.getAlwaysOnTop()
-      }
-      await window.electron.window.setIgnoreMouseEvents(false)
-      live2dCanvasRef.value?.disablePassThrough()
-      await window.electron.window.setAlwaysOnTop(false)
-      await window.electron.window.setSize(600, 500)
-      return
-    }
-
-    if (alwaysOnTopBeforeImport !== null) {
-      await window.electron.window.setAlwaysOnTop(alwaysOnTopBeforeImport)
-      alwaysOnTopBeforeImport = null
-    }
-    await window.electron.window.setIgnoreMouseEvents(false)
-    live2dCanvasRef.value?.enablePassThrough()
-    await window.electron.window.resetSize()
+    await window.electron.desktopBehavior.setModelReady(value)
   } catch (error) {
-    console.warn('[主窗口] 设置窗口置顶/大小状态失败:', error)
+    console.warn('[主窗口] 同步桌面交互状态失败:', error)
   }
-})
+
+  if (value) {
+    hasOpenedModelLibraryWindow = false
+  }
+}, { immediate: true })
 
 // 初始化 marked + LaTeX 扩展（幂等）
 configureMarked()
@@ -901,7 +895,9 @@ onMounted(async () => {
       // 不在这里显示提示，由 handleModelLoaded 统一处理
     } catch (error: any) {
       loadingModelPath.value = ''
+      hasModel.value = false
       showModelStatus(`模型加载失败: ${error.message}`, 'error')
+      openModelLibraryWindowOnce()
     } finally {
       modelLoadInFlight = false
     }
@@ -1082,10 +1078,12 @@ onMounted(async () => {
       loadingModelPath.value = ''
       // 自动加载失败，显示导入提示
       hasModel.value = false
+      openModelLibraryWindowOnce()
     }
   } else {
     // 没有上次使用的模型，显示导入提示
     hasModel.value = false
+    openModelLibraryWindowOnce()
   }
 
   // 自动注册全局快捷键

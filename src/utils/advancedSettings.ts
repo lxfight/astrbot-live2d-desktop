@@ -25,7 +25,6 @@ export interface AdvancedSettings {
   silenceDetectionEnabled: boolean
   showBaseEventNotifications: boolean
   maxRecordingSeconds: number
-  dynamicPassThroughEnabled: boolean
   bubbleStackMax: number
   bubbleFollowUpWindowMs: number
   imageInlineThresholdKb: number
@@ -42,7 +41,6 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   silenceDetectionEnabled: false,
   showBaseEventNotifications: true,
   maxRecordingSeconds: 30,
-  dynamicPassThroughEnabled: true,
   bubbleStackMax: 3,
   bubbleFollowUpWindowMs: 4000,
   imageInlineThresholdKb: 256,
@@ -94,9 +92,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
       ? raw.showBaseEventNotifications
       : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
     maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds),
-    dynamicPassThroughEnabled: typeof raw.dynamicPassThroughEnabled === 'boolean'
-      ? raw.dynamicPassThroughEnabled
-      : DEFAULT_ADVANCED_SETTINGS.dynamicPassThroughEnabled,
     bubbleStackMax: clampBubbleStackMax(raw.bubbleStackMax),
     bubbleFollowUpWindowMs: clampBubbleFollowUpWindowMs(raw.bubbleFollowUpWindowMs),
     imageInlineThresholdKb: clampImageInlineThresholdKb(raw.imageInlineThresholdKb),

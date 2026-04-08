@@ -5,7 +5,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
-import { ADVANCED_SETTINGS_KEY, loadAdvancedSettings } from '@/utils/advancedSettings'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
@@ -190,11 +189,14 @@ let dragStartY = 0
 let cursorOffsetX = 0
 let cursorOffsetY = 0
 const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
-let passThroughEnabled = true // 是否启用动态穿透
-let isFullPassThroughMode = false // 是否处于完全穿透模式
+let isFullPassThroughMode = false
+let dynamicPassThroughEnabled = true
 let supportsDynamicPassThrough = false
-let pendingPassThroughEvent: MouseEvent | null = null
+let currentIgnoreMouseEvents = false
 let passThroughFrameId: number | null = null
+let pendingPassThroughEvent: MouseEvent | null = null
+let lastPointerEvent: MouseEvent | null = null
+let disposeDesktopBehaviorListener: Unsubscribe | null = null
 
 function stopPassThroughDetection() {
   if (passThroughFrameId !== null) {
@@ -204,16 +206,18 @@ function stopPassThroughDetection() {
   pendingPassThroughEvent = null
 }
 
-function syncPassThroughSettingFromStorage() {
-  passThroughEnabled = loadAdvancedSettings().dynamicPassThroughEnabled
-}
-
-function handleAdvancedSettingsStorageChange(event: StorageEvent) {
-  if (event.key && event.key !== ADVANCED_SETTINGS_KEY) {
+async function setMousePassthrough(ignoreMouseEvents: boolean) {
+  if (currentIgnoreMouseEvents === ignoreMouseEvents) {
     return
   }
 
-  syncPassThroughSettingFromStorage()
+  currentIgnoreMouseEvents = ignoreMouseEvents
+
+  try {
+    await window.electron.desktopBehavior.setMousePassthrough(ignoreMouseEvents)
+  } catch (error) {
+    console.warn('[Live2D] 更新鼠标穿透状态失败:', error)
+  }
 }
 
 /**
@@ -228,9 +232,6 @@ function isPointInModel(x: number, y: number): boolean {
  * 处理鼠标按下
  */
 function handleMouseDown(event: MouseEvent) {
-  // 如果处于完全穿透模式，不处理任何鼠标事件
-  if (isFullPassThroughMode) return
-
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
 
@@ -262,9 +263,6 @@ function handleMouseDown(event: MouseEvent) {
  * 处理鼠标移动
  */
 function handleMouseMove(event: MouseEvent) {
-  // 如果处于完全穿透模式，不处理任何鼠标事件
-  if (isFullPassThroughMode) return
-
   if (!model) return
 
   // 只有当拖动从模型上开始时才允许拖动
@@ -304,9 +302,6 @@ function handleMouseMove(event: MouseEvent) {
  * 处理鼠标释放
  */
 function handleMouseUp(event: MouseEvent) {
-  // 如果处于完全穿透模式，不处理任何鼠标事件
-  if (isFullPassThroughMode) return
-
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
 
@@ -332,9 +327,6 @@ function handleMouseUp(event: MouseEvent) {
  */
 function handleContextMenu(event: MouseEvent) {
   event.preventDefault()
-
-  // 如果处于完全穿透模式，不处理任何鼠标事件
-  if (isFullPassThroughMode) return
 
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect || !model) return
@@ -371,11 +363,6 @@ function handleResize() {
   }
 }
 
-let currentIgnoreMouseEvents = true // 当前穿透状态
-
-/**
- * 检查鼠标是否在需要交互的 UI 元素上（气泡、菜单、输入框等）
- */
 function isPointOnInteractiveUI(clientX: number, clientY: number): boolean {
   const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null
   if (!element) return false
@@ -385,88 +372,86 @@ function isPointOnInteractiveUI(clientX: number, clientY: number): boolean {
     element.closest('.radial-menu-container') ||
     element.closest('.input-panel-container') ||
     element.closest('.recording-toast') ||
+    element.closest('.model-status-toast') ||
     element.closest('.empty-state')
   )
 }
 
-/**
- * 处理鼠标移动（用于动态设置穿透）
- */
-function handleMouseMoveForPassThrough(event: MouseEvent) {
-  // 眼睛跟踪鼠标（不受穿透模式限制）
+function shouldIgnoreMouseEvents(event: MouseEvent): boolean {
+  if (isFullPassThroughMode) {
+    return true
+  }
+
+  if (!dynamicPassThroughEnabled || !supportsDynamicPassThrough) {
+    return false
+  }
+
+  if (!canvasRef.value || !model) {
+    return false
+  }
+
+  if (isPointOnInteractiveUI(event.clientX, event.clientY)) {
+    return false
+  }
+
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  return !isPointInModel(x, y)
+}
+
+async function syncMousePassthrough() {
+  if (isFullPassThroughMode) {
+    await setMousePassthrough(true)
+    return
+  }
+
+  if (!dynamicPassThroughEnabled || !supportsDynamicPassThrough) {
+    await setMousePassthrough(false)
+    return
+  }
+
+  if (!model) {
+    await setMousePassthrough(false)
+    return
+  }
+
+  if (!lastPointerEvent) {
+    await setMousePassthrough(false)
+    return
+  }
+
+  await setMousePassthrough(shouldIgnoreMouseEvents(lastPointerEvent))
+}
+
+async function applyDesktopBehaviorSnapshot(snapshot: DesktopBehaviorSnapshot) {
+  isFullPassThroughMode = snapshot.preferences.fullPassThrough
+  dynamicPassThroughEnabled = snapshot.preferences.dynamicPassThrough
+  await syncMousePassthrough()
+}
+
+function handleWindowMouseMove(event: MouseEvent) {
   if (model) {
     model.focus(event.clientX, event.clientY)
   }
 
-  // 如果处于完全穿透模式，不处理穿透逻辑
-  if (isFullPassThroughMode) return
-
-  // 如果动态穿透被禁用（有 UI 显示），不处理
-  if (!passThroughEnabled) return
-  if (!supportsDynamicPassThrough) return
-
+  lastPointerEvent = event
   pendingPassThroughEvent = event
+
   if (passThroughFrameId !== null) {
     return
   }
 
   passThroughFrameId = requestAnimationFrame(() => {
     passThroughFrameId = null
-
-    if (!canvasRef.value || !model || !pendingPassThroughEvent) {
-      return
-    }
-
     const latestEvent = pendingPassThroughEvent
     pendingPassThroughEvent = null
-    const rect = canvasRef.value.getBoundingClientRect()
-    const x = latestEvent.clientX - rect.left
-    const y = latestEvent.clientY - rect.top
-
-    const isOnModel = isPointInModel(x, y)
-    const isOnInteractiveUI = isPointOnInteractiveUI(latestEvent.clientX, latestEvent.clientY)
-    const shouldCaptureMouse = isOnModel || isOnInteractiveUI
-
-    if (shouldCaptureMouse) {
-      if (currentIgnoreMouseEvents) {
-        window.electron.window.setIgnoreMouseEvents(false)
-        currentIgnoreMouseEvents = false
-      }
-      return
-    }
-
-    if (!currentIgnoreMouseEvents) {
-      window.electron.window.setIgnoreMouseEvents(true)
-      currentIgnoreMouseEvents = true
-    }
+    if (!latestEvent) return
+    void setMousePassthrough(shouldIgnoreMouseEvents(latestEvent))
   })
 }
 
-/**
- * 禁用动态穿透（当有 UI 元素显示时）
- */
-function disablePassThrough() {
-  if (!supportsDynamicPassThrough) return
-  passThroughEnabled = false
-  if (currentIgnoreMouseEvents) {
-    window.electron.window.setIgnoreMouseEvents(false)
-    currentIgnoreMouseEvents = false
-  }
-}
-
-/**
- * 启用动态穿透
- */
-function enablePassThrough() {
-  if (!supportsDynamicPassThrough) return
-  passThroughEnabled = true
-  // 恢复动态穿透，等待下一次鼠标移动事件来更新状态
-}
-
-let disposePassThroughModeListener: Unsubscribe | null = null
-
 onMounted(async () => {
-  syncPassThroughSettingFromStorage()
   if (canvasRef.value) {
     // 设置画布大小
     canvasRef.value.width = window.innerWidth
@@ -478,51 +463,29 @@ onMounted(async () => {
     canvasRef.value.addEventListener('mouseup', handleMouseUp)
     canvasRef.value.addEventListener('contextmenu', handleContextMenu)
 
-    // 监听鼠标移动以动态设置穿透
-    window.addEventListener('mousemove', handleMouseMoveForPassThrough)
+    // 眼睛跟踪鼠标
+    window.addEventListener('mousemove', handleWindowMouseMove)
 
     // 监听窗口大小变化
     window.addEventListener('resize', handleResize)
-    window.addEventListener('storage', handleAdvancedSettingsStorageChange)
 
     try {
       const capabilities = await window.electron.window.getPlatformCapabilities()
       supportsDynamicPassThrough = capabilities.mousePassthroughForward
-      if (!supportsDynamicPassThrough) {
-        passThroughEnabled = false
-        currentIgnoreMouseEvents = false
-        window.electron.window.setIgnoreMouseEvents(false)
-        console.warn('[Live2D] 当前平台不支持穿透事件转发，已禁用动态穿透')
-      }
     } catch {
       supportsDynamicPassThrough = false
-      passThroughEnabled = false
-      currentIgnoreMouseEvents = false
-      window.electron.window.setIgnoreMouseEvents(false)
     }
 
-    // 监听完全穿透模式变化
-    disposePassThroughModeListener = window.electron.window.onPassThroughModeChanged((enabled: boolean) => {
-      console.log('[Live2D] 完全穿透模式:', enabled ? '开启' : '关闭')
-      isFullPassThroughMode = enabled
+    try {
+      const snapshot = await window.electron.desktopBehavior.getSnapshot()
+      await applyDesktopBehaviorSnapshot(snapshot)
+    } catch (error) {
+      console.warn('[Live2D] 获取桌面行为快照失败:', error)
+      await setMousePassthrough(false)
+    }
 
-      // 立即应用穿透设置
-      if (enabled) {
-        window.electron.window.setIgnoreMouseEvents(true)
-      } else {
-        window.electron.window.setIgnoreMouseEvents(false)
-      }
-    })
-
-    // 初始化时检查穿透模式状态
-    window.electron.window.getPassThroughMode().then((enabled: boolean) => {
-      console.log('[Live2D] 初始穿透模式状态:', enabled ? '开启' : '关闭')
-      isFullPassThroughMode = enabled
-
-      // 立即应用穿透设置
-      if (enabled) {
-        window.electron.window.setIgnoreMouseEvents(true)
-      }
+    disposeDesktopBehaviorListener = window.electron.desktopBehavior.onSnapshotChanged((snapshot) => {
+      void applyDesktopBehaviorSnapshot(snapshot)
     })
   }
 })
@@ -546,11 +509,11 @@ onUnmounted(() => {
     canvasRef.value.removeEventListener('contextmenu', handleContextMenu)
   }
 
-  window.removeEventListener('mousemove', handleMouseMoveForPassThrough)
+  window.removeEventListener('mousemove', handleWindowMouseMove)
   window.removeEventListener('resize', handleResize)
-  window.removeEventListener('storage', handleAdvancedSettingsStorageChange)
-  disposePassThroughModeListener?.()
-  disposePassThroughModeListener = null
+  disposeDesktopBehaviorListener?.()
+  disposeDesktopBehaviorListener = null
+  void setMousePassthrough(false)
 })
 
 // 暴露方法给父组件
@@ -573,9 +536,7 @@ defineExpose({
   },
   stopLipSync: () => {
     model?.stopLipSync()
-  },
-  disablePassThrough,
-  enablePassThrough
+  }
 })
 </script>
 
