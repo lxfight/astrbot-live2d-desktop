@@ -1,5 +1,5 @@
 import { screen } from 'electron'
-import { getMainWindow, hideMainWindow, showMainWindow } from '../windows/mainWindow'
+import { getMainWindow } from '../windows/mainWindow'
 import { createRequire } from 'module'
 import { getPlatformCapabilities } from './platformCapabilities'
 import { safeGetActiveWindow as safeGetActiveWin } from './activeWinLoader'
@@ -12,6 +12,7 @@ let checkInterval: NodeJS.Timeout | null = null
 let isHiddenByGameMode = false
 let windowManager: any = null
 let hasLoggedUnsupportedReason = false
+let visibilityHandler: ((hidden: boolean) => void) | null = null
 
 const MESSENGER_OVERLAY_TITLES = new Set([
   'qq',
@@ -253,13 +254,13 @@ async function checkGameMode(): Promise<void> {
   if (hasFullscreen && !isHiddenByGameMode) {
     // 有全屏应用，隐藏主窗口
     console.log('[自动检测全屏] 检测到全屏应用，隐藏模型')
-    hideMainWindow()
     isHiddenByGameMode = true
+    visibilityHandler?.(true)
   } else if (!hasFullscreen && isHiddenByGameMode) {
     // 没有全屏应用，恢复主窗口
     console.log('[自动检测全屏] 全屏应用已退出，显示模型')
-    showMainWindow()
     isHiddenByGameMode = false
+    visibilityHandler?.(false)
   }
 }
 
@@ -303,8 +304,8 @@ export function disableGameMode(): void {
 
   // 如果窗口被游戏模式隐藏，恢复显示
   if (isHiddenByGameMode) {
-    showMainWindow()
     isHiddenByGameMode = false
+    visibilityHandler?.(false)
   }
 }
 
@@ -313,4 +314,8 @@ export function disableGameMode(): void {
  */
 export function isGameModeActive(): boolean {
   return isGameModeEnabled
+}
+
+export function setGameModeVisibilityHandler(handler: ((hidden: boolean) => void) | null): void {
+  visibilityHandler = handler
 }

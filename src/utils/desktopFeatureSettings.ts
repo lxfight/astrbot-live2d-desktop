@@ -1,12 +1,14 @@
 export interface DesktopFeatureSettings {
   alwaysOnTop: boolean
   fullPassThrough: boolean
+  dynamicPassThrough: boolean
   autoDetectFullscreen: boolean
 }
 
 export const DEFAULT_DESKTOP_FEATURE_SETTINGS: DesktopFeatureSettings = {
-  alwaysOnTop: false,
+  alwaysOnTop: true,
   fullPassThrough: false,
+  dynamicPassThrough: true,
   autoDetectFullscreen: false,
 }
 
@@ -22,6 +24,9 @@ export function normalizeDesktopFeatureSettings(value: unknown): DesktopFeatureS
     fullPassThrough: typeof raw.fullPassThrough === 'boolean'
       ? raw.fullPassThrough
       : DEFAULT_DESKTOP_FEATURE_SETTINGS.fullPassThrough,
+    dynamicPassThrough: typeof raw.dynamicPassThrough === 'boolean'
+      ? raw.dynamicPassThrough
+      : DEFAULT_DESKTOP_FEATURE_SETTINGS.dynamicPassThrough,
     autoDetectFullscreen: typeof raw.autoDetectFullscreen === 'boolean'
       ? raw.autoDetectFullscreen
       : DEFAULT_DESKTOP_FEATURE_SETTINGS.autoDetectFullscreen,
@@ -41,6 +46,7 @@ export function mergeDesktopFeatureSettings(
   return {
     alwaysOnTop: normalizedPatch.alwaysOnTop,
     fullPassThrough: normalizedPatch.fullPassThrough,
+    dynamicPassThrough: normalizedPatch.dynamicPassThrough,
     autoDetectFullscreen: normalizedPatch.autoDetectFullscreen,
   }
 }

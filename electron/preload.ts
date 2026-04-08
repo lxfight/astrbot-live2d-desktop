@@ -72,18 +72,8 @@ contextBridge.exposeInMainWorld('electron', {
     openHistory: () => ipcRenderer.invoke('window:openHistory'),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
-    setAlwaysOnTop: (flag: boolean) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
-    getAlwaysOnTop: () => ipcRenderer.invoke('window:getAlwaysOnTop'),
-    refreshAlwaysOnTop: () => ipcRenderer.invoke('window:refreshAlwaysOnTop'),
-    setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
-    setSize: (width: number, height: number) => ipcRenderer.invoke('window:setSize', width, height),
-    resetSize: () => ipcRenderer.invoke('window:resetSize'),
-    getPassThroughMode: () => ipcRenderer.invoke('window:getPassThroughMode'),
-    getDesktopFeatureSettings: () => ipcRenderer.invoke('window:getDesktopFeatureSettings'),
-    updateDesktopFeatureSettings: (config: any) => ipcRenderer.invoke('window:updateDesktopFeatureSettings', config),
     getScreenshotSettings: () => ipcRenderer.invoke('window:getScreenshotSettings'),
     updateScreenshotSettings: (settings: any) => ipcRenderer.invoke('window:updateScreenshotSettings', settings),
-    onPassThroughModeChanged: (callback: (enabled: boolean) => void) => subscribeIpc('window:passThroughModeChanged', callback),
     onMaximizedChanged: (callback: (maximized: boolean) => void) => subscribeIpc('window:maximizedChanged', callback),
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
     openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
@@ -106,6 +96,16 @@ contextBridge.exposeInMainWorld('electron', {
       // 返回取消订阅函数
       return () => ipcRenderer.removeListener('window:event', listener)
     }
+  },
+
+  desktopBehavior: {
+    getPreferences: () => ipcRenderer.invoke('desktopBehavior:getPreferences'),
+    updatePreferences: (config: any) => ipcRenderer.invoke('desktopBehavior:updatePreferences', config),
+    getSnapshot: () => ipcRenderer.invoke('desktopBehavior:getSnapshot'),
+    setMousePassthrough: (ignoreMouseEvents: boolean) => ipcRenderer.invoke('desktopBehavior:setMousePassthrough', ignoreMouseEvents),
+    setModelReady: (ready: boolean) => ipcRenderer.invoke('desktopBehavior:setModelReady', ready),
+    requestReveal: (reason?: string) => ipcRenderer.invoke('desktopBehavior:requestReveal', reason),
+    onSnapshotChanged: (callback: (snapshot: any) => void) => subscribeIpc('desktopBehavior:snapshotChanged', callback),
   },
 
   // 设置窗口专用

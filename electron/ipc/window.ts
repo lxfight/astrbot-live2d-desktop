@@ -4,9 +4,7 @@ import path from 'path'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
-import { getDesktopFeatureSettings, updateDesktopFeatureSettings } from '../utils/tray'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
@@ -194,82 +192,12 @@ ipcMain.handle('window:closeWelcome', async () => {
   return { success: true }
 })
 
-/**
- * 设置窗口置顶
- */
-ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
-  updateDesktopFeatureSettings({ alwaysOnTop: flag })
-  return { success: true }
-})
-
-/**
- * 获取窗口置顶状态
- */
-ipcMain.handle('window:getAlwaysOnTop', async () => {
-  return getDesktopFeatureSettings().alwaysOnTop
-})
-
-/**
- * 刷新窗口置顶状态（用于点击模型时确保置顶）
- * 只有当配置为“始终置顶”时才执行操作
- */
-ipcMain.handle('window:refreshAlwaysOnTop', async () => {
-  const { alwaysOnTop } = getDesktopFeatureSettings()
-  
-  if (alwaysOnTop) {
-    setAlwaysOnTop(true)
-  }
-  return { success: true }
-})
-
-/**
- * 设置鼠标穿透
- */
-ipcMain.handle('window:setIgnoreMouseEvents', async (_event, ignore: boolean) => {
-  setIgnoreMouseEvents(ignore)
-  return { success: true }
-})
-
-/**
- * 获取当前穿透模式状态
- */
-ipcMain.handle('window:getPassThroughMode', async () => {
-  return getDesktopFeatureSettings().fullPassThrough
-})
-
-ipcMain.handle('window:getDesktopFeatureSettings', async () => {
-  return getDesktopFeatureSettings()
-})
-
-ipcMain.handle('window:updateDesktopFeatureSettings', async (_event, config) => {
-  return updateDesktopFeatureSettings(config)
-})
-
 ipcMain.handle('window:getScreenshotSettings', async () => {
   return loadScreenshotSettings()
 })
 
 ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
   return saveScreenshotSettings(settings)
-})
-
-/**
- * 设置窗口大小
- */
-ipcMain.handle('window:setSize', async (_event, width: number, height: number) => {
-  if (typeof width !== 'number' || typeof height !== 'number' || !Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
-    return { success: false, error: 'width 和 height 必须为正整数' }
-  }
-  setWindowSize(width, height)
-  return { success: true }
-})
-
-/**
- * 重置窗口大小（全屏）
- */
-ipcMain.handle('window:resetSize', async () => {
-  resetWindowSize()
-  return { success: true }
 })
 
 /**

@@ -6,12 +6,12 @@ import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
-import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
-import { hideMainWindow, showMainWindow } from './windows/mainWindow'
+import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
+import './ipc/desktopBehavior'
 import './ipc/window'
 import { cleanupAllTempResources } from './ipc/window'
 import './ipc/history'
@@ -40,7 +40,6 @@ initializeMainLogger()
 installMainProcessErrorHandlers()
 
 // 锁屏前的状态，用于解锁后恢复
-let gameModeBeforeLock = false
 let isBackgroundPaused = false
 
 function pauseBackgroundActivities(reason: string): void {
@@ -48,9 +47,7 @@ function pauseBackgroundActivities(reason: string): void {
   isBackgroundPaused = true
 
   console.log(`[主进程] 暂停后台活动: ${reason}`)
-  gameModeBeforeLock = isGameModeActive()
-  if (gameModeBeforeLock) disableGameMode()
-  hideMainWindow()
+  getDesktopBehaviorCoordinator().setBackgroundPaused(true)
   if (bridgeClient) bridgeClient.disconnect()
 }
 
@@ -59,8 +56,7 @@ function resumeBackgroundActivities(reason: string): void {
   isBackgroundPaused = false
 
   console.log(`[主进程] 恢复后台活动: ${reason}`)
-  showMainWindow()
-  if (gameModeBeforeLock) enableGameMode()
+  getDesktopBehaviorCoordinator().setBackgroundPaused(false)
   if (bridgeClient) {
     const { url, token } = bridgeClient.getConnectionInfo()
     if (url) {

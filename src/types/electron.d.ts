@@ -9,6 +9,12 @@ import type {
 import type { DesktopFeatureSettings as _DesktopFeatureSettings } from '../utils/desktopFeatureSettings'
 import type { UpdaterSettings as _UpdaterSettings } from '../utils/updaterSettings'
 import type { ScreenshotSettings as _ScreenshotSettings } from '../utils/screenshotSettings'
+import type {
+  DesktopBehaviorEffectiveState as _DesktopBehaviorEffectiveState,
+  DesktopBehaviorRuntimeState as _DesktopBehaviorRuntimeState,
+  DesktopBehaviorSnapshot as _DesktopBehaviorSnapshot,
+  DesktopRevealReason as _DesktopRevealReason,
+} from '../../electron/desktopBehavior/types'
 
 declare global {
   type Unsubscribe = () => void
@@ -20,6 +26,10 @@ declare global {
   type DesktopFeatureSettings = _DesktopFeatureSettings
   type UpdaterSettings = _UpdaterSettings
   type ScreenshotSettings = _ScreenshotSettings
+  type DesktopBehaviorEffectiveState = _DesktopBehaviorEffectiveState
+  type DesktopBehaviorRuntimeState = _DesktopBehaviorRuntimeState
+  type DesktopBehaviorSnapshot = _DesktopBehaviorSnapshot
+  type DesktopRevealReason = _DesktopRevealReason
   interface BridgeSessionState {
     sessionId: string
     userId: string
@@ -83,17 +93,8 @@ declare global {
         openHistory: () => Promise<{ success: boolean }>
         closeHistory: () => Promise<{ success: boolean }>
         closeWelcome: () => Promise<{ success: boolean }>
-        setAlwaysOnTop: (flag: boolean) => Promise<{ success: boolean }>
-        getAlwaysOnTop: () => Promise<boolean>
-        setIgnoreMouseEvents: (ignore: boolean) => Promise<{ success: boolean }>
-        setSize: (width: number, height: number) => Promise<{ success: boolean }>
-        resetSize: () => Promise<{ success: boolean }>
-        getPassThroughMode: () => Promise<boolean>
-        getDesktopFeatureSettings: () => Promise<DesktopFeatureSettings>
-        updateDesktopFeatureSettings: (config: Partial<DesktopFeatureSettings>) => Promise<DesktopFeatureSettings>
         getScreenshotSettings: () => Promise<ScreenshotSettings>
         updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>
-        onPassThroughModeChanged: (callback: (enabled: boolean) => void) => Unsubscribe
         onMaximizedChanged: (callback: (maximized: boolean) => void) => Unsubscribe
         openExternal: (url: string) => Promise<{ success: boolean }>
         openResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
@@ -116,6 +117,15 @@ declare global {
         updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
         resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
         onWindowEvent: (callback: (event: WindowEvent) => void) => Unsubscribe
+      }
+      desktopBehavior: {
+        getPreferences: () => Promise<DesktopFeatureSettings>
+        updatePreferences: (config: Partial<DesktopFeatureSettings>) => Promise<DesktopFeatureSettings>
+        getSnapshot: () => Promise<DesktopBehaviorSnapshot>
+        setMousePassthrough: (ignoreMouseEvents: boolean) => Promise<boolean>
+        setModelReady: (ready: boolean) => Promise<DesktopBehaviorSnapshot>
+        requestReveal: (reason?: DesktopRevealReason) => Promise<DesktopBehaviorSnapshot>
+        onSnapshotChanged: (callback: (snapshot: DesktopBehaviorSnapshot) => void) => Unsubscribe
       }
       settings: {
         getPendingPage: () => Promise<string | null>
