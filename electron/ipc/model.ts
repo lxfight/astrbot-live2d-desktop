@@ -51,6 +51,54 @@ function findCubism2ModelJsonFiles(rootDir: string): string[] {
   return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function isRetryableDeleteError(error: unknown): boolean {
+  const code = typeof (error as { code?: unknown })?.code === 'string'
+    ? (error as { code: string }).code
+    : ''
+  return code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+}
+
+async function removeDirectoryWithRetry(targetDir: string): Promise<void> {
+  const maxAttempts = 6
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await fs.promises.rm(targetDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 120,
+      })
+
+      if (!fs.existsSync(targetDir)) {
+        return
+      }
+
+      const remainingEntries = await fs.promises.readdir(targetDir)
+      if (remainingEntries.length === 0) {
+        await fs.promises.rmdir(targetDir).catch(() => {})
+        return
+      }
+
+      const error = new Error(`目录仍包含未删除条目: ${remainingEntries.slice(0, 5).join(', ')}`)
+      ;(error as NodeJS.ErrnoException).code = 'ENOTEMPTY'
+      throw error
+    } catch (error) {
+      if (!isRetryableDeleteError(error) || attempt === maxAttempts) {
+        throw error
+      }
+
+      await delay(attempt * 180)
+    }
+  }
+}
+
 function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {
   const rootName = path.basename(rootDir).toLowerCase()
 
@@ -214,14 +262,24 @@ ipcMain.handle('model:getList', async () => {
  */
 ipcMain.handle('model:delete', async (_event, modelName: string) => {
   try {
-    const modelDir = path.join(getModelsDir(), modelName)
+    if (typeof modelName !== 'string' || !modelName.trim()) {
+      return { success: false, error: '模型名称不能为空' }
+    }
+
+    const normalizedName = path.basename(modelName.trim())
+    if (normalizedName !== modelName.trim()) {
+      return { success: false, error: '模型名称非法' }
+    }
+
+    const modelDir = path.join(getModelsDir(), normalizedName)
     if (fs.existsSync(modelDir)) {
-      fs.rmSync(modelDir, { recursive: true, force: true })
+      await removeDirectoryWithRetry(modelDir)
     }
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 删除模型失败:', error)
-    return { success: false, error: error.message }
+    const code = typeof error?.code === 'string' ? `[${error.code}] ` : ''
+    return { success: false, error: `${code}${error?.message || String(error)}` }
   }
 })
 
