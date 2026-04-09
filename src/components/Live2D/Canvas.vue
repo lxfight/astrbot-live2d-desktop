@@ -16,22 +16,30 @@ function stopRenderLoop() {
     renderFrameId = null
   }
 }
-
 function startRenderLoop() {
   stopRenderLoop()
 
-  const renderFrame = () => {
+  let lastTime = performance.now()
+  const TARGET_FPS = 60
+  const frameInterval = 1000 / TARGET_FPS
+
+  const renderFrame = (timestamp: number) => {
     if (!model) {
       renderFrameId = null
       return
     }
 
-    model.update()
-    model.render()
+    const elapsed = timestamp - lastTime
+    if (elapsed >= frameInterval) {
+      lastTime = timestamp - (elapsed % frameInterval)
+      model.update()
+      model.render()
+    }
+    
     renderFrameId = requestAnimationFrame(renderFrame)
   }
 
-  renderFrame()
+  renderFrameId = requestAnimationFrame(renderFrame)
 }
 
 const emit = defineEmits<{
