@@ -29,11 +29,15 @@
           <div class="mascot-container" aria-hidden="true">
             <div class="mascot-blob window-no-drag">
               <div class="mascot-eyes" :class="{ 'is-winking': isWinking }">
-                <div class="eye left" :style="eyeMovementStyle">
-                  <div class="pupil"></div>
+                <div class="eye-socket left" :style="eyeMovementStyle">
+                  <div class="eye">
+                    <div class="pupil"></div>
+                  </div>
                 </div>
-                <div class="eye right" :style="eyeMovementStyle">
-                  <div class="pupil"></div>
+                <div class="eye-socket right" :style="eyeMovementStyle">
+                  <div class="eye">
+                    <div class="pupil"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -51,11 +55,15 @@
             <div class="form-mascot-container" aria-hidden="true">
               <div class="mascot-blob mascot-blob--large">
                 <div class="mascot-eyes mascot-eyes--large" :class="{ 'is-winking': isWinking }">
-                  <div class="eye left" :style="eyeMovementStyle">
-                    <div class="pupil"></div>
+                  <div class="eye-socket left" :style="eyeMovementStyle">
+                    <div class="eye">
+                      <div class="pupil"></div>
+                    </div>
                   </div>
-                  <div class="eye right" :style="eyeMovementStyle">
-                    <div class="pupil"></div>
+                  <div class="eye-socket right" :style="eyeMovementStyle">
+                    <div class="eye">
+                      <div class="pupil"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -150,21 +158,9 @@ const autoLookAround = () => {
   lookX.value = (Math.random() - 0.5) * 2 * strength
   lookY.value = (Math.random() - 0.5) * 2 * strength
   
-  // 随机触发眨眼或Wink
-  const rand = Math.random()
-  if (rand > 0.8) triggerWink()
+  // 随机触发 wink
+  if (Math.random() > 0.8) triggerWink()
 }
-
-let lookTimer: number | null = null
-let introTimer: number | null = null
-let focusTimer: number | null = null
-
-const welcomeThemeStyle = computed(() => ({
-  '--welcome-accent': palette.value.accent,
-  '--welcome-accent-soft': palette.value.accentSoft,
-  '--welcome-accent-rgb': palette.value.accentRgb || '116, 165, 255',
-  '--welcome-chart-1': palette.value.chartPalette[1],
-}))
 
 function sparkleStyle(i: number) {
   // Use more varied constants for true pseudo-random distribution
@@ -187,11 +183,20 @@ function sparkleStyle(i: number) {
   }
 }
 
+const welcomeThemeStyle = computed(() => ({
+  '--welcome-accent': palette.value.accent,
+  '--welcome-accent-soft': palette.value.accentSoft,
+  '--welcome-accent-rgb': palette.value.accentRgb || '116, 165, 255',
+  '--welcome-chart-1': palette.value.chartPalette[1],
+}))
+
 watch(userName, () => {
   if (submitError.value) submitError.value = ''
 })
 
-let winkTimer: number | null = null
+let lookTimer: number | null = null
+let introTimer: number | null = null
+let focusTimer: number | null = null
 
 onMounted(() => {
   themeStore.syncFromStorage()
@@ -397,13 +402,17 @@ function handleClose() {
   display: flex;
   gap: 20px;
   
+  .eye-socket {
+    position: relative;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
   .eye {
     width: 18px;
     height: 24px;
     background: #111;
     border-radius: 50%;
     position: relative;
-    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
     animation: blink 4s infinite;
     
     .pupil {
@@ -419,7 +428,7 @@ function handleClose() {
   }
 
   &.is-winking {
-    .eye.right {
+    .eye-socket.right .eye {
       animation: none;
       background: transparent !important;
       width: 20px;
@@ -433,12 +442,24 @@ function handleClose() {
         left: 50%;
         width: 12px;
         height: 12px;
-        border-left: 3px solid #111;
-        border-top: 3px solid #111;
-        transform: translate(-30%, -30%) rotate(-45deg);
+        border-right: 3px solid #111;
+        border-bottom: 3px solid #111;
+        transform: translate(-30%, -30%) rotate(135deg);
       }
       
       .pupil { display: none; }
+    }
+  }
+
+  &--large {
+    gap: 28px;
+    .eye {
+      width: 22px;
+      height: 30px;
+      .pupil {
+        width: 7px;
+        height: 7px;
+      }
     }
   }
 }
