@@ -32,6 +32,12 @@ export function saveUpdaterSettings(
       : current.autoUpdateEnabled,
   }
 
-  setUserConfig(AUTO_UPDATE_KEY, String(nextSettings.autoUpdateEnabled))
+  try {
+    setUserConfig(AUTO_UPDATE_KEY, String(nextSettings.autoUpdateEnabled))
+  } catch (error) {
+    console.warn('[更新器] 保存自动更新设置失败，保留当前值:', error)
+    return current
+  }
+
   return nextSettings
 }
