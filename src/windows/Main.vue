@@ -24,10 +24,20 @@
       </div>
     </Transition>
 
-    <!-- Live2D 画布 -->
+    <!-- 模型画布 (Live2D 或 3D VRM) -->
     <Live2DCanvas
+      v-if="!isVrmModel"
       v-show="hasModel"
       ref="live2dCanvasRef"
+      @model-right-click="handleModelRightClick"
+      @model-loaded="handleModelLoaded"
+      @model-info-changed="handleModelInfoChanged"
+      @model-position-changed="handleModelPositionChanged"
+    />
+    <VRMCanvas
+      v-if="isVrmModel"
+      v-show="hasModel"
+      ref="live2dCanvasRef" 
       @model-right-click="handleModelRightClick"
       @model-loaded="handleModelLoaded"
       @model-info-changed="handleModelInfoChanged"
@@ -202,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { PerformElement, PerformSequence } from '@/types/protocol'
 import { useConnectionStore } from '@/stores/connection'
@@ -214,6 +224,7 @@ import {
   CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
+import VRMCanvas from '@/components/VRM/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
 import { PerformanceQueue } from '@/utils/PerformanceQueue'
 import {
@@ -310,6 +321,10 @@ const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 const currentUserName = ref('桌面用户')
 const hasModel = ref(false)
 const loadingModelPath = ref('')
+const isVrmModel = computed(() => {
+  const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
+  return activeModelPath.toLowerCase().endsWith('.vrm')
+})
 let themeExtractionRevision = 0
 let modelLoadInFlight = false
 let hasOpenedModelLibraryWindow = false
@@ -599,10 +614,17 @@ function applyModelPositionState(savedPosition: { x: number; y: number } | null)
 }
 
 async function loadModelWithState(modelPath: string) {
+  // 兼容历史路径：将 /models/ 转换为 model://
+  if (modelPath.startsWith('/models/')) {
+    modelPath = 'model://' + modelPath.replace(/^\/models\//, '')
+    console.log('[主窗口] 转换旧模型路径:', modelPath)
+  }
+
   const savedPosition = modelStore.getModelPosition(modelPath)
   loadingModelPath.value = modelPath
-  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
   hasModel.value = true
+  await nextTick()
+  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
   modelStore.setCurrentModel(modelPath)
   themeStore.setCurrentModel(modelPath)
   applyModelPositionState(savedPosition)

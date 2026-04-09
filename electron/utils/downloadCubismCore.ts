@@ -55,19 +55,6 @@ function getCubismCoreProtocolRuntimeUrl(): string {
   return `${CUBISM_PROTOCOL_SCHEME}://core/${getCubismCoreFilename()}`
 }
 
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: CUBISM_PROTOCOL_SCHEME,
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      corsEnabled: true,
-      stream: true,
-    },
-  },
-])
-
 let cubismProtocolRegistered = false
 
 function isPortableMode(): boolean {

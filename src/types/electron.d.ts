@@ -147,6 +147,7 @@ declare global {
       }
       model: {
         selectFolder: () => Promise<{ success: boolean; folderPath?: string; canceled?: boolean; error?: string }>
+        selectFile: () => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>
         import: (sourceDir: string, modelName: string) => Promise<{
           success: boolean;
           modelPath?: string;
@@ -165,6 +166,16 @@ declare global {
           };
           error?: string
         }>
+        importFile: (sourceFile: string, modelName: string) => Promise<{
+          success: boolean;
+          modelPath?: string;
+          chosenFile?: string;
+          modelFiles?: string[];
+          warnings?: string[];
+          manifest?: any;
+          error?: string
+        }>
+
         getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>
         delete: (modelName: string) => Promise<{ success: boolean; error?: string }>
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>

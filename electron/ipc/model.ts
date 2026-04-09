@@ -47,6 +47,10 @@ function findModelJsonFiles(rootDir: string): string[] {
   return findModelFiles(rootDir, lower => lower.endsWith('.model3.json'))
 }
 
+function findVrmFiles(rootDir: string): string[] {
+  return findModelFiles(rootDir, lower => lower.endsWith('.vrm'))
+}
+
 function findCubism2ModelJsonFiles(rootDir: string): string[] {
   return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
 }
@@ -106,7 +110,7 @@ function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {
     const rel = path.relative(rootDir, filePath)
     const depth = rel.split(path.sep).length - 1
     const base = path.basename(filePath).toLowerCase()
-    const name = base.replace(/\.model3\.json$/i, '')
+    const name = base.replace(/\.model3\.json$/i, '').replace(/\.vrm$/i, '')
 
     let s = 0
     s += 200
@@ -158,6 +162,38 @@ ipcMain.handle('model:selectFolder', async () => {
 })
 
 /**
+ * 选择模型文件
+ */
+ipcMain.handle('model:selectFile', async () => {
+  try {
+    const mainWindow = getMainWindow()
+    const dialogOptions = {
+      title: '选择 Live2D / VRM 模型文件',
+      properties: ['openFile'] as Array<'openFile'>,
+      filters: [
+        { name: 'Model Files', extensions: ['vrm', 'json'] },
+        { name: 'VRM Models', extensions: ['vrm'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    }
+
+    const result = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions)
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true }
+    }
+
+    const filePath = result.filePaths[0]
+    return { success: true, filePath }
+  } catch (error: any) {
+    console.error('[IPC] 选择模型文件失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
  * 导入模型
  */
 ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: string) => {
@@ -166,25 +202,41 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       return { success: false, error: '请选择有效的模型文件夹' }
     }
 
-    // 自动识别模型文件（仅支持 .model3.json）
-    const modelFiles = findModelJsonFiles(sourceDir)
+    // 自动识别模型文件（支持 .model3.json 和 .vrm）
+    let isVrm = false
+    let modelFiles = findModelJsonFiles(sourceDir)
+    if (modelFiles.length === 0) {
+      modelFiles = findVrmFiles(sourceDir)
+      if (modelFiles.length > 0) {
+        isVrm = true
+      }
+    }
+
     if (modelFiles.length === 0) {
       const cubism2Files = findCubism2ModelJsonFiles(sourceDir)
       if (cubism2Files.length > 0) {
-        return { success: false, error: '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 模型。' }
+        return { success: false, error: '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 或 .vrm 模型。' }
       }
-      return { success: false, error: '该文件夹内未找到 .model3.json 模型文件' }
+      return { success: false, error: '该文件夹内未找到 .model3.json 或 .vrm 模型文件' }
     }
     const chosenModelFile = pickBestModelFile(sourceDir, modelFiles)
-    const validationResult = validateCubismModelAssets(chosenModelFile)
-    const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
-    const optionalIssues = validationResult.issues.filter((issue) => issue.severity === 'optional')
+    
+    let warnings: string[] = []
+    let manifest: any = null
+    
+    if (!isVrm) {
+      const validationResult = validateCubismModelAssets(chosenModelFile)
+      const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
+      const optionalIssues = validationResult.issues.filter((issue) => issue.severity === 'optional')
 
-    if (requiredIssues.length > 0) {
-      return {
-        success: false,
-        error: `模型资源不完整：${formatCubismAssetIssues(requiredIssues).join(', ')}`
+      if (requiredIssues.length > 0) {
+        return {
+          success: false,
+          error: `模型资源不完整：${formatCubismAssetIssues(requiredIssues).join(', ')}`
+        }
       }
+      warnings = formatCubismAssetIssues(optionalIssues)
+      manifest = validationResult.manifest
     }
 
     // 创建目标目录
@@ -202,19 +254,57 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     }
 
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
-    const modelPath = app.isPackaged
-      ? pathToFileURL(path.join(targetDir, relChosen)).toString()
-      : `/models/${modelName}/${relChosen}`
+    const modelPath = `model://${modelName}/${relChosen}`
     return {
       success: true,
       modelPath,
       chosenFile: relChosen,
       modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f))),
-      warnings: formatCubismAssetIssues(optionalIssues),
-      manifest: validationResult.manifest
+      warnings,
+      manifest
     }
   } catch (error: any) {
     console.error('[IPC] 导入模型失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
+ * 导入模型单文件（如 VRM)
+ */
+ipcMain.handle('model:importFile', async (_event, sourceFile: string, modelName: string) => {
+  try {
+    if (!fs.existsSync(sourceFile) || fs.statSync(sourceFile).isDirectory()) {
+      return { success: false, error: '请选择有效的模型文件' }
+    }
+
+    const modelsDir = getModelsDir()
+    const targetDir = path.join(modelsDir, modelName)
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true })
+    }
+
+    const fileName = path.basename(sourceFile)
+    const targetPath = path.join(targetDir, fileName)
+
+    const resolvedSource = path.resolve(sourceFile).toLowerCase()
+    const resolvedTarget = path.resolve(targetPath).toLowerCase()
+    if (resolvedSource !== resolvedTarget) {
+      await fs.promises.copyFile(sourceFile, targetPath)
+    }
+
+    const modelPath = `model://${modelName}/${fileName}`
+
+    return {
+      success: true,
+      modelPath,
+      chosenFile: fileName,
+      modelFiles: [fileName],
+      warnings: [],
+      manifest: null
+    }
+  } catch (error: any) {
+    console.error('[IPC] 导入模型文件失败:', error)
     return { success: false, error: error.message }
   }
 })
@@ -235,16 +325,17 @@ ipcMain.handle('model:getList', async () => {
     for (const dir of dirs) {
       if (dir.isDirectory()) {
         const modelDir = path.join(modelsDir, dir.name)
-        const files = findModelJsonFiles(modelDir)
+        let files = findModelJsonFiles(modelDir)
+        if (files.length === 0) {
+          files = findVrmFiles(modelDir)
+        }
         const modelFile = files.length > 0 ? pickBestModelFile(modelDir, files) : null
 
         if (modelFile) {
           const rel = toPosixPath(path.relative(modelDir, modelFile))
           models.push({
             name: dir.name,
-            path: app.isPackaged
-              ? pathToFileURL(modelFile).toString()
-              : `/models/${dir.name}/${rel}`
+            path: `model://${dir.name}/${rel}`
           })
         }
       }

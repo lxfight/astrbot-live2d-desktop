@@ -1,4 +1,6 @@
-import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor, protocol } from 'electron'
+import { registerAllSchemes } from './protocol/schemes'
+registerAllSchemes()
 import { APP_METADATA } from '../src/shared/metadata'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
@@ -10,6 +12,7 @@ import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
+import { registerModelProtocol } from './protocol/modelProtocol'
 import './ipc/connection'
 import './ipc/desktopBehavior'
 import './ipc/window'
@@ -166,6 +169,7 @@ export function initBridgeClient() {
  */
 app.whenReady().then(() => {
   registerCubismCoreProtocol()
+  registerModelProtocol()
   initializeAutoUpdater()
   initialize().catch(err => {
     console.error('[主进程] 初始化失败:', err)

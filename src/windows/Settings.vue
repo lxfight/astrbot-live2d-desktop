@@ -248,9 +248,11 @@
             <section class="settings-section">
               <div class="settings-section__header">
                 <h2>模型库</h2>
-                <n-button type="primary" size="small" @click="handleImportModel">导入模型</n-button>
+                <n-dropdown :options="importOptions" @select="handleImportSelect">
+                  <n-button type="primary" size="small">导入模型</n-button>
+                </n-dropdown>
               </div>
-              <p class="settings-section__desc">管理本地 Live2D 模型文件。共 {{ modelList.length }} 个模型。</p>
+              <p class="settings-section__desc">管理本地 Live2D 与 VRM 模型文件。共 {{ modelList.length }} 个模型。</p>
 
               <div v-if="modelList.length > 0" class="model-grid">
                 <article
@@ -1050,6 +1052,11 @@ const menuGroups = [
   },
 ]
 
+const importOptions = [
+  { label: '导入 Live2D 模型文件夹', key: 'live2d' },
+  { label: '导入 VRM 模型单文件', key: 'vrm' }
+]
+
 // 状态
 const activeGroup = ref('connection')
 const activeChild = ref('bridge')
@@ -1635,8 +1642,15 @@ async function handleDisconnect() {
     message.error(`断开失败: ${result.error}`)
   }
 }
+function handleImportSelect(key: string) {
+  if (key === 'live2d') {
+    void handleImportLive2d()
+  } else if (key === 'vrm') {
+    void handleImportVrm()
+  }
+}
 
-async function handleImportModel() {
+async function handleImportLive2d() {
   const result = await window.electron.model.selectFolder()
   if (result.canceled) return
   if (!result.success) {
@@ -1657,6 +1671,29 @@ async function handleImportModel() {
   }
 
   message.success('模型导入成功')
+  await loadModelList()
+}
+
+async function handleImportVrm() {
+  const result = await window.electron.model.selectFile()
+  if (result.canceled) return
+  if (!result.success) {
+    message.error(`选择文件失败: ${result.error}`)
+    return
+  }
+
+  const filePath = result.filePath!
+  const fileName = filePath.split(/[/\\]/).pop() || 'model.vrm'
+  const folderName = fileName.replace(/\.[^/.]+$/, '')
+  
+  const importResult = await window.electron.model.importFile(filePath, folderName)
+
+  if (!importResult.success) {
+    message.error(`导入模型失败: ${importResult.error}`)
+    return
+  }
+
+  message.success('VRM 模型导入成功')
   await loadModelList()
 }
 
