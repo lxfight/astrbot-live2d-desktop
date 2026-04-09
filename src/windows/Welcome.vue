@@ -1,30 +1,41 @@
 <template>
   <div class="welcome-screen window-drag-region" :style="welcomeThemeStyle">
-    <!-- Soft dynamic background -->
+    <!-- Starry background with more stars -->
     <div class="welcome-screen__backdrop" aria-hidden="true">
-      <div class="orb orb-1"></div>
-      <div class="orb orb-2"></div>
-      <div class="orb orb-3"></div>
       <div class="stars-container">
-        <Sparkles v-for="i in 8" :key="i" class="sparkle" :style="sparkleStyle(i)" />
+        <Sparkles v-for="i in 36" :key="i" class="sparkle" :style="sparkleStyle(i)" />
       </div>
     </div>
 
-    <button
-      class="welcome-close window-no-drag"
-      type="button"
-      aria-label="关闭"
-      @click="handleClose"
-    >
-      <X :size="15" />
-    </button>
+    <!-- The "Slime" Background Blob -->
+    <div class="background-blob-container" aria-hidden="true">
+      <div class="background-blob"></div>
+    </div>
+
+    <transition name="fade">
+      <button
+        class="welcome-close window-no-drag"
+        type="button"
+        aria-label="关闭"
+        @click="handleClose"
+      >
+        <X :size="15" />
+      </button>
+    </transition>
 
     <main class="welcome-stage">
       <transition name="welcome-scene" mode="out-in">
         <section v-if="stage === 'intro'" key="intro" class="welcome-scene welcome-scene--intro">
           <div class="mascot-container" aria-hidden="true">
             <div class="mascot-blob window-no-drag">
-              <span class="mascot-face">(´• ω •`)ﾉ</span>
+              <div class="mascot-eyes" :class="{ 'is-winking': isWinking }">
+                <div class="eye left" :style="eyeMovementStyle">
+                  <div class="pupil"></div>
+                </div>
+                <div class="eye right" :style="eyeMovementStyle">
+                  <div class="pupil"></div>
+                </div>
+              </div>
             </div>
             <div class="mascot-shadow"></div>
           </div>
@@ -36,19 +47,27 @@
         </section>
 
         <section v-else key="form" class="welcome-scene welcome-scene--form">
-          <div class="welcome-form-card window-no-drag">
+          <div class="organic-content window-no-drag">
             <div class="form-mascot-container" aria-hidden="true">
-              <div class="mascot-blob mascot-blob--small">
-                <span class="mascot-face">{{ faceExpression }}</span>
+              <div class="mascot-blob mascot-blob--large">
+                <div class="mascot-eyes mascot-eyes--large" :class="{ 'is-winking': isWinking }">
+                  <div class="eye left" :style="eyeMovementStyle">
+                    <div class="pupil"></div>
+                  </div>
+                  <div class="eye right" :style="eyeMovementStyle">
+                    <div class="pupil"></div>
+                  </div>
+                </div>
               </div>
+              <div class="mascot-shadow"></div>
             </div>
 
-            <div class="welcome-form-card__header">
+            <div class="welcome-form-header">
               <h2>该怎么称呼你呢？</h2>
-              <p>告诉我你的名字，让我们建立起更深的联系吧 ✦</p>
+              <p>告诉我你的昵称，开启旅程 ✦</p>
             </div>
 
-            <label class="welcome-field" for="welcome-name-input">
+            <div class="welcome-input-area">
               <div class="input-wrapper">
                 <input
                   id="welcome-name-input"
@@ -56,14 +75,15 @@
                   v-model="userName"
                   type="text"
                   class="welcome-input"
-                  placeholder="请输入你喜欢的昵称..."
+                  placeholder="在此输入昵称..."
                   maxlength="20"
                   autocomplete="nickname"
                   @keyup.enter="handleSubmit"
                 />
-                <Heart v-if="userName.trim().length > 0" class="input-icon-active" :size="18" />
+                <div class="input-underline"></div>
+                <Heart v-if="userName.trim().length > 0" class="input-icon-active" :size="22" />
               </div>
-            </label>
+            </div>
 
             <button
               class="welcome-submit"
@@ -105,33 +125,57 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
+// 眼睛自动张望逻辑
+const lookX = ref(0)
+const lookY = ref(0)
+const isWinking = ref(false)
+
+const eyeMovementStyle = computed(() => {
+  return {
+    transform: `translate(${lookX.value}px, ${lookY.value}px)`
+  }
+})
+
+const triggerWink = () => {
+  if (isWinking.value) return
+  isWinking.value = true
+  setTimeout(() => {
+    isWinking.value = false
+  }, 1200) // 增加时长让用户看清
+}
+
+const autoLookAround = () => {
+  // 随机张望位置
+  const strength = 12
+  lookX.value = (Math.random() - 0.5) * 2 * strength
+  lookY.value = (Math.random() - 0.5) * 2 * strength
+  
+  // 随机触发眨眼或Wink
+  const rand = Math.random()
+  if (rand > 0.8) triggerWink()
+}
+
+let lookTimer: number | null = null
 let introTimer: number | null = null
 let focusTimer: number | null = null
 
 const welcomeThemeStyle = computed(() => ({
   '--welcome-accent': palette.value.accent,
   '--welcome-accent-soft': palette.value.accentSoft,
-  '--welcome-shadow': palette.value.shadowColor,
+  '--welcome-accent-rgb': palette.value.accentRgb || '116, 165, 255',
   '--welcome-chart-1': palette.value.chartPalette[1],
-  '--welcome-chart-2': palette.value.chartPalette[2],
-  '--welcome-chart-3': palette.value.chartPalette[3],
 }))
 
-const faceExpression = computed(() => {
-  if (isSubmitting.value) return '(๑•̀ㅂ•́)و✧'
-  const len = userName.value.trim().length
-  if (len > 4) return '(*≧ω≦)'
-  if (len > 0) return '(｡♥‿♥｡)'
-  return '(*・ω・)ﾏｽｩ'
-})
-
 function sparkleStyle(i: number) {
-  const seed = i * 137.508
-  const left = (seed * 7.3) % 100
-  const top = (seed * 11.7) % 100
-  const size = 10 + (seed % 14)
-  const delay = (seed % 5).toFixed(1)
-  const duration = 3 + (seed % 5)
+  // Use more varied constants for true pseudo-random distribution
+  const x = Math.sin(i * 12.9898 + 4.123) * 43758.5453
+  const y = Math.cos(i * 78.233 + 7.891) * 43758.5453
+  const left = (x - Math.floor(x)) * 100
+  const top = (y - Math.floor(y)) * 100
+  
+  const size = 3 + (i % 12)
+  const delay = (i * 0.44) % 6
+  const duration = 4 + (i % 6)
   return {
     left: `${left}%`,
     top: `${top}%`,
@@ -139,6 +183,7 @@ function sparkleStyle(i: number) {
     height: `${size}px`,
     animationDelay: `${delay}s`,
     animationDuration: `${duration}s`,
+    opacity: 0.1 + (i % 10) / 15
   }
 }
 
@@ -146,20 +191,26 @@ watch(userName, () => {
   if (submitError.value) submitError.value = ''
 })
 
+let winkTimer: number | null = null
+
 onMounted(() => {
   themeStore.syncFromStorage()
   themeStore.startStorageSync()
+  
+  // 定时自动张望
+  lookTimer = window.setInterval(autoLookAround, 2500)
 
   introTimer = window.setTimeout(() => {
     stage.value = 'form'
     focusTimer = window.setTimeout(() => {
       nextTick(() => nameInput.value?.focus())
-    }, 500)
+    }, 600)
   }, 2800)
 })
 
 onBeforeUnmount(() => {
   themeStore.stopStorageSync()
+  if (lookTimer !== null) clearInterval(lookTimer)
   if (introTimer !== null) clearTimeout(introTimer)
   if (focusTimer !== null) clearTimeout(focusTimer)
 })
@@ -172,7 +223,6 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    // 增加一点动画延时让用户看到可爱的提交表情
     await new Promise((resolve) => setTimeout(resolve, 800))
     await window.electron.user.setUserName(name)
   } catch (error) {
@@ -195,46 +245,17 @@ function handleClose() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: transparent;
+  background: transparent !important;
   color: #fff;
   font-family: var(--font-fallback, system-ui, sans-serif);
 }
 
+/* Starry background */
 .welcome-screen__backdrop {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  background: 
-    radial-gradient(circle at 15% 30%, rgba(var(--color-accent-rgb, 116, 165, 255), 0.12), transparent 45%),
-    radial-gradient(circle at 85% 20%, rgba(255, 182, 193, 0.12), transparent 40%),
-    radial-gradient(circle at 50% 80%, rgba(147, 112, 219, 0.12), transparent 50%);
-}
-
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(70px);
-  opacity: 0.6;
-  animation: float 12s ease-in-out infinite alternate;
-}
-
-.orb-1 {
-  top: -10%; left: -10%; width: 55vw; height: 55vw;
-  background: rgba(var(--color-accent-rgb, 116, 165, 255), 0.2);
-  animation-delay: -2s;
-}
-
-.orb-2 {
-  bottom: -20%; right: -10%; width: 65vw; height: 65vw;
-  background: rgba(255, 192, 203, 0.18); /* soft pink */
-  animation-delay: -5s;
-}
-
-.orb-3 {
-  top: 40%; left: 60%; width: 45vw; height: 45vw;
-  background: rgba(147, 112, 219, 0.15); /* soft purple */
-  animation-delay: -7s;
 }
 
 .stars-container {
@@ -245,27 +266,54 @@ function handleClose() {
 .sparkle {
   position: absolute;
   color: #fff;
-  opacity: 0;
   animation: twinkle linear infinite;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
 }
 
 @keyframes twinkle {
   0% { transform: scale(0) rotate(0deg); opacity: 0; }
-  50% { transform: scale(1) rotate(180deg); opacity: 0.7; }
-  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+  50% { transform: scale(1) rotate(90deg); opacity: 0.8; }
+  100% { transform: scale(0) rotate(180deg); opacity: 0; }
 }
 
-@keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, 30px) scale(1.05); }
-  100% { transform: translate(-30px, 50px) scale(0.95); }
+/* Slime Background Blob - Replaces the circular glow */
+.background-blob-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 0;
+  /* Apply mask to ensure outer edges are soft */
+  mask-image: radial-gradient(circle, black 50%, transparent 95%);
+  -webkit-mask-image: radial-gradient(circle, black 50%, transparent 95%);
+}
+
+.background-blob {
+  width: 580px;
+  height: 520px;
+  background: rgba(var(--welcome-accent-rgb), 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  backdrop-filter: blur(40px);
+  box-shadow: 
+    0 0 80px rgba(var(--welcome-accent-rgb), 0.1),
+    inset 0 0 40px rgba(255, 255, 255, 0.05);
+  animation: blob-float-bg 20s infinite alternate linear;
+}
+
+@keyframes blob-float-bg {
+  0% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(0deg) scale(1); }
+  33% { border-radius: 60% 40% 30% 70% / 50% 40% 50% 60%; transform: rotate(5deg) scale(1.05); }
+  66% { border-radius: 30% 70% 60% 40% / 60% 50% 40% 50%; transform: rotate(-5deg) scale(0.95); }
+  100% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(0deg) scale(1); }
 }
 
 .welcome-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 15%;
+  right: 15%;
   z-index: 10;
   display: inline-flex;
   align-items: center;
@@ -273,17 +321,15 @@ function handleClose() {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.4s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     color: #fff;
-    transform: rotate(90deg) scale(1.1);
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
   }
 }
 
@@ -294,7 +340,6 @@ function handleClose() {
   justify-content: center;
   position: relative;
   z-index: 1;
-  padding: 24px;
 }
 
 .welcome-scene {
@@ -307,353 +352,263 @@ function handleClose() {
 
 .welcome-scene--intro {
   gap: 36px;
+  animation: fade-in-scale 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Mascot Display */
+.organic-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 440px;
+  padding: 0;
+  background: transparent !important;
+}
+
 .mascot-container {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  cursor: pointer;
-  
-  &:hover .mascot-blob {
-    animation: blob-bounce-hover 1s ease-in-out infinite alternate, blob-morph 3s linear infinite;
-    transform: scale(1.05);
-    box-shadow: 
-      0 12px 42px rgba(255, 182, 193, 0.3),
-      inset 0 4px 18px rgba(255, 255, 255, 0.6);
-  }
+  margin-bottom: 24px;
 }
 
 .mascot-blob {
   width: 120px;
   height: 110px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 
-    0 8px 32px rgba(255, 182, 193, 0.2),
-    inset 0 4px 18px rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.1));
+  border: 2px solid rgba(255, 255, 255, 0.4);
   border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(14px);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: blob-bounce 3s ease-in-out infinite alternate, blob-morph 6s linear infinite;
-
-  &--small {
-    width: 90px;
-    height: 80px;
-    animation: blob-bounce-small 2.5s ease-in-out infinite alternate, blob-morph 5s linear infinite;
-  }
-}
-
-.mascot-face {
-  font-size: 26px;
-  font-weight: bold;
-  color: #fff;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  white-space: nowrap;
-  letter-spacing: 1px;
-
-  .mascot-blob--small & {
-    font-size: 19px;
-  }
-}
-
-.mascot-shadow {
-  width: 64px;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 50%;
-  filter: blur(5px);
-  animation: shadow-pulse 3s ease-in-out infinite alternate;
-}
-
-@keyframes blob-bounce {
-  0% { transform: translateY(-6px); }
-  100% { transform: translateY(12px); }
-}
-
-@keyframes blob-bounce-small {
-  0% { transform: translateY(-4px); }
-  100% { transform: translateY(8px); }
-}
-
-@keyframes blob-bounce-hover {
-  0% { transform: translateY(-10px) scale(1.05); }
-  100% { transform: translateY(5px) scale(1.05); }
-}
-
-@keyframes blob-morph {
-  0%, 100% { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
-  33% { border-radius: 55% 45% 60% 40% / 45% 55% 40% 60%; }
-  66% { border-radius: 40% 60% 55% 45% / 60% 40% 45% 55%; }
-}
-
-@keyframes shadow-pulse {
-  0% { transform: scale(1); opacity: 0.25; }
-  100% { transform: scale(0.7); opacity: 0.1; }
-}
-
-.greeting-box {
-  animation: fade-up 1s ease-out;
-}
-
-.welcome-greeting {
-  font-size: clamp(26px, 4.5vw, 34px);
-  font-weight: 700;
-  margin-bottom: 14px;
-  background: linear-gradient(135deg, #ffffff, #ffe0f5);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 4px 16px rgba(255, 182, 193, 0.3);
-  letter-spacing: 0.5px;
-}
-
-.welcome-subtitle {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 16px;
-  letter-spacing: 0.5px;
-}
-
-/* Form Scene */
-.welcome-scene--form {
-  max-width: 460px;
-  perspective: 1000px;
-}
-
-.welcome-form-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 36px;
-  padding: 44px 36px 36px;
-  box-shadow: 
-    0 24px 54px rgba(0, 0, 0, 0.25),
-    inset 0 1px 2px rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  animation: blob-bounce 3.5s ease-in-out infinite alternate, blob-morph 7s linear infinite;
+  box-shadow: 0 10px 40px rgba(var(--welcome-accent-rgb), 0.2);
   position: relative;
   overflow: hidden;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 120px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
-    pointer-events: none;
+  &--large {
+    width: 150px;
+    height: 135px;
   }
 }
 
-.form-mascot-container {
-  margin-bottom: 28px;
-  cursor: default;
-}
-
-.welcome-form-card__header {
-  text-align: center;
-  margin-bottom: 36px;
-
-  h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 10px;
-    color: #fff;
-    letter-spacing: 0.5px;
-  }
-
-  p {
-    color: rgba(255, 255, 255, 0.65);
-    font-size: 14.5px;
-  }
-}
-
-.welcome-field {
-  width: 100%;
-  margin-bottom: 28px;
-}
-
-.input-wrapper {
-  position: relative;
-  width: 100%;
+.mascot-eyes {
   display: flex;
-  align-items: center;
+  gap: 20px;
+  
+  .eye {
+    width: 18px;
+    height: 24px;
+    background: #111;
+    border-radius: 50%;
+    position: relative;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: blink 4s infinite;
+    
+    .pupil {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 5px;
+      height: 5px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0.8;
+    }
+  }
+
+  &.is-winking {
+    .eye.right {
+      animation: none;
+      background: transparent !important;
+      width: 20px;
+      height: 20px;
+      border-radius: 0;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 12px;
+        height: 12px;
+        border-left: 3px solid #111;
+        border-top: 3px solid #111;
+        transform: translate(-30%, -30%) rotate(-45deg);
+      }
+      
+      .pupil { display: none; }
+    }
+  }
+}
+
+@keyframes blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+.mascot-shadow {
+  width: 70px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  filter: blur(5px);
+  margin-top: 12px;
+  animation: shadow-pulse 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes blob-bounce {
+  0% { transform: translateY(-4px); }
+  100% { transform: translateY(14px); }
+}
+
+@keyframes shadow-pulse {
+  0% { transform: scale(1); opacity: 0.2; }
+  100% { transform: scale(0.6); opacity: 0.05; }
+}
+
+.welcome-greeting {
+  font-size: clamp(28px, 6vw, 36px);
+  font-weight: 800;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #ffffff, #ffe3f0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5));
+}
+
+.welcome-subtitle {
+  color: rgba(255, 255, 255, 1);
+  font-size: 17px;
+  font-weight: 500;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+/* Form Styling */
+.welcome-form-header {
+  margin-bottom: 36px;
+  h2 { 
+    font-size: 28px; 
+    font-weight: 800; 
+    margin-bottom: 12px; 
+    color: #fff;
+    text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
+  }
+  p { 
+    color: rgba(255, 255, 255, 0.95); 
+    font-size: 15px; 
+    font-weight: 500;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  }
+}
+
+.welcome-input-area {
+  width: 320px;
+  margin-bottom: 44px;
 }
 
 .welcome-input {
   width: 100%;
-  height: 60px;
-  padding: 0 54px 0 24px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 2px solid rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  padding: 14px 20px;
   color: #fff;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 22px;
+  text-align: center;
+  font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.35);
-    font-weight: 400;
+    color: rgba(255, 255, 255, 0.25);
   }
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.25);
-    border-color: rgba(255, 255, 255, 0.1);
+  &:focus { 
+    outline: none; 
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(var(--welcome-accent-rgb), 0.6);
+    box-shadow: 0 0 15px rgba(var(--welcome-accent-rgb), 0.2), inset 0 2px 10px rgba(0, 0, 0, 0.3);
   }
+}
 
-  &:focus {
-    outline: none;
-    background: rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 182, 193, 0.6);
-    box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.2), inset 0 2px 4px rgba(0,0,0,0.1);
-    transform: translateY(-1px);
-  }
+.input-underline {
+  display: none; /* Replaced by full border input */
 }
 
 .input-icon-active {
   position: absolute;
-  right: 22px;
+  top: -28px;
+  right: 15px;
   color: #ffb6c1;
-  filter: drop-shadow(0 0 6px rgba(255, 182, 193, 0.6));
-  animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-@keyframes pop-in {
-  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
-  60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  filter: drop-shadow(0 0 8px rgba(255, 182, 193, 1));
+  animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .welcome-submit {
   width: 100%;
   height: 56px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 182, 193, 0.95), rgba(216, 191, 216, 0.95));
-  color: #4a2845;
+  border-radius: 28px;
+  /* 换用更柔和和谐的渐变色，去除边框 */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 245, 255, 0.8));
+  border: none;
+  color: #4a5b7d;
   font-size: 16px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 10px 24px rgba(255, 182, 193, 0.3);
-  overflow: hidden;
-  position: relative;
-  margin-bottom: 20px;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%; width: 50%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-    transition: none;
-  }
+  font-weight: 800;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  backdrop-filter: blur(4px);
 
   &:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 32px rgba(255, 182, 193, 0.45);
-    color: #2d182b;
-    
-    &::after {
-      animation: shine 1.2s ease;
-    }
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 15px 35px rgba(255, 255, 255, 0.2);
+    background: #fff;
+    color: var(--welcome-accent, #74a5ff);
   }
 
   &:active:not(:disabled) {
-    transform: translateY(1px);
-    box-shadow: 0 6px 16px rgba(255, 182, 193, 0.3);
+    transform: translateY(-2px);
   }
 
-  &:disabled {
+  &:disabled { 
+    opacity: 0.2; 
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.3);
     box-shadow: none;
-    cursor: not-allowed;
-  }
-
-  &.is-loading {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-    animation: pulse 1.5s infinite;
+    cursor: not-allowed; 
   }
 }
 
-@keyframes shine {
-  0% { left: -100%; }
-  100% { left: 200%; }
+.welcome-error { 
+  color: #ff9999; 
+  font-size: 14px; 
+  font-weight: 600;
+  margin-bottom: 20px; 
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.welcome-hint { 
+  color: rgba(255, 255, 255, 0.5); 
+  font-size: 13px; 
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 1);
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
+/* Transitions */
+.welcome-scene-enter-active { transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.welcome-scene-leave-active { transition: all 0.5s ease-in; }
+.welcome-scene-enter-from { opacity: 0; transform: scale(0.9) translateY(40px); filter: blur(20px); }
+.welcome-scene-leave-to { opacity: 0; transform: scale(1.1) translateY(-40px); filter: blur(20px); }
 
-.welcome-error {
-  color: #ffb3b3;
-  font-size: 13.5px;
-  text-align: center;
-  margin-bottom: 16px;
-  background: rgba(255, 153, 153, 0.12);
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 153, 153, 0.25);
-  font-weight: 500;
+@keyframes fade-in-scale { 
+  from { opacity: 0; transform: scale(0.8) translateY(50px); filter: blur(20px); } 
+  to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); } 
 }
-
-.welcome-hint {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 13px;
-  letter-spacing: 0.5px;
-}
-
-/* Animations */
-.welcome-scene-enter-active {
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.welcome-scene-leave-active {
-  transition: all 0.5s ease-in;
-}
-
-.welcome-scene-enter-from {
-  opacity: 0;
-  transform: translateY(30px) scale(0.95);
-  filter: blur(12px);
-}
-.welcome-scene-leave-to {
-  opacity: 0;
-  transform: translateY(-20px) scale(0.95);
-  filter: blur(6px);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 640px) {
-  .welcome-stage {
-    padding: 16px;
-  }
-
-  .welcome-form-card {
-    padding: 32px 24px 24px;
-    border-radius: 28px;
-  }
+@keyframes blob-morph {
+  0%, 100% { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
+  33% { border-radius: 55% 45% 60% 40% / 45% 55% 40% 60%; }
+  66% { border-radius: 40% 60% 55% 45% / 60% 40% 45% 55%; }
 }
 </style>
