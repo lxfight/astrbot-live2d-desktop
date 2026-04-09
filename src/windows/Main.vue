@@ -1327,15 +1327,18 @@ onBeforeUnmount(() => {
 .bubble {
   --bubble-max-height: min(18vh, calc(100vh - 32px));
   position: absolute;
-  background: rgba(26, 26, 26, 0.95);
+  background: rgba(20, 20, 24, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   color: var(--color-text-primary);
   padding: 12px 16px;
-  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl);
   font-size: 14px;
   width: max-content;
   max-width: min(560px, calc(100vw - 32px));
   max-height: var(--bubble-max-height);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   z-index: 100;
   overflow: hidden;
   display: flex;
@@ -1343,21 +1346,19 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   pointer-events: auto;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
-  transition: top 0.3s ease-out, opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
+  transition: top 0.3s var(--ease-bounce), opacity 0.3s, transform 0.3s, max-height 0.3s ease-out;
 }
 
 .bubble-tier-1 {
   --bubble-max-height: min(26vh, calc(100vh - 32px));
   opacity: 0.72;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.95);
-  filter: blur(0.3px);
 }
 
 .bubble-tier-2 {
   --bubble-max-height: min(20vh, calc(100vh - 32px));
   opacity: 0.48;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px))) scale(0.88);
-  filter: blur(0.6px);
 }
 
 .bubble-content {
@@ -1566,17 +1567,20 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  background: #141414;
+  background: rgba(20, 20, 24, 0.65);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 25px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+  border-radius: var(--radius-full);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all var(--duration-norm) var(--ease-out);
 }
 
 .glass-input-bar:focus-within {
-  background: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(26, 26, 30, 0.85);
+  border-color: rgba(var(--color-accent-rgb), 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(var(--color-accent-rgb), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .transparent-input {
@@ -1709,10 +1713,12 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     padding: 10px 18px;
-    background: rgba(248, 113, 113, 0.90);
-    border: 1px solid rgba(248, 113, 113, 0.3);
-    border-radius: var(--radius);
-    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.3);
+    background: rgba(248, 113, 113, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-full);
+    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.25);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
@@ -1797,26 +1803,28 @@ onBeforeUnmount(() => {
   position: absolute;
   padding: 8px 18px;
   border-radius: var(--radius-full);
-  background: var(--surface-bg);
+  background: rgba(20, 20, 24, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
-  border: 1px solid var(--surface-border);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   gap: 8px;
   z-index: 1000;
   pointer-events: none;
   transform: translateX(-50%);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.2px;
   white-space: nowrap;
 
-  &.success { background: rgba(52, 211, 153, 0.85); border-color: rgba(52, 211, 153, 0.3); }
-  &.error   { background: rgba(248, 113, 113, 0.85); border-color: rgba(248, 113, 113, 0.3); }
-  &.warning { background: rgba(251, 191, 36, 0.85); border-color: rgba(251, 191, 36, 0.3); }
-  &.loading { background: rgba(96, 165, 250, 0.85); border-color: rgba(96, 165, 250, 0.3); }
-  &.info    { background: var(--surface-bg); color: var(--color-text-primary); }
+  &.success { background: rgba(52, 211, 153, 0.75); }
+  &.error   { background: rgba(248, 113, 113, 0.75); }
+  &.warning { background: rgba(251, 191, 36, 0.75); }
+  &.loading { background: rgba(96, 165, 250, 0.75); }
+  &.info    { background: rgba(20, 20, 24, 0.7); color: var(--color-text-primary); }
 
   .status-icon {
     display: flex;

@@ -189,28 +189,41 @@ textarea {
 .surface {
   background: var(--surface-bg);
   border: 1px solid var(--surface-border);
-  border-radius: var(--radius);
-  transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: all var(--duration-norm) var(--ease-bounce);
 
   &:hover {
     background: var(--surface-bg-hover);
     border-color: var(--surface-border-hover);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
   }
 }
 
 .panel-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 24%), var(--surface-bg);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), transparent 30%), rgba(25, 33, 49, 0.65);
   border: 1px solid var(--surface-border);
-  border-radius: 22px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all var(--duration-norm) var(--ease-out);
+  
+  &:hover {
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
 }
 
 .desktop-surface {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--desktop-panel-bg);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 25%), rgba(34, 26, 23, 0.65);
   border: 1px solid var(--desktop-panel-border);
   border-radius: var(--desktop-radius-panel);
-  box-shadow: var(--desktop-shadow);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .desktop-muted-surface {
@@ -369,19 +382,25 @@ textarea {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--color-text-secondary);
-  transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all var(--duration-norm) var(--ease-bounce);
 }
 
 .ghost-button:hover {
-  background: rgba(var(--color-accent-rgb), 0.12);
-  border-color: var(--color-border-active);
+  background: rgba(var(--color-accent-rgb), 0.15);
+  border-color: rgba(var(--color-accent-rgb), 0.4);
   color: var(--color-text-primary);
+  box-shadow: 0 4px 15px rgba(var(--color-accent-rgb), 0.25);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.ghost-button:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
