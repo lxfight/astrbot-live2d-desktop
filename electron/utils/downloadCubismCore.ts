@@ -168,10 +168,12 @@ export function checkCubismCoreExists(): boolean {
   return resolveExistingCubismCorePath() !== null
 }
 
+const MAX_REDIRECTS = 5
+
 /**
  * 下载文件
  */
-function downloadFile(url: string, dest: string): Promise<void> {
+function downloadFile(url: string, dest: string, maxRedirects: number = MAX_REDIRECTS): Promise<void> {
   return new Promise((resolve, reject) => {
     const protocolClient = url.startsWith('https') ? https : http
 
@@ -190,8 +192,11 @@ function downloadFile(url: string, dest: string): Promise<void> {
         if (fs.existsSync(dest)) {
           fs.unlinkSync(dest)
         }
+        if (maxRedirects <= 0) {
+          return reject(new Error('重定向次数超过上限'))
+        }
         const redirectUrl = new URL(response.headers.location || '', url).toString()
-        return downloadFile(redirectUrl, dest)
+        return downloadFile(redirectUrl, dest, maxRedirects - 1)
           .then(resolve)
           .catch(reject)
       }

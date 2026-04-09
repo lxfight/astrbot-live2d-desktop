@@ -4,13 +4,42 @@ import path from 'path'
 import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
 import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
-import { setAlwaysOnTop, setIgnoreMouseEvents, setWindowSize, resetWindowSize } from '../windows/mainWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
-import { getDesktopFeatureSettings, updateDesktopFeatureSettings } from '../utils/tray'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:'])
+const TEMP_RESOURCE_DIR = path.join(app.getPath('temp'), 'astrbot-live2d-history')
+
+/**
+ * 清理临时资源目录（删除超过 1 小时的文件）
+ */
+async function cleanupTempResources(): Promise<void> {
+  try {
+    await fs.mkdir(TEMP_RESOURCE_DIR, { recursive: true })
+    const entries = await fs.readdir(TEMP_RESOURCE_DIR)
+    const maxAge = Date.now() - 3600_000
+
+    for (const name of entries) {
+      const filePath = path.join(TEMP_RESOURCE_DIR, name)
+      try {
+        const stat = await fs.stat(filePath)
+        if (stat.isFile() && stat.mtimeMs < maxAge) {
+          await fs.unlink(filePath)
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+/**
+ * 清理全部临时资源（应用退出时调用）
+ */
+export async function cleanupAllTempResources(): Promise<void> {
+  try {
+    await fs.rm(TEMP_RESOURCE_DIR, { recursive: true, force: true })
+  } catch {}
+}
 
 function toSafeExternalUrl(rawUrl: unknown): string | null {
   if (typeof rawUrl !== 'string') {
@@ -163,79 +192,12 @@ ipcMain.handle('window:closeWelcome', async () => {
   return { success: true }
 })
 
-/**
- * 设置窗口置顶
- */
-ipcMain.handle('window:setAlwaysOnTop', async (_event, flag: boolean) => {
-  updateDesktopFeatureSettings({ alwaysOnTop: flag })
-  return { success: true }
-})
-
-/**
- * 获取窗口置顶状态
- */
-ipcMain.handle('window:getAlwaysOnTop', async () => {
-  return getDesktopFeatureSettings().alwaysOnTop
-})
-
-/**
- * 刷新窗口置顶状态（用于点击模型时确保置顶）
- * 只有当配置为“始终置顶”时才执行操作
- */
-ipcMain.handle('window:refreshAlwaysOnTop', async () => {
-  const { alwaysOnTop } = getDesktopFeatureSettings()
-  
-  if (alwaysOnTop) {
-    setAlwaysOnTop(true)
-  }
-  return { success: true }
-})
-
-/**
- * 设置鼠标穿透
- */
-ipcMain.handle('window:setIgnoreMouseEvents', async (_event, ignore: boolean) => {
-  setIgnoreMouseEvents(ignore)
-  return { success: true }
-})
-
-/**
- * 获取当前穿透模式状态
- */
-ipcMain.handle('window:getPassThroughMode', async () => {
-  return getDesktopFeatureSettings().fullPassThrough
-})
-
-ipcMain.handle('window:getDesktopFeatureSettings', async () => {
-  return getDesktopFeatureSettings()
-})
-
-ipcMain.handle('window:updateDesktopFeatureSettings', async (_event, config) => {
-  return updateDesktopFeatureSettings(config)
-})
-
 ipcMain.handle('window:getScreenshotSettings', async () => {
   return loadScreenshotSettings()
 })
 
 ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
   return saveScreenshotSettings(settings)
-})
-
-/**
- * 设置窗口大小
- */
-ipcMain.handle('window:setSize', async (_event, width: number, height: number) => {
-  setWindowSize(width, height)
-  return { success: true }
-})
-
-/**
- * 重置窗口大小（全屏）
- */
-ipcMain.handle('window:resetSize', async () => {
-  resetWindowSize()
-  return { success: true }
 })
 
 /**
@@ -259,8 +221,8 @@ ipcMain.handle('window:openResource', async (_event, source: string, suggestedNa
 
   try {
     const fileName = sanitizeSuggestedFileName(suggestedName, 'resource.bin')
-    const tempDir = path.join(app.getPath('temp'), 'astrbot-live2d-history')
-    const tempFilePath = path.join(tempDir, `${Date.now()}-${fileName}`)
+    await cleanupTempResources()
+    const tempFilePath = path.join(TEMP_RESOURCE_DIR, `${Date.now()}-${fileName}`)
 
     await writeResourceToPath(safeSource, tempFilePath)
     const openError = await shell.openPath(tempFilePath)
@@ -318,7 +280,8 @@ ipcMain.handle('window:getPlatformCapabilities', async () => {
  */
 import { getWindowWatcher } from '../utils/windowWatcher'
 import type { WindowEvent } from '../utils/windowWatcher'
-import { syncAppLaunchWatcherWithConfig } from './desktop'
+import { bridgeClient } from '../main'
+import { getUserName } from '../database/schema'
 
 // 存储已注册的渲染进程
 const registeredRenderers = new Set<BrowserWindow>()
@@ -327,24 +290,42 @@ const registeredRenderers = new Set<BrowserWindow>()
 let globalListenerRegistered = false
 let removeGlobalListener: (() => void) | null = null
 
+// 应用启动检测监听器（只注册一次）
+let appLaunchListenerRegistered = false
+let removeAppLaunchListener: (() => void) | null = null
+
+function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): string {
+  return [
+    '[SYSTEM_EVENT:DESKTOP_APP_LAUNCH]',
+    'This signal is automatically generated by the desktop client and is NOT a user-authored message.',
+    `user_nickname: ${JSON.stringify(userName)}`,
+    `detected_app: ${JSON.stringify(appName)}`,
+    `event_time_utc: ${new Date().toISOString()}`,
+    'guidance:',
+    '- Treat this as contextual telemetry, not explicit user intent.',
+    '- Do not claim screen details unless capture_screenshot is called.',
+    '- Optional next actions: ignore, brief proactive comment, or capture_screenshot then respond.',
+  ].join('\n')
+}
+
 // 窗口事件监听器注册
 ipcMain.handle('window:startWatching', async (event) => {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (!window) {
     return { success: false, error: '无法获取窗口实例' }
   }
-  
+
   // 添加到已注册列表
   registeredRenderers.add(window)
-  
+
   // 获取窗口监听器实例
   const watcher = getWindowWatcher()
-  
+
   // 如果监听器未启动，启动它
   if (!watcher.isActive()) {
     await watcher.start()
   }
-  
+
   // 只注册一次全局事件监听器
   if (!globalListenerRegistered) {
     globalListenerRegistered = true
@@ -357,11 +338,36 @@ ipcMain.handle('window:startWatching', async (event) => {
       }
     })
   }
-  
+
+  // 启动应用启动检测并注册回调（只注册一次）
+  if (!appLaunchListenerRegistered) {
+    appLaunchListenerRegistered = true
+    removeAppLaunchListener = watcher.onAppLaunch((appName: string) => {
+      if (!bridgeClient?.isConnected()) return
+      const session = bridgeClient.getSession()
+      const userName = getUserName()?.trim() || 'Desktop User'
+      bridgeClient.sendMessage({
+        content: [
+          {
+            type: 'text',
+            text: buildDesktopAppLaunchSystemPrompt(appName, userName),
+          },
+        ],
+        metadata: {
+          userId: session.userId,
+          userName,
+          sessionId: session.sessionId,
+          messageType: 'notify',
+        },
+      })
+    })
+  }
+  await watcher.startAppLaunchDetection()
+
   // 窗口关闭时移除渲染进程
   window.on('closed', () => {
     registeredRenderers.delete(window)
-    
+
     // 如果没有渲染进程了，停止监听器并移除全局监听器
     if (registeredRenderers.size === 0) {
       if (removeGlobalListener) {
@@ -369,10 +375,16 @@ ipcMain.handle('window:startWatching', async (event) => {
         removeGlobalListener = null
         globalListenerRegistered = false
       }
+      if (removeAppLaunchListener) {
+        removeAppLaunchListener()
+        removeAppLaunchListener = null
+        appLaunchListenerRegistered = false
+      }
+      watcher.stopAppLaunchDetection()
       watcher.stop()
     }
   })
-  
+
   return { success: true }
 })
 
@@ -410,7 +422,8 @@ ipcMain.handle('window:getWatcherConfig', async () => {
 ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
   const watcher = getWindowWatcher()
   await watcher.updateConfig(config)
-  await syncAppLaunchWatcherWithConfig()
+  // 配置更新后重新同步应用启动检测
+  await watcher.startAppLaunchDetection()
   return { success: true }
 })
 
@@ -418,6 +431,7 @@ ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
 ipcMain.handle('window:resetWatcherConfig', async () => {
   const watcher = getWindowWatcher()
   await watcher.resetConfig()
-  await syncAppLaunchWatcherWithConfig()
+  // 配置重置后重新同步应用启动检测
+  await watcher.startAppLaunchDetection()
   return { success: true, config: await watcher.getConfig() }
 })

@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import { createHash } from 'crypto'
 import http from 'http'
 import https from 'https'
+import { PROTOCOL_VERSION } from '../../src/shared/metadata'
 import { getUserId } from '../database/schema'
 import { resolveHttpUrl } from '../utils/urlNormalize'
 import type {
@@ -98,6 +99,7 @@ export class L2DBridgeClient extends EventEmitter {
           this.isConnecting = false
           this.stopHeartbeat()
           this.emit('disconnected', { code, reason: reason.toString() })
+          // close 在所有断连场景都会触发（含 error 后），仅在此处安排重连
           if (this.shouldReconnect) {
             this.scheduleReconnect()
           }
@@ -147,7 +149,7 @@ export class L2DBridgeClient extends EventEmitter {
     const userId = getUserId()
 
     const payload: HandshakePayload = {
-      version: '1.0.0',
+      version: PROTOCOL_VERSION,
       clientId: userId,
       token: this.token,
       tools: getDesktopTools(),
@@ -165,9 +167,9 @@ export class L2DBridgeClient extends EventEmitter {
    * 处理接收到的数据包
    */
   private handlePacket(packet: BasePacket): void {
-    // 过滤心跳日志，避免刷屏
     if (packet.op !== OPS.SYS_PONG) {
-      console.log('[L2D] 收到数据包:', packet.op, packet.payload)
+      const safePayload = this.sanitizeForLog(packet.payload)
+      console.log('[L2D] 收到数据包:', packet.op, safePayload)
     }
 
     // 拦截等待中的请求响应（按 packet.id 匹配）
@@ -310,6 +312,10 @@ export class L2DBridgeClient extends EventEmitter {
       return
     }
 
+    if (this.reconnectTimer) {
+      return // 已安排重连，去重
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log('[L2D] 达到最大重连次数，停止重连')
       return
@@ -390,6 +396,36 @@ export class L2DBridgeClient extends EventEmitter {
       ts: Date.now(),
       payload
     })
+  }
+
+  /**
+   * 脱敏处理用于日志输出
+   */
+  private sanitizeForLog(payload: any): any {
+    if (!payload || typeof payload !== 'object') return payload
+    const sensitiveKeys = ['token', 'password', 'secret', 'apiKey', 'accessKey']
+    const MAX_STRING_LEN = 200
+
+    const sanitize = (obj: any): any => {
+      if (Array.isArray(obj)) return `[Array:${obj.length}]`
+      if (!obj || typeof obj !== 'object') {
+        if (typeof obj === 'string' && obj.length > MAX_STRING_LEN) {
+          return obj.slice(0, MAX_STRING_LEN) + '...'
+        }
+        return obj
+      }
+      const result: Record<string, any> = {}
+      for (const [key, value] of Object.entries(obj)) {
+        if (sensitiveKeys.some(k => key.toLowerCase().includes(k))) {
+          result[key] = '***'
+        } else {
+          result[key] = sanitize(value)
+        }
+      }
+      return result
+    }
+
+    return sanitize(payload)
   }
 
   /**

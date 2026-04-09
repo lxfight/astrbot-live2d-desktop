@@ -13,17 +13,16 @@ let welcomeWindow: BrowserWindow | null = null
  */
 export function createWelcomeWindow(): BrowserWindow {
   welcomeWindow = new BrowserWindow({
-    width: 980,
-    height: 720,
-    minWidth: 640,
-    minHeight: 480,
+    width: 460,
+    height: 560,
     center: true,
     icon: resolveAppIconPath(),
-    resizable: true,
+    resizable: false,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
-    alwaysOnTop: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

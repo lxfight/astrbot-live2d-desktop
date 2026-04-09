@@ -334,10 +334,6 @@ import { useMessage, useDialog } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
 import { endOfDay, format, startOfDay } from 'date-fns'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
@@ -346,6 +342,7 @@ import {
   resolveHistoryImageSource,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
+import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
 import {
   Search, User, Bot, Drama, Image as ImageIcon, Mic, Video,
   MessageSquare, Activity, Smile, Clock, HelpCircle,
@@ -359,64 +356,8 @@ const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
 const { palette } = storeToRefs(themeStore)
 
-// 配置 marked
-marked.setOptions({
-  breaks: true,
-  gfm: true
-})
-
-// 使用 marked 的扩展系统来支持 LaTeX
-marked.use({
-  extensions: [
-    {
-      name: 'latex-inline',
-      level: 'inline',
-      start(src: string) { return src.indexOf('$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$([^\$]+)\$/)
-        if (match) {
-          return {
-            type: 'latex-inline',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, { throwOnError: false })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    },
-    {
-      name: 'latex-block',
-      level: 'block',
-      start(src: string) { return src.indexOf('$$') },
-      tokenizer(src: string) {
-        const match = src.match(/^\$\$([^\$]+)\$\$/)
-        if (match) {
-          return {
-            type: 'latex-block',
-            raw: match[0],
-            text: match[1]
-          }
-        }
-      },
-      renderer(token: any) {
-        try {
-          return katex.renderToString(token.text, {
-            displayMode: true,
-            throwOnError: false
-          })
-        } catch (e) {
-          return token.raw
-        }
-      }
-    }
-  ]
-})
+// 初始化 marked + LaTeX 扩展（幂等）
+configureMarked()
 
 const activeTab = ref('statistics')
 const isWindowMaximized = ref(false)
@@ -442,27 +383,27 @@ const activeTabMeta = computed(() => {
   return tabItems.find((item) => item.key === activeTab.value) ?? tabItems[0]
 })
 
-// 监听 tab 切换，修复图表不显示问题
+const historyWindowDisposers: Unsubscribe[] = []
+
 watch(activeTab, (newTab) => {
   if (newTab === 'statistics') {
     nextTick(() => {
-      // 切换回统计面板时，使用缓存数据重新渲染图表
       if (statisticsData.value.length > 0) {
-        renderCharts(statisticsData.value)
+        renderStatisticsCharts(statisticsData.value)
       } else {
-        loadStatistics()
+        void loadStatistics()
       }
     })
   } else if (newTab === 'analysis') {
-    nextTick(() => {
-      loadAnalysisData()
-      // 切换到分析面板时，使用缓存数据渲染分析图表
-      if (statisticsData.value.length > 0) {
-        renderCharts(statisticsData.value)
-      } else {
-        // 如果没有数据（比如直接打开分析页），则加载数据
-        loadStatistics()
-      }
+    void loadAnalysisData().then(() => {
+      nextTick(() => {
+        if (statisticsData.value.length > 0) {
+          renderAnalysisCharts(statisticsData.value)
+          return
+        }
+
+        void loadStatistics()
+      })
     })
   }
 })
@@ -473,7 +414,12 @@ watch(palette, () => {
   }
 
   nextTick(() => {
-    renderCharts(statisticsData.value)
+    if (activeTab.value === 'analysis') {
+      renderAnalysisCharts(statisticsData.value)
+      return
+    }
+
+    renderStatisticsCharts(statisticsData.value)
   })
 }, { deep: true })
 
@@ -518,6 +464,19 @@ let charts: echarts.ECharts[] = []
 const debouncedLoadMessages = useDebounceFn(() => {
   void loadMessages()
 }, 250)
+const debouncedResizeCharts = useDebounceFn(() => {
+  charts.forEach(chart => chart.resize())
+}, 120)
+const debouncedRefreshOnFocus = useDebounceFn(() => {
+  if (document.hidden) {
+    return
+  }
+
+  void syncHistoryResourceConfig()
+  void loadMessages()
+  void loadStatistics()
+  void loadAnalysisData()
+}, 1000)
 const MARKDOWN_CACHE_LIMIT = 500
 const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
@@ -529,18 +488,44 @@ const historyResourcePath = ref('/resources')
 const historyResourceToken = ref('')
 
 function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
-  if (!cache.has(key) && cache.size >= limit) {
+  if (cache.has(key)) {
+    cache.delete(key)
+  } else if (cache.size >= limit) {
     const oldestKey = cache.keys().next().value as string | undefined
     if (oldestKey !== undefined) {
       cache.delete(oldestKey)
     }
   }
+
   cache.set(key, value)
   return value
 }
 
+function getCacheEntry<T>(cache: Map<string, T>, key: string): T | undefined {
+  const cached = cache.get(key)
+  if (cached === undefined) {
+    return undefined
+  }
+
+  cache.delete(key)
+  cache.set(key, cached)
+  return cached
+}
+
+function buildPerformanceCacheKey(content: string): string {
+  let hash = 0
+  for (let i = 0; i < content.length; i++) {
+    hash = ((hash << 5) - hash) + content.charCodeAt(i)
+    hash |= 0
+  }
+
+  return `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content.length}::${hash}`
+}
+
 onMounted(async () => {
   themeStore.syncFromStorage()
+  themeStore.startStorageSync()
+  connectionStore.startStorageSync()
 
   try {
     isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
@@ -553,34 +538,32 @@ onMounted(async () => {
   await loadStatistics()
   await loadAnalysisData()
 
-  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+  historyWindowDisposers.push(window.electron.window.onMaximizedChanged((maximized: boolean) => {
     isWindowMaximized.value = maximized
-  })
+  }))
 
-  // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
-
-  // 监听窗口获得焦点时自动刷新
   window.addEventListener('focus', handleWindowFocus)
 })
 
 onUnmounted(() => {
-  // 清理图表
   charts.forEach(chart => chart.dispose())
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
   performancePreviewCache.clear()
+  connectionStore.stopStorageSync()
+  themeStore.stopStorageSync()
+  for (const dispose of historyWindowDisposers.splice(0)) {
+    dispose()
+  }
 
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('focus', handleWindowFocus)
 })
 
 function handleWindowFocus() {
-  void syncHistoryResourceConfig()
-  void loadMessages()
-  void loadStatistics()
-  void loadAnalysisData()
+  debouncedRefreshOnFocus()
 }
 
 async function syncHistoryResourceConfig() {
@@ -598,7 +581,7 @@ async function syncHistoryResourceConfig() {
   historyResourceToken.value = connectionStore.resourceToken
 }
 function handleResize() {
-  charts.forEach(chart => chart.resize())
+  debouncedResizeCharts()
 }
 
 async function loadMessages() {
@@ -631,7 +614,7 @@ async function loadMessages() {
 async function loadStatistics() {
   if (!dateRange.value) {
     statisticsData.value = []
-    renderCharts([])
+    disposeCharts()
     return
   }
 
@@ -645,7 +628,11 @@ async function loadStatistics() {
     if (result.success && result.data) {
       statisticsData.value = result.data
       await nextTick()
-      renderCharts(result.data)
+      if (activeTab.value === 'analysis') {
+        renderAnalysisCharts(result.data)
+      } else {
+        renderStatisticsCharts(result.data)
+      }
     }
   } catch (error: any) {
     console.error('[历史窗口] 加载统计数据失败:', error)
@@ -693,52 +680,65 @@ async function loadAnalysisData() {
   }
 }
 
-function renderCharts(data: any[]) {
-  // 清理旧图表
+function disposeCharts() {
   charts.forEach(chart => chart.dispose())
   charts = []
+}
 
-  if (!data || data.length === 0) {
-    return
-  }
-
+function createCommonChartOption() {
   const chartColors = palette.value.chartPalette
   const axisColor = 'rgba(255, 255, 255, 0.18)'
   const labelColor = palette.value.textSecondary
   const gridColor = 'rgba(255, 255, 255, 0.08)'
   const tooltipBackground = 'rgba(8, 12, 20, 0.92)'
 
-  const commonOption = {
-    backgroundColor: 'transparent',
-    textStyle: {
-      color: labelColor
-    },
-    title: {
-      textStyle: { color: palette.value.textPrimary }
-    },
-    tooltip: {
-      backgroundColor: tooltipBackground,
-      borderColor: axisColor,
-      textStyle: { color: palette.value.textPrimary }
-    },
-    xAxis: {
-      axisLine: { lineStyle: { color: axisColor } },
-      axisLabel: { color: labelColor },
-      splitLine: { show: false }
-    },
-    yAxis: {
-      axisLine: { lineStyle: { color: axisColor } },
-      axisLabel: { color: labelColor },
-      splitLine: { lineStyle: { color: gridColor } }
-    },
-    grid: {
-      top: 40,
-      right: 20,
-      bottom: 20,
-      left: 40,
-      containLabel: true
+  return {
+    chartColors,
+    axisColor,
+    labelColor,
+    gridColor,
+    commonOption: {
+      backgroundColor: 'transparent',
+      textStyle: {
+        color: labelColor
+      },
+      title: {
+        textStyle: { color: palette.value.textPrimary }
+      },
+      tooltip: {
+        backgroundColor: tooltipBackground,
+        borderColor: axisColor,
+        textStyle: { color: palette.value.textPrimary }
+      },
+      xAxis: {
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        axisLine: { lineStyle: { color: axisColor } },
+        axisLabel: { color: labelColor },
+        splitLine: { lineStyle: { color: gridColor } }
+      },
+      grid: {
+        top: 40,
+        right: 20,
+        bottom: 20,
+        left: 40,
+        containLabel: true
+      }
     }
   }
+}
+
+function renderStatisticsCharts(data: any[]) {
+  disposeCharts()
+
+  if (!data || data.length === 0) {
+    return
+  }
+
+  const { chartColors, axisColor, labelColor, gridColor, commonOption } = createCommonChartOption()
 
   // 消息趋势图
   if (messageTrendRef.value) {
@@ -857,7 +857,17 @@ function renderCharts(data: any[]) {
     charts.push(chart)
   }
 
-  // 动作使用排行
+}
+
+function renderAnalysisCharts(data: any[]) {
+  disposeCharts()
+
+  if (!data || data.length === 0) {
+    return
+  }
+
+  const { chartColors, axisColor, labelColor, gridColor, commonOption } = createCommonChartOption()
+
   if (motionRankRef.value) {
     const chart = echarts.init(motionRankRef.value)
     const motionData = aggregateMotionUsage(data)
@@ -942,7 +952,9 @@ function aggregateMotionUsage(data: any[]) {
         Object.entries(usage).forEach(([key, value]) => {
           motionMap[key] = (motionMap[key] || 0) + (value as number)
         })
-      } catch (e) {}
+      } catch (error) {
+        console.warn('[历史窗口] 解析动作统计失败:', error)
+      }
     }
   })
 
@@ -961,7 +973,9 @@ function aggregateExpressionUsage(data: any[]) {
         Object.entries(usage).forEach(([key, value]) => {
           expressionMap[key] = (expressionMap[key] || 0) + (value as number)
         })
-      } catch (e) {}
+      } catch (error) {
+        console.warn('[历史窗口] 解析表情统计失败:', error)
+      }
     }
   })
 
@@ -1035,26 +1049,17 @@ function formatTimestamp(timestamp: number): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  const cached = markdownRenderCache.get(text)
+  const cached = getCacheEntry(markdownRenderCache, text)
   if (cached !== undefined) {
     return cached
   }
 
-  try {
-    const renderedHtml = marked.parse(text) as string
-    const sanitized = DOMPurify.sanitize(renderedHtml, {
-      USE_PROFILES: { html: true },
-      ALLOW_DATA_ATTR: false
-    }).trim()
-    return setCacheEntry(markdownRenderCache, text, sanitized, MARKDOWN_CACHE_LIMIT)
-  } catch (error) {
-    console.error('[History] Markdown渲染失败:', error)
-    return text
-  }
+  const rendered = renderMarkdownFromShared(text).trim()
+  return setCacheEntry(markdownRenderCache, text, rendered, MARKDOWN_CACHE_LIMIT)
 }
 
 function parseContent(content: string): any[] {
-  const cached = messageContentCache.get(content)
+  const cached = getCacheEntry(messageContentCache, content)
   if (cached) {
     return cached
   }
@@ -1074,8 +1079,8 @@ function isPerformanceMessage(msg: any): boolean {
 }
 
 function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content}`
-  const cached = performancePreviewCache.get(cacheKey)
+  const cacheKey = buildPerformanceCacheKey(content)
+  const cached = getCacheEntry(performancePreviewCache, cacheKey)
   if (cached !== undefined) {
     return cached
   }

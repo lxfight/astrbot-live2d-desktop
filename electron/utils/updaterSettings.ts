@@ -1,7 +1,8 @@
 import { getUserConfig, setUserConfig } from '../database/schema'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 import { DEFAULT_UPDATER_SETTINGS, type UpdaterSettings } from '../../src/utils/updaterSettings'
 
-const AUTO_UPDATE_KEY = 'app_auto_update_enabled'
+const AUTO_UPDATE_KEY = USER_CONFIG_KEYS.autoUpdateEnabled
 
 export function loadUpdaterSettings(): UpdaterSettings {
   const stored = getUserConfig(AUTO_UPDATE_KEY)

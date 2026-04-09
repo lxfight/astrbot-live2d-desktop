@@ -5,7 +5,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@electron': resolve(__dirname, 'electron')
+      '@electron': resolve(__dirname, 'electron'),
+      '@cubism-framework': resolve(__dirname, '.generated/cubism-framework/src')
     }
   },
   server: {

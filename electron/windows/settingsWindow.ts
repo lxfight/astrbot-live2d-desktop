@@ -9,12 +9,14 @@ const __dirname = path.dirname(__filename)
 let settingsWindow: BrowserWindow | null = null
 let pendingPage: string | null = null
 
-// 处理渲染进程请求待处理页面的 IPC
-ipcMain.handle('settings:getPendingPage', () => {
-  const page = pendingPage
-  pendingPage = null
-  return page
-})
+// 处理渲染进程请求待处理页面的 IPC（守卫避免重复注册）
+if (!ipcMain.listenerCount('settings:getPendingPage')) {
+  ipcMain.handle('settings:getPendingPage', () => {
+    const page = pendingPage
+    pendingPage = null
+    return page
+  })
+}
 
 /**
  * 创建设置窗口

@@ -2,95 +2,67 @@ import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
-import { getPlatformCapabilities } from '../utils/platformCapabilities'
-import { loadDesktopFeatureSettings } from '../utils/desktopFeatureSettings'
+import { getDesktopBehaviorCoordinator } from '../desktopBehavior/coordinator'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
-const platformCapabilities = getPlatformCapabilities()
-
-function applyIgnoreMouseEvents(ignore: boolean): void {
-  if (!mainWindow) return
-
-  if (!ignore) {
-    mainWindow.setIgnoreMouseEvents(false)
-    return
-  }
-
-  if (platformCapabilities.mousePassthroughForward) {
-    mainWindow.setIgnoreMouseEvents(true, { forward: true })
-  } else {
-    mainWindow.setIgnoreMouseEvents(true)
-  }
-}
 
 /**
  * 创建 Live2D 显示窗口
  */
 export function createMainWindow(): BrowserWindow {
-  // 获取主显示器尺寸
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { width, height } = primaryDisplay.workAreaSize
+  const { x, y, width, height } = primaryDisplay.workArea
 
   mainWindow = new BrowserWindow({
-    width: width,
-    height: height,
-    x: 0,
-    y: 0,
+    show: false,
+    width,
+    height,
+    x,
+    y,
+    title: '',
     icon: resolveAppIconPath(),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     skipTaskbar: false,
     resizable: false,
     hasShadow: false,
-    // Windows 特定配置
-    ...(process.platform === 'win32' ? {
-      type: 'toolbar', // 工具窗口类型，有助于透明度
-    } : {}),
+    ...(process.platform === 'win32'
+      ? {
+          thickFrame: false,
+        }
+      : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      backgroundThrottling: false // 防止后台节流
-    }
+      backgroundThrottling: false,
+    },
   })
 
-  // 开发环境加载 Vite 服务器
+  const coordinator = getDesktopBehaviorCoordinator()
+  coordinator.attachMainWindow(mainWindow)
+
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173/#/main')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    // 生产环境下渲染进程文件在 app.getAppPath()/dist 中（通常位于 resources/app.asar/dist）
     mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
-      hash: '/main'
+      hash: '/main',
     })
   }
 
-  // 窗口加载完成后设置透明
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[主窗口] 页面加载完成')
-    // 确保窗口透明
-    if (mainWindow) {
-      mainWindow.setBackgroundColor('#00000000')
-
-      // 初始化鼠标穿透：不支持 forward 的平台默认不启用动态穿透
-      applyIgnoreMouseEvents(platformCapabilities.mousePassthroughForward)
-
-      // 重新应用置顶设置（因为某些情况下初始置顶可能失效）
-      try {
-        const desktopFeatureSettings = loadDesktopFeatureSettings()
-        mainWindow.setAlwaysOnTop(desktopFeatureSettings.alwaysOnTop)
-        console.log(`[主窗口] 重新应用置顶设置: ${desktopFeatureSettings.alwaysOnTop}`)
-      } catch (error) {
-        console.error('[主窗口] 重新应用置顶设置失败:', error)
-      }
-    }
+    if (!mainWindow) return
+    mainWindow.setBackgroundColor('#00000000')
+    coordinator.reapplyMainWindowState({ raiseToTop: true })
   })
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
@@ -101,20 +73,10 @@ export function createMainWindow(): BrowserWindow {
     mainWindow = null
   })
 
-  // 窗口获得焦点时重新应用置顶，防止被录屏遮挡
-  mainWindow.on('focus', () => {
-    // 使用 setTimeout 避开录屏软件可能的窗口钩子竞争
-    setTimeout(() => {
-      try {
-        const desktopFeatureSettings = loadDesktopFeatureSettings()
-        if (desktopFeatureSettings.alwaysOnTop) {
-          setAlwaysOnTop(true)
-        }
-      } catch (error) {
-        console.error('[主窗口] focus 时重新应用置顶失败:', error)
-      }
-    }, 200)
-  })
+  if (process.platform === 'win32') {
+    mainWindow.removeMenu()
+    mainWindow.setMenuBarVisibility(false)
+  }
 
   return mainWindow
 }
@@ -124,91 +86,4 @@ export function createMainWindow(): BrowserWindow {
  */
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow
-}
-
-/**
- * 显示主窗口
- */
-export function showMainWindow(): void {
-  if (mainWindow) {
-    mainWindow.show()
-    mainWindow.focus()
-  }
-}
-
-/**
- * 隐藏主窗口
- */
-export function hideMainWindow(): void {
-  if (mainWindow) {
-    mainWindow.hide()
-  }
-}
-
-/**
- * 设置窗口置顶
- */
-export function setAlwaysOnTop(flag: boolean): void {
-  if (mainWindow) {
-    if (flag) {
-      // 仅在当前不是置顶状态时才设置，避免重复操作导致桌面软件闪烁
-      if (!mainWindow.isAlwaysOnTop()) {
-        if (platformCapabilities.alwaysOnTopLevel === 'screen-saver') {
-          mainWindow.setAlwaysOnTop(true, 'screen-saver')
-        } else {
-          mainWindow.setAlwaysOnTop(true)
-        }
-      }
-    } else {
-      mainWindow.setAlwaysOnTop(false)
-    }
-  }
-}
-
-/**
- * 设置鼠标穿透
- */
-export function setIgnoreMouseEvents(ignore: boolean): void {
-  if (mainWindow) {
-    applyIgnoreMouseEvents(ignore)
-  }
-}
-
-/**
- * 设置完全穿透模式
- */
-export function setMousePassThrough(enable: boolean): void {
-  if (mainWindow) {
-    if (enable) {
-      // 完全穿透模式：整个窗口都穿透
-      applyIgnoreMouseEvents(true)
-      console.log('[主窗口] 已启用完全穿透模式')
-    } else {
-      // 非穿透模式：窗口不穿透（但可以通过 CSS pointer-events 控制局部穿透）
-      applyIgnoreMouseEvents(false)
-      console.log('[主窗口] 已禁用完全穿透模式')
-    }
-  }
-}
-
-/**
- * 设置窗口大小
- */
-export function setWindowSize(width: number, height: number): void {
-  if (mainWindow) {
-    mainWindow.setSize(width, height)
-    mainWindow.center()
-  }
-}
-
-/**
- * 重置窗口大小（全屏）
- */
-export function resetWindowSize(): void {
-  if (mainWindow) {
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const { width, height } = primaryDisplay.workAreaSize
-    mainWindow.setSize(width, height)
-    mainWindow.setPosition(0, 0)
-  }
 }

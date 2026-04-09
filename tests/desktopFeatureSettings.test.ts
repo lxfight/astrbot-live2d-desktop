@@ -15,10 +15,12 @@ describe('desktopFeatureSettings', () => {
     expect(normalizeDesktopFeatureSettings({
       alwaysOnTop: false,
       fullPassThrough: true,
+      dynamicPassThrough: false,
       autoDetectFullscreen: true,
     })).toEqual({
       alwaysOnTop: false,
       fullPassThrough: true,
+      dynamicPassThrough: false,
       autoDetectFullscreen: true,
     })
   })
@@ -27,12 +29,14 @@ describe('desktopFeatureSettings', () => {
     expect(mergeDesktopFeatureSettings({
       alwaysOnTop: false,
       fullPassThrough: false,
+      dynamicPassThrough: true,
       autoDetectFullscreen: false,
     }, {
       fullPassThrough: true,
     })).toEqual({
       alwaysOnTop: false,
       fullPassThrough: true,
+      dynamicPassThrough: true,
       autoDetectFullscreen: false,
     })
   })

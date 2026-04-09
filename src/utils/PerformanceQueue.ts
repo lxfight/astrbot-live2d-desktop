@@ -62,6 +62,11 @@ type ImageCallback = (source: string, duration: number) => MaybePromise<void>
 
 type VideoCallback = (source: string, duration?: number) => MaybePromise<void>
 
+type SequenceState = {
+  interruptible: boolean
+  pending: number
+}
+
 function toNonNegativeInt(value: unknown, fallback: number): number {
   const num = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(num)) {
@@ -195,7 +200,9 @@ export class PerformanceQueue {
   private readonly imageQueue = new SerialTaskQueue('image')
   private readonly videoQueue = new SerialTaskQueue('video')
 
-  private interruptible: boolean = true
+  private activeInterruptible = true
+  private readonly sequenceStates: SequenceState[] = []
+  private executionVersion = 0
 
   private onTextCallback?: TextCallback
   private onMotionCallback?: MotionCallback
@@ -250,10 +257,22 @@ export class PerformanceQueue {
    * 添加表演序列到队列
    */
   enqueue(sequence: PerformSequence) {
-    this.interruptible = sequence.interruptible !== false
+    if (sequence.sequence.length === 0) {
+      return
+    }
+
+    const sequenceState: SequenceState = {
+      interruptible: sequence.interruptible !== false,
+      pending: sequence.sequence.length,
+    }
+
+    this.sequenceStates.push(sequenceState)
+    this.activeInterruptible = this.sequenceStates[0]?.interruptible ?? true
+
+    const sequenceVersion = this.executionVersion
 
     for (const element of sequence.sequence) {
-      this.dispatchQueue.enqueue((signal) => this.dispatchElement(element, signal))
+      this.dispatchQueue.enqueue((signal) => this.dispatchElement(element, signal, sequenceState, sequenceVersion))
     }
   }
 
@@ -261,14 +280,17 @@ export class PerformanceQueue {
    * 中断当前表演
    */
   interrupt() {
-    if (!this.interruptible) {
+    if (!this.activeInterruptible) {
       console.log('[表演队列] 当前表演不可中断')
       return
     }
 
     console.log('[表演队列] 中断表演')
+    this.executionVersion += 1
 
     this.dispatchQueue.interrupt()
+    this.sequenceStates.length = 0
+    this.activeInterruptible = true
     this.textQueue.interrupt()
     this.motionQueue.interrupt()
     this.expressionQueue.interrupt()
@@ -282,8 +304,11 @@ export class PerformanceQueue {
    */
   clear() {
     console.log('[表演队列] 清空队列')
+    this.executionVersion += 1
 
     this.dispatchQueue.clear()
+    this.sequenceStates.length = 0
+    this.activeInterruptible = true
     this.textQueue.clear()
     this.motionQueue.clear()
     this.expressionQueue.clear()
@@ -292,8 +317,27 @@ export class PerformanceQueue {
     this.videoQueue.clear()
   }
 
-  private async dispatchElement(element: PerformElement, signal: AbortSignal): Promise<void> {
-    if (signal.aborted) {
+  private completeSequenceElement(sequenceState: SequenceState) {
+    sequenceState.pending = Math.max(0, sequenceState.pending - 1)
+    if (sequenceState.pending > 0) {
+      return
+    }
+
+    const completedIndex = this.sequenceStates.indexOf(sequenceState)
+    if (completedIndex !== -1) {
+      this.sequenceStates.splice(completedIndex, 1)
+    }
+    this.activeInterruptible = this.sequenceStates[0]?.interruptible ?? true
+  }
+
+  private async dispatchElement(
+    element: PerformElement,
+    signal: AbortSignal,
+    sequenceState: SequenceState,
+    sequenceVersion: number,
+  ): Promise<void> {
+    if (signal.aborted || sequenceVersion !== this.executionVersion) {
+      this.completeSequenceElement(sequenceState)
       return
     }
 
@@ -302,123 +346,174 @@ export class PerformanceQueue {
     // wait/delay：阻塞调度队列，用于控制后续指令的派发时机
     if (type === 'wait' || type === 'delay') {
       const ms = toNonNegativeInt(element.duration, 1000)
-      await sleep(ms, signal)
+      try {
+        await sleep(ms, signal)
+      } finally {
+        this.completeSequenceElement(sequenceState)
+      }
       return
     }
 
     switch (type) {
       case 'text':
         this.textQueue.enqueue(async (taskSignal) => {
-          const content = element.content || ''
-          if (!content || !this.onTextCallback) {
-            return
-          }
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
+            }
 
-          const position = element.position || 'center'
-          const duration = element.duration ?? 3000
+            const content = element.content || ''
+            if (!content || !this.onTextCallback) {
+              return
+            }
 
-          await withAbort(this.onTextCallback(content, position, duration), taskSignal)
+            const position = element.position || 'center'
+            const duration = element.duration ?? 3000
 
-          // 文本默认按 duration 做串行节拍；duration=0 则不阻塞后续文本
-          if (duration > 0) {
-            await sleep(duration, taskSignal)
+            await withAbort(this.onTextCallback(content, position, duration), taskSignal)
+
+            if (duration > 0) {
+              await sleep(duration, taskSignal)
+            }
+          } finally {
+            this.completeSequenceElement(sequenceState)
           }
         })
         break
 
       case 'motion':
         this.motionQueue.enqueue(async (taskSignal) => {
-          if (!this.onMotionCallback || !element.group) {
-            return
-          }
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
+            }
 
-          await withAbort(
-            this.onMotionCallback(element.group, element.index ?? 0, element.priority ?? 2),
-            taskSignal
-          )
+            if (!this.onMotionCallback || !element.group) {
+              return
+            }
+
+            await withAbort(
+              this.onMotionCallback(element.group, element.index ?? 0, element.priority ?? 2),
+              taskSignal
+            )
+          } finally {
+            this.completeSequenceElement(sequenceState)
+          }
         })
         break
 
       case 'expression':
         this.expressionQueue.enqueue(async (taskSignal) => {
-          if (!this.onExpressionCallback || element.id === undefined) {
-            return
-          }
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
+            }
 
-          await withAbort(this.onExpressionCallback(element.id), taskSignal)
+            if (!this.onExpressionCallback || element.id === undefined) {
+              return
+            }
+
+            await withAbort(this.onExpressionCallback(element.id), taskSignal)
+          } finally {
+            this.completeSequenceElement(sequenceState)
+          }
         })
         break
 
       case 'audio':
       case 'tts':
         this.audioQueue.enqueue(async (taskSignal) => {
-          if (!this.onAudioCallback) {
-            return
-          }
-
-          const source = element.inline || element.rid || element.url || ''
-          if (!source) {
-            return
-          }
-
-          const volume = typeof element.volume === 'number' ? element.volume : 1.0
-
-          await withAbort(this.onAudioCallback(source, volume), taskSignal)
-
-          // 兼容旧协议：若显式指定 duration，则额外等待该时长
-          if (element.duration !== undefined) {
-            const ms = toNonNegativeInt(element.duration, 0)
-            if (ms > 0) {
-              await sleep(ms, taskSignal)
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
             }
+
+            if (!this.onAudioCallback) {
+              return
+            }
+
+            const source = element.inline || element.rid || element.url || ''
+            if (!source) {
+              return
+            }
+
+            const volume = typeof element.volume === 'number' ? element.volume : 1.0
+
+            await withAbort(this.onAudioCallback(source, volume), taskSignal)
+
+            if (element.duration !== undefined) {
+              const ms = toNonNegativeInt(element.duration, 0)
+              if (ms > 0) {
+                await sleep(ms, taskSignal)
+              }
+            }
+          } finally {
+            this.completeSequenceElement(sequenceState)
           }
         })
         break
 
       case 'image':
         this.imageQueue.enqueue(async (taskSignal) => {
-          if (!this.onImageCallback) {
-            return
-          }
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
+            }
 
-          const source = element.inline || element.rid || element.url || ''
-          if (!source) {
-            return
-          }
+            if (!this.onImageCallback) {
+              return
+            }
 
-          const duration = element.duration ?? 3000
-          await withAbort(this.onImageCallback(source, duration), taskSignal)
+            const source = element.inline || element.rid || element.url || ''
+            if (!source) {
+              return
+            }
 
-          if (duration > 0) {
-            await sleep(duration, taskSignal)
+            const duration = element.duration ?? 3000
+            await withAbort(this.onImageCallback(source, duration), taskSignal)
+
+            if (duration > 0) {
+              await sleep(duration, taskSignal)
+            }
+          } finally {
+            this.completeSequenceElement(sequenceState)
           }
         })
         break
 
       case 'video':
         this.videoQueue.enqueue(async (taskSignal) => {
-          if (!this.onVideoCallback) {
-            return
-          }
-
-          const source = element.inline || element.rid || element.url || ''
-          if (!source) {
-            return
-          }
-
-          await withAbort(this.onVideoCallback(source, element.duration), taskSignal)
-
-          if (element.duration !== undefined) {
-            const ms = toNonNegativeInt(element.duration, 0)
-            if (ms > 0) {
-              await sleep(ms, taskSignal)
+          try {
+            if (sequenceVersion !== this.executionVersion) {
+              return
             }
+
+            if (!this.onVideoCallback) {
+              return
+            }
+
+            const source = element.inline || element.rid || element.url || ''
+            if (!source) {
+              return
+            }
+
+            await withAbort(this.onVideoCallback(source, element.duration), taskSignal)
+
+            if (element.duration !== undefined) {
+              const ms = toNonNegativeInt(element.duration, 0)
+              if (ms > 0) {
+                await sleep(ms, taskSignal)
+              }
+            }
+          } finally {
+            this.completeSequenceElement(sequenceState)
           }
         })
         break
 
       default:
         console.warn('[表演队列] 未知的元素类型:', element.type)
+        this.completeSequenceElement(sequenceState)
     }
   }
 
@@ -431,7 +526,7 @@ export class PerformanceQueue {
     return {
       isExecuting: dispatch.running,
       queueLength: dispatch.queued,
-      interruptible: this.interruptible,
+      interruptible: this.activeInterruptible,
       queues: {
         dispatch,
         text: this.textQueue.getStatus(),

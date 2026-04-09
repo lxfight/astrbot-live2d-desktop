@@ -1,18 +1,19 @@
 import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
+import { APP_METADATA } from '../src/shared/metadata'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
 import { initDatabase, closeDatabase, getUserName } from './database/schema'
 import { L2DBridgeClient } from './protocol/client'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
-import { stopAppLaunchWatcher, syncAppLaunchWatcherWithConfig } from './ipc/desktop'
-import { disableGameMode, enableGameMode, isGameModeActive } from './utils/gameMode'
-import { hideMainWindow, showMainWindow } from './windows/mainWindow'
+import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
+import './ipc/desktopBehavior'
 import './ipc/window'
+import { cleanupAllTempResources } from './ipc/window'
 import './ipc/history'
 import './ipc/model'
 import './ipc/shortcut'
@@ -26,7 +27,7 @@ app.commandLine.appendSwitch('disable-gpu-program-cache')
 
 // Windows 任务栏图标/分组需要 AppUserModelID 才能稳定生效
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.astrbot.live2d.desktop')
+  app.setAppUserModelId(APP_METADATA.appId)
 }
 
 // 启用硬件加速以获得更好的性能
@@ -39,7 +40,6 @@ initializeMainLogger()
 installMainProcessErrorHandlers()
 
 // 锁屏前的状态，用于解锁后恢复
-let gameModeBeforeLock = false
 let isBackgroundPaused = false
 
 function pauseBackgroundActivities(reason: string): void {
@@ -47,10 +47,7 @@ function pauseBackgroundActivities(reason: string): void {
   isBackgroundPaused = true
 
   console.log(`[主进程] 暂停后台活动: ${reason}`)
-  gameModeBeforeLock = isGameModeActive()
-  stopAppLaunchWatcher()
-  if (gameModeBeforeLock) disableGameMode()
-  hideMainWindow()
+  getDesktopBehaviorCoordinator().setBackgroundPaused(true)
   if (bridgeClient) bridgeClient.disconnect()
 }
 
@@ -59,8 +56,7 @@ function resumeBackgroundActivities(reason: string): void {
   isBackgroundPaused = false
 
   console.log(`[主进程] 恢复后台活动: ${reason}`)
-  showMainWindow()
-  if (gameModeBeforeLock) enableGameMode()
+  getDesktopBehaviorCoordinator().setBackgroundPaused(false)
   if (bridgeClient) {
     const { url, token } = bridgeClient.getConnectionInfo()
     if (url) {
@@ -134,10 +130,7 @@ export function initBridgeClient() {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('bridge:connected', payload)
     })
-    // 按窗口监听配置同步应用启动监听
-    void syncAppLaunchWatcherWithConfig().catch((error) => {
-      console.error('[主进程] 同步应用启动监听失败:', error)
-    })
+    // 应用启动检测已整合到 WindowWatcherManager，由 IPC 层管理
   })
 
   bridgeClient.on('disconnected', (info) => {
@@ -174,7 +167,14 @@ export function initBridgeClient() {
 app.whenReady().then(() => {
   registerCubismCoreProtocol()
   initializeAutoUpdater()
-  initialize()
+  initialize().catch(err => {
+    console.error('[主进程] 初始化失败:', err)
+    dialog.showErrorBox(
+      '初始化失败',
+      `应用初始化过程中发生错误，将退出。\n\n${err instanceof Error ? err.message : String(err)}`
+    )
+    app.quit()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -222,9 +222,9 @@ app.on('before-quit', () => {
   } catch (err) {
     console.error('[主进程] 断开 Bridge 连接失败:', err)
   }
-  stopAppLaunchWatcher()
   cleanupShortcuts()
   destroyTray()
+  cleanupAllTempResources()
   try {
     closeDatabase()
   } catch (err) {

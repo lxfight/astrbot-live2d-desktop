@@ -1,18 +1,7 @@
-/**
- * 窗口事件类型
- */
-export type WindowEventType = 
-  | 'focus'      // 窗口获得焦点
-  | 'blur'       // 窗口失去焦点
-  | 'create'     // 窗口创建
-  | 'destroy'    // 窗口销毁
-  | 'resize'     // 窗口大小变化
-  | 'move'       // 窗口位置变化
-  | 'minimize'   // 窗口最小化
-  | 'maximize'   // 窗口最大化
-  | 'restore'    // 窗口恢复
-  | 'fullscreen' // 窗口进入全屏
-  | 'windowed'   // 窗口退出全屏
+import type { WindowEventType } from './windowWatcherConfig'
+export type { WindowEventType, WindowWatcherConfig } from './windowWatcherConfig'
+import * as windowWatcherConfigModule from './windowWatcherConfig'
+import { BUILTIN_IGNORE_RULES } from './windowWatcherConfig'
 
 /**
  * 窗口信息
@@ -52,38 +41,9 @@ export interface WindowEvent {
 export type WindowEventCallback = (event: WindowEvent) => void
 
 /**
- * 窗口监听器配置
+ * 应用启动回调
  */
-export interface WindowWatcherConfig {
-  enabled: boolean
-  appLaunchEnabled: boolean
-  throttle: {
-    globalInterval: number
-    perWindowInterval: number
-    minInterval: number
-  }
-  events: {
-    focus: boolean
-    blur: boolean
-    create: boolean
-    destroy: boolean
-    fullscreen: boolean
-    windowed: boolean
-    resize: boolean
-    move: boolean
-    minimize: boolean
-    maximize: boolean
-    restore: boolean
-  }
-  ignore: {
-    processNames: string[]
-    titleKeywords: string[]
-  }
-  aiResponse: {
-    mode: 'first-open' | 'every-switch' | 'specific-apps'
-    specificApps: string[]
-  }
-}
+export type AppLaunchCallback = (appName: string, processName: string) => void
 
 /**
  * 平台特定的窗口监听器接口
@@ -122,23 +82,41 @@ export function isWindowFullscreen(
  * 4. AI 上下文构建
  * 5. 节流控制（防止频繁触发）
  */
-import * as windowWatcherConfigModule from './windowWatcherConfig'
 import { WindowThrottler } from './windowThrottler'
 
 export class WindowWatcherManager {
   private platformWatcher: PlatformWatcher | null = null
   private listeners: Set<WindowEventCallback> = new Set()
   private isRunning = false
-  
+
   // 配置和节流器（延迟加载）
   private configModule: any = null
   private throttler: any = null
   private config: any = null
-  
+
   // 状态
   private currentWindow: WindowInfo | null = null
   private previousWindow: WindowInfo | null = null
   private windowHistory: Array<{ window: WindowInfo; timestamp: number }> = []
+
+  // 应用启动检测
+  private appLaunchActive = false
+  private knownAppKeys: Set<string> = new Set()
+  private appLaunchDetections: Map<string, { count: number; firstSeen: number }> = new Map()
+  private appLaunchListeners: Set<AppLaunchCallback> = new Set()
+
+  // 应用启动防抖
+  private recentSwitchTimestamps: number[] = []
+  private lastObservedAppKey = ''
+  private suppressAppEventUntil = 0
+  private lastAppEventTs = 0
+
+  private static readonly FREQ_THRESHOLD = 3
+  private static readonly FREQ_WINDOW_MS = 3 * 60 * 60 * 1000
+  private static readonly APP_SWITCH_DEBOUNCE_WINDOW_MS = 20 * 1000
+  private static readonly APP_SWITCH_DEBOUNCE_THRESHOLD = 4
+  private static readonly APP_SWITCH_SUPPRESS_MS = 15 * 1000
+  private static readonly APP_EVENT_MIN_INTERVAL_MS = 4 * 1000
   
   constructor() {
     // 平台监听器将在 start() 方法中初始化
@@ -249,9 +227,9 @@ export class WindowWatcherManager {
    */
   stop(): void {
     if (!this.isRunning) return
-    
+
     this.platformWatcher?.stop()
-    
+
     // 销毁节流器
     if (this.throttler) {
       this.throttler.destroy()
@@ -261,7 +239,10 @@ export class WindowWatcherManager {
     this.currentWindow = null
     this.previousWindow = null
     this.windowHistory = []
-    
+
+    // 停止应用启动检测
+    this.stopAppLaunchDetection()
+
     this.isRunning = false
     console.log('[窗口监听] WindowWatcherManager 已停止')
   }
@@ -283,13 +264,18 @@ export class WindowWatcherManager {
     if (event.type === 'focus') {
       this.previousWindow = this.currentWindow
       this.currentWindow = event.window
-      
+
       // 添加到历史记录
       this.windowHistory.push({ window: event.window, timestamp: event.timestamp })
-      
+
       // 限制历史记录长度
       if (this.windowHistory.length > 100) {
         this.windowHistory = this.windowHistory.slice(-50)
+      }
+
+      // 应用启动检测
+      if (this.appLaunchActive) {
+        this.detectAppLaunch(event.window)
       }
     } else if (event.type === 'blur') {
       this.previousWindow = this.currentWindow
@@ -432,6 +418,181 @@ export class WindowWatcherManager {
    */
   isActive(): boolean {
     return this.isRunning
+  }
+
+  // ──────── 应用启动检测 ────────
+
+  /**
+   * 启动应用启动检测
+   */
+  async startAppLaunchDetection(): Promise<void> {
+    if (!this.config) {
+      await this.loadConfigModule()
+    }
+    if (!this.config?.appLaunchEnabled) {
+      console.log('[应用启动] 应用启动检测已禁用')
+      return
+    }
+
+    this.appLaunchActive = true
+    this.knownAppKeys.clear()
+    this.appLaunchDetections.clear()
+    this.resetAppSwitchDebounceState()
+
+    // 种子：常见的 shell 窗口
+    this.seedKnownAppName('explorer.exe')
+    this.seedKnownAppName('Explorer')
+    this.seedKnownAppName('Windows Explorer')
+    this.seedKnownAppName('File Explorer')
+    this.seedKnownAppName('资源管理器')
+    this.seedKnownAppName('文件资源管理器')
+
+    // 从当前活跃窗口构建基线
+    if (this.currentWindow) {
+      this.seedKnownAppName(this.currentWindow.processName)
+    }
+
+    console.log('[应用启动] 应用启动检测已启动')
+  }
+
+  /**
+   * 停止应用启动检测
+   */
+  stopAppLaunchDetection(): void {
+    this.appLaunchActive = false
+    this.knownAppKeys.clear()
+    this.appLaunchDetections.clear()
+    this.resetAppSwitchDebounceState()
+    console.log('[应用启动] 应用启动检测已停止')
+  }
+
+  /**
+   * 注册应用启动回调
+   */
+  onAppLaunch(callback: AppLaunchCallback): () => void {
+    this.appLaunchListeners.add(callback)
+    return () => this.appLaunchListeners.delete(callback)
+  }
+
+  private seedKnownAppName(name: string): void {
+    const key = this.toAppKey(name)
+    if (key) this.knownAppKeys.add(key)
+  }
+
+  private toAppKey(name: string): string {
+    return name.trim().toLowerCase()
+  }
+
+  private resetAppSwitchDebounceState(): void {
+    this.recentSwitchTimestamps = []
+    this.lastObservedAppKey = ''
+    this.suppressAppEventUntil = 0
+    this.lastAppEventTs = 0
+  }
+
+  /**
+   * 判断应用是否应被忽略
+   */
+  private shouldIgnoreApp(processName: string, title: string): boolean {
+    const normalized = processName.trim()
+    if (!normalized || normalized.length <= 2) return true
+
+    const appKey = this.toAppKey(normalized)
+
+    // 精确匹配进程名
+    const allProcessNames = BUILTIN_IGNORE_RULES.processNames.map((n: string) => n.toLowerCase())
+    if (allProcessNames.includes(appKey)) return true
+
+    // 精确匹配标题关键词
+    const titleLower = title.toLowerCase()
+    for (const kw of BUILTIN_IGNORE_RULES.titleKeywords) {
+      if (titleLower === kw.toLowerCase()) return true
+    }
+
+    // 部分匹配关键词
+    const tokens = [appKey, titleLower]
+    for (const kw of BUILTIN_IGNORE_RULES.ignoreKeywords) {
+      if (tokens.some((t) => t.includes(kw.toLowerCase()))) return true
+    }
+
+    // 频率抑制
+    const now = Date.now()
+    const freq = this.appLaunchDetections.get(appKey)
+    if (freq) {
+      if (now - freq.firstSeen > WindowWatcherManager.FREQ_WINDOW_MS) {
+        this.appLaunchDetections.set(appKey, { count: 1, firstSeen: now })
+        return false
+      }
+      if (freq.count >= WindowWatcherManager.FREQ_THRESHOLD) return true
+    }
+
+    return false
+  }
+
+  private recordAppLaunch(appName: string): void {
+    const appKey = this.toAppKey(appName)
+    if (!appKey) return
+    const now = Date.now()
+    const freq = this.appLaunchDetections.get(appKey)
+    if (freq && now - freq.firstSeen <= WindowWatcherManager.FREQ_WINDOW_MS) {
+      freq.count++
+    } else {
+      this.appLaunchDetections.set(appKey, { count: 1, firstSeen: now })
+    }
+  }
+
+  private shouldDebounceAppLaunch(appKey: string, now: number): boolean {
+    if (this.lastObservedAppKey && this.lastObservedAppKey !== appKey) {
+      this.recentSwitchTimestamps.push(now)
+    }
+    this.lastObservedAppKey = appKey
+
+    const cutoff = now - WindowWatcherManager.APP_SWITCH_DEBOUNCE_WINDOW_MS
+    this.recentSwitchTimestamps = this.recentSwitchTimestamps.filter((ts) => ts >= cutoff)
+
+    if (this.recentSwitchTimestamps.length >= WindowWatcherManager.APP_SWITCH_DEBOUNCE_THRESHOLD) {
+      this.suppressAppEventUntil = Math.max(this.suppressAppEventUntil, now + WindowWatcherManager.APP_SWITCH_SUPPRESS_MS)
+      this.recentSwitchTimestamps = []
+      return true
+    }
+
+    if (now < this.suppressAppEventUntil) return true
+    if (this.lastAppEventTs > 0 && now - this.lastAppEventTs < WindowWatcherManager.APP_EVENT_MIN_INTERVAL_MS) return true
+
+    return false
+  }
+
+  /**
+   * 检测应用启动（在 focus 事件中调用）
+   */
+  private detectAppLaunch(window: WindowInfo): void {
+    const processName = window.processName || ''
+    const title = window.title || ''
+    const appKey = this.toAppKey(processName)
+    if (!appKey) return
+
+    const now = Date.now()
+    if (this.shouldDebounceAppLaunch(appKey, now)) return
+
+    if (this.knownAppKeys.has(appKey)) return
+
+    if (this.shouldIgnoreApp(processName, title)) {
+      this.knownAppKeys.add(appKey)
+      return
+    }
+
+    this.recordAppLaunch(processName)
+    this.knownAppKeys.add(appKey)
+    this.lastAppEventTs = now
+
+    // 通知所有监听器
+    for (const listener of this.appLaunchListeners) {
+      try {
+        listener(processName, processName)
+      } catch (error) {
+        console.error('[应用启动] 回调执行失败:', error)
+      }
+    }
   }
   
   /**

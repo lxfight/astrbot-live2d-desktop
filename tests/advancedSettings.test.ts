@@ -38,7 +38,6 @@ describe('advancedSettings', () => {
       themeFollowModel: false,
       lipSyncEnabled: false,
       silenceDetectionEnabled: true,
-      dynamicPassThroughEnabled: false,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
       imageInlineThresholdKb: 512,
@@ -57,7 +56,6 @@ describe('advancedSettings', () => {
       themeFollowModel: false,
       lipSyncEnabled: false,
       silenceDetectionEnabled: true,
-      dynamicPassThroughEnabled: false,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
       imageInlineThresholdKb: 512,
@@ -87,7 +85,6 @@ describe('advancedSettings', () => {
     expect(normalized.themeFollowModel).toBe(true)
     expect(normalized.lipSyncEnabled).toBe(true)
     expect(normalized.silenceDetectionEnabled).toBe(false)
-    expect(normalized.dynamicPassThroughEnabled).toBe(true)
     expect(normalized.bubbleStackMax).toBe(3)
     expect(normalized.bubbleFollowUpWindowMs).toBe(4000)
     expect(normalized.imageInlineThresholdKb).toBe(256)
@@ -119,10 +116,13 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
 
   it('loads and normalizes valid JSON from localStorage', () => {
     store[ADVANCED_SETTINGS_KEY] = JSON.stringify({
-      recordingShortcut: 'Ctrl+Q',
-      autoConnect: false,
-      logLevel: 'debug',
-      maxRecordingSeconds: 25,
+      version: 1,
+      data: {
+        recordingShortcut: 'Ctrl+Q',
+        autoConnect: false,
+        logLevel: 'debug',
+        maxRecordingSeconds: 25,
+      },
     })
 
     const settings = loadAdvancedSettings()
@@ -160,8 +160,9 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
     )
 
     const stored = JSON.parse(store[ADVANCED_SETTINGS_KEY])
-    expect(stored.recordingShortcut).toBe('Ctrl+W')
-    expect(stored.logLevel).toBe('debug')
+    expect(stored.version).toBe(1)
+    expect(stored.data.recordingShortcut).toBe('Ctrl+W')
+    expect(stored.data.logLevel).toBe('debug')
   })
 
   it('normalizes and persists default settings when called with null', () => {

@@ -20,7 +20,7 @@ function toPosixPath(p: string): string {
   return p.replace(/\\/g, '/')
 }
 
-function findModelJsonFiles(rootDir: string): string[] {
+function findModelFiles(rootDir: string, predicate: (name: string) => boolean): string[] {
   const results: string[] = []
 
   function walk(currentDir: string) {
@@ -33,8 +33,7 @@ function findModelJsonFiles(rootDir: string): string[] {
       }
       if (!entry.isFile()) continue
 
-      const lower = entry.name.toLowerCase()
-      if (lower.endsWith('.model3.json')) {
+      if (predicate(entry.name.toLowerCase())) {
         results.push(fullPath)
       }
     }
@@ -44,28 +43,60 @@ function findModelJsonFiles(rootDir: string): string[] {
   return results
 }
 
+function findModelJsonFiles(rootDir: string): string[] {
+  return findModelFiles(rootDir, lower => lower.endsWith('.model3.json'))
+}
+
 function findCubism2ModelJsonFiles(rootDir: string): string[] {
-  const results: string[] = []
+  return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
+}
 
-  function walk(currentDir: string) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name)
-      if (entry.isDirectory()) {
-        walk(fullPath)
-        continue
-      }
-      if (!entry.isFile()) continue
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
 
-      const lower = entry.name.toLowerCase()
-      if (lower.endsWith('.model.json') && !lower.endsWith('.model3.json')) {
-        results.push(fullPath)
+function isRetryableDeleteError(error: unknown): boolean {
+  const code = typeof (error as { code?: unknown })?.code === 'string'
+    ? (error as { code: string }).code
+    : ''
+  return code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+}
+
+async function removeDirectoryWithRetry(targetDir: string): Promise<void> {
+  const maxAttempts = 6
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await fs.promises.rm(targetDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 120,
+      })
+
+      if (!fs.existsSync(targetDir)) {
+        return
       }
+
+      const remainingEntries = await fs.promises.readdir(targetDir)
+      if (remainingEntries.length === 0) {
+        await fs.promises.rmdir(targetDir).catch(() => {})
+        return
+      }
+
+      const error = new Error(`目录仍包含未删除条目: ${remainingEntries.slice(0, 5).join(', ')}`)
+      ;(error as NodeJS.ErrnoException).code = 'ENOTEMPTY'
+      throw error
+    } catch (error) {
+      if (!isRetryableDeleteError(error) || attempt === maxAttempts) {
+        throw error
+      }
+
+      await delay(attempt * 180)
     }
   }
-
-  walk(rootDir)
-  return results
 }
 
 function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {
@@ -167,7 +198,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     const resolvedSource = path.resolve(sourceDir).toLowerCase()
     const resolvedTarget = path.resolve(targetDir).toLowerCase()
     if (resolvedSource !== resolvedTarget) {
-      copyDirectory(sourceDir, targetDir)
+      await copyDirectory(sourceDir, targetDir)
     }
 
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
@@ -231,14 +262,24 @@ ipcMain.handle('model:getList', async () => {
  */
 ipcMain.handle('model:delete', async (_event, modelName: string) => {
   try {
-    const modelDir = path.join(getModelsDir(), modelName)
+    if (typeof modelName !== 'string' || !modelName.trim()) {
+      return { success: false, error: '模型名称不能为空' }
+    }
+
+    const normalizedName = path.basename(modelName.trim())
+    if (normalizedName !== modelName.trim()) {
+      return { success: false, error: '模型名称非法' }
+    }
+
+    const modelDir = path.join(getModelsDir(), normalizedName)
     if (fs.existsSync(modelDir)) {
-      fs.rmSync(modelDir, { recursive: true, force: true })
+      await removeDirectoryWithRetry(modelDir)
     }
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 删除模型失败:', error)
-    return { success: false, error: error.message }
+    const code = typeof error?.code === 'string' ? `[${error.code}] ` : ''
+    return { success: false, error: `${code}${error?.message || String(error)}` }
   }
 })
 
@@ -258,18 +299,18 @@ ipcMain.handle('model:load', async (_event, modelPath: string) => {
   }
 })
 
-function copyDirectory(source: string, target: string) {
-  const files = fs.readdirSync(source, { withFileTypes: true })
+async function copyDirectory(source: string, target: string): Promise<void> {
+  const entries = await fs.promises.readdir(source, { withFileTypes: true })
 
-  for (const file of files) {
-    const sourcePath = path.join(source, file.name)
-    const targetPath = path.join(target, file.name)
+  for (const entry of entries) {
+    const sourcePath = path.join(source, entry.name)
+    const targetPath = path.join(target, entry.name)
 
-    if (file.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true })
-      copyDirectory(sourcePath, targetPath)
+    if (entry.isDirectory()) {
+      await fs.promises.mkdir(targetPath, { recursive: true })
+      await copyDirectory(sourcePath, targetPath)
     } else {
-      fs.copyFileSync(sourcePath, targetPath)
+      await fs.promises.copyFile(sourcePath, targetPath)
     }
   }
 }

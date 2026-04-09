@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watchEffect } from 'vue'
+import { onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
@@ -21,18 +21,22 @@ const { cssVars, naiveThemeOverrides } = storeToRefs(themeStore)
 
 onMounted(() => {
   themeStore.syncFromStorage()
+  themeStore.startStorageSync()
 })
 
-watchEffect(() => {
-  if (typeof document === 'undefined') {
-    return
-  }
+onBeforeUnmount(() => {
+  themeStore.stopStorageSync()
+})
 
+watch(cssVars, (vars) => {
+  if (typeof document === 'undefined') return
   const rootStyle = document.documentElement.style
-  Object.entries(cssVars.value).forEach(([key, value]) => {
-    rootStyle.setProperty(key, value)
+  Object.entries(vars).forEach(([key, value]) => {
+    if (rootStyle.getPropertyValue(key) !== value) {
+      rootStyle.setProperty(key, value)
+    }
   })
-})
+}, { immediate: true })
 </script>
 
 <style scoped>

@@ -480,13 +480,6 @@
                   </div>
                   <n-switch v-model:value="advancedSettings.silenceDetectionEnabled" @update:value="applyAdvancedSettingChange" />
                 </div>
-                <div class="settings-toggle-item">
-                  <div class="settings-toggle-item__main">
-                    <div class="settings-toggle-item__label">启用动态穿透</div>
-                    <div class="settings-toggle-item__desc">关闭后，角色窗口将不再根据鼠标位置自动切换穿透状态；不支持的平台会自动禁用此项。</div>
-                  </div>
-                  <n-switch v-model:value="advancedSettings.dynamicPassThroughEnabled" :disabled="!platformCapabilities?.mousePassthroughForward" @update:value="applyAdvancedSettingChange" />
-                </div>
                 <n-form-item label="基础事件弹窗提示">
                   <n-switch v-model:value="advancedSettings.showBaseEventNotifications" @update:value="applyAdvancedSettingChange" />
                 </n-form-item>
@@ -549,7 +542,7 @@
               <div class="settings-section__header">
                 <h2>桌面交互</h2>
               </div>
-              <p class="settings-section__desc">控制桌面窗口的置顶、穿透和全屏应用检测行为。此处开关会在切换后立即保存并生效。</p>
+              <p class="settings-section__desc">控制桌面窗口的置顶、鼠标穿透和全屏应用检测行为。此处开关会在切换后立即保存并生效。</p>
 
               <n-form label-placement="top">
                 <n-form-item label="始终置顶显示">
@@ -561,13 +554,23 @@
                     保持桌面角色窗口位于普通应用之上，适合需要持续显示角色的场景。
                   </template>
                 </n-form-item>
-                <n-form-item label="启用完全穿透模式">
+                <n-form-item label="始终穿透">
                   <n-switch
                     :value="desktopFeatureSettings.fullPassThrough"
                     @update:value="(value: boolean) => updateDesktopFeatureSetting('fullPassThrough', value)"
                   />
                   <template #feedback>
-                    启用后整个桌面角色窗口将不再接收鼠标点击；关闭后恢复正常交互。
+                    开启后主窗口将持续忽略鼠标事件；该模式优先级高于智能穿透。
+                  </template>
+                </n-form-item>
+                <n-form-item label="智能穿透">
+                  <n-switch
+                    :value="desktopFeatureSettings.dynamicPassThrough"
+                    :disabled="!platformCapabilities?.mousePassthroughForward || desktopFeatureSettings.fullPassThrough"
+                    @update:value="(value: boolean) => updateDesktopFeatureSetting('dynamicPassThrough', value)"
+                  />
+                  <template #feedback>
+                    仅在鼠标悬停模型或交互控件时可点击，其他区域自动穿透到底层应用。
                   </template>
                 </n-form-item>
                 <n-form-item label="自动检测全屏应用">
@@ -599,7 +602,7 @@
                   <strong>{{ gameModeCapabilityLabel }}</strong>
                 </div>
                 <div class="settings-kv-list__row">
-                  <span>动态穿透</span>
+                  <span>智能穿透支持</span>
                   <strong>{{ passThroughCapabilityLabel }}</strong>
                 </div>
                 <div class="settings-kv-list__row">
@@ -889,7 +892,7 @@
               <div class="settings-kv-list">
                 <div class="settings-kv-list__row">
                   <span>应用名称</span>
-                  <strong>AstrBot Live2D Desktop</strong>
+                  <strong>{{ APP_METADATA.displayName }}</strong>
                 </div>
                 <div class="settings-kv-list__row">
                   <span>版本</span>
@@ -905,7 +908,7 @@
                 </div>
                 <div class="settings-kv-list__row">
                   <span>作者</span>
-                  <strong>lxfight</strong>
+                  <strong>{{ APP_METADATA.authorName }}</strong>
                 </div>
               </div>
 
@@ -930,13 +933,13 @@
               </div>
 
               <div class="link-stack">
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/AstrBotDevs/AstrBot')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.astrbot)">
                   AstrBot
                 </button>
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot-live2d-desktop')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.repository)">
                   本项目仓库
                 </button>
-                <button class="ghost-button" type="button" @click="handleOpenLink('https://github.com/lxfight/astrbot_plugin_live2d_adapter')">
+                <button class="ghost-button" type="button" @click="handleOpenLink(APP_LINKS.adapterPlugin)">
                   平台适配器插件
                 </button>
               </div>
@@ -972,6 +975,11 @@ import {
 import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
+  APP_LINKS,
+  APP_METADATA,
+  SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS,
+} from '@/shared/metadata'
+import {
   DEFAULT_ADVANCED_SETTINGS,
   clampMaxRecordingSeconds,
   loadAdvancedSettings,
@@ -983,6 +991,7 @@ import {
   resolveHistoryImageSource,
 } from '@/utils/historyContent'
 import { withAlpha } from '@/utils/themePalette'
+import { DEFAULT_DESKTOP_FEATURE_SETTINGS } from '@/utils/desktopFeatureSettings'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -1058,9 +1067,10 @@ const advancedSettings = ref({
   ...DEFAULT_ADVANCED_SETTINGS,
 })
 const desktopFeatureSettings = ref({
-  alwaysOnTop: false,
-  fullPassThrough: false,
-  autoDetectFullscreen: false,
+  alwaysOnTop: DEFAULT_DESKTOP_FEATURE_SETTINGS.alwaysOnTop,
+  fullPassThrough: DEFAULT_DESKTOP_FEATURE_SETTINGS.fullPassThrough,
+  dynamicPassThrough: DEFAULT_DESKTOP_FEATURE_SETTINGS.dynamicPassThrough,
+  autoDetectFullscreen: DEFAULT_DESKTOP_FEATURE_SETTINGS.autoDetectFullscreen,
 })
 const updaterSettings = ref({
   autoUpdateEnabled: true,
@@ -1243,8 +1253,8 @@ const passThroughCapabilityLabel = computed(() => {
   const capabilities = platformCapabilities.value
   if (!capabilities) return '未知'
   return capabilities.mousePassthroughForward
-    ? '支持完整动态穿透'
-    : '仅基础穿透，不启用动态转发'
+    ? '支持'
+    : '不支持（当前平台无法稳定转发鼠标事件）'
 })
 
 const alwaysOnTopLevelLabel = computed(() => {
@@ -1261,12 +1271,12 @@ const platformCompatibilityNotice = computed<null | { type: 'info' | 'warning'; 
     if (capabilities.linuxSessionType === 'wayland') {
       return {
         type: 'warning',
-        text: 'Wayland 会话下将关闭动态穿透，并禁用自动检测全屏应用；建议在支持 X11 的环境中使用以获得更完整体验。',
+        text: 'Wayland 会话下智能穿透与自动检测全屏应用不可用；建议在支持 X11 的环境中使用以获得更完整体验。',
       }
     }
     return {
       type: 'info',
-      text: 'Linux 会话下动态穿透会降级为基础穿透，自动更新需通过 Releases 手动下载。',
+      text: 'Linux 会话下智能穿透不可用，自动更新需通过 Releases 手动下载。',
     }
   }
 
@@ -1289,6 +1299,7 @@ const updateStatusLabel = computed(() => {
 })
 
 const canInstallUpdate = computed(() => updateState.value?.status === 'downloaded')
+const settingsWindowDisposers: Unsubscribe[] = []
 
 // 监听
 watch([serverUrl, token], ([nextUrl, nextToken]) => {
@@ -1313,10 +1324,13 @@ watch([activeGroup, activeChild], async ([group, child]) => {
 onMounted(async () => {
   // 先设置监听，避免错过消息
   if (window.electron.settings?.onNavigateTo) {
-    window.electron.settings.onNavigateTo((page: string) => {
+    settingsWindowDisposers.push(window.electron.settings.onNavigateTo((page: string) => {
       navigateToPage(page)
-    })
+    }))
   }
+
+  themeStore.startStorageSync()
+  connectionStore.startStorageSync()
 
   // 主动请求待处理的页面参数
   if (window.electron.settings?.getPendingPage) {
@@ -1354,24 +1368,27 @@ onMounted(async () => {
     updateState.value = null
   }
 
-  window.electron.update.onStateChanged((state: UpdateState) => {
+  settingsWindowDisposers.push(window.electron.update.onStateChanged((state: UpdateState) => {
     updateState.value = state
-  })
+  }))
 
-  window.electron.window.onMaximizedChanged((maximized: boolean) => {
+  settingsWindowDisposers.push(window.electron.window.onMaximizedChanged((maximized: boolean) => {
     isWindowMaximized.value = maximized
-  })
+  }))
+
+  settingsWindowDisposers.push(window.electron.desktopBehavior.onSnapshotChanged((snapshot: DesktopBehaviorSnapshot) => {
+    applyDesktopFeatureSettingsState(snapshot.preferences)
+  }))
 
   await checkShortcutRegistration()
 
-  window.electron.bridge.onConnected((payload: any) => {
-    connectionStore.isConnected = true
-    connectionStore.applySessionState(payload)
-  })
+  settingsWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
+    connectionStore.handleConnected(payload)
+  }))
 
-  window.electron.bridge.onDisconnected(() => {
-    connectionStore.resetSessionState()
-  })
+  settingsWindowDisposers.push(window.electron.bridge.onDisconnected(() => {
+    connectionStore.handleDisconnected()
+  }))
 
   await connectionStore.checkConnection()
 
@@ -1395,6 +1412,11 @@ onUnmounted(() => {
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
+  connectionStore.stopStorageSync()
+  themeStore.stopStorageSync()
+  for (const dispose of settingsWindowDisposers.splice(0)) {
+    dispose()
+  }
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('hashchange', navigateFromHash)
 })
@@ -1460,14 +1482,18 @@ function loadSettings() {
   void applyLogLevelSetting(advancedSettings.value.logLevel)
 }
 
+function applyDesktopFeatureSettingsState(settings: DesktopFeatureSettings) {
+  desktopFeatureSettings.value = {
+    alwaysOnTop: Boolean(settings.alwaysOnTop),
+    fullPassThrough: Boolean(settings.fullPassThrough),
+    dynamicPassThrough: Boolean(settings.dynamicPassThrough),
+    autoDetectFullscreen: Boolean(settings.autoDetectFullscreen),
+  }
+}
+
 async function loadDesktopFeatureSettings() {
   try {
-    const settings = await window.electron.window.getDesktopFeatureSettings()
-    desktopFeatureSettings.value = {
-      alwaysOnTop: Boolean(settings.alwaysOnTop),
-      fullPassThrough: Boolean(settings.fullPassThrough),
-      autoDetectFullscreen: Boolean(settings.autoDetectFullscreen),
-    }
+    applyDesktopFeatureSettingsState(await window.electron.desktopBehavior.getPreferences())
   } catch (error) {
     console.warn('[设置] 加载桌面功能设置失败:', error)
   }
@@ -1498,7 +1524,7 @@ async function loadScreenshotSettings() {
 }
 
 async function updateDesktopFeatureSetting(
-  key: 'alwaysOnTop' | 'fullPassThrough' | 'autoDetectFullscreen',
+  key: 'alwaysOnTop' | 'fullPassThrough' | 'dynamicPassThrough' | 'autoDetectFullscreen',
   value: boolean,
 ) {
   const previousSettings = { ...desktopFeatureSettings.value }
@@ -1510,16 +1536,13 @@ async function updateDesktopFeatureSetting(
   desktopFeatureSettings.value = nextSettings
 
   try {
-    const savedSettings = await window.electron.window.updateDesktopFeatureSettings({
+    const savedSettings = await window.electron.desktopBehavior.updatePreferences({
       alwaysOnTop: nextSettings.alwaysOnTop,
       fullPassThrough: nextSettings.fullPassThrough,
+      dynamicPassThrough: nextSettings.dynamicPassThrough,
       autoDetectFullscreen: nextSettings.autoDetectFullscreen,
     })
-    desktopFeatureSettings.value = {
-      alwaysOnTop: Boolean(savedSettings.alwaysOnTop),
-      fullPassThrough: Boolean(savedSettings.fullPassThrough),
-      autoDetectFullscreen: Boolean(savedSettings.autoDetectFullscreen),
-    }
+    applyDesktopFeatureSettingsState(savedSettings)
     message.success('桌面交互设置已保存')
   } catch (error: any) {
     desktopFeatureSettings.value = previousSettings
@@ -2258,17 +2281,15 @@ function handleClearCache() {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => {
-      const lastModelPath = localStorage.getItem('lastModelPath')
-      const advancedSettingsStr = localStorage.getItem('advancedSettings')
-      const connectionSettingsStr = localStorage.getItem('connectionSettings')
-      const themeStateStr = localStorage.getItem('rendererThemeState')
+      const preservedEntries = SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)] as const)
 
       localStorage.clear()
 
-      if (lastModelPath) localStorage.setItem('lastModelPath', lastModelPath)
-      if (advancedSettingsStr) localStorage.setItem('advancedSettings', advancedSettingsStr)
-      if (connectionSettingsStr) localStorage.setItem('connectionSettings', connectionSettingsStr)
-      if (themeStateStr) localStorage.setItem('rendererThemeState', themeStateStr)
+      for (const [key, value] of preservedEntries) {
+        if (value !== null) {
+          localStorage.setItem(key, value)
+        }
+      }
 
       message.success('缓存已清除')
     },
@@ -2281,11 +2302,14 @@ function handleResetSettings() {
     content: '确定要重置所有设置吗？此操作不可恢复！',
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => {
+    onPositiveClick: async () => {
       localStorage.clear()
       advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
       persistAdvancedSettings(advancedSettings.value)
       void applyLogLevelSetting(advancedSettings.value.logLevel)
+      applyDesktopFeatureSettingsState(
+        await window.electron.desktopBehavior.updatePreferences(DEFAULT_DESKTOP_FEATURE_SETTINGS),
+      )
       shortcutRegistered.value = false
       message.success('设置已重置')
     },

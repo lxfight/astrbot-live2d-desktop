@@ -17,6 +17,20 @@ import { isWindowFullscreen } from './windowWatcher'
 
 const execAsync = promisify(exec)
 
+/**
+ * 校验 X11 窗口 ID（必须为纯数字）
+ */
+function isValidWindowId(id: string): boolean {
+  return /^\d+$/.test(id)
+}
+
+/**
+ * 校验进程 ID（必须为正整数）
+ */
+function isValidPid(pid: number): boolean {
+  return Number.isInteger(pid) && pid > 0
+}
+
 // 缓存窗口信息
 const windowCache = new Map<string, WindowInfo>()
 
@@ -59,8 +73,8 @@ async function getActiveWindowViaXdotool(): Promise<WindowInfo | null> {
     // 获取活跃窗口 ID
     const { stdout: windowId } = await execAsync('xdotool getactivewindow')
     const id = windowId.trim()
-    
-    if (!id) return null
+
+    if (!id || !isValidWindowId(id)) return null
     
     // 获取窗口标题
     let title = ''
@@ -97,15 +111,15 @@ async function getActiveWindowViaXdotool(): Promise<WindowInfo | null> {
       const { stdout } = await execAsync(`xdotool getwindowpid ${id}`)
       processId = parseInt(stdout.trim(), 10) || 0
     } catch {}
-    
+
     // 获取进程名
     let processName = ''
     let processPath = ''
-    if (processId > 0) {
+    if (isValidPid(processId)) {
       try {
         const { stdout } = await execAsync(`ps -p ${processId} -o comm=`)
         processName = stdout.trim()
-        
+
         const { stdout: exePath } = await execAsync(`readlink -f /proc/${processId}/exe`)
         processPath = exePath.trim()
       } catch {}
@@ -138,6 +152,7 @@ async function getActiveWindowViaXdotool(): Promise<WindowInfo | null> {
  * 通过 xprop 获取窗口属性
  */
 async function getWindowPropertiesViaXprop(windowId: string): Promise<Partial<WindowInfo>> {
+  if (!isValidWindowId(windowId)) return {}
   try {
     const { stdout } = await execAsync(`xprop -id ${windowId}`)
     const lines = stdout.trim().split('\n')

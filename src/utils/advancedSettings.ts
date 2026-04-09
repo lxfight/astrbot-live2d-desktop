@@ -1,4 +1,8 @@
-export const ADVANCED_SETTINGS_KEY = 'advancedSettings'
+import { readJsonStorage, writeJsonStorage } from './storage'
+import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
+
+export const ADVANCED_SETTINGS_KEY = LOCAL_STORAGE_METADATA.advancedSettings.key
+const ADVANCED_SETTINGS_VERSION = LOCAL_STORAGE_METADATA.advancedSettings.version
 export const MAX_RECORDING_SECONDS_LIMIT = 60
 const MIN_RECORDING_SECONDS_LIMIT = 1
 const MIN_BUBBLE_STACK_LIMIT = 1
@@ -21,7 +25,6 @@ export interface AdvancedSettings {
   silenceDetectionEnabled: boolean
   showBaseEventNotifications: boolean
   maxRecordingSeconds: number
-  dynamicPassThroughEnabled: boolean
   bubbleStackMax: number
   bubbleFollowUpWindowMs: number
   imageInlineThresholdKb: number
@@ -38,7 +41,6 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   silenceDetectionEnabled: false,
   showBaseEventNotifications: true,
   maxRecordingSeconds: 30,
-  dynamicPassThroughEnabled: true,
   bubbleStackMax: 3,
   bubbleFollowUpWindowMs: 4000,
   imageInlineThresholdKb: 256,
@@ -90,9 +92,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
       ? raw.showBaseEventNotifications
       : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
     maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds),
-    dynamicPassThroughEnabled: typeof raw.dynamicPassThroughEnabled === 'boolean'
-      ? raw.dynamicPassThroughEnabled
-      : DEFAULT_ADVANCED_SETTINGS.dynamicPassThroughEnabled,
     bubbleStackMax: clampBubbleStackMax(raw.bubbleStackMax),
     bubbleFollowUpWindowMs: clampBubbleFollowUpWindowMs(raw.bubbleFollowUpWindowMs),
     imageInlineThresholdKb: clampImageInlineThresholdKb(raw.imageInlineThresholdKb),
@@ -138,14 +137,15 @@ export function clampImageMaxSizeMb(value: unknown): number {
 }
 
 export function loadAdvancedSettings(): AdvancedSettings {
-  const rawValue = localStorage.getItem(ADVANCED_SETTINGS_KEY)
-  if (!rawValue) {
-    return { ...DEFAULT_ADVANCED_SETTINGS }
-  }
-
   try {
-    const parsed = JSON.parse(rawValue)
-    return normalizeAdvancedSettings(parsed)
+    return readJsonStorage(ADVANCED_SETTINGS_KEY, {
+      fallback: { ...DEFAULT_ADVANCED_SETTINGS },
+      normalize: normalizeAdvancedSettings,
+      version: ADVANCED_SETTINGS_VERSION,
+      onError: (error) => {
+        console.error('[高级设置] 解析失败，使用默认配置:', error)
+      },
+    })
   } catch (error) {
     console.error('[高级设置] 解析失败，使用默认配置:', error)
     return { ...DEFAULT_ADVANCED_SETTINGS }
@@ -154,6 +154,6 @@ export function loadAdvancedSettings(): AdvancedSettings {
 
 export function saveAdvancedSettings(settings: unknown): AdvancedSettings {
   const normalized = normalizeAdvancedSettings(settings)
-  localStorage.setItem(ADVANCED_SETTINGS_KEY, JSON.stringify(normalized))
+  writeJsonStorage(ADVANCED_SETTINGS_KEY, normalized, { version: ADVANCED_SETTINGS_VERSION })
   return normalized
 }

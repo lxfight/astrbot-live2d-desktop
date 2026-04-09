@@ -1,10 +1,11 @@
 import { getUserConfig, setUserConfig } from '../database/schema'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 import { DEFAULT_SCREENSHOT_SETTINGS, normalizeScreenshotSettings, type ScreenshotSettings } from '../../src/utils/screenshotSettings'
 
 const SCREENSHOT_SETTING_KEYS = {
-  defaultTarget: 'desktop_capture_default_target',
-  quality: 'desktop_capture_quality',
-  maxWidth: 'desktop_capture_max_width',
+  defaultTarget: USER_CONFIG_KEYS.screenshotDefaultTarget,
+  quality: USER_CONFIG_KEYS.screenshotQuality,
+  maxWidth: USER_CONFIG_KEYS.screenshotMaxWidth,
 } as const
 
 export function loadScreenshotSettings(): ScreenshotSettings {
