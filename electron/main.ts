@@ -85,6 +85,9 @@ async function initialize() {
     return
   }
 
+  // 数据库可用后再初始化更新器，避免启动竞态访问 user_config
+  initializeAutoUpdater()
+
   // 检查 Cubism Core 是否存在
   if (!checkCubismCoreExists()) {
     console.log('[主进程] Live2D SDK 不存在，提示用户下载')
@@ -166,7 +169,6 @@ export function initBridgeClient() {
  */
 app.whenReady().then(() => {
   registerCubismCoreProtocol()
-  initializeAutoUpdater()
   initialize().catch(err => {
     console.error('[主进程] 初始化失败:', err)
     dialog.showErrorBox(
