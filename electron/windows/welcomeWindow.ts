@@ -13,8 +13,8 @@ let welcomeWindow: BrowserWindow | null = null
  */
 export function createWelcomeWindow(): BrowserWindow {
   welcomeWindow = new BrowserWindow({
-    width: 460,
-    height: 560,
+    width: 650,
+    height: 750,
     center: true,
     icon: resolveAppIconPath(),
     resizable: false,
