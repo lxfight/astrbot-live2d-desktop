@@ -1,14 +1,13 @@
 <template>
   <div class="welcome-screen window-drag-region" :style="welcomeThemeStyle">
+    <!-- Soft dynamic background -->
     <div class="welcome-screen__backdrop" aria-hidden="true">
-      <span class="welcome-screen__glow welcome-screen__glow--primary"></span>
-      <span class="welcome-screen__glow welcome-screen__glow--secondary"></span>
-      <span
-        v-for="i in 12"
-        :key="i"
-        class="welcome-screen__bubble"
-        :style="bubbleStyle(i)"
-      ></span>
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+      <div class="stars-container">
+        <Sparkles v-for="i in 8" :key="i" class="sparkle" :style="sparkleStyle(i)" />
+      </div>
     </div>
 
     <button
@@ -23,67 +22,67 @@
     <main class="welcome-stage">
       <transition name="welcome-scene" mode="out-in">
         <section v-if="stage === 'intro'" key="intro" class="welcome-scene welcome-scene--intro">
-          <div class="welcome-mascot" aria-hidden="true">
-            <div class="welcome-mascot__body">
-              <span class="welcome-mascot__face">A</span>
+          <div class="mascot-container" aria-hidden="true">
+            <div class="mascot-blob window-no-drag">
+              <span class="mascot-face">(´• ω •`)ﾉ</span>
             </div>
-            <div class="welcome-mascot__shadow"></div>
+            <div class="mascot-shadow"></div>
           </div>
 
-          <h1 class="welcome-greeting">
-            嗨～ 我是你的桌面小伙伴
-          </h1>
-          <p class="welcome-subtitle">正在为你准备一个温馨的小窝…</p>
+          <div class="greeting-box">
+            <h1 class="welcome-greeting">初次见面，请多关照～</h1>
+            <p class="welcome-subtitle">我将作为你的专属桌宠，长伴你左右...</p>
+          </div>
         </section>
 
         <section v-else key="form" class="welcome-scene welcome-scene--form">
           <div class="welcome-form-card window-no-drag">
-            <div class="welcome-mascot welcome-mascot--small" aria-hidden="true">
-              <div class="welcome-mascot__body">
-                <span class="welcome-mascot__face">A</span>
+            <div class="form-mascot-container" aria-hidden="true">
+              <div class="mascot-blob mascot-blob--small">
+                <span class="mascot-face">{{ faceExpression }}</span>
               </div>
             </div>
 
             <div class="welcome-form-card__header">
-              <h2>该怎么称呼你呀？</h2>
-              <p>告诉我你的名字，这样我就能记住你啦～</p>
+              <h2>该怎么称呼你呢？</h2>
+              <p>告诉我你的名字，让我们建立起更深的联系吧 ✦</p>
             </div>
 
             <label class="welcome-field" for="welcome-name-input">
-              <span class="welcome-field__label">你的昵称</span>
-              <input
-                id="welcome-name-input"
-                ref="nameInput"
-                v-model="userName"
-                type="text"
-                class="welcome-input"
-                placeholder="输入你喜欢的昵称"
-                maxlength="20"
-                autocomplete="nickname"
-                @keyup.enter="handleSubmit"
-              />
+              <div class="input-wrapper">
+                <input
+                  id="welcome-name-input"
+                  ref="nameInput"
+                  v-model="userName"
+                  type="text"
+                  class="welcome-input"
+                  placeholder="请输入你喜欢的昵称..."
+                  maxlength="20"
+                  autocomplete="nickname"
+                  @keyup.enter="handleSubmit"
+                />
+                <Heart v-if="userName.trim().length > 0" class="input-icon-active" :size="18" />
+              </div>
             </label>
 
             <button
               class="welcome-submit"
               type="button"
+              :class="{ 'is-loading': isSubmitting }"
               :disabled="!userName.trim() || isSubmitting"
               @click="handleSubmit"
             >
-              <span v-if="!isSubmitting">开始陪伴</span>
-              <span v-else>马上就好…</span>
+              <span class="submit-text" v-if="!isSubmitting">开始我们的旅程</span>
+              <span class="submit-text" v-else>正在为你准备小窝...</span>
             </button>
 
-            <p
-              v-if="submitError"
-              class="welcome-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {{ submitError }}
-            </p>
+            <transition name="fade">
+              <p v-if="submitError" class="welcome-error" role="alert" aria-live="assertive">
+                {{ submitError }}
+              </p>
+            </transition>
 
-            <span class="welcome-hint">按 Enter 也可以继续</span>
+            <span class="welcome-hint">按下 Enter 键也可以继续哦</span>
           </div>
         </section>
       </transition>
@@ -94,7 +93,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { X } from 'lucide-vue-next'
+import { X, Sparkles, Heart } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
 
 const themeStore = useThemeStore()
@@ -118,14 +117,24 @@ const welcomeThemeStyle = computed(() => ({
   '--welcome-chart-3': palette.value.chartPalette[3],
 }))
 
-function bubbleStyle(i: number) {
+const faceExpression = computed(() => {
+  if (isSubmitting.value) return '(๑•̀ㅂ•́)و✧'
+  const len = userName.value.trim().length
+  if (len > 4) return '(*≧ω≦)'
+  if (len > 0) return '(｡♥‿♥｡)'
+  return '(*・ω・)ﾏｽｩ'
+})
+
+function sparkleStyle(i: number) {
   const seed = i * 137.508
   const left = (seed * 7.3) % 100
-  const size = 4 + (seed % 12)
-  const delay = (seed % 8).toFixed(1)
-  const duration = 6 + (seed % 6)
+  const top = (seed * 11.7) % 100
+  const size = 10 + (seed % 14)
+  const delay = (seed % 5).toFixed(1)
+  const duration = 3 + (seed % 5)
   return {
     left: `${left}%`,
+    top: `${top}%`,
     width: `${size}px`,
     height: `${size}px`,
     animationDelay: `${delay}s`,
@@ -145,8 +154,8 @@ onMounted(() => {
     stage.value = 'form'
     focusTimer = window.setTimeout(() => {
       nextTick(() => nameInput.value?.focus())
-    }, 220)
-  }, 1800)
+    }, 500)
+  }, 2800)
 })
 
 onBeforeUnmount(() => {
@@ -163,11 +172,12 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    await new Promise((resolve) => setTimeout(resolve, 420))
+    // 增加一点动画延时让用户看到可爱的提交表情
+    await new Promise((resolve) => setTimeout(resolve, 800))
     await window.electron.user.setUserName(name)
   } catch (error) {
     console.error('[Welcome] 设置用户名称失败:', error)
-    submitError.value = '初始化失败，请检查桌面环境后重试。'
+    submitError.value = '呜呜，设置失败了，请稍后再试～'
     isSubmitting.value = false
   }
 }
@@ -185,11 +195,9 @@ function handleClose() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  color: var(--color-text-primary);
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(var(--color-accent-rgb), 0.12), transparent 50%),
-    radial-gradient(ellipse at 70% 80%, color-mix(in srgb, var(--welcome-chart-3) 18%, transparent), transparent 50%),
-    linear-gradient(160deg, rgba(18, 22, 32, 0.95), rgba(12, 16, 26, 1));
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-fallback, system-ui, sans-serif);
 }
 
 .welcome-screen__backdrop {
@@ -197,41 +205,61 @@ function handleClose() {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  background: 
+    radial-gradient(circle at 15% 30%, rgba(var(--color-accent-rgb, 116, 165, 255), 0.12), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(255, 182, 193, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(147, 112, 219, 0.12), transparent 50%);
 }
 
-.welcome-screen__glow {
+.orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-
-  &--primary {
-    top: -15%;
-    left: -8%;
-    width: 40vw;
-    height: 40vw;
-    min-width: 260px;
-    min-height: 260px;
-    background: rgba(var(--color-accent-rgb), 0.1);
-  }
-
-  &--secondary {
-    bottom: -20%;
-    right: -10%;
-    width: 50vw;
-    height: 50vw;
-    min-width: 300px;
-    min-height: 300px;
-    background: color-mix(in srgb, var(--welcome-chart-2) 14%, transparent);
-  }
+  filter: blur(70px);
+  opacity: 0.6;
+  animation: float 12s ease-in-out infinite alternate;
 }
 
-.welcome-screen__bubble {
+.orb-1 {
+  top: -10%; left: -10%; width: 55vw; height: 55vw;
+  background: rgba(var(--color-accent-rgb, 116, 165, 255), 0.2);
+  animation-delay: -2s;
+}
+
+.orb-2 {
+  bottom: -20%; right: -10%; width: 65vw; height: 65vw;
+  background: rgba(255, 192, 203, 0.18); /* soft pink */
+  animation-delay: -5s;
+}
+
+.orb-3 {
+  top: 40%; left: 60%; width: 45vw; height: 45vw;
+  background: rgba(147, 112, 219, 0.15); /* soft purple */
+  animation-delay: -7s;
+}
+
+.stars-container {
   position: absolute;
-  bottom: -20px;
-  border-radius: 50%;
-  background: rgba(var(--color-accent-rgb), 0.12);
-  animation: bubble-float linear infinite;
+  inset: 0;
+}
+
+.sparkle {
+  position: absolute;
+  color: #fff;
   opacity: 0;
+  animation: twinkle linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+}
+
+@keyframes twinkle {
+  0% { transform: scale(0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) rotate(180deg); opacity: 0.7; }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, 30px) scale(1.05); }
+  100% { transform: translate(-30px, 50px) scale(0.95); }
 }
 
 .welcome-close {
@@ -242,25 +270,20 @@ function handleClose() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--color-text-tertiary);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--color-text-primary);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.2);
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
   }
 }
 
@@ -269,9 +292,9 @@ function handleClose() {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
   position: relative;
   z-index: 1;
+  padding: 24px;
 }
 
 .welcome-scene {
@@ -279,293 +302,348 @@ function handleClose() {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  width: 100%;
 }
 
 .welcome-scene--intro {
-  gap: 20px;
+  gap: 36px;
 }
 
-.welcome-mascot {
+/* Mascot Display */
+.mascot-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
+  cursor: pointer;
+  
+  &:hover .mascot-blob {
+    animation: blob-bounce-hover 1s ease-in-out infinite alternate, blob-morph 3s linear infinite;
+    transform: scale(1.05);
+    box-shadow: 
+      0 12px 42px rgba(255, 182, 193, 0.3),
+      inset 0 4px 18px rgba(255, 255, 255, 0.6);
+  }
 }
 
-.welcome-mascot__body {
-  width: 96px;
-  height: 96px;
-  border-radius: 32px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.15), transparent 40%),
-    linear-gradient(145deg, var(--welcome-accent, var(--color-accent)), color-mix(in srgb, var(--welcome-chart-1, var(--color-accent)) 80%, #1a1a2e));
+.mascot-blob {
+  width: 120px;
+  height: 110px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 8px 32px rgba(255, 182, 193, 0.2),
+    inset 0 4px 18px rgba(255, 255, 255, 0.4);
+  border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 8px 32px rgba(var(--color-accent-rgb), 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  animation: mascot-bounce 2s ease-in-out infinite;
+  backdrop-filter: blur(14px);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: blob-bounce 3s ease-in-out infinite alternate, blob-morph 6s linear infinite;
 
-  .welcome-mascot--small & {
-    width: 64px;
-    height: 64px;
-    border-radius: 22px;
-    animation: mascot-wiggle 3s ease-in-out infinite;
+  &--small {
+    width: 90px;
+    height: 80px;
+    animation: blob-bounce-small 2.5s ease-in-out infinite alternate, blob-morph 5s linear infinite;
   }
 }
 
-.welcome-mascot__face {
-  font-size: 38px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: -0.04em;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.mascot-face {
+  font-size: 26px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  letter-spacing: 1px;
 
-  .welcome-mascot--small & {
-    font-size: 26px;
+  .mascot-blob--small & {
+    font-size: 19px;
   }
 }
 
-.welcome-mascot__shadow {
-  width: 56px;
+.mascot-shadow {
+  width: 64px;
   height: 8px;
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.18);
-  filter: blur(4px);
-  animation: shadow-pulse 2s ease-in-out infinite;
+  filter: blur(5px);
+  animation: shadow-pulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes blob-bounce {
+  0% { transform: translateY(-6px); }
+  100% { transform: translateY(12px); }
+}
+
+@keyframes blob-bounce-small {
+  0% { transform: translateY(-4px); }
+  100% { transform: translateY(8px); }
+}
+
+@keyframes blob-bounce-hover {
+  0% { transform: translateY(-10px) scale(1.05); }
+  100% { transform: translateY(5px) scale(1.05); }
+}
+
+@keyframes blob-morph {
+  0%, 100% { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
+  33% { border-radius: 55% 45% 60% 40% / 45% 55% 40% 60%; }
+  66% { border-radius: 40% 60% 55% 45% / 60% 40% 45% 55%; }
+}
+
+@keyframes shadow-pulse {
+  0% { transform: scale(1); opacity: 0.25; }
+  100% { transform: scale(0.7); opacity: 0.1; }
+}
+
+.greeting-box {
+  animation: fade-up 1s ease-out;
 }
 
 .welcome-greeting {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 4vw, 36px);
+  font-size: clamp(26px, 4.5vw, 34px);
   font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(var(--color-accent-rgb), 0.8));
-  background-clip: text;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #ffffff, #ffe0f5);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 16px rgba(255, 182, 193, 0.3);
+  letter-spacing: 0.5px;
 }
 
 .welcome-subtitle {
-  color: var(--color-text-tertiary);
-  font-size: 15px;
-  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 16px;
+  letter-spacing: 0.5px;
 }
 
+/* Form Scene */
 .welcome-scene--form {
-  width: min(420px, 100%);
+  max-width: 460px;
+  perspective: 1000px;
 }
 
 .welcome-form-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  width: 100%;
-  padding: 36px 32px 28px;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 40%, rgba(4, 8, 14, 0.4)),
-    rgba(14, 18, 28, 0.7);
-  backdrop-filter: blur(24px) saturate(120%);
-  box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 36px;
+  padding: 44px 36px 36px;
+  box-shadow: 
+    0 24px 54px rgba(0, 0, 0, 0.25),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(24px);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 120px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+    pointer-events: none;
+  }
+}
+
+.form-mascot-container {
+  margin-bottom: 28px;
+  cursor: default;
 }
 
 .welcome-form-card__header {
   text-align: center;
+  margin-bottom: 36px;
 
   h2 {
-    font-size: clamp(22px, 3.5vw, 28px);
+    font-size: 24px;
     font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    color: #fff;
+    letter-spacing: 0.5px;
   }
 
   p {
-    color: var(--color-text-secondary);
-    font-size: 14px;
-    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 14.5px;
   }
 }
 
 .welcome-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   width: 100%;
+  margin-bottom: 28px;
 }
 
-.welcome-field__label {
-  color: rgba(247, 249, 252, 0.7);
-  font-size: 13px;
-  font-weight: 600;
-  padding-left: 4px;
+.input-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .welcome-input {
   width: 100%;
-  min-height: 52px;
-  padding: 0 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text-primary);
+  height: 60px;
+  padding: 0 54px 0 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  color: #fff;
   font-size: 16px;
-  text-align: center;
-  transition:
-    border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
 
   &::placeholder {
-    color: var(--color-text-tertiary);
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 400;
   }
 
   &:hover {
-    border-color: rgba(var(--color-accent-rgb), 0.2);
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   &:focus {
-    border-color: rgba(var(--color-accent-rgb), 0.4);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
     outline: none;
+    background: rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 182, 193, 0.6);
+    box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.2), inset 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
   }
+}
+
+.input-icon-active {
+  position: absolute;
+  right: 22px;
+  color: #ffb6c1;
+  filter: drop-shadow(0 0 6px rgba(255, 182, 193, 0.6));
+  animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
 .welcome-submit {
-  display: inline-flex;
+  width: 100%;
+  height: 56px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.95), rgba(216, 191, 216, 0.95));
+  color: #4a2845;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 48px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--welcome-chart-1, var(--color-accent)) 80%, #2a1a4e));
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  box-shadow: 0 8px 24px rgba(var(--color-accent-rgb), 0.2);
-  transition:
-    transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    opacity var(--duration-fast) var(--ease-out);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 24px rgba(255, 182, 193, 0.3);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 20px;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    transition: none;
+  }
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 32px rgba(var(--color-accent-rgb), 0.28);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(255, 182, 193, 0.45);
+    color: #2d182b;
+    
+    &::after {
+      animation: shine 1.2s ease;
+    }
   }
 
   &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.2), 0 8px 24px rgba(var(--color-accent-rgb), 0.2);
+    transform: translateY(1px);
+    box-shadow: 0 6px 16px rgba(255, 182, 193, 0.3);
   }
 
   &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
     box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  &.is-loading {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    animation: pulse 1.5s infinite;
   }
 }
 
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .welcome-error {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  background: rgba(248, 113, 113, 0.08);
-  color: rgba(255, 200, 200, 0.95);
-  font-size: 13px;
-  line-height: 1.5;
+  color: #ffb3b3;
+  font-size: 13.5px;
   text-align: center;
+  margin-bottom: 16px;
+  background: rgba(255, 153, 153, 0.12);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 153, 153, 0.25);
+  font-weight: 500;
 }
 
 .welcome-hint {
-  color: var(--color-text-tertiary);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  letter-spacing: 0.5px;
 }
 
-/* 场景切换动画 */
-.welcome-scene-enter-active,
+/* Animations */
+.welcome-scene-enter-active {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .welcome-scene-leave-active {
-  transition:
-    opacity var(--duration-slow) var(--ease-out),
-    transform var(--duration-slow) var(--ease-out);
+  transition: all 0.5s ease-in;
 }
 
 .welcome-scene-enter-from {
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
+  transform: translateY(30px) scale(0.95);
+  filter: blur(12px);
 }
-
 .welcome-scene-leave-to {
   opacity: 0;
-  transform: translateY(-8px) scale(0.98);
+  transform: translateY(-20px) scale(0.95);
+  filter: blur(6px);
 }
 
-/* 吉祥物弹跳 */
-@keyframes mascot-bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-/* 吉祥物摇摆 */
-@keyframes mascot-wiggle {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(-4deg);
-  }
-  75% {
-    transform: rotate(4deg);
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-/* 阴影脉冲 */
-@keyframes shadow-pulse {
-  0%, 100% {
-    transform: scaleX(1);
-    opacity: 0.18;
-  }
-  50% {
-    transform: scaleX(0.7);
-    opacity: 0.1;
-  }
-}
-
-/* 气泡浮动 */
-@keyframes bubble-float {
-  0% {
-    transform: translateY(0) scale(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.6;
-    transform: translateY(-10vh) scale(1);
-  }
-  90% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(-110vh) scale(0.6);
-    opacity: 0;
-  }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 640px) {
@@ -574,35 +652,8 @@ function handleClose() {
   }
 
   .welcome-form-card {
-    padding: 28px 22px 22px;
-    border-radius: 22px;
-  }
-
-  .welcome-mascot__body {
-    width: 80px;
-    height: 80px;
-    border-radius: 26px;
-  }
-
-  .welcome-mascot__face {
-    font-size: 32px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .welcome-mascot__body,
-  .welcome-mascot__shadow,
-  .welcome-screen__bubble {
-    animation: none;
-  }
-
-  .welcome-scene-enter-from,
-  .welcome-scene-leave-to {
-    transform: none;
-  }
-
-  .welcome-submit:hover:not(:disabled) {
-    transform: none;
+    padding: 32px 24px 24px;
+    border-radius: 28px;
   }
 }
 </style>
