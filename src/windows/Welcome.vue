@@ -28,7 +28,7 @@
         <section v-if="stage === 'intro'" key="intro" class="welcome-scene welcome-scene--intro">
           <div class="mascot-container" aria-hidden="true">
             <div class="mascot-blob window-no-drag">
-              <div class="mascot-eyes" :class="{ 'is-winking': isWinking }">
+              <div class="mascot-eyes" :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }">
                 <div class="eye-socket left" :style="eyeMovementStyle">
                   <div class="eye">
                     <div class="pupil"></div>
@@ -54,7 +54,7 @@
           <div class="organic-content window-no-drag">
             <div class="form-mascot-container" aria-hidden="true">
               <div class="mascot-blob mascot-blob--large">
-                <div class="mascot-eyes mascot-eyes--large" :class="{ 'is-winking': isWinking }">
+                <div class="mascot-eyes mascot-eyes--large" :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }">
                   <div class="eye-socket left" :style="eyeMovementStyle">
                     <div class="eye">
                       <div class="pupil"></div>
@@ -133,10 +133,11 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
-// 眼睛自动张望逻辑
+// 眼睛自动交互逻辑
 const lookX = ref(0)
 const lookY = ref(0)
 const isWinking = ref(false)
+const isBlinkingSync = ref(false)
 
 const eyeMovementStyle = computed(() => {
   return {
@@ -144,22 +145,30 @@ const eyeMovementStyle = computed(() => {
   }
 })
 
+const triggerBlink = () => {
+  if (isBlinkingSync.value || isWinking.value) return
+  isBlinkingSync.value = true
+  setTimeout(() => {
+    isBlinkingSync.value = false
+  }, 150) // 快速眨眼
+}
+
 const triggerWink = () => {
   if (isWinking.value) return
   isWinking.value = true
   setTimeout(() => {
     isWinking.value = false
-  }, 1200) // 增加时长让用户看清
+  }, 1200)
 }
 
 const autoLookAround = () => {
-  // 随机张望位置
   const strength = 12
   lookX.value = (Math.random() - 0.5) * 2 * strength
   lookY.value = (Math.random() - 0.5) * 2 * strength
   
-  // 随机触发 wink
-  if (Math.random() > 0.8) triggerWink()
+  const rand = Math.random()
+  if (rand > 0.8) triggerWink()
+  else if (rand > 0.4) triggerBlink()
 }
 
 function sparkleStyle(i: number) {
@@ -413,7 +422,7 @@ function handleClose() {
     background: #111;
     border-radius: 50%;
     position: relative;
-    animation: blink 4s infinite;
+    transition: transform 0.1s ease-out, background 0.3s ease;
     
     .pupil {
       position: absolute;
@@ -427,13 +436,23 @@ function handleClose() {
     }
   }
 
+  &.is-blinking:not(.is-winking) {
+    .eye {
+      transform: scaleY(0.1);
+    }
+  }
+
   &.is-winking {
+    .eye-socket.left .eye {
+      transform: scaleY(1);
+    }
+    
     .eye-socket.right .eye {
-      animation: none;
       background: transparent !important;
       width: 20px;
       height: 20px;
       border-radius: 0;
+      transform: scaleY(1);
       
       &::before {
         content: '';
@@ -442,8 +461,8 @@ function handleClose() {
         left: 50%;
         width: 12px;
         height: 12px;
-        border-right: 3px solid #111;
-        border-bottom: 3px solid #111;
+        border-right: 3.5px solid #111;
+        border-bottom: 3.5px solid #111;
         transform: translate(-30%, -30%) rotate(135deg);
       }
       
@@ -462,11 +481,6 @@ function handleClose() {
       }
     }
   }
-}
-
-@keyframes blink {
-  0%, 90%, 100% { transform: scaleY(1); }
-  95% { transform: scaleY(0.1); }
 }
 
 .mascot-shadow {
