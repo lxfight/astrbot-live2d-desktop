@@ -59,8 +59,5 @@ jobs:
       - name: Run typecheck
         run: pnpm run typecheck
 
-      - name: Build frontend and Electron bundles
-        run: pnpm run build:prepare:fast
-
       - name: Package unpacked app
         run: pnpm run build:dir
