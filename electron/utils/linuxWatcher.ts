@@ -6,7 +6,7 @@
  */
 
 import { screen } from 'electron'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
 import type { 
   PlatformWatcher, 
@@ -357,8 +357,6 @@ async function checkWindowChange(): Promise<void> {
  */
 function startX11NativeListener(): boolean {
   try {
-    const { spawn } = require('child_process')
-    
     // 使用 xprop 监听窗口变化
     // 这需要 xprop 工具
     const xprop = spawn('xprop', ['-root', '-spy'])

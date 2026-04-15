@@ -18,6 +18,7 @@ interface UseRecordingOptions {
   showBaseEventStatus: (text: string, type: ModelStatusType, duration?: number) => void
   updateUIPositions: () => void
   generateMessageId: (prefix?: string) => string
+  syncRecordingState?: (recording: boolean) => void | Promise<void>
 }
 
 export function useRecording(options: UseRecordingOptions) {
@@ -29,6 +30,7 @@ export function useRecording(options: UseRecordingOptions) {
     showBaseEventStatus,
     updateUIPositions,
     generateMessageId,
+    syncRecordingState,
   } = options
 
   const isRecording = ref(false)
@@ -44,6 +46,23 @@ export function useRecording(options: UseRecordingOptions) {
   let audioRecorder: AudioRecorder | null = null
   let recordingTimer: NodeJS.Timeout | null = null
   let isStoppingRecording = false
+
+  function notifyRecordingState(recording: boolean) {
+    if (!syncRecordingState) {
+      return
+    }
+
+    try {
+      const result = syncRecordingState(recording)
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        ;(result as Promise<void>).catch((error) => {
+          console.warn('[主窗口] 同步录音状态失败:', error)
+        })
+      }
+    } catch (error) {
+      console.warn('[主窗口] 同步录音状态失败:', error)
+    }
+  }
 
   function clearRecordingTimer() {
     if (recordingTimer) {
@@ -94,6 +113,7 @@ export function useRecording(options: UseRecordingOptions) {
 
       await audioRecorder.start()
       isRecording.value = true
+      notifyRecordingState(true)
       updateUIPositions()
       currentRecordingSource.value = source
       recordingDuration.value = 0
@@ -113,6 +133,7 @@ export function useRecording(options: UseRecordingOptions) {
     } catch (error: any) {
       showModelStatus(`录音失败: ${error.message}`, 'error')
       isRecording.value = false
+      notifyRecordingState(false)
       recordingDuration.value = 0
       currentRecordingSource.value = 'manual'
       audioRecorder = null
@@ -151,6 +172,7 @@ export function useRecording(options: UseRecordingOptions) {
       showModelStatus(`停止录音失败: ${error.message}`, 'error')
     } finally {
       isRecording.value = false
+      notifyRecordingState(false)
       recordingDuration.value = 0
       currentRecordingSource.value = 'manual'
       audioRecorder = null
@@ -165,6 +187,7 @@ export function useRecording(options: UseRecordingOptions) {
 
     audioRecorder.cancel()
     isRecording.value = false
+    notifyRecordingState(false)
     recordingDuration.value = 0
     currentRecordingSource.value = 'manual'
     audioRecorder = null
@@ -227,6 +250,8 @@ export function useRecording(options: UseRecordingOptions) {
     if (audioRecorder && isRecording.value) {
       audioRecorder.cancel()
       audioRecorder = null
+      isRecording.value = false
+      notifyRecordingState(false)
     }
   }
 

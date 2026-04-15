@@ -26,8 +26,8 @@ function resolveFirstExisting(basePath: string, candidates: string[]): string | 
 /**
  * Resolve an icon path that works in both dev and packaged builds.
  *
- * Packaged: <process.resourcesPath>/icon.(ico|png)
- * Dev:      <projectRoot>/resources/icon.(ico|png)
+ * Packaged: <process.resourcesPath>/icon.(ico|icns|png)
+ * Dev:      <projectRoot>/resources/icon.(ico|icns|png)
  */
 export function resolveAppIconPath(): string {
   const candidates = getIconCandidates()

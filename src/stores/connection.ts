@@ -11,7 +11,12 @@ function buildDefaultLocalServerUrl(): string {
   return url.toString()
 }
 
-const DEFAULT_SERVER_URL = buildDefaultLocalServerUrl()
+function readEnvString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+const DEFAULT_SERVER_URL = readEnvString(import.meta.env?.VITE_DEFAULT_SERVER_URL) || buildDefaultLocalServerUrl()
+const DEFAULT_TOKEN = readEnvString(import.meta.env?.VITE_DEFAULT_TOKEN)
 const DEFAULT_RESOURCE_PATH = '/resources'
 const CONNECTION_SETTINGS_KEY = LOCAL_STORAGE_METADATA.connectionSettings.key
 const CONNECTION_SETTINGS_VERSION = LOCAL_STORAGE_METADATA.connectionSettings.version
@@ -52,7 +57,7 @@ type PersistedConnectionSettings = Omit<ConnectionSettings, 'token' | 'resourceT
 function getDefaultConnectionSettings(): ConnectionSettings {
   return {
     serverUrl: DEFAULT_SERVER_URL,
-    token: '',
+    token: DEFAULT_TOKEN,
     resourceBaseUrl: '',
     resourcePath: DEFAULT_RESOURCE_PATH,
     resourceOverrideBaseUrl: '',
@@ -83,6 +88,9 @@ function saveConnectionSettings(settings: ConnectionSettings) {
     if (encryptionAvailable) {
       payload.encryptedToken = window.electron.secureStorage.encryptString(settings.token)
       payload.encryptedResourceToken = window.electron.secureStorage.encryptString(settings.resourceToken)
+    } else {
+      payload.token = settings.token.trim()
+      payload.resourceToken = settings.resourceToken.trim()
     }
 
     writeJsonStorage(CONNECTION_SETTINGS_KEY, payload, { version: CONNECTION_SETTINGS_VERSION })

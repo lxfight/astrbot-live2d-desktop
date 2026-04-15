@@ -102,8 +102,11 @@ async function getActiveWindowViaAppleScript(): Promise<WindowInfo | null> {
  */
 async function getActiveWindowViaNode(): Promise<WindowInfo | null> {
   try {
-    // 尝试使用 active-win
-    const activeWin = require('active-win')
+    const activeWinModule = await import('active-win')
+    const activeWin = activeWinModule.activeWindow
+    if (typeof activeWin !== 'function') {
+      return null
+    }
     const result = await activeWin()
     
     if (!result) return null

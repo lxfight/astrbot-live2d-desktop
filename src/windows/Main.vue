@@ -380,6 +380,14 @@ function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void
   showModelStatus(hint.text, hint.type, hint.duration)
 }
 
+async function syncRecordingShortcutState(recording: boolean): Promise<void> {
+  try {
+    await window.electron.shortcut.setRecordingState(recording)
+  } catch (error) {
+    console.warn('[主窗口] 同步快捷键录音状态失败:', error)
+  }
+}
+
 // ─── Composable 初始化 ──────────────────────────────────────────
 
 // useBubbleStack：无外部依赖
@@ -467,6 +475,7 @@ const {
   showBaseEventStatus,
   updateUIPositions: () => updateUIPositions(),
   generateMessageId,
+  syncRecordingState: syncRecordingShortcutState,
 })
 
 function openInput() {
@@ -869,6 +878,17 @@ onMounted(async () => {
     // ignore capability lookup failures in startup flow
   }
 
+  try {
+    const startWatchingResult = await window.electron.window.startWatching()
+    if (!startWatchingResult.success) {
+      console.warn('[主窗口] 窗口监听启动失败:', startWatchingResult.error)
+    }
+  } catch (error) {
+    console.warn('[主窗口] 窗口监听启动失败:', error)
+  }
+
+  await syncRecordingShortcutState(false)
+
   mainWindowDisposers.push(window.electron.shortcut.onRecordingStart(() => {
     console.log('[主窗口] 全局快捷键：开始录音')
     void startRecording({ source: 'shortcut' })
@@ -1067,7 +1087,7 @@ onMounted(async () => {
   }
 
   const lastModelPath = modelStore.getLastModel()
-  if (lastModelPath) {
+  if (advancedSettings.value.autoLoadLastModel && lastModelPath) {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
 
     try {
@@ -1081,7 +1101,7 @@ onMounted(async () => {
       openModelLibraryWindowOnce()
     }
   } else {
-    // 没有上次使用的模型，显示导入提示
+    // 未启用自动加载或没有上次模型，显示导入提示
     hasModel.value = false
     openModelLibraryWindowOnce()
   }

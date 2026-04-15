@@ -17,6 +17,53 @@ export type HistoryRenderableItem =
   | { type: 'video'; src: string; label: string }
   | { type: 'file'; src: string; label: string; name: string }
 
+export function setLruCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
+  if (cache.has(key)) {
+    cache.delete(key)
+  } else if (cache.size >= limit) {
+    const oldestKey = cache.keys().next().value as string | undefined
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey)
+    }
+  }
+
+  cache.set(key, value)
+  return value
+}
+
+export function getLruCacheEntry<T>(cache: Map<string, T>, key: string): T | undefined {
+  const cached = cache.get(key)
+  if (cached === undefined) {
+    return undefined
+  }
+
+  cache.delete(key)
+  cache.set(key, cached)
+  return cached
+}
+
+export function parseHistoryContent(
+  content: string,
+  cache: Map<string, HistoryContentElement[]>,
+  cacheLimit = 1000,
+): HistoryContentElement[] {
+  const cached = getLruCacheEntry(cache, content)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  try {
+    const parsed = JSON.parse(content)
+    const result = Array.isArray(parsed)
+      ? parsed as HistoryContentElement[]
+      : [parsed as HistoryContentElement]
+    return setLruCacheEntry(cache, content, result, cacheLimit)
+  } catch {
+    const fallback: HistoryContentElement[] = [{ type: 'text', text: String(content) }]
+    return setLruCacheEntry(cache, content, fallback, cacheLimit)
+  }
+}
+
 export function resolveHistoryMediaSource(
   element: Pick<HistoryContentElement, 'url' | 'inline' | 'rid'>,
   resourceConfig: ResourceUrlConfig = {}
