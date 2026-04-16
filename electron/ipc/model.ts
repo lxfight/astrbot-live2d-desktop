@@ -51,6 +51,20 @@ function findCubism2ModelJsonFiles(rootDir: string): string[] {
   return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
 }
 
+function normalizeModelName(rawName: unknown): { success: true; value: string } | { success: false; error: string } {
+  if (typeof rawName !== 'string' || !rawName.trim()) {
+    return { success: false, error: '模型名称不能为空' }
+  }
+
+  const trimmed = rawName.trim()
+  const normalized = path.basename(trimmed)
+  if (normalized !== trimmed || normalized === '.' || normalized === '..') {
+    return { success: false, error: '模型名称非法' }
+  }
+
+  return { success: true, value: normalized }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
@@ -162,6 +176,11 @@ ipcMain.handle('model:selectFolder', async () => {
  */
 ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: string) => {
   try {
+    const normalizedModelName = normalizeModelName(modelName)
+    if (!normalizedModelName.success) {
+      return { success: false, error: normalizedModelName.error }
+    }
+
     if (!fs.existsSync(sourceDir) || !fs.statSync(sourceDir).isDirectory()) {
       return { success: false, error: '请选择有效的模型文件夹' }
     }
@@ -189,7 +208,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
 
     // 创建目标目录
     const modelsDir = getModelsDir()
-    const targetDir = path.join(modelsDir, modelName)
+    const targetDir = path.join(modelsDir, normalizedModelName.value)
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true })
     }
@@ -204,7 +223,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
     const modelPath = app.isPackaged
       ? pathToFileURL(path.join(targetDir, relChosen)).toString()
-      : `/models/${modelName}/${relChosen}`
+      : `/models/${normalizedModelName.value}/${relChosen}`
     return {
       success: true,
       modelPath,
@@ -262,16 +281,12 @@ ipcMain.handle('model:getList', async () => {
  */
 ipcMain.handle('model:delete', async (_event, modelName: string) => {
   try {
-    if (typeof modelName !== 'string' || !modelName.trim()) {
-      return { success: false, error: '模型名称不能为空' }
+    const normalizedModelName = normalizeModelName(modelName)
+    if (!normalizedModelName.success) {
+      return { success: false, error: normalizedModelName.error }
     }
 
-    const normalizedName = path.basename(modelName.trim())
-    if (normalizedName !== modelName.trim()) {
-      return { success: false, error: '模型名称非法' }
-    }
-
-    const modelDir = path.join(getModelsDir(), normalizedName)
+    const modelDir = path.join(getModelsDir(), normalizedModelName.value)
     if (fs.existsSync(modelDir)) {
       await removeDirectoryWithRetry(modelDir)
     }

@@ -151,6 +151,7 @@ contextBridge.exposeInMainWorld('electron', {
     register: (accelerator: string) => ipcRenderer.invoke('shortcut:register', accelerator),
     unregister: () => ipcRenderer.invoke('shortcut:unregister'),
     isRegistered: (accelerator: string) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
+    setRecordingState: (recording: boolean) => ipcRenderer.invoke('shortcut:setRecordingState', recording),
     onRecordingStart: (callback: () => void) => subscribeIpc('shortcut:recording-start', callback),
     onRecordingStop: (callback: () => void) => subscribeIpc('shortcut:recording-stop', callback)
   },

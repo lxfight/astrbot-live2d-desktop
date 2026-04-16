@@ -83,6 +83,7 @@
     "postinstall": "node scripts/rebuild-native.js --optional && node scripts/download-cubism-core.js && node scripts/download-framework.js && node scripts/apply-cubism-framework-patches.mjs",
     "setup:framework": "node scripts/download-framework.js",
     "setup:framework:force": "node scripts/download-framework.js --force",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:prepare:fast": "pnpm exec vite build",
@@ -168,6 +169,10 @@
       {
         "from": "resources/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "resources/icon.icns",
+        "to": "icon.icns"
       }
     ],
     "asar": true,
@@ -238,6 +243,7 @@
     },
     "compression": "maximum",
     "mac": {
+      "icon": "icon.icns",
       "target": [
         "dmg",
         "zip"
@@ -245,6 +251,7 @@
       "category": "public.app-category.utilities"
     },
     "linux": {
+      "icon": "icon.png",
       "target": [
         "AppImage",
         "deb",

@@ -468,6 +468,12 @@
                 </div>
                 <div class="settings-toggle-item">
                   <div class="settings-toggle-item__main">
+                    <div class="settings-toggle-item__label">启动时自动加载上次模型</div>
+                  </div>
+                  <n-switch v-model:value="advancedSettings.autoLoadLastModel" @update:value="applyAdvancedSettingChange" />
+                </div>
+                <div class="settings-toggle-item">
+                  <div class="settings-toggle-item__main">
                     <div class="settings-toggle-item__label">音频播放时启用口型同步</div>
                     <div class="settings-toggle-item__desc">关闭后仍会播放音频，但不会再驱动模型口型变化。</div>
                   </div>
@@ -965,8 +971,6 @@ import { useDialog, useMessage } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
 import * as echarts from 'echarts'
 import { format } from 'date-fns'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import {
   Copy, Drama, Globe, Info, Minus, Settings, Square, X,
   MessageSquare, Search, User, Bot, Image as ImageIcon, Mic, Video,
@@ -987,11 +991,18 @@ import {
   saveAdvancedSettings as persistAdvancedSettings,
 } from '@/utils/advancedSettings'
 import {
+  getLruCacheEntry,
+  setLruCacheEntry,
   resolveHistoryMediaSource,
+  parseHistoryContent,
   resolveHistoryImageSource,
+  type HistoryContentElement,
 } from '@/utils/historyContent'
 import { withAlpha } from '@/utils/themePalette'
 import { DEFAULT_DESKTOP_FEATURE_SETTINGS } from '@/utils/desktopFeatureSettings'
+import { DEFAULT_UPDATER_SETTINGS } from '@/utils/updaterSettings'
+import { DEFAULT_SCREENSHOT_SETTINGS } from '@/utils/screenshotSettings'
+import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -999,6 +1010,8 @@ const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
 const { currentModelPath, resolvedModelName, palette, sourceColor } = storeToRefs(themeStore)
 const { isConnected } = storeToRefs(connectionStore)
+
+configureMarked()
 
 // 菜单数据结构
 const menuGroups = [
@@ -1188,7 +1201,7 @@ function onVoiceEnded(idx: number) {
 
 // 缓存
 const markdownRenderCache = new Map<string, string>()
-const messageContentCache = new Map<string, any[]>()
+const messageContentCache = new Map<string, HistoryContentElement[]>()
 
 // 计算属性
 const activeGroupMeta = computed(() => {
@@ -1932,44 +1945,15 @@ function formatTimestamp(timestamp: number): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  const cached = markdownRenderCache.get(text)
+  const cached = getLruCacheEntry(markdownRenderCache, text)
   if (cached !== undefined) return cached
 
-  try {
-    const renderedHtml = marked.parse(text) as string
-    const sanitized = DOMPurify.sanitize(renderedHtml, {
-      USE_PROFILES: { html: true },
-      ALLOW_DATA_ATTR: false
-    }).trim()
-    if (markdownRenderCache.size >= 500) {
-      const oldestKey = markdownRenderCache.keys().next().value
-      if (oldestKey) markdownRenderCache.delete(oldestKey)
-    }
-    markdownRenderCache.set(text, sanitized)
-    return sanitized
-  } catch (error) {
-    return text
-  }
+  const rendered = renderMarkdownFromShared(text).trim()
+  return setLruCacheEntry(markdownRenderCache, text, rendered, 500)
 }
 
 function parseContent(content: string): any[] {
-  const cached = messageContentCache.get(content)
-  if (cached) return cached
-
-  try {
-    const parsed = JSON.parse(content)
-    const result = Array.isArray(parsed) ? parsed : [parsed]
-    if (messageContentCache.size >= 1000) {
-      const oldestKey = messageContentCache.keys().next().value
-      if (oldestKey) messageContentCache.delete(oldestKey)
-    }
-    messageContentCache.set(content, result)
-    return result
-  } catch (error) {
-    const fallback = [{ type: 'text', text: String(content) }]
-    messageContentCache.set(content, fallback)
-    return fallback
-  }
+  return parseHistoryContent(content, messageContentCache, 1000)
 }
 
 function getMessageAuthorLabel(msg: any): string {
@@ -2303,15 +2287,42 @@ function handleResetSettings() {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
-      localStorage.clear()
-      advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
-      persistAdvancedSettings(advancedSettings.value)
-      void applyLogLevelSetting(advancedSettings.value.logLevel)
-      applyDesktopFeatureSettingsState(
-        await window.electron.desktopBehavior.updatePreferences(DEFAULT_DESKTOP_FEATURE_SETTINGS),
-      )
-      shortcutRegistered.value = false
-      message.success('设置已重置')
+      try {
+        localStorage.clear()
+
+        advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
+        persistAdvancedSettings(advancedSettings.value)
+        void applyLogLevelSetting(advancedSettings.value.logLevel)
+
+        applyDesktopFeatureSettingsState(
+          await window.electron.desktopBehavior.updatePreferences(DEFAULT_DESKTOP_FEATURE_SETTINGS),
+        )
+
+        const nextUpdaterSettings = await window.electron.update.updateSettings(DEFAULT_UPDATER_SETTINGS)
+        updaterSettings.value = {
+          autoUpdateEnabled: Boolean(nextUpdaterSettings.autoUpdateEnabled),
+        }
+
+        const nextScreenshotSettings = await window.electron.window.updateScreenshotSettings(DEFAULT_SCREENSHOT_SETTINGS)
+        screenshotSettings.value = {
+          defaultTarget: nextScreenshotSettings.defaultTarget === 'desktop' ? 'desktop' : 'active',
+          quality: Number(nextScreenshotSettings.quality) || DEFAULT_SCREENSHOT_SETTINGS.quality,
+          maxWidth: Number(nextScreenshotSettings.maxWidth) || DEFAULT_SCREENSHOT_SETTINGS.maxWidth,
+        }
+
+        const watcherResetResult = await window.electron.window.resetWatcherConfig()
+        watcherConfig.value = watcherResetResult.config
+        specificAppsInput.value = watcherResetResult.config.aiResponse.specificApps.join('\n')
+        ignoreProcessNamesInput.value = watcherResetResult.config.ignore.processNames.join('\n')
+        ignoreTitleKeywordsInput.value = watcherResetResult.config.ignore.titleKeywords.join('\n')
+
+        await window.electron.shortcut.unregister()
+        await checkShortcutRegistration()
+
+        message.success('设置已重置')
+      } catch (error: any) {
+        message.error(`重置失败: ${error?.message || String(error)}`)
+      }
     },
   })
 }

@@ -174,6 +174,7 @@ declare global {
         register: (accelerator: string) => Promise<{ success: boolean; error?: string }>
         unregister: () => Promise<{ success: boolean; error?: string }>
         isRegistered: (accelerator: string) => Promise<boolean>
+        setRecordingState: (recording: boolean) => Promise<{ success: boolean; isRecording: boolean }>
         onRecordingStart: (callback: () => void) => Unsubscribe
         onRecordingStop: (callback: () => void) => Unsubscribe
       }

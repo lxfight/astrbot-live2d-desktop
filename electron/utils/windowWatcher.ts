@@ -429,7 +429,8 @@ export class WindowWatcherManager {
     if (!this.config) {
       await this.loadConfigModule()
     }
-    if (!this.config?.appLaunchEnabled) {
+    if (!this.config?.enabled || !this.config?.appLaunchEnabled) {
+      this.stopAppLaunchDetection()
       console.log('[应用启动] 应用启动检测已禁用')
       return
     }

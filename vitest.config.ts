@@ -19,11 +19,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: [
-        'electron/protocol/messageContent.ts',
-        'electron/database/messageDirection.ts',
-        'electron/database/messageSearch.ts',
-        'electron/database/nativeBinding.ts',
-        'src/utils/advancedSettings.ts'
+        'electron/protocol/**/*.ts',
+        'electron/database/**/*.ts',
+        'electron/ipc/**/*.ts',
+        'electron/utils/windowWatcher.ts',
+        'src/stores/**/*.ts',
+        'src/windows/composables/**/*.ts',
+        'src/utils/**/*.ts'
       ]
     }
   }

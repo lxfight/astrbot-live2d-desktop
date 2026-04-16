@@ -338,8 +338,12 @@ import { useConnectionStore } from '@/stores/connection'
 import { useThemeStore } from '@/stores/theme'
 import {
   buildHistoryRenderableItems,
+  getLruCacheEntry,
+  parseHistoryContent,
   resolveHistoryMediaSource,
   resolveHistoryImageSource,
+  setLruCacheEntry,
+  type HistoryContentElement,
   type HistoryRenderableItem,
 } from '@/utils/historyContent'
 import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
@@ -481,36 +485,11 @@ const MARKDOWN_CACHE_LIMIT = 500
 const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
 const markdownRenderCache = new Map<string, string>()
-const messageContentCache = new Map<string, any[]>()
+const messageContentCache = new Map<string, HistoryContentElement[]>()
 const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const historyResourceBaseUrl = ref('')
 const historyResourcePath = ref('/resources')
 const historyResourceToken = ref('')
-
-function setCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
-  if (cache.has(key)) {
-    cache.delete(key)
-  } else if (cache.size >= limit) {
-    const oldestKey = cache.keys().next().value as string | undefined
-    if (oldestKey !== undefined) {
-      cache.delete(oldestKey)
-    }
-  }
-
-  cache.set(key, value)
-  return value
-}
-
-function getCacheEntry<T>(cache: Map<string, T>, key: string): T | undefined {
-  const cached = cache.get(key)
-  if (cached === undefined) {
-    return undefined
-  }
-
-  cache.delete(key)
-  cache.set(key, cached)
-  return cached
-}
 
 function buildPerformanceCacheKey(content: string): string {
   let hash = 0
@@ -1049,29 +1028,17 @@ function formatTimestamp(timestamp: number): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  const cached = getCacheEntry(markdownRenderCache, text)
+  const cached = getLruCacheEntry(markdownRenderCache, text)
   if (cached !== undefined) {
     return cached
   }
 
   const rendered = renderMarkdownFromShared(text).trim()
-  return setCacheEntry(markdownRenderCache, text, rendered, MARKDOWN_CACHE_LIMIT)
+  return setLruCacheEntry(markdownRenderCache, text, rendered, MARKDOWN_CACHE_LIMIT)
 }
 
 function parseContent(content: string): any[] {
-  const cached = getCacheEntry(messageContentCache, content)
-  if (cached) {
-    return cached
-  }
-
-  try {
-    const parsed = JSON.parse(content)
-    const result = Array.isArray(parsed) ? parsed : [parsed]
-    return setCacheEntry(messageContentCache, content, result, CONTENT_CACHE_LIMIT)
-  } catch (error) {
-    const fallback = [{ type: 'text', text: String(content) }]
-    return setCacheEntry(messageContentCache, content, fallback, CONTENT_CACHE_LIMIT)
-  }
+  return parseHistoryContent(content, messageContentCache, CONTENT_CACHE_LIMIT)
 }
 
 function isPerformanceMessage(msg: any): boolean {
@@ -1080,7 +1047,7 @@ function isPerformanceMessage(msg: any): boolean {
 
 function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
   const cacheKey = buildPerformanceCacheKey(content)
-  const cached = getCacheEntry(performancePreviewCache, cacheKey)
+  const cached = getLruCacheEntry(performancePreviewCache, cacheKey)
   if (cached !== undefined) {
     return cached
   }
@@ -1093,9 +1060,9 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
       resourcePath: historyResourcePath.value,
       resourceToken: historyResourceToken.value,
     })
-    return setCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
+    return setLruCacheEntry(performancePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
   } catch {
-    return setCacheEntry(performancePreviewCache, cacheKey, [], PREVIEW_CACHE_LIMIT)
+    return setLruCacheEntry(performancePreviewCache, cacheKey, [], PREVIEW_CACHE_LIMIT)
   }
 }
 

@@ -44,6 +44,7 @@ ipcMain.handle('shortcut:unregister', async () => {
       console.log('[快捷键] 取消注册:', currentShortcut)
       currentShortcut = null
     }
+    isRecording = false
     return { success: true }
   } catch (error: any) {
     console.error('[快捷键] 取消注册失败:', error)
@@ -56,6 +57,11 @@ ipcMain.handle('shortcut:unregister', async () => {
  */
 ipcMain.handle('shortcut:isRegistered', async (_event, accelerator: string) => {
   return globalShortcut.isRegistered(accelerator)
+})
+
+ipcMain.handle('shortcut:setRecordingState', async (_event, recording: boolean) => {
+  isRecording = Boolean(recording)
+  return { success: true, isRecording }
 })
 
 /**
@@ -83,5 +89,7 @@ function handleShortcutPressed() {
  */
 export function cleanupShortcuts() {
   globalShortcut.unregisterAll()
+  currentShortcut = null
+  isRecording = false
   console.log('[快捷键] 已清理所有快捷键')
 }
