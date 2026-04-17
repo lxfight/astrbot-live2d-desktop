@@ -33,7 +33,6 @@ describe('metadata', () => {
     expect(SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS).toEqual([
       'lastModelPath',
       'advancedSettings',
-      'connectionSettings',
       'rendererThemeState',
     ])
   })
@@ -44,6 +43,7 @@ describe('metadata', () => {
       screenshotDefaultTarget: 'desktop_capture_default_target',
       screenshotQuality: 'desktop_capture_quality',
       screenshotMaxWidth: 'desktop_capture_max_width',
+      connectionSettingsV3: 'connection_settings_v3',
       alwaysOnTop: 'tray_always_on_top',
       fullPassThrough: 'tray_pass_through_mode',
       dynamicPassThrough: 'desktop_dynamic_pass_through',

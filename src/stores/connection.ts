@@ -2,24 +2,35 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { InputMessagePayload, MessageContent } from '@/types/protocol'
 import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
+import {
+  buildDefaultConnectionSettingsEditable,
+  normalizeConnectionSettingsEditable,
+  type ConnectionSettingsEditable,
+  type ConnectionSettingsPersistedV3,
+} from '@/shared/connectionSettings'
 import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
-import { readJsonStorage, writeJsonStorage } from '@/utils/storage'
 
-function buildDefaultLocalServerUrl(): string {
-  const url = new URL('http://127.0.0.1:9090/astrbot/live2d')
-  url.protocol = 'ws:'
-  return url.toString()
-}
+const DEFAULT_RESOURCE_PATH = '/resources'
+const LEGACY_CONNECTION_SETTINGS_KEY = LOCAL_STORAGE_METADATA.connectionSettings.key
 
 function readEnvString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-const DEFAULT_SERVER_URL = readEnvString(import.meta.env?.VITE_DEFAULT_SERVER_URL) || buildDefaultLocalServerUrl()
-const DEFAULT_TOKEN = readEnvString(import.meta.env?.VITE_DEFAULT_TOKEN)
-const DEFAULT_RESOURCE_PATH = '/resources'
-const CONNECTION_SETTINGS_KEY = LOCAL_STORAGE_METADATA.connectionSettings.key
-const CONNECTION_SETTINGS_VERSION = LOCAL_STORAGE_METADATA.connectionSettings.version
+function buildRendererPreferredDefaults(): ConnectionSettingsEditable {
+  const defaults = buildDefaultConnectionSettingsEditable()
+  const envServerUrl = readEnvString(import.meta.env?.VITE_DEFAULT_SERVER_URL)
+  const envToken = readEnvString(import.meta.env?.VITE_DEFAULT_TOKEN)
+
+  if (envServerUrl) {
+    defaults.serverUrl = envServerUrl
+  }
+  if (envToken) {
+    defaults.token = envToken
+  }
+
+  return defaults
+}
 
 function getBridgeUrlValidationError(rawUrl: string): string | null {
   let parsedUrl: URL
@@ -37,123 +48,54 @@ function getBridgeUrlValidationError(rawUrl: string): string | null {
   return null
 }
 
-type ConnectionSettings = {
-  serverUrl: string
-  token: string
-  resourceBaseUrl: string
-  resourcePath: string
-  resourceOverrideBaseUrl: string
-  resourceOverridePath: string
-  resourceToken: string
-}
-
-type PersistedConnectionSettings = Omit<ConnectionSettings, 'token' | 'resourceToken'> & {
-  token?: string
-  resourceToken?: string
-  encryptedToken?: string
-  encryptedResourceToken?: string
-}
-
-function getDefaultConnectionSettings(): ConnectionSettings {
+function buildDefaultPersistedSettings(): ConnectionSettingsPersistedV3 {
+  const defaults = buildDefaultConnectionSettingsEditable()
   return {
-    serverUrl: DEFAULT_SERVER_URL,
-    token: DEFAULT_TOKEN,
-    resourceBaseUrl: '',
-    resourcePath: DEFAULT_RESOURCE_PATH,
-    resourceOverrideBaseUrl: '',
-    resourceOverridePath: '',
-    resourceToken: '',
+    ...defaults,
+    revision: 0,
+    updatedAt: Date.now(),
   }
 }
 
-function decryptPersistedValue(value?: unknown): string {
-  if (typeof value !== 'string') {
-    return ''
-  }
-
-  return window.electron.secureStorage.decryptString(value).trim()
-}
-
-function saveConnectionSettings(settings: ConnectionSettings) {
-  try {
-    const encryptionAvailable = window.electron.secureStorage.isEncryptionAvailable()
-    const payload: PersistedConnectionSettings = {
-      serverUrl: settings.serverUrl,
-      resourceBaseUrl: settings.resourceBaseUrl,
-      resourcePath: settings.resourcePath,
-      resourceOverrideBaseUrl: settings.resourceOverrideBaseUrl,
-      resourceOverridePath: settings.resourceOverridePath,
-    }
-
-    if (encryptionAvailable) {
-      payload.encryptedToken = window.electron.secureStorage.encryptString(settings.token)
-      payload.encryptedResourceToken = window.electron.secureStorage.encryptString(settings.resourceToken)
-    } else {
-      payload.token = settings.token.trim()
-      payload.resourceToken = settings.resourceToken.trim()
-    }
-
-    writeJsonStorage(CONNECTION_SETTINGS_KEY, payload, { version: CONNECTION_SETTINGS_VERSION })
-  } catch (error) {
-    console.warn('[ConnectionStore] 保存连接配置失败:', error)
-  }
-}
-
-function normalizeConnectionSettings(value: unknown): ConnectionSettings {
-  const parsed = value && typeof value === 'object'
-    ? value as Partial<PersistedConnectionSettings>
-    : {}
-  const defaults = getDefaultConnectionSettings()
-
+function toPersistPayload(data: ConnectionSettingsEditable, expectedRevision: number) {
   return {
-    serverUrl: typeof parsed.serverUrl === 'string' && parsed.serverUrl.trim()
-      ? parsed.serverUrl.trim()
-      : defaults.serverUrl,
-    token: decryptPersistedValue(parsed.encryptedToken) || (typeof parsed.token === 'string' ? parsed.token.trim() : defaults.token),
-    resourceBaseUrl: typeof parsed.resourceBaseUrl === 'string'
-      ? parsed.resourceBaseUrl.trim()
-      : defaults.resourceBaseUrl,
-    resourcePath: typeof parsed.resourcePath === 'string' && parsed.resourcePath.trim()
-      ? parsed.resourcePath.trim()
-      : defaults.resourcePath,
-    resourceOverrideBaseUrl: typeof parsed.resourceOverrideBaseUrl === 'string'
-      ? parsed.resourceOverrideBaseUrl.trim()
-      : defaults.resourceOverrideBaseUrl,
-    resourceOverridePath: typeof parsed.resourceOverridePath === 'string'
-      ? parsed.resourceOverridePath.trim()
-      : defaults.resourceOverridePath,
-    resourceToken: decryptPersistedValue(parsed.encryptedResourceToken) || (typeof parsed.resourceToken === 'string'
-      ? parsed.resourceToken.trim()
-      : defaults.resourceToken),
+    data: normalizeConnectionSettingsEditable(data),
+    expectedRevision,
   }
 }
 
-function loadConnectionSettings(): ConnectionSettings {
-  try {
-    return readJsonStorage(CONNECTION_SETTINGS_KEY, {
-      fallback: getDefaultConnectionSettings(),
-      normalize: normalizeConnectionSettings,
-      version: CONNECTION_SETTINGS_VERSION,
-    })
-  } catch (error) {
-    console.warn('[ConnectionStore] 读取连接配置失败，使用默认值:', error)
-    return getDefaultConnectionSettings()
-  }
+function isSameEditableSettings(a: ConnectionSettingsEditable, b: ConnectionSettingsEditable): boolean {
+  return a.serverUrl === b.serverUrl
+    && a.token === b.token
+    && a.customResourceBaseUrl === b.customResourceBaseUrl
+    && a.customResourcePath === b.customResourcePath
+    && a.customResourceToken === b.customResourceToken
 }
 
 export const useConnectionStore = defineStore('connection', () => {
-  const initialSettings = loadConnectionSettings()
+  const defaults = buildRendererPreferredDefaults()
+
   const isConnected = ref(false)
   const sessionId = ref('')
   const userId = ref('')
-  const sessionResourceBaseUrl = ref(initialSettings.resourceBaseUrl)
-  const sessionResourcePath = ref(initialSettings.resourcePath)
+  const sessionResourceBaseUrl = ref('')
+  const sessionResourcePath = ref('')
   const maxInlineBytes = ref<number | null>(null)
-  const serverUrl = ref(initialSettings.serverUrl)
-  const token = ref(initialSettings.token)
-  const customResourceBaseUrl = ref(initialSettings.resourceOverrideBaseUrl)
-  const customResourcePath = ref(initialSettings.resourceOverridePath)
-  const customResourceToken = ref(initialSettings.resourceToken)
+
+  const serverUrl = ref(defaults.serverUrl)
+  const token = ref(defaults.token)
+  const customResourceBaseUrl = ref(defaults.customResourceBaseUrl)
+  const customResourcePath = ref(defaults.customResourcePath)
+  const customResourceToken = ref(defaults.customResourceToken)
+  const persistedSnapshot = ref<ConnectionSettingsEditable>(normalizeConnectionSettingsEditable(defaults))
+
+  const persistedRevision = ref(0)
+  const persistedUpdatedAt = ref(0)
+
+  let initialized = false
+  let initializePromise: Promise<void> | null = null
+  let settingsSyncBound = false
+  let settingsSyncDisposer: Unsubscribe | null = null
 
   const resourceBaseUrl = computed(() => {
     const overrideValue = customResourceBaseUrl.value.trim()
@@ -188,68 +130,171 @@ export const useConnectionStore = defineStore('connection', () => {
     return token.value.trim()
   })
 
-  function persistSettings() {
-    saveConnectionSettings({
+  const hasUnsavedChanges = computed(() => {
+    return !isSameEditableSettings(collectEditableSettings(), persistedSnapshot.value)
+  })
+
+  function collectEditableSettings(): ConnectionSettingsEditable {
+    return normalizeConnectionSettingsEditable({
       serverUrl: serverUrl.value,
       token: token.value,
-      resourceBaseUrl: sessionResourceBaseUrl.value,
-      resourcePath: sessionResourcePath.value,
-      resourceOverrideBaseUrl: customResourceBaseUrl.value,
-      resourceOverridePath: customResourcePath.value,
-      resourceToken: customResourceToken.value,
+      customResourceBaseUrl: customResourceBaseUrl.value,
+      customResourcePath: customResourcePath.value,
+      customResourceToken: customResourceToken.value,
     })
   }
 
-  function applyPersistedSettings(settings: ConnectionSettings) {
-    serverUrl.value = settings.serverUrl
-    token.value = settings.token
-    sessionResourceBaseUrl.value = settings.resourceBaseUrl
-    sessionResourcePath.value = settings.resourcePath
-    customResourceBaseUrl.value = settings.resourceOverrideBaseUrl
-    customResourcePath.value = settings.resourceOverridePath
-    customResourceToken.value = settings.resourceToken
+  function applyPersistedSettings(settings: ConnectionSettingsPersistedV3) {
+    const baselineDefaults = buildDefaultConnectionSettingsEditable()
+    const rendererDefaults = buildRendererPreferredDefaults()
+    const baseEditable = normalizeConnectionSettingsEditable(settings)
+    const editable = settings.revision === 0
+      ? normalizeConnectionSettingsEditable({
+          ...baseEditable,
+          serverUrl: baseEditable.serverUrl === baselineDefaults.serverUrl
+            ? rendererDefaults.serverUrl
+            : baseEditable.serverUrl,
+          token: baseEditable.token || rendererDefaults.token,
+        })
+      : baseEditable
+
+    serverUrl.value = editable.serverUrl
+    token.value = editable.token
+    customResourceBaseUrl.value = editable.customResourceBaseUrl
+    customResourcePath.value = editable.customResourcePath
+    customResourceToken.value = editable.customResourceToken
+    persistedSnapshot.value = editable
+    persistedRevision.value = settings.revision
+    persistedUpdatedAt.value = settings.updatedAt
   }
 
-  function reloadPersistedSettings() {
-    applyPersistedSettings(loadConnectionSettings())
+  async function migrateLegacySettingsIfNeeded() {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const legacyRaw = localStorage.getItem(LEGACY_CONNECTION_SETTINGS_KEY)
+    if (!legacyRaw) {
+      return
+    }
+
+    try {
+      const migrateResult = await window.electron.connectionSettings.migrateLegacy(legacyRaw)
+      if (migrateResult.success) {
+        localStorage.removeItem(LEGACY_CONNECTION_SETTINGS_KEY)
+        applyPersistedSettings(migrateResult.data)
+        return
+      }
+
+      console.warn('[ConnectionStore] 迁移旧连接配置失败:', migrateResult.code, migrateResult.message)
+    } catch (error) {
+      console.warn('[ConnectionStore] 迁移旧连接配置异常:', error)
+    }
+  }
+
+  async function reloadPersistedSettings() {
+    const loadResult = await window.electron.connectionSettings.load()
+    if (loadResult.success) {
+      applyPersistedSettings(loadResult.data)
+      return { success: true as const }
+    }
+
+    console.warn('[ConnectionStore] 读取连接配置失败:', loadResult.code, loadResult.message)
+    applyPersistedSettings(buildDefaultPersistedSettings())
+    return { success: false as const, code: loadResult.code, error: loadResult.message }
+  }
+
+  async function ensureInitialized() {
+    if (initialized) {
+      return
+    }
+
+    if (initializePromise) {
+      return initializePromise
+    }
+
+    initializePromise = (async () => {
+      await migrateLegacySettingsIfNeeded()
+      await reloadPersistedSettings()
+      initialized = true
+    })().finally(() => {
+      initializePromise = null
+    })
+
+    return initializePromise
   }
 
   function applySessionState(session: BridgeSessionState | null | undefined) {
     sessionId.value = session?.sessionId || ''
     userId.value = session?.userId || ''
+
     if (session?.config?.resourceBaseUrl) {
       sessionResourceBaseUrl.value = session.config.resourceBaseUrl
+    } else if (!session) {
+      sessionResourceBaseUrl.value = ''
     }
+
     if (session?.config?.resourcePath) {
       sessionResourcePath.value = session.config.resourcePath
+    } else if (!session) {
+      sessionResourcePath.value = ''
     }
+
     maxInlineBytes.value = typeof session?.config?.maxInlineBytes === 'number'
       ? session.config.maxInlineBytes
       : null
-    persistSettings()
   }
 
   function resetSessionState() {
     isConnected.value = false
     sessionId.value = ''
     userId.value = ''
+    sessionResourceBaseUrl.value = ''
+    sessionResourcePath.value = ''
     maxInlineBytes.value = null
   }
 
   function setConnectionConfig(url: string, authToken: string) {
-    serverUrl.value = (url || '').trim() || DEFAULT_SERVER_URL
+    serverUrl.value = (url || '').trim() || defaults.serverUrl
     token.value = (authToken || '').trim()
-    persistSettings()
   }
 
   function setResourceConfig(baseUrl: string, path: string, accessToken: string) {
     customResourceBaseUrl.value = (baseUrl || '').trim()
     customResourcePath.value = (path || '').trim()
     customResourceToken.value = (accessToken || '').trim()
-    persistSettings()
+  }
+
+  async function savePersistedSettings() {
+    await ensureInitialized()
+    const saveResult = await window.electron.connectionSettings.save(
+      toPersistPayload(collectEditableSettings(), persistedRevision.value),
+    )
+
+    if (saveResult.success) {
+      applyPersistedSettings(saveResult.data)
+      return { success: true as const }
+    }
+
+    if (saveResult.code === 'CONFLICT_REVISION') {
+      await reloadPersistedSettings()
+      return {
+        success: false as const,
+        code: saveResult.code,
+        error: '连接配置已被其他窗口更新，当前表单已刷新为最新值，请确认后重试保存',
+      }
+    }
+
+    return {
+      success: false as const,
+      code: saveResult.code,
+      error: saveResult.message,
+    }
   }
 
   async function connect(url?: string, authToken?: string) {
+    await ensureInitialized()
+
     try {
       const targetUrl = (url || serverUrl.value || '').trim()
       const normalizedToken = (authToken ?? token.value ?? '').trim()
@@ -271,8 +316,12 @@ export const useConnectionStore = defineStore('connection', () => {
       }
 
       setConnectionConfig(targetUrl, normalizedToken)
-      const result = await window.electron.bridge.connect(targetUrl, normalizedToken)
+      const saveResult = await savePersistedSettings()
+      if (!saveResult.success) {
+        return { success: false, error: saveResult.error }
+      }
 
+      const result = await window.electron.bridge.connect(targetUrl, normalizedToken)
       if (result.success) {
         isConnected.value = true
         const session = await window.electron.bridge.getSession()
@@ -297,7 +346,8 @@ export const useConnectionStore = defineStore('connection', () => {
   }
 
   async function checkConnection() {
-    reloadPersistedSettings()
+    await ensureInitialized()
+
     const connected = await window.electron.bridge.isConnected()
     isConnected.value = connected
 
@@ -320,29 +370,29 @@ export const useConnectionStore = defineStore('connection', () => {
     resetSessionState()
   }
 
-  function onStorageChange(event: StorageEvent) {
-    if (event.key !== null && event.key !== CONNECTION_SETTINGS_KEY) {
-      return
-    }
-    reloadPersistedSettings()
-  }
-
   function startStorageSync() {
-    if (storageSyncBound || typeof window === 'undefined') {
+    if (settingsSyncBound) {
       return
     }
 
-    window.addEventListener('storage', onStorageChange)
-    storageSyncBound = true
+    settingsSyncDisposer = window.electron.connectionSettings.onChanged((event) => {
+      if (!event?.settings) {
+        return
+      }
+      applyPersistedSettings(event.settings)
+    })
+
+    settingsSyncBound = true
   }
 
   function stopStorageSync() {
-    if (!storageSyncBound || typeof window === 'undefined') {
+    if (!settingsSyncBound) {
       return
     }
 
-    window.removeEventListener('storage', onStorageChange)
-    storageSyncBound = false
+    settingsSyncDisposer?.()
+    settingsSyncDisposer = null
+    settingsSyncBound = false
   }
 
   async function sendMessage(content: MessageContent[], metadata: InputMessagePayload['metadata']) {
@@ -366,10 +416,14 @@ export const useConnectionStore = defineStore('connection', () => {
     customResourceBaseUrl,
     customResourcePath,
     customResourceToken,
+    hasUnsavedChanges,
+    persistedRevision,
+    persistedUpdatedAt,
     applySessionState,
     resetSessionState,
     setConnectionConfig,
     setResourceConfig,
+    savePersistedSettings,
     reloadPersistedSettings,
     startStorageSync,
     stopStorageSync,
@@ -380,6 +434,6 @@ export const useConnectionStore = defineStore('connection', () => {
     checkConnection,
     sendMessage,
     sendState,
+    ensureInitialized,
   }
 })
-  let storageSyncBound = false

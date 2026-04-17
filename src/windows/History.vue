@@ -546,7 +546,8 @@ function handleWindowFocus() {
 }
 
 async function syncHistoryResourceConfig() {
-  connectionStore.reloadPersistedSettings()
+  await connectionStore.ensureInitialized()
+  await connectionStore.reloadPersistedSettings()
 
   try {
     const session = await window.electron.bridge.getSession()
