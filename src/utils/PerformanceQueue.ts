@@ -3,6 +3,7 @@
  * - 不同类型指令并行执行
  * - 同类型指令串行执行
  */
+import type { ResourceLike } from './resourceUrl'
 
 export type PerformElementType =
   | 'text'
@@ -56,7 +57,7 @@ type MotionCallback = (group: string, index: number, priority: number) => MaybeP
 
 type ExpressionCallback = (id: string | number) => MaybePromise<void>
 
-type AudioCallback = (source: string, volume: number) => MaybePromise<void>
+type AudioCallback = (source: ResourceLike, volume: number) => MaybePromise<void>
 
 type ImageCallback = (source: string, duration: number) => MaybePromise<void>
 
@@ -73,6 +74,18 @@ function toNonNegativeInt(value: unknown, fallback: number): number {
     return fallback
   }
   return Math.max(0, Math.floor(num))
+}
+
+function extractResourceLike(element: PerformElement): ResourceLike | null {
+  const inline = typeof element.inline === 'string' ? element.inline.trim() : ''
+  const url = typeof element.url === 'string' ? element.url.trim() : ''
+  const rid = typeof element.rid === 'string' ? element.rid.trim() : ''
+
+  if (!inline && !url && !rid) {
+    return null
+  }
+
+  return { inline, url, rid }
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -432,7 +445,7 @@ export class PerformanceQueue {
               return
             }
 
-            const source = element.inline || element.rid || element.url || ''
+            const source = extractResourceLike(element)
             if (!source) {
               return
             }

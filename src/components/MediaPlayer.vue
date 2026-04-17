@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
-import { resolveResourceSource } from '@/utils/resourceUrl'
+import { resolveResourceSource, type ResourceLike } from '@/utils/resourceUrl'
 
 const audioRef = ref<HTMLAudioElement>()
 const videoRef = ref<HTMLVideoElement>()
@@ -58,9 +58,9 @@ const emit = defineEmits<{
 }>()
 
 /**
- * 播放音频（支持 URL、RID、inline base64）
+ * 播放音频（结构化资源对象）
  */
-async function playAudio(urlOrData: string, volume: number = 1.0) {
+async function playAudio(source: ResourceLike, volume: number = 1.0) {
   if (!audioRef.value) return
 
   try {
@@ -68,9 +68,7 @@ async function playAudio(urlOrData: string, volume: number = 1.0) {
 
     isAudioActive = true
     const audioUrl = resolveResourceSource(
-      urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
-        ? { url: urlOrData }
-        : { rid: urlOrData },
+      source,
       {
         resourceBaseUrl: connectionStore.resourceBaseUrl,
         resourcePath: connectionStore.resourcePath,
