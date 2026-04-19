@@ -371,7 +371,11 @@ export const useConnectionStore = defineStore('connection', () => {
   }
 
   function startStorageSync() {
-    if (settingsSyncBound) {
+    if (
+      settingsSyncBound
+      || typeof window === 'undefined'
+      || !window.electron?.connectionSettings
+    ) {
       return
     }
 
