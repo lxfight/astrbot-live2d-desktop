@@ -108,6 +108,15 @@
               </n-form>
 
               <div class="settings-section__actions">
+                <n-button
+                  type="primary"
+                  secondary
+                  :loading="savingConnectionSettings"
+                  :disabled="!hasUnsavedConnectionSettings"
+                  @click="handleSaveConnectionSettings"
+                >
+                  保存连接配置
+                </n-button>
                 <n-button type="primary" @click="handleConnect" :disabled="isConnected || !token.trim()">
                   {{ isConnected ? '已连接' : '连接服务器' }}
                 </n-button>
@@ -1003,13 +1012,22 @@ import { DEFAULT_DESKTOP_FEATURE_SETTINGS } from '@/utils/desktopFeatureSettings
 import { DEFAULT_UPDATER_SETTINGS } from '@/utils/updaterSettings'
 import { DEFAULT_SCREENSHOT_SETTINGS } from '@/utils/screenshotSettings'
 import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
+import { buildDefaultConnectionSettingsEditable } from '@/shared/connectionSettings'
 
 const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
 const { currentModelPath, resolvedModelName, palette, sourceColor } = storeToRefs(themeStore)
-const { isConnected } = storeToRefs(connectionStore)
+const {
+  isConnected,
+  serverUrl,
+  token,
+  customResourceBaseUrl: resourceServerUrl,
+  customResourcePath: resourceServerPath,
+  customResourceToken: resourceAccessToken,
+  hasUnsavedChanges: hasUnsavedConnectionSettings,
+} = storeToRefs(connectionStore)
 
 configureMarked()
 
@@ -1066,11 +1084,7 @@ const menuGroups = [
 // 状态
 const activeGroup = ref('connection')
 const activeChild = ref('bridge')
-const serverUrl = ref(connectionStore.serverUrl)
-const token = ref(connectionStore.token)
-const resourceServerUrl = ref(connectionStore.customResourceBaseUrl)
-const resourceServerPath = ref(connectionStore.customResourcePath)
-const resourceAccessToken = ref(connectionStore.customResourceToken)
+const savingConnectionSettings = ref(false)
 const modelList = ref<Array<{ name: string; path: string }>>([])
 const appVersion = ref('')
 const platformCapabilities = ref<PlatformCapabilities | null>(null)
@@ -1314,15 +1328,6 @@ const updateStatusLabel = computed(() => {
 const canInstallUpdate = computed(() => updateState.value?.status === 'downloaded')
 const settingsWindowDisposers: Unsubscribe[] = []
 
-// 监听
-watch([serverUrl, token], ([nextUrl, nextToken]) => {
-  connectionStore.setConnectionConfig(nextUrl, nextToken)
-})
-
-watch([resourceServerUrl, resourceServerPath, resourceAccessToken], ([nextUrl, nextPath, nextToken]) => {
-  connectionStore.setResourceConfig(nextUrl, nextPath, nextToken)
-})
-
 // 监听页面切换，重新加载统计数据
 watch([activeGroup, activeChild], async ([group, child]) => {
   if (group === 'history' && child === 'statistics') {
@@ -1343,7 +1348,7 @@ onMounted(async () => {
   }
 
   themeStore.startStorageSync()
-  connectionStore.startStorageSync()
+  await connectionStore.ensureInitialized()
 
   // 主动请求待处理的页面参数
   if (window.electron.settings?.getPendingPage) {
@@ -1393,6 +1398,16 @@ onMounted(async () => {
     applyDesktopFeatureSettingsState(snapshot.preferences)
   }))
 
+  settingsWindowDisposers.push(window.electron.connectionSettings.onChanged(async () => {
+    if (hasUnsavedConnectionSettings.value) {
+      message.warning('检测到其他窗口更新了连接配置，请先保存或放弃当前修改后再同步')
+      return
+    }
+
+    await connectionStore.reloadPersistedSettings()
+    await syncHistoryResourceConfig()
+  }))
+
   await checkShortcutRegistration()
 
   settingsWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
@@ -1425,7 +1440,6 @@ onUnmounted(() => {
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
-  connectionStore.stopStorageSync()
   themeStore.stopStorageSync()
   for (const dispose of settingsWindowDisposers.splice(0)) {
     dispose()
@@ -1617,6 +1631,26 @@ async function loadModelList() {
   }
 }
 
+async function handleSaveConnectionSettings() {
+  if (savingConnectionSettings.value) {
+    return
+  }
+
+  savingConnectionSettings.value = true
+  try {
+    const saveResult = await connectionStore.savePersistedSettings()
+    if (saveResult.success) {
+      message.success('连接配置已保存')
+      await syncHistoryResourceConfig()
+      return
+    }
+
+    message.error(`保存失败: ${saveResult.error}`)
+  } finally {
+    savingConnectionSettings.value = false
+  }
+}
+
 async function handleConnect() {
   const targetUrl = serverUrl.value.trim()
   const authToken = token.value.trim()
@@ -1631,9 +1665,15 @@ async function handleConnect() {
     return
   }
 
+  serverUrl.value = targetUrl
   token.value = authToken
+  resourceServerUrl.value = resourceServerUrl.value.trim()
+  resourceServerPath.value = resourceServerPath.value.trim()
+  resourceAccessToken.value = resourceAccessToken.value.trim()
+
   const result = await connectionStore.connect(targetUrl, authToken)
   if (result.success) {
+    await syncHistoryResourceConfig()
     message.success('连接成功')
   } else {
     message.error(`连接失败: ${result.error}`)
@@ -1699,7 +1739,8 @@ const debouncedLoadMessages = useDebounceFn(() => {
 }, 250)
 
 async function syncHistoryResourceConfig() {
-  connectionStore.reloadPersistedSettings()
+  await connectionStore.ensureInitialized()
+  await connectionStore.reloadPersistedSettings()
   try {
     const session = await window.electron.bridge.getSession()
     connectionStore.applySessionState(session)
@@ -2289,6 +2330,19 @@ function handleResetSettings() {
     onPositiveClick: async () => {
       try {
         localStorage.clear()
+
+        const connectionDefaults = buildDefaultConnectionSettingsEditable()
+        serverUrl.value = connectionDefaults.serverUrl
+        token.value = connectionDefaults.token
+        resourceServerUrl.value = connectionDefaults.customResourceBaseUrl
+        resourceServerPath.value = connectionDefaults.customResourcePath
+        resourceAccessToken.value = connectionDefaults.customResourceToken
+
+        const connectionResetResult = await connectionStore.savePersistedSettings()
+        if (!connectionResetResult.success) {
+          throw new Error(`连接配置重置失败: ${connectionResetResult.error}`)
+        }
+        await connectionStore.checkConnection()
 
         advancedSettings.value = normalizeAdvancedSettings(DEFAULT_ADVANCED_SETTINGS)
         persistAdvancedSettings(advancedSettings.value)

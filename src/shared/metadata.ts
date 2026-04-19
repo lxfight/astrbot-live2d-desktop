@@ -38,6 +38,5 @@ export const USER_CONFIG_KEYS = packageJson.desktopMetadata.storage.userConfig
 export const SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS = [
   LOCAL_STORAGE_METADATA.lastModelPath.key,
   LOCAL_STORAGE_METADATA.advancedSettings.key,
-  LOCAL_STORAGE_METADATA.connectionSettings.key,
   LOCAL_STORAGE_METADATA.themeState.key,
 ] as const

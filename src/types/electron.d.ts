@@ -15,6 +15,13 @@ import type {
   DesktopBehaviorSnapshot as _DesktopBehaviorSnapshot,
   DesktopRevealReason as _DesktopRevealReason,
 } from '../../electron/desktopBehavior/types'
+import type {
+  ConnectionSettingsChangedEvent as _ConnectionSettingsChangedEvent,
+  ConnectionSettingsLoadResult as _ConnectionSettingsLoadResult,
+  ConnectionSettingsMigrateLegacyResult as _ConnectionSettingsMigrateLegacyResult,
+  ConnectionSettingsSavePayload as _ConnectionSettingsSavePayload,
+  ConnectionSettingsSaveResult as _ConnectionSettingsSaveResult,
+} from '../shared/connectionSettings'
 
 declare global {
   type Unsubscribe = () => void
@@ -30,6 +37,11 @@ declare global {
   type DesktopBehaviorRuntimeState = _DesktopBehaviorRuntimeState
   type DesktopBehaviorSnapshot = _DesktopBehaviorSnapshot
   type DesktopRevealReason = _DesktopRevealReason
+  type ConnectionSettingsChangedEvent = _ConnectionSettingsChangedEvent
+  type ConnectionSettingsLoadResult = _ConnectionSettingsLoadResult
+  type ConnectionSettingsSavePayload = _ConnectionSettingsSavePayload
+  type ConnectionSettingsSaveResult = _ConnectionSettingsSaveResult
+  type ConnectionSettingsMigrateLegacyResult = _ConnectionSettingsMigrateLegacyResult
   interface BridgeSessionState {
     sessionId: string
     userId: string
@@ -136,6 +148,12 @@ declare global {
         getUserName: () => Promise<string | null>
         getUserId: () => Promise<string>
       }
+      connectionSettings: {
+        load: () => Promise<ConnectionSettingsLoadResult>
+        save: (payload: ConnectionSettingsSavePayload) => Promise<ConnectionSettingsSaveResult>
+        migrateLegacy: (rawLegacyJson: string) => Promise<ConnectionSettingsMigrateLegacyResult>
+        onChanged: (callback: (event: ConnectionSettingsChangedEvent) => void) => Unsubscribe
+      }
       history: {
         getMessages: (options: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
         saveMessage: (record: any) => Promise<{ success: boolean; error?: string }>
@@ -195,11 +213,6 @@ declare global {
         updateSettings: (settings: Partial<UpdaterSettings>) => Promise<UpdaterSettings>
         quitAndInstall: () => Promise<{ success: boolean; message: string }>
         onStateChanged: (callback: (state: UpdateState) => void) => Unsubscribe
-      }
-      secureStorage: {
-        isEncryptionAvailable: () => boolean
-        encryptString: (value: string) => string
-        decryptString: (value: string) => string
       }
     }
   }

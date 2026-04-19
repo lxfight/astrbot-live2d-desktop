@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer, safeStorage } = require('electron')
+const { contextBridge, ipcRenderer } = require('electron')
 
 function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: T) => void) {
   const listener = (_event: unknown, ...args: T) => callback(...args)
@@ -123,6 +123,14 @@ contextBridge.exposeInMainWorld('electron', {
     getUserId: () => ipcRenderer.invoke('user:getUserId')
   },
 
+  // 连接配置（主进程持久化）
+  connectionSettings: {
+    load: () => ipcRenderer.invoke('connectionSettings:load'),
+    save: (payload: any) => ipcRenderer.invoke('connectionSettings:save', payload),
+    migrateLegacy: (rawLegacyJson: string) => ipcRenderer.invoke('connectionSettings:migrateLegacy', rawLegacyJson),
+    onChanged: (callback: (event: any) => void) => subscribeIpc('connectionSettings:changed', callback),
+  },
+
   // 历史记录
   history: {
     getMessages: (options: any) => ipcRenderer.invoke('history:getMessages', options),
@@ -176,27 +184,5 @@ contextBridge.exposeInMainWorld('electron', {
     updateSettings: (settings: any) => ipcRenderer.invoke('update:updateSettings', settings),
     quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
     onStateChanged: (callback: (state: any) => void) => subscribeIpc('update:stateChanged', callback)
-  },
-
-  secureStorage: {
-    isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
-    encryptString: (value: string) => {
-      if (!safeStorage.isEncryptionAvailable()) {
-        return value
-      }
-
-      return safeStorage.encryptString(value).toString('base64')
-    },
-    decryptString: (value: string) => {
-      if (!safeStorage.isEncryptionAvailable()) {
-        return value
-      }
-
-      try {
-        return safeStorage.decryptString(Buffer.from(value, 'base64'))
-      } catch {
-        return value
-      }
-    }
   }
 })

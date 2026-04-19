@@ -564,12 +564,12 @@ performQueue.onExpression((id) => {
   live2dCanvasRef.value?.setExpression(id)
 })
 
-performQueue.onAudio((url, volume) => {
+performQueue.onAudio((source, volume) => {
   const mediaPlayer = mediaPlayerRef.value
   if (!mediaPlayer) return
 
   const audioEndPromise = waitForNextAudioEnd()
-  void mediaPlayer.playAudio(url, volume)
+  void mediaPlayer.playAudio(source, volume)
   return audioEndPromise
 })
 
