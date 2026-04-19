@@ -2,23 +2,110 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
+    paths:
+      - package.json
   workflow_dispatch:
 
 permissions:
   contents: write
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
 
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '10.28.2'
 
 jobs:
+  prepare_release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.prepare.outputs.should_release }}
+      version: ${{ steps.prepare.outputs.version }}
+      release_tag: ${{ steps.prepare.outputs.release_tag }}
+      release_name: ${{ steps.prepare.outputs.release_name }}
+      is_prerelease: ${{ steps.prepare.outputs.is_prerelease }}
+      previous_tag: ${{ steps.prepare.outputs.previous_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Resolve release context
+        id: prepare
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TAG="v${VERSION}"
+          RELEASE_NAME="Release ${RELEASE_TAG}"
+          SHOULD_RELEASE=false
+          PREVIOUS_VERSION=""
+          PREVIOUS_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1 || true)
+
+          if [[ "$VERSION" == *-* ]]; then
+            IS_PRERELEASE=true
+          else
+            IS_PRERELEASE=false
+          fi
+
+          if git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            echo "::error::版本 ${VERSION} 对应的 tag ${RELEASE_TAG} 已存在，拒绝重复发版。"
+            exit 1
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            SHOULD_RELEASE=true
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            if PREVIOUS_PACKAGE_JSON="$(git show "${BEFORE_SHA}:package.json" 2>/dev/null)"; then
+              PREVIOUS_VERSION=$(printf '%s' "$PREVIOUS_PACKAGE_JSON" | node -e "let data='';process.stdin.on('data',d=>data+=d);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).version));")
+            fi
+
+            if [[ "$VERSION" != "$PREVIOUS_VERSION" ]]; then
+              SHOULD_RELEASE=true
+            fi
+          else
+            SHOULD_RELEASE=true
+          fi
+
+          echo "当前版本: ${VERSION}"
+          if [[ -n "$PREVIOUS_VERSION" ]]; then
+            echo "上一版本: ${PREVIOUS_VERSION}"
+          else
+            echo "上一版本: <none>"
+          fi
+          echo "最近已发布 tag: ${PREVIOUS_TAG:-<none>}"
+          echo "是否继续发布: ${SHOULD_RELEASE}"
+
+          echo "should_release=${SHOULD_RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip release when version is unchanged
+        if: steps.prepare.outputs.should_release != 'true'
+        run: echo "package.json 已变更，但 version 未变化，跳过发布。"
+
   build:
+    needs: prepare_release
+    if: needs.prepare_release.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      group: build-${{ needs.prepare_release.outputs.release_tag }}-${{ matrix.os }}-${{ matrix.arch }}
+      cancel-in-progress: false
+
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +156,7 @@ jobs:
             files: |
               release/astrbot-live2d-desktop-v*-linux-x86_64.AppImage
               release/astrbot-live2d-desktop-v*-linux-amd64.deb
-              release/astrbot-live2d-desktop-v*-linux-x86_64.rpm
+              release/astrbot-live2d-desktop-v*-linux-x86_64.pacman
               release/latest*.yml
           - os: ubuntu-latest
             target: linux
@@ -80,10 +167,8 @@ jobs:
               release/astrbot-live2d-desktop-v*-linux-*arm64*.AppImage
               release/astrbot-live2d-desktop-v*-linux-*aarch64*.AppImage
               release/astrbot-live2d-desktop-v*-linux-*arm64*.deb
-              release/astrbot-live2d-desktop-v*-linux-*arm64*.rpm
-              release/astrbot-live2d-desktop-v*-linux-*aarch64*.rpm
-
-    runs-on: ${{ matrix.os }}
+              release/astrbot-live2d-desktop-v*-linux-*arm64*.pacman
+              release/astrbot-live2d-desktop-v*-linux-*aarch64*.pacman
 
     steps:
       - name: Checkout code
@@ -137,9 +222,14 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - prepare_release
+      - build
+    if: needs.prepare_release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ needs.prepare_release.outputs.release_tag }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -147,21 +237,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get previous tag
-        id: previoustag
-        run: |
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${{ github.ref_name }}$" | head -n 1)
-          echo "tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
-          echo "Previous tag: $PREVIOUS_TAG"
-
       - name: Generate changelog
         id: changelog
+        shell: bash
+        env:
+          PREVIOUS_TAG: ${{ needs.prepare_release.outputs.previous_tag }}
         run: |
-          if [ -z "${{ steps.previoustag.outputs.tag }}" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ github.ref_name }})
+          set -euo pipefail
+
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "${PREVIOUS_TAG}..${GITHUB_SHA}")
           else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ steps.previoustag.outputs.tag }}..${{ github.ref_name }})
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "${GITHUB_SHA}")
           fi
+
+          if [[ -z "$CHANGELOG" ]]; then
+            CHANGELOG='- 无代码提交差异'
+          fi
+
           echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
           echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -175,8 +268,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ needs.prepare_release.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.prepare_release.outputs.release_name }}
           body: |
             ## 更新内容
 
@@ -186,16 +280,16 @@ jobs:
 
             - Windows: `*-win-x64.exe` / `*-win-arm64.exe`（安装版），或 `*-portable-x64.exe` / `*-portable-arm64.exe`（便携版）
             - macOS: `*-mac-x64.dmg` / `*-mac-arm64.dmg`
-            - Linux: `x86_64` / `arm64` 的 `AppImage`、`deb`、`rpm`
+            - Linux: `x86_64` / `arm64` 的 `AppImage`、`deb`、`pacman`
 
             > 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
 
             ## 相关链接
 
-            - [使用教程](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/USAGE_TUTORIAL.zh-CN.md)
+            - [使用教程](https://github.com/${{ github.repository }}/blob/${{ needs.prepare_release.outputs.release_tag }}/docs/USAGE_TUTORIAL.zh-CN.md)
             - [AstrBot Live2D 适配器](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.prepare_release.outputs.is_prerelease == 'true' }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
