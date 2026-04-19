@@ -28,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -93,12 +93,12 @@ jobs:
         if: steps.prepare.outputs.should_release != 'true'
         run: echo "package.json 已变更，但 version 未变化，跳过发布。"
 
-  build:
+  build_core:
     needs: prepare_release
     if: needs.prepare_release.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
     concurrency:
-      group: build-${{ needs.prepare_release.outputs.release_tag }}-${{ matrix.os }}-${{ matrix.arch }}
+      group: build-core-${{ needs.prepare_release.outputs.release_tag }}-${{ matrix.artifact_name }}
       cancel-in-progress: false
 
     strategy:
@@ -106,71 +106,58 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            target: win
-            electron_platform: win32
+            rebuild_platform: win32
             arch: x64
             artifact_name: release-windows-x64
+            pack_command: pnpm exec electron-builder --win --x64 --publish never
             files: |
               release/astrbot-live2d-desktop-v*-win-x64.exe
               release/astrbot-live2d-desktop-v*-portable-x64.exe
               release/*.blockmap
               release/latest.yml
           - os: windows-latest
-            target: win
-            electron_platform: win32
+            rebuild_platform: win32
             arch: arm64
             artifact_name: release-windows-arm64
+            pack_command: pnpm exec electron-builder --win --arm64 --publish never
             files: |
               release/astrbot-live2d-desktop-v*-win-arm64.exe
               release/astrbot-live2d-desktop-v*-portable-arm64.exe
               release/*.blockmap
           - os: macos-latest
-            target: mac
-            electron_platform: darwin
+            rebuild_platform: darwin
             arch: x64
             artifact_name: release-macos-x64
+            pack_command: pnpm exec electron-builder --mac --x64 --publish never
             files: |
               release/astrbot-live2d-desktop-v*-mac-x64.dmg
               release/astrbot-live2d-desktop-v*-mac-x64.zip
               release/*.blockmap
               release/latest*.yml
           - os: macos-latest
-            target: mac
-            electron_platform: darwin
+            rebuild_platform: darwin
             arch: arm64
             artifact_name: release-macos-arm64
+            pack_command: pnpm exec electron-builder --mac --arm64 --publish never
             files: |
               release/astrbot-live2d-desktop-v*-mac-arm64.dmg
               release/astrbot-live2d-desktop-v*-mac-arm64.zip
               release/*.blockmap
           - os: ubuntu-latest
-            target: linux
-            electron_platform: linux
+            rebuild_platform: linux
             arch: x64
-            artifact_name: release-linux-x64
+            artifact_name: release-linux-x64-core
+            pack_command: pnpm run pack:linux:core -- --x64
             files: |
               release/astrbot-live2d-desktop-v*-linux-x86_64.AppImage
               release/astrbot-live2d-desktop-v*-linux-amd64.deb
-              release/astrbot-live2d-desktop-v*-linux-x86_64.pacman
-              release/latest*.yml
-          - os: ubuntu-latest
-            target: linux
-            electron_platform: linux
-            arch: arm64
-            artifact_name: release-linux-arm64
-            files: |
-              release/astrbot-live2d-desktop-v*-linux-*arm64*.AppImage
-              release/astrbot-live2d-desktop-v*-linux-*aarch64*.AppImage
-              release/astrbot-live2d-desktop-v*-linux-*arm64*.deb
-              release/astrbot-live2d-desktop-v*-linux-*arm64*.pacman
-              release/astrbot-live2d-desktop-v*-linux-*aarch64*.pacman
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -181,12 +168,18 @@ jobs:
           pnpm --version
 
       - name: Setup Python (for node-gyp)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Install Python setuptools
         run: pip install setuptools
+
+      - name: Install Linux packaging dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -197,20 +190,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - name: Rebuild Native Dependencies (${{ matrix.electron_platform }}-${{ matrix.arch }})
-        run: pnpm run rebuild -- --platform=${{ matrix.electron_platform }} --arch=${{ matrix.arch }}
+      - name: Rebuild Native Dependencies (${{ matrix.rebuild_platform }}-${{ matrix.arch }})
+        run: pnpm run rebuild -- --platform=${{ matrix.rebuild_platform }} --arch=${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - name: Package (${{ matrix.target }}-${{ matrix.arch }})
-        run: pnpm exec electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish never
+      - name: Package ${{ matrix.artifact_name }}
+        run: ${{ matrix.pack_command }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.files }}
@@ -219,7 +212,7 @@ jobs:
   release:
     needs:
       - prepare_release
-      - build
+      - build_core
     if: needs.prepare_release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     concurrency:
@@ -228,7 +221,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -255,13 +248,13 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare_release.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
@@ -275,7 +268,8 @@ jobs:
 
             - Windows: `*-win-x64.exe` / `*-win-arm64.exe`（安装版），或 `*-portable-x64.exe` / `*-portable-arm64.exe`（便携版）
             - macOS: `*-mac-x64.dmg` / `*-mac-arm64.dmg`
-            - Linux: `x86_64` / `arm64` 的 `AppImage`、`deb`、`pacman`
+            - Linux: `x64` 的 `AppImage`、`deb`
+            - Linux 扩展产物：`pacman`、`snap`、`arm64` 包通过 `Linux Extra Packages` 工作流追加上传
 
             > 首次启动时，应用会提示下载 Live2D Cubism SDK（约 200KB），点击确定即可自动下载。
 
@@ -285,6 +279,8 @@ jobs:
             - [AstrBot Live2D 适配器](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
           draft: false
           prerelease: ${{ needs.prepare_release.outputs.is_prerelease == 'true' }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

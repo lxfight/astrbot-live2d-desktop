@@ -97,6 +97,10 @@
     "pack:win": "pnpm exec electron-builder --win --publish never",
     "pack:mac": "pnpm exec electron-builder --mac --publish never",
     "pack:linux": "pnpm exec electron-builder --linux --publish never",
+    "pack:linux:core": "pnpm exec electron-builder --linux AppImage deb --publish never",
+    "pack:linux:pacman": "pnpm exec electron-builder --linux pacman --publish never",
+    "pack:linux:snap": "pnpm exec electron-builder --linux snap --publish never",
+    "pack:linux:arm64": "pnpm exec electron-builder --linux AppImage deb --arm64 --publish never",
     "build": "pnpm run clean && pnpm run build:prepare && pnpm run rebuild:optional && pnpm run pack",
     "build:dir": "pnpm run clean && pnpm run build:prepare && pnpm run rebuild:optional && pnpm run pack:dir",
     "build:win": "pnpm run clean && pnpm run build:prepare && pnpm run rebuild:optional && pnpm run pack:win",
@@ -105,7 +109,11 @@
     "build:fast": "pnpm run clean && pnpm run build:prepare:fast && pnpm run pack:dir",
     "build:ci:win": "pnpm run clean && pnpm run build:prepare && pnpm run pack:win",
     "build:ci:mac": "pnpm run clean && pnpm run build:prepare && pnpm run pack:mac",
-    "build:ci:linux": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux"
+    "build:ci:linux": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux",
+    "build:ci:linux:core": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:core",
+    "build:ci:linux:pacman": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:pacman",
+    "build:ci:linux:snap": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:snap",
+    "build:ci:linux:arm64": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:arm64"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
@@ -287,8 +295,6 @@
       "icon": "icon.png",
       "target": [
         "AppImage",
-        "snap",
-        "pacman",
         "deb"
       ],
       "category": "Utility",

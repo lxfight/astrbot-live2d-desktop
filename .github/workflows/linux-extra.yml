@@ -1,0 +1,295 @@
+name: Linux Extra Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 要追加资产的发布 tag，例如 v1.1.0-beta.17
+        required: true
+        type: string
+      targets:
+        description: 要构建的 Linux 扩展目标
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - pacman-x64
+          - snap-x64
+          - arm64-core
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.28.2'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+      release_tag: ${{ steps.prepare.outputs.release_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate release context
+        id: prepare
+        shell: bash
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TAG="v${VERSION}"
+
+          if [[ "$RELEASE_TAG" != "$INPUT_RELEASE_TAG" ]]; then
+            echo "::error::输入 tag ${INPUT_RELEASE_TAG} 与 package.json 版本 ${VERSION} 不一致。"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+  linux_pacman_x64:
+    needs: prepare
+    if: inputs.targets == 'all' || inputs.targets == 'pacman-x64'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm via corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm --version
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python setuptools
+        run: pip install setuptools
+
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libarchive-tools libopenjp2-tools
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend and Electron Bundles
+        run: pnpm run build:prepare
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Rebuild Native Dependencies (linux-x64)
+        run: pnpm run rebuild -- --platform=linux --arch=x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package pacman (x64)
+        run: pnpm run pack:linux:pacman -- --x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-x64-pacman
+          path: release/astrbot-live2d-desktop-v*-linux-x64.pacman
+          if-no-files-found: error
+
+      - name: Append assets to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: release/astrbot-live2d-desktop-v*-linux-x64.pacman
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  linux_snap_x64:
+    needs: prepare
+    if: inputs.targets == 'all' || inputs.targets == 'snap-x64'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm via corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm --version
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python setuptools
+        run: pip install setuptools
+
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools
+
+      - name: Install snapcraft dependencies
+        run: |
+          sudo snap wait system seed.loaded
+          sudo snap install snapcraft --classic
+          sudo snap install multipass --beta --classic
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend and Electron Bundles
+        run: pnpm run build:prepare
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Rebuild Native Dependencies (linux-x64)
+        run: pnpm run rebuild -- --platform=linux --arch=x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package snap (x64)
+        run: pnpm run pack:linux:snap -- --x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-x64-snap
+          path: release/astrbot-live2d-desktop-v*-linux-amd64.snap
+          if-no-files-found: error
+
+      - name: Append assets to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: release/astrbot-live2d-desktop-v*-linux-amd64.snap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  linux_arm64_core:
+    needs: prepare
+    if: inputs.targets == 'all' || inputs.targets == 'arm64-core'
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm via corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm --version
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python setuptools
+        run: pip install setuptools
+
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend and Electron Bundles
+        run: pnpm run build:prepare
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Rebuild Native Dependencies (linux-arm64)
+        run: pnpm run rebuild -- --platform=linux --arch=arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package AppImage and deb (arm64)
+        run: pnpm run pack:linux:arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-arm64-core
+          path: |
+            release/astrbot-live2d-desktop-v*-linux-*arm64*.AppImage
+            release/astrbot-live2d-desktop-v*-linux-*aarch64*.AppImage
+            release/astrbot-live2d-desktop-v*-linux-*arm64*.deb
+          if-no-files-found: error
+
+      - name: Append assets to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            release/astrbot-live2d-desktop-v*-linux-*arm64*.AppImage
+            release/astrbot-live2d-desktop-v*-linux-*aarch64*.AppImage
+            release/astrbot-live2d-desktop-v*-linux-*arm64*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
