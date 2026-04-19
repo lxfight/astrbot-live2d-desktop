@@ -28,7 +28,7 @@ export function createMainWindow(): BrowserWindow {
     transparent: true,
     backgroundColor: '#00000000',
     alwaysOnTop: false,
-    skipTaskbar: false,
+    skipTaskbar: true,
     resizable: false,
     hasShadow: false,
     ...(process.platform === 'win32'
