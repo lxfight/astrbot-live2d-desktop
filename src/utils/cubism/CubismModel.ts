@@ -152,6 +152,7 @@ export class CubismModel {
   // 位置相关
   private modelX: number = 0
   private modelY: number = 0
+  private modelScale: number = 1.0
 
   // 纹理
   private textures: WebGLTexture[] = []
@@ -664,7 +665,7 @@ export class CubismModel {
   /**
    * 初始化 WebGL
    */
-  initWebGL(canvas: HTMLCanvasElement, initialPosition?: Position): void {
+  initWebGL(canvas: HTMLCanvasElement, initialPosition?: Position, initialScale: number = 1.0): void {
     console.log('[CubismModel] 初始化 WebGL')
 
     this.canvas = canvas
@@ -697,6 +698,7 @@ export class CubismModel {
       }
     }
 
+    this.modelScale = initialScale
     // 设置模型初始位置和大小
     this.setupModelTransform(initialPosition)
     this.lastUpdateTime = performance.now() / 1000
@@ -754,9 +756,19 @@ export class CubismModel {
         this.modelMatrix.centerY(0)
         console.log('[CubismModel] 使用默认中心位置')
       }
+
+      this.modelMatrix.scale(this.modelScale, this.modelScale)
     }
 
-    console.log(`[CubismModel] 模型变换设置完成: 画布=${width}x${height}`)
+    console.log(`[CubismModel] 模型变换设置完成: 画布=${width}x${height}, scale=${this.modelScale}`)
+  }
+
+  setModelScale(scale: number): void {
+    if (this.modelScale !== scale) {
+      this.modelScale = scale
+      const position = this.getModelPosition()
+      this.setupModelTransform(position ? position : undefined)
+    }
   }
 
   private pixelToLogicalX(pixelX: number): number {

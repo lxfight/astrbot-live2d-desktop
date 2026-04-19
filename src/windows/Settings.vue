@@ -231,6 +231,13 @@
               <p class="settings-section__desc">配置主题色跟随策略。切换后立即生效。</p>
 
               <n-form label-placement="top">
+                <n-form-item label="当前模型大小缩放">
+                  <n-space align="center" style="width: 100%;">
+                    <n-slider v-model:value="currentModelScale" :min="0.1" :max="5.0" :step="0.05" style="width: 200px;" />
+                    <span style="width: 40px; text-align: right;">{{ currentModelScale.toFixed(2) }}x</span>
+                    <n-button size="small" @click="currentModelScale = 1.0">重置</n-button>
+                  </n-space>
+                </n-form-item>
                 <n-form-item label="主题色跟随当前模型">
                   <n-switch v-model:value="advancedSettings.themeFollowModel" @update:value="handleThemeFollowChange" />
                   <template #feedback>
@@ -986,6 +993,7 @@ import {
   FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connection'
+import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
 import {
   APP_LINKS,
@@ -1017,6 +1025,7 @@ import { buildDefaultConnectionSettingsEditable } from '@/shared/connectionSetti
 const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
+const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { currentModelPath, resolvedModelName, palette, sourceColor } = storeToRefs(themeStore)
 const {
@@ -1251,6 +1260,15 @@ const currentModelStatusLabel = computed(() => (currentModelPath.value ? '使用
 const currentModelStatusClass = computed(() => (
   currentModelPath.value ? 'status-pill--accent' : 'status-pill--warning'
 ))
+
+const currentModelScale = computed({
+  get: () => modelStore.currentModel ? modelStore.getModelScale() : 1.0,
+  set: (value: number) => {
+    if (modelStore.currentModel) {
+      modelStore.setModelScale(value)
+    }
+  }
+})
 
 const platformDisplayName = computed(() => {
   const capabilities = platformCapabilities.value

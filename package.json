@@ -50,6 +50,10 @@
           "key": "modelPositions",
           "version": 1
         },
+        "modelScales": {
+          "key": "modelScales",
+          "version": 1
+        },
         "themeState": {
           "key": "rendererThemeState",
           "version": 1

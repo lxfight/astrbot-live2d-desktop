@@ -506,6 +506,15 @@ watch(hasModel, async (value) => {
   }
 }, { immediate: true })
 
+watch(
+  () => modelStore.currentModel ? modelStore.getModelScale(modelStore.currentModel) : 1.0,
+  (newScale) => {
+    if (live2dCanvasRef.value && modelStore.currentModel) {
+      live2dCanvasRef.value.setModelScale(newScale)
+    }
+  }
+)
+
 // 初始化 marked + LaTeX 扩展（幂等）
 configureMarked()
 
@@ -609,8 +618,9 @@ function applyModelPositionState(savedPosition: { x: number; y: number } | null)
 
 async function loadModelWithState(modelPath: string) {
   const savedPosition = modelStore.getModelPosition(modelPath)
+  const savedScale = modelStore.getModelScale(modelPath)
   loadingModelPath.value = modelPath
-  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined)
+  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined, savedScale)
   hasModel.value = true
   modelStore.setCurrentModel(modelPath)
   themeStore.setCurrentModel(modelPath)

@@ -57,7 +57,7 @@ const emit = defineEmits<{
 /**
  * 加载 Live2D 模型
  */
-async function loadModel(modelPath: string, initialPosition?: { x: number; y: number }) {
+async function loadModel(modelPath: string, initialPosition?: { x: number; y: number }, initialScale: number = 1.0) {
   if (!canvasRef.value) {
     console.error('[Live2D] Canvas 未初始化')
     return
@@ -78,7 +78,7 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     model = await Live2DModel.from(modelPath)
 
     // 初始化 WebGL 并启动渲染循环，传入初始位置
-    model.initWebGL(canvasRef.value, initialPosition)
+    model.initWebGL(canvasRef.value, initialPosition, initialScale)
     await model.loadTextures()
     startRenderLoop()
 
@@ -152,6 +152,15 @@ function setModelPosition(x: number, y: number) {
   if (!model) return
   model.setModelPosition(x, y)
   console.log('[Live2D] 模型位置已设置:', { x, y })
+}
+
+/**
+ * 设置模型缩放
+ */
+function setModelScale(scale: number) {
+  if (!model) return
+  model.setModelScale(scale)
+  console.log('[Live2D] 模型缩放已设置:', scale)
 }
 
 /**
@@ -533,6 +542,7 @@ defineExpose({
   playRandomMotion,
   getModelPosition,
   setModelPosition,
+  setModelScale,
   getModelBounds,
   getModelOverlayBounds,
   getTextureSource: () => model?.getTextureSource(),
