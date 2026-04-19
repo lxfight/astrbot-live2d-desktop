@@ -233,9 +233,19 @@
               <n-form label-placement="top">
                 <n-form-item label="当前模型大小缩放">
                   <n-space align="center" style="width: 100%;">
-                    <n-slider v-model:value="currentModelScale" :min="0.1" :max="5.0" :step="0.05" style="width: 200px;" />
-                    <span style="width: 40px; text-align: right;">{{ currentModelScale.toFixed(2) }}x</span>
-                    <n-button size="small" @click="currentModelScale = 1.0">重置</n-button>
+                    <n-slider :value="currentModelScaleValue" :min="0.1" :max="5.0" :step="0.05" style="width: 200px;" @update:value="handleModelScaleChange" />
+                    <n-input-number 
+                      :value="currentModelScaleValue" 
+                      :min="0.1" 
+                      :max="5.0" 
+                      :step="0.05" 
+                      size="small" 
+                      style="width: 110px;" 
+                      @update:value="(v: number | null) => handleModelScaleChange(v || 1.0)"
+                    >
+                      <template #suffix>x</template>
+                    </n-input-number>
+                    <n-button size="small" @click="handleResetModelScale">重置</n-button>
                   </n-space>
                 </n-form-item>
                 <n-form-item label="主题色跟随当前模型">
@@ -1261,14 +1271,26 @@ const currentModelStatusClass = computed(() => (
   currentModelPath.value ? 'status-pill--accent' : 'status-pill--warning'
 ))
 
-const currentModelScale = computed({
-  get: () => modelStore.currentModel ? modelStore.getModelScale() : 1.0,
-  set: (value: number) => {
-    if (modelStore.currentModel) {
-      modelStore.setModelScale(value)
-    }
+const currentModelScaleValue = ref(1.0)
+
+watch(
+  () => currentModelPath.value ? modelStore.modelScales[currentModelPath.value] : undefined,
+  (val) => {
+    currentModelScaleValue.value = typeof val === 'number' ? val : 1.0
+  },
+  { immediate: true }
+)
+
+function handleModelScaleChange(val: number) {
+  currentModelScaleValue.value = val
+  if (currentModelPath.value) {
+    modelStore.setModelScale(val, currentModelPath.value)
   }
-})
+}
+
+function handleResetModelScale() {
+  handleModelScaleChange(1.0)
+}
 
 const platformDisplayName = computed(() => {
   const capabilities = platformCapabilities.value

@@ -878,6 +878,7 @@ onMounted(async () => {
   initializeAdvancedSettingsForSession()
   connectionStore.startStorageSync()
   themeStore.startStorageSync()
+  modelStore.startStorageSync()
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('resize', updateUIPositions)
 
@@ -1138,6 +1139,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateUIPositions)
   connectionStore.stopStorageSync()
   themeStore.stopStorageSync()
+  modelStore.stopStorageSync()
   cleanupBubbleStack()
   releaseAllAudioWaiters()
   cleanupRecording()

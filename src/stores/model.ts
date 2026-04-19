@@ -113,9 +113,45 @@ export const useModelStore = defineStore('model', () => {
     }
   }
 
+  let storageSyncBound = false
+
+  function onModelStorageChange(event: StorageEvent) {
+    if (event.key === MODEL_POSITIONS_KEY) {
+      modelPositions.value = readJsonStorage(MODEL_POSITIONS_KEY, {
+        fallback: {},
+        normalize: (value) => (value && typeof value === 'object' ? value as Record<string, { x: number; y: number }> : {}),
+        version: MODEL_POSITIONS_VERSION,
+      })
+    } else if (event.key === MODEL_SCALES_KEY) {
+      modelScales.value = readJsonStorage(MODEL_SCALES_KEY, {
+        fallback: {},
+        normalize: (value) => (value && typeof value === 'object' ? value as Record<string, number> : {}),
+        version: MODEL_SCALES_VERSION,
+      })
+    }
+  }
+
+  function startStorageSync() {
+    if (storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+    window.addEventListener('storage', onModelStorageChange)
+    storageSyncBound = true
+  }
+
+  function stopStorageSync() {
+    if (!storageSyncBound || typeof window === 'undefined') {
+      return
+    }
+    window.removeEventListener('storage', onModelStorageChange)
+    storageSyncBound = false
+  }
+
   return {
     currentModel,
     availableModels,
+    modelPositions,
+    modelScales,
     setCurrentModel,
     getLastModel,
     setModelPosition,
@@ -123,6 +159,8 @@ export const useModelStore = defineStore('model', () => {
     getAllModelPositions,
     setModelScale,
     getModelScale,
-    loadModelList
+    loadModelList,
+    startStorageSync,
+    stopStorageSync
   }
 })
