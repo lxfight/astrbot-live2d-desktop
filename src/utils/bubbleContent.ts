@@ -3,6 +3,7 @@ import { resolveResourceSource, type ResourceUrlConfig } from './resourceUrl'
 export interface BubblePerformElement {
   type?: string
   content?: string
+  text?: string
   position?: string
   url?: string
   inline?: string
@@ -50,6 +51,24 @@ function mergeConsecutiveImages(sequence: BubblePerformElement[]): BubblePerform
   return result
 }
 
+function normalizeBubbleText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function appendBubbleTextItem(items: BubbleRenderableItem[], text: string): void {
+  const normalizedText = normalizeBubbleText(text)
+  if (!normalizedText) {
+    return
+  }
+
+  const lastItem = items[items.length - 1]
+  if (lastItem?.type === 'text' && normalizeBubbleText(lastItem.text) === normalizedText) {
+    return
+  }
+
+  items.push({ type: 'text', text })
+}
+
 export function splitPerformSequenceForBubble(
   sequence: BubblePerformElement[] | null | undefined,
   options: ResourceUrlConfig = {}
@@ -61,19 +80,32 @@ export function splitPerformSequenceForBubble(
 
   for (const element of mergeConsecutiveImages(sequence || [])) {
     const type = String(element?.type || '')
+    const textContent = typeof element.content === 'string' ? element.content : ''
+    const ttsText = typeof element.text === 'string' ? element.text : ''
 
-    if (!hasBubblePosition && (type === 'text' || type === 'image')) {
+    if (!hasBubblePosition && (
+      type === 'text' ||
+      type === 'image' ||
+      (type === 'tts' && normalizeBubbleText(ttsText))
+    )) {
       const nextPosition = typeof element.position === 'string' ? element.position.trim() : ''
       position = nextPosition || 'center'
       hasBubblePosition = true
     }
 
     if (type === 'text') {
-      const text = typeof element.content === 'string' ? element.content : ''
-      if (text) {
-        bubbleItems.push({ type: 'text', text })
+      if (normalizeBubbleText(textContent)) {
+        appendBubbleTextItem(bubbleItems, textContent)
         continue
       }
+    }
+
+    if (type === 'tts') {
+      if (normalizeBubbleText(ttsText)) {
+        appendBubbleTextItem(bubbleItems, ttsText)
+      }
+      remainingSequence.push(element)
+      continue
     }
 
     if (type === 'image') {

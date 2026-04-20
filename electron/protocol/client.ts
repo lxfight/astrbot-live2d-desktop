@@ -405,27 +405,55 @@ export class L2DBridgeClient extends EventEmitter {
     if (!payload || typeof payload !== 'object') return payload
     const sensitiveKeys = ['token', 'password', 'secret', 'apiKey', 'accessKey']
     const MAX_STRING_LEN = 200
+    const MAX_PREVIEW_ITEMS = 3
+    const MAX_DEPTH = 4
 
-    const sanitize = (obj: any): any => {
-      if (Array.isArray(obj)) return `[Array:${obj.length}]`
+    const sanitize = (obj: any, seen: WeakSet<object>, depth: number): any => {
       if (!obj || typeof obj !== 'object') {
         if (typeof obj === 'string' && obj.length > MAX_STRING_LEN) {
           return obj.slice(0, MAX_STRING_LEN) + '...'
         }
         return obj
       }
+
+      if (seen.has(obj)) {
+        return '[Circular]'
+      }
+
+      if (depth >= MAX_DEPTH) {
+        if (Array.isArray(obj)) {
+          return `[Array:${obj.length}]`
+        }
+        return '[Object]'
+      }
+
+      seen.add(obj)
+      if (Array.isArray(obj)) {
+        const preview = obj
+          .slice(0, MAX_PREVIEW_ITEMS)
+          .map(item => sanitize(item, seen, depth + 1))
+        const result = {
+          __type: 'array',
+          length: obj.length,
+          preview,
+        }
+        seen.delete(obj)
+        return result
+      }
+
       const result: Record<string, any> = {}
       for (const [key, value] of Object.entries(obj)) {
         if (sensitiveKeys.some(k => key.toLowerCase().includes(k))) {
           result[key] = '***'
         } else {
-          result[key] = sanitize(value)
+          result[key] = sanitize(value, seen, depth + 1)
         }
       }
+      seen.delete(obj)
       return result
     }
 
-    return sanitize(payload)
+    return sanitize(payload, new WeakSet<object>(), 0)
   }
 
   /**
