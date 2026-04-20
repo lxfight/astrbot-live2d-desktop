@@ -407,7 +407,14 @@ export class L2DBridgeClient extends EventEmitter {
     const MAX_STRING_LEN = 200
 
     const sanitize = (obj: any): any => {
-      if (Array.isArray(obj)) return `[Array:${obj.length}]`
+      if (Array.isArray(obj)) {
+        const preview = obj.slice(0, 3).map(item => sanitize(item))
+        return {
+          __type: 'array',
+          length: obj.length,
+          preview,
+        }
+      }
       if (!obj || typeof obj !== 'object') {
         if (typeof obj === 'string' && obj.length > MAX_STRING_LEN) {
           return obj.slice(0, MAX_STRING_LEN) + '...'
