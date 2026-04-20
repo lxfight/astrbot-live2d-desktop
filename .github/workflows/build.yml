@@ -115,6 +115,7 @@ jobs:
               release/astrbot-live2d-desktop-v*-portable-x64.exe
               release/*.blockmap
               release/latest.yml
+              release/latest-portable-x64.yml
           - os: windows-latest
             rebuild_platform: win32
             arch: arm64
@@ -124,6 +125,7 @@ jobs:
               release/astrbot-live2d-desktop-v*-win-arm64.exe
               release/astrbot-live2d-desktop-v*-portable-arm64.exe
               release/*.blockmap
+              release/latest-portable-arm64.yml
           - os: macos-latest
             rebuild_platform: darwin
             arch: x64
@@ -201,6 +203,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Generate portable update metadata
+        if: startsWith(matrix.os, 'windows')
+        run: node scripts/generate-portable-update-metadata.mjs --arch=${{ matrix.arch }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7

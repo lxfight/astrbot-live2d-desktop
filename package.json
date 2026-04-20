@@ -1,6 +1,6 @@
 {
   "name": "astrbot-live2d-desktop",
-  "version": "1.1.0-beta.18",
+  "version": "1.1.0-beta.19",
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -92,9 +92,9 @@
     "rebuild:electron": "electron-rebuild -f -w extract-file-icon,node-window-manager,better-sqlite3",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:prepare:fast": "pnpm exec vite build",
-    "pack": "pnpm exec electron-builder --publish never",
+    "pack": "pnpm exec electron-builder --publish never && node scripts/generate-portable-update-metadata.mjs",
     "pack:dir": "pnpm exec electron-builder --dir --publish never",
-    "pack:win": "pnpm exec electron-builder --win --publish never",
+    "pack:win": "pnpm exec electron-builder --win --publish never && node scripts/generate-portable-update-metadata.mjs",
     "pack:mac": "pnpm exec electron-builder --mac --publish never",
     "pack:linux": "pnpm exec electron-builder --linux --publish never",
     "pack:linux:core": "pnpm exec electron-builder --linux AppImage deb --publish never",
@@ -245,6 +245,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "astrbot-live2d-desktop-v${version}-win-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
@@ -256,6 +257,9 @@
       "uninstallerIcon": "resources/icon.ico",
       "runAfterFinish": true,
       "packElevateHelper": true
+    },
+    "portable": {
+      "artifactName": "astrbot-live2d-desktop-v${version}-portable-${arch}.${ext}"
     },
     "mac": {
       "icon": "icon.icns",

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron'
 import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { writeLogEntry } from './logger'
@@ -31,6 +32,16 @@ interface UpdateCheckResult {
   state: UpdateState
 }
 
+interface InstallUpdateResult {
+  success: boolean
+  message: string
+}
+
+interface AutoUpdaterWithInternals {
+  channel?: string | null
+  installerPath?: string | null
+}
+
 let initialized = false
 let checkInProgress = false
 
@@ -44,12 +55,167 @@ function isPortableBuild(): boolean {
   return process.platform === 'win32' && Boolean(process.env.PORTABLE_EXECUTABLE_FILE)
 }
 
+function getPortableExecutablePath(): string | null {
+  if (!isPortableBuild()) {
+    return null
+  }
+
+  const portableExecutablePath = process.env.PORTABLE_EXECUTABLE_FILE
+  return portableExecutablePath ? path.resolve(portableExecutablePath) : null
+}
+
+function getPortableUpdateChannel(): string | null {
+  const portableExecutablePath = getPortableExecutablePath()
+  if (!portableExecutablePath) {
+    return null
+  }
+
+  return `latest-portable-${process.arch}`
+}
+
+function getDownloadedUpdateExecutablePath(): string | null {
+  const updater = autoUpdater as typeof autoUpdater & AutoUpdaterWithInternals
+  return updater.installerPath ? path.resolve(updater.installerPath) : null
+}
+
+function getPowerShellExecutablePath(): string {
+  const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+  return path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+}
+
+function createPortableUpdateScript(currentExePath: string, downloadedExePath: string): string {
+  const tempDir = app.getPath('temp')
+  const scriptPath = path.join(tempDir, `astrbot-portable-update-${process.pid}-${Date.now()}.ps1`)
+  const scriptContent = [
+    'param(',
+    '  [Parameter(Mandatory = $true)][string]$CurrentExe,',
+    '  [Parameter(Mandatory = $true)][string]$DownloadedExe',
+    ')',
+    "$ErrorActionPreference = 'Stop'",
+    '$BackupExe = "$CurrentExe.old"',
+    '$Deadline = (Get-Date).AddMinutes(2)',
+    'while ((Get-Date) -lt $Deadline) {',
+    '  try {',
+    "    $Handle = [System.IO.File]::Open($CurrentExe, 'Open', 'ReadWrite', 'None')",
+    '    $Handle.Dispose()',
+    '    break',
+    '  } catch {',
+    '    Start-Sleep -Milliseconds 500',
+    '  }',
+    '}',
+    'if (-not (Test-Path -LiteralPath $DownloadedExe)) {',
+    '  throw "找不到已下载的便携版更新文件"',
+    '}',
+    'if (Test-Path -LiteralPath $BackupExe) {',
+    '  Remove-Item -LiteralPath $BackupExe -Force -ErrorAction SilentlyContinue',
+    '}',
+    '$NeedRestore = $false',
+    'try {',
+    '  if (Test-Path -LiteralPath $CurrentExe) {',
+    '    Move-Item -LiteralPath $CurrentExe -Destination $BackupExe -Force',
+    '    $NeedRestore = $true',
+    '  }',
+    '  Move-Item -LiteralPath $DownloadedExe -Destination $CurrentExe -Force',
+    '  $NeedRestore = $false',
+    '  if (Test-Path -LiteralPath $BackupExe) {',
+    '    Remove-Item -LiteralPath $BackupExe -Force -ErrorAction SilentlyContinue',
+    '  }',
+    "  Start-Process -FilePath $CurrentExe -ArgumentList '--updated'",
+    '} catch {',
+    '  if ($NeedRestore -and (Test-Path -LiteralPath $BackupExe) -and -not (Test-Path -LiteralPath $CurrentExe)) {',
+    '    Move-Item -LiteralPath $BackupExe -Destination $CurrentExe -Force',
+    '  }',
+    '  throw',
+    '}'
+  ].join('\n')
+
+  fs.writeFileSync(scriptPath, scriptContent, 'utf8')
+  writeLogEntry('info', 'updater', `已生成便携版更新替换脚本: ${scriptPath}`)
+  writeLogEntry('info', 'updater', `便携版当前路径: ${currentExePath}`)
+  writeLogEntry('info', 'updater', `便携版更新包路径: ${downloadedExePath}`)
+  return scriptPath
+}
+
+function installPortableUpdate(): InstallUpdateResult {
+  const currentExePath = getPortableExecutablePath()
+  if (!currentExePath) {
+    return {
+      success: false,
+      message: '未找到当前便携版可执行文件路径'
+    }
+  }
+
+  const downloadedExePath = getDownloadedUpdateExecutablePath()
+  if (!downloadedExePath || !fs.existsSync(downloadedExePath)) {
+    return {
+      success: false,
+      message: '未找到已下载的便携版更新文件'
+    }
+  }
+
+  if (!fs.existsSync(currentExePath)) {
+    return {
+      success: false,
+      message: '当前便携版可执行文件不存在，无法替换更新'
+    }
+  }
+
+  if (path.resolve(currentExePath) === path.resolve(downloadedExePath)) {
+    return {
+      success: false,
+      message: '下载的更新文件路径异常，无法执行便携版替换更新'
+    }
+  }
+
+  const scriptPath = createPortableUpdateScript(currentExePath, downloadedExePath)
+  const powerShellPath = getPowerShellExecutablePath()
+
+  try {
+    const child = spawn(
+      powerShellPath,
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+        '-CurrentExe',
+        currentExePath,
+        '-DownloadedExe',
+        downloadedExePath
+      ],
+      {
+        detached: true,
+        stdio: 'ignore'
+      }
+    )
+
+    child.unref()
+    writeLogEntry('info', 'updater', '便携版更新替换脚本已启动，准备退出当前应用')
+    setImmediate(() => {
+      app.quit()
+    })
+
+    return {
+      success: true,
+      message: '正在关闭应用并替换便携版更新'
+    }
+  } catch (error) {
+    const message = extractErrorMessage(error)
+    writeLogEntry('error', 'updater', '启动便携版更新替换脚本失败:', message)
+    return {
+      success: false,
+      message: `启动便携版更新失败: ${message}`
+    }
+  }
+}
+
 function isAutoUpdateSupportedPlatform(): boolean {
   return process.platform === 'win32' || process.platform === 'darwin'
 }
 
 function isAutoUpdateEnabled(): boolean {
-  return app.isPackaged && isAutoUpdateSupportedPlatform() && !isPortableBuild() && hasUpdateConfigFile()
+  return app.isPackaged && isAutoUpdateSupportedPlatform() && hasUpdateConfigFile()
 }
 
 function isAutoUpdateCheckEnabled(): boolean {
@@ -105,19 +271,33 @@ function handleDownloadProgress(progress: ProgressInfo): void {
 async function promptInstallUpdate(info: UpdateInfo): Promise<void> {
   try {
     const focusedWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
+    const installPromptMessage = isPortableBuild()
+      ? `新版本 ${info.version} 已下载完成`
+      : `新版本 ${info.version} 已下载完成`
+    const installPromptDetail = isPortableBuild()
+      ? '是否现在关闭应用并替换便携版更新？'
+      : '是否现在重启并安装更新？'
+    const confirmButtonText = isPortableBuild() ? '立即替换' : '立即安装'
     const result = await dialog.showMessageBox(focusedWindow, {
       type: 'info',
       title: '发现新版本',
-      message: `新版本 ${info.version} 已下载完成`,
-      detail: '是否现在重启并安装更新？',
-      buttons: ['立即安装', '稍后'],
+      message: installPromptMessage,
+      detail: installPromptDetail,
+      buttons: [confirmButtonText, '稍后'],
       defaultId: 0,
       cancelId: 1
     })
 
     if (result.response === 0) {
       writeLogEntry('info', 'updater', '用户确认立即安装更新')
-      autoUpdater.quitAndInstall()
+      const installResult = quitAndInstallUpdate()
+      if (!installResult.success) {
+        await dialog.showMessageBox(focusedWindow, {
+          type: 'error',
+          title: '更新失败',
+          message: installResult.message
+        })
+      }
     }
   } catch (error) {
     writeLogEntry('error', 'updater', '弹出更新安装确认框失败:', error)
@@ -157,7 +337,9 @@ function setupAutoUpdaterListeners(): void {
   autoUpdater.on('update-downloaded', (info) => {
     setUpdateState({
       status: 'downloaded',
-      message: `新版本 ${info.version} 已下载完成，等待安装`,
+      message: isPortableBuild()
+        ? `新版本 ${info.version} 已下载完成，等待替换`
+        : `新版本 ${info.version} 已下载完成，等待安装`,
       latestVersion: info.version,
       progress: 100,
       releaseDate: info.releaseDate
@@ -180,10 +362,6 @@ function setupAutoUpdaterListeners(): void {
 function getDisabledReason(): string {
   if (!app.isPackaged) {
     return '开发环境不启用自动更新'
-  }
-
-  if (isPortableBuild()) {
-    return '便携版不支持自动更新'
   }
 
   if (!isAutoUpdateSupportedPlatform()) {
@@ -218,8 +396,15 @@ export function initializeAutoUpdater(): void {
     return
   }
 
+  const updater = autoUpdater as typeof autoUpdater & AutoUpdaterWithInternals
+  const portableChannel = getPortableUpdateChannel()
+  if (portableChannel) {
+    updater.channel = portableChannel
+    writeLogEntry('info', 'updater', `便携版更新通道已切换为 ${portableChannel}`)
+  }
+
   autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.autoInstallOnAppQuit = !isPortableBuild()
   autoUpdater.allowPrerelease = app.getVersion().includes('-')
   autoUpdater.allowDowngrade = false
 
@@ -233,7 +418,7 @@ export function initializeAutoUpdater(): void {
   writeLogEntry(
     'info',
     'updater',
-    `自动更新已启用，平台=${process.platform}，当前版本=${app.getVersion()}，allowPrerelease=${autoUpdater.allowPrerelease}`
+    `自动更新已启用，平台=${process.platform}，当前版本=${app.getVersion()}，channel=${updater.channel || 'latest'}，allowPrerelease=${autoUpdater.allowPrerelease}`
   )
 
   if (!isAutoUpdateCheckEnabled()) {
@@ -339,6 +524,11 @@ export function quitAndInstallUpdate(): { success: boolean; message: string } {
       success: false,
       message: '当前没有可安装的已下载更新'
     }
+  }
+
+  if (isPortableBuild()) {
+    writeLogEntry('info', 'updater', '收到便携版更新安装请求，准备关闭应用并替换更新')
+    return installPortableUpdate()
   }
 
   writeLogEntry('info', 'updater', '收到手动安装更新请求，准备重启安装')
