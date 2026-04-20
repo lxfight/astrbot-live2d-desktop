@@ -17,34 +17,6 @@ export type HistoryRenderableItem =
   | { type: 'video'; src: string; label: string }
   | { type: 'file'; src: string; label: string; name: string }
 
-function normalizeHistoryText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function getHistoryElementText(element: HistoryContentElement | null | undefined): string {
-  if (typeof element?.text === 'string') {
-    return element.text
-  }
-  if (typeof element?.content === 'string') {
-    return element.content
-  }
-  return ''
-}
-
-function appendHistoryTextItem(items: HistoryRenderableItem[], text: string): void {
-  const normalizedText = normalizeHistoryText(text)
-  if (!normalizedText) {
-    return
-  }
-
-  const lastItem = items[items.length - 1]
-  if (lastItem?.type === 'text' && normalizeHistoryText(lastItem.text) === normalizedText) {
-    return
-  }
-
-  items.push({ type: 'text', text })
-}
-
 export function setLruCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
   if (cache.has(key)) {
     cache.delete(key)
@@ -106,32 +78,6 @@ export function resolveHistoryImageSource(
   return resolveHistoryMediaSource(element, resourceConfig)
 }
 
-export function extractHistoryRawText(
-  content: HistoryContentElement[] | null | undefined,
-): string {
-  const parts: string[] = []
-
-  for (const element of content || []) {
-    const type = String(element?.type || '')
-    if (type !== 'text' && type !== 'tts') {
-      continue
-    }
-
-    const text = normalizeHistoryText(getHistoryElementText(element))
-    if (!text) {
-      continue
-    }
-
-    if (parts[parts.length - 1] === text) {
-      continue
-    }
-
-    parts.push(text)
-  }
-
-  return parts.join('\n')
-}
-
 export function buildHistoryRenderableItems(
   content: HistoryContentElement[] | null | undefined,
   options: { includeTtsText?: boolean } & ResourceUrlConfig = {}
@@ -140,21 +86,16 @@ export function buildHistoryRenderableItems(
 
   for (const element of content || []) {
     const type = String(element?.type || '')
-    const text = getHistoryElementText(element)
 
-    if (type === 'text') {
-      appendHistoryTextItem(items, text)
-      continue
-    }
+    if (type === 'text' || (options.includeTtsText && type === 'tts')) {
+      const text = typeof element.text === 'string'
+        ? element.text
+        : typeof element.content === 'string'
+          ? element.content
+          : ''
 
-    if (type === 'tts') {
-      if (options.includeTtsText) {
-        appendHistoryTextItem(items, text)
-      }
-
-      const src = resolveHistoryMediaSource(element, options)
-      if (src) {
-        items.push({ type: 'audio', src, label: element.name || text || '语音消息' })
+      if (text) {
+        items.push({ type: 'text', text })
       }
       continue
     }

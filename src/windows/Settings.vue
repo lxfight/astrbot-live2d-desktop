@@ -361,57 +361,70 @@
                     </div>
 
                     <div class="message-bubble__body">
-                      <div v-for="(item, idx) in getMessagePreviewItems(msg.content)" :key="idx" class="content-item">
-                        <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
+                      <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
+                        <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text || item.content)"></div>
                         <div v-else-if="item.type === 'image'" class="image-content">
                           <n-image
-                            :src="item.src"
-                            :preview-src="item.src"
+                            v-if="resolveMessageImageSource(item)"
+                            :src="resolveMessageImageSource(item) || undefined"
+                            :preview-src="resolveMessageImageSource(item) || undefined"
                             width="220"
                             object-fit="cover"
                             preview-disabled
                             :lazy="true"
                           />
+                          <div v-else class="media-placeholder">
+                            <ImageIcon :size="16" />
+                            <span>图片</span>
+                          </div>
                         </div>
-                        <div
-                          v-else-if="item.type === 'audio'"
-                          class="voice-bubble"
-                          :class="{ playing: playingVoiceKey === getVoiceItemKey(msg, idx) }"
-                          @click="toggleVoicePlay(getVoiceItemKey(msg, idx))"
-                        >
+                        <div v-else-if="item.type === 'audio'" class="voice-bubble" @click="toggleVoicePlay(item, idx)">
                           <div class="voice-bubble__icon">
                             <Mic :size="16" />
                           </div>
                           <div class="voice-bubble__wave">
                             <span></span><span></span><span></span><span></span><span></span>
                           </div>
-                          <span class="voice-bubble__duration">{{ item.label }}</span>
+                          <span class="voice-bubble__duration">{{ item.duration || "''" }}</span>
                           <audio
-                            :ref="el => setVoiceRef(el, getVoiceItemKey(msg, idx))"
-                            :src="item.src"
+                            :ref="el => setVoiceRef(el, idx)"
+                            :src="resolveMessageAudioSource(item) || undefined"
                             preload="metadata"
-                            @ended="onVoiceEnded(getVoiceItemKey(msg, idx))"
+                            @ended="onVoiceEnded(idx)"
                           ></audio>
                         </div>
                         <div v-else-if="item.type === 'video'" class="video-content">
-                          <video class="video-player" :src="item.src" controls preload="metadata" playsinline></video>
-                        </div>
-                        <div v-else-if="item.type === 'file'" class="file-content">
-                          <div class="file-header">
-                            <div class="file-meta">
-                              <FileText :size="16" />
-                              <span class="file-name">{{ item.name }}</span>
-                            </div>
-                            <div class="file-actions">
-                              <button class="file-action-btn" @click="openHistoryFile(item)">
-                                <ExternalLink :size="12" />
-                              </button>
-                              <button class="file-action-btn" @click="downloadHistoryFile(item)">
-                                <Download :size="12" />
-                              </button>
-                            </div>
+                          <template v-if="resolveMessageVideoSource(item)">
+                            <video class="video-player" :src="resolveMessageVideoSource(item) || undefined" controls preload="metadata" playsinline></video>
+                          </template>
+                          <div v-else class="media-placeholder">
+                            <Video :size="16" />
+                            <span>视频</span>
                           </div>
                         </div>
+                        <div v-else-if="item.type === 'file'" class="file-content">
+                          <template v-if="resolveMessageFileSource(item)">
+                            <div class="file-header">
+                              <div class="file-meta">
+                                <FileText :size="16" />
+                                <span class="file-name">{{ item.name || '文件' }}</span>
+                              </div>
+                              <div class="file-actions">
+                                <button class="file-action-btn" @click="openHistoryFile(item)">
+                                  <ExternalLink :size="12" />
+                                </button>
+                                <button class="file-action-btn" @click="downloadHistoryFile(item)">
+                                  <Download :size="12" />
+                                </button>
+                              </div>
+                            </div>
+                          </template>
+                          <div v-else class="media-placeholder">
+                            <FileText :size="16" />
+                            <span>{{ item.name || '文件' }}</span>
+                          </div>
+                        </div>
+                        <div v-else class="text-content">{{ item.type }}</div>
                       </div>
                     </div>
                   </div>
@@ -986,7 +999,7 @@ import * as echarts from 'echarts'
 import { format } from 'date-fns'
 import {
   Copy, Drama, Globe, Info, Minus, Settings, Square, X,
-  MessageSquare, Search, User, Bot, Mic,
+  MessageSquare, Search, User, Bot, Image as ImageIcon, Mic, Video,
   FileText, ExternalLink, Download
 } from 'lucide-vue-next'
 import { useConnectionStore } from '@/stores/connection'
@@ -1005,12 +1018,12 @@ import {
   saveAdvancedSettings as persistAdvancedSettings,
 } from '@/utils/advancedSettings'
 import {
-  buildHistoryRenderableItems,
   getLruCacheEntry,
   setLruCacheEntry,
+  resolveHistoryMediaSource,
   parseHistoryContent,
+  resolveHistoryImageSource,
   type HistoryContentElement,
-  type HistoryRenderableItem,
 } from '@/utils/historyContent'
 import { withAlpha } from '@/utils/themePalette'
 import { DEFAULT_DESKTOP_FEATURE_SETTINGS } from '@/utils/desktopFeatureSettings'
@@ -1179,57 +1192,49 @@ const activeHoursRef = ref<HTMLElement>()
 let charts: echarts.ECharts[] = []
 
 // 语音播放状态
-const voiceRefs = new Map<string, HTMLAudioElement>()
-const playingVoiceKey = ref<string | null>(null)
+const voiceRefs = new Map<number, HTMLAudioElement>()
+const playingVoiceIdx = ref<number | null>(null)
 
-function setVoiceRef(el: any, key: string) {
+function setVoiceRef(el: any, idx: number) {
   if (el) {
-    voiceRefs.set(key, el as HTMLAudioElement)
+    voiceRefs.set(idx, el as HTMLAudioElement)
   } else {
-    voiceRefs.delete(key)
+    voiceRefs.delete(idx)
   }
 }
 
-function toggleVoicePlay(key: string) {
-  const audio = voiceRefs.get(key)
+function toggleVoicePlay(_item: any, idx: number) {
+  const audio = voiceRefs.get(idx)
   if (!audio) return
 
   // 停止其他正在播放的语音
-  if (playingVoiceKey.value !== null && playingVoiceKey.value !== key) {
-    const prevAudio = voiceRefs.get(playingVoiceKey.value)
+  if (playingVoiceIdx.value !== null && playingVoiceIdx.value !== idx) {
+    const prevAudio = voiceRefs.get(playingVoiceIdx.value)
     if (prevAudio) {
       prevAudio.pause()
       prevAudio.currentTime = 0
     }
-    playingVoiceKey.value = null
   }
 
-  if (playingVoiceKey.value === key) {
+  if (playingVoiceIdx.value === idx) {
     audio.pause()
     audio.currentTime = 0
-    playingVoiceKey.value = null
+    playingVoiceIdx.value = null
   } else {
-    audio.play().then(() => {
-      playingVoiceKey.value = key
-    }).catch((error) => {
-      console.error('[设置] 语音播放失败:', error)
-      message.error('语音播放失败')
-      playingVoiceKey.value = null
-    })
+    audio.play().catch(() => {})
+    playingVoiceIdx.value = idx
   }
 }
 
-function onVoiceEnded(key: string) {
-  if (playingVoiceKey.value === key) {
-    playingVoiceKey.value = null
+function onVoiceEnded(idx: number) {
+  if (playingVoiceIdx.value === idx) {
+    playingVoiceIdx.value = null
   }
 }
 
 // 缓存
-const HISTORY_PREVIEW_CACHE_LIMIT = 500
 const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, HistoryContentElement[]>()
-const messagePreviewCache = new Map<string, HistoryRenderableItem[]>()
 
 // 计算属性
 const activeGroupMeta = computed(() => {
@@ -1473,15 +1478,8 @@ onMounted(async () => {
 onUnmounted(() => {
   charts.forEach(chart => chart.dispose())
   charts = []
-  for (const audio of voiceRefs.values()) {
-    audio.pause()
-    audio.currentTime = 0
-  }
-  voiceRefs.clear()
-  playingVoiceKey.value = null
   markdownRenderCache.clear()
   messageContentCache.clear()
-  messagePreviewCache.clear()
   themeStore.stopStorageSync()
   for (const dispose of settingsWindowDisposers.splice(0)) {
     dispose()
@@ -2039,51 +2037,47 @@ function parseContent(content: string): any[] {
   return parseHistoryContent(content, messageContentCache, 1000)
 }
 
-function buildHistoryPreviewCacheKey(content: string): string {
-  let hash = 0
-  for (let i = 0; i < content.length; i++) {
-    hash = ((hash << 5) - hash) + content.charCodeAt(i)
-    hash |= 0
-  }
-
-  return `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content.length}::${hash}`
-}
-
-function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = buildHistoryPreviewCacheKey(content)
-  const cached = getLruCacheEntry(messagePreviewCache, cacheKey)
-  if (cached !== undefined) {
-    return cached
-  }
-
-  try {
-    const parsed = parseContent(content)
-    const items = buildHistoryRenderableItems(parsed, {
-      includeTtsText: true,
-      resourceBaseUrl: historyResourceBaseUrl.value,
-      resourcePath: historyResourcePath.value,
-      resourceToken: historyResourceToken.value,
-    })
-    return setLruCacheEntry(messagePreviewCache, cacheKey, items, HISTORY_PREVIEW_CACHE_LIMIT)
-  } catch {
-    return setLruCacheEntry(messagePreviewCache, cacheKey, [], HISTORY_PREVIEW_CACHE_LIMIT)
-  }
-}
-
-function getVoiceItemKey(msg: any, idx: number): string {
-  const messageKey = msg?.message_id || msg?.messageId || msg?.id || msg?.timestamp || 'message'
-  return `${messageKey}:${idx}`
-}
-
 function getMessageAuthorLabel(msg: any): string {
   if (msg.direction === 'outgoing') return msg.user_name || '我'
   if (msg.user_id === 'server' || msg.user_id === 'bot') return 'AstrBot'
   return msg.user_name || msg.user_id || '未知来源'
 }
 
+function resolveMessageImageSource(item: any): string | null {
+  return resolveHistoryImageSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageAudioSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageVideoSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
+function resolveMessageFileSource(item: any): string | null {
+  return resolveHistoryMediaSource(item, {
+    resourceBaseUrl: historyResourceBaseUrl.value,
+    resourcePath: historyResourcePath.value,
+    resourceToken: historyResourceToken.value,
+  })
+}
+
 function getHistoryFileSource(item: any): string | null {
   if (typeof item?.src === 'string' && item.src.trim()) return item.src.trim()
-  return null
+  return resolveMessageFileSource(item)
 }
 
 function getHistoryFileName(item: any): string {
@@ -3213,6 +3207,7 @@ function handleOpenLink(url: string) {
   background: rgba(var(--color-accent-rgb), 0.6);
 }
 
+.voice-bubble:hover .voice-bubble__wave span,
 .voice-bubble.playing .voice-bubble__wave span {
   animation: voiceWave 0.6s ease-in-out infinite alternate;
 

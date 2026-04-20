@@ -226,7 +226,6 @@ import {
   resolvePerformMediaSource,
   splitPerformSequenceForBubble,
 } from '@/utils/bubbleContent'
-import { extractHistoryRawText } from '@/utils/historyContent'
 import { configureMarked, renderBubbleMarkdown } from '@/utils/markedLatex'
 import { extractModelThemeColor } from '@/utils/modelTheme'
 import { sleep } from '@/utils/async'
@@ -976,7 +975,6 @@ onMounted(async () => {
         const dateStr = date.toISOString().split('T')[0]
         const hour = date.getHours()
         const performanceId = generateMessageId('perf')
-        const rawText = extractHistoryRawText(payload.sequence) || '[表演序列]'
 
         // 先保存一条incoming消息记录（服务器发来的表演）
         window.electron.history.saveMessage({
@@ -987,7 +985,7 @@ onMounted(async () => {
           messageType: 'friend',
           direction: 'incoming',
           content: payload.sequence,
-          rawText,
+          rawText: '[表演序列]',
           timestamp: timestamp
         }).then(() => {
           // 保存表演记录（关联到消息）
