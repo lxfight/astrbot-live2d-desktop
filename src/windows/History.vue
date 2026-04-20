@@ -171,7 +171,7 @@
                           <div
                             v-for="(item, previewIdx) in getPerformancePreviewItems(msg.content)"
                             :key="previewIdx"
-                            class="content-item performance-preview-item"
+                            :class="['content-item', 'performance-preview-item', `content-item--${item.type}`]"
                           >
                             <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
                             <div v-else-if="item.type === 'image'" class="image-content performance-image-content">
@@ -213,7 +213,11 @@
                         </div>
                       </div>
                       <div v-else>
-                        <div v-for="(item, idx) in getMessagePreviewItems(msg.content)" :key="idx" class="content-item">
+                        <div
+                          v-for="(item, idx) in getMessagePreviewItems(msg.content)"
+                          :key="idx"
+                          :class="['content-item', `content-item--${item.type}`]"
+                        >
                           <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
                           <div v-else-if="item.type === 'image'" class="image-content">
                             <n-image :src="item.src" width="200" object-fit="cover" />
@@ -1607,6 +1611,7 @@ function handleTitleBarDoubleClick() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: flex-start;
 }
 
 .message-time {
@@ -1618,14 +1623,16 @@ function handleTitleBarDoubleClick() {
 }
 
 .content-item {
-  margin-bottom: 8px;
-}
-
-.content-item:last-child {
-  margin-bottom: 0;
+  max-width: 100%;
 }
 
 .text-content {
+  width: fit-content;
+  max-width: min(100%, 760px);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   line-height: 1.6;
   font-size: 13px;
   white-space: pre-wrap;
@@ -1680,6 +1687,20 @@ function handleTitleBarDoubleClick() {
       border-bottom-style: solid;
     }
   }
+}
+
+.message-item--outgoing .message-record__body {
+  align-items: flex-end;
+}
+
+.message-item--incoming .content-item--text .text-content {
+  border-bottom-left-radius: 4px;
+}
+
+.message-item--outgoing .content-item--text .text-content {
+  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.12), rgba(var(--color-accent-rgb), 0.08));
+  border-color: rgba(var(--color-accent-rgb), 0.18);
+  border-bottom-right-radius: 4px;
 }
 
 .image-content {
@@ -1763,6 +1784,9 @@ function handleTitleBarDoubleClick() {
 
 .performance-text-preview {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 10px;
@@ -1875,10 +1899,6 @@ function handleTitleBarDoubleClick() {
 .performance-file-content,
 .performance-image-content {
   margin-top: 0;
-}
-
-.performance-preview-item + .performance-preview-item {
-  margin-top: 10px;
 }
 
 @media (max-width: 1080px) {

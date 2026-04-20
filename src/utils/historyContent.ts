@@ -154,7 +154,7 @@ export function buildHistoryRenderableItems(
 
       const src = resolveHistoryMediaSource(element, options)
       if (src) {
-        items.push({ type: 'audio', src, label: element.name || text || '语音消息' })
+        items.push({ type: 'audio', src, label: element.name || '语音消息' })
       }
       continue
     }

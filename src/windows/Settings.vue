@@ -361,7 +361,11 @@
                     </div>
 
                     <div class="message-bubble__body">
-                      <div v-for="(item, idx) in getMessagePreviewItems(msg.content)" :key="idx" class="content-item">
+                      <div
+                        v-for="(item, idx) in getMessagePreviewItems(msg.content)"
+                        :key="idx"
+                        :class="['content-item', `content-item--${item.type}`]"
+                      >
                         <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
                         <div v-else-if="item.type === 'image'" class="image-content">
                           <n-image
@@ -3029,20 +3033,6 @@ function handleOpenLink(url: string) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--desktop-panel-border);
-}
-
-.message-item--outgoing .message-bubble {
-  background: rgba(var(--color-accent-rgb), 0.08);
-  border-color: rgba(var(--color-accent-rgb), 0.15);
-  border-bottom-right-radius: 4px;
-}
-
-.message-item--incoming .message-bubble {
-  border-bottom-left-radius: 4px;
 }
 
 .message-bubble__header {
@@ -3050,6 +3040,11 @@ function handleOpenLink(url: string) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 0 4px;
+}
+
+.message-item--outgoing .message-bubble__header {
+  justify-content: flex-end;
 }
 
 .message-bubble__name {
@@ -3067,17 +3062,24 @@ function handleOpenLink(url: string) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  align-items: flex-start;
 }
 
 .content-item {
-  margin-bottom: 4px;
+  max-width: 100%;
 }
 
-.content-item:last-child {
-  margin-bottom: 0;
+.message-item--outgoing .message-bubble__body {
+  align-items: flex-end;
 }
 
 .text-content {
+  width: fit-content;
+  max-width: min(100%, 420px);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--desktop-panel-border);
   line-height: 1.5;
   font-size: 12px;
   white-space: pre-wrap;
@@ -3112,6 +3114,16 @@ function handleOpenLink(url: string) {
       color: #d4d4d4;
     }
   }
+}
+
+.message-item--incoming .content-item--text .text-content {
+  border-bottom-left-radius: 4px;
+}
+
+.message-item--outgoing .content-item--text .text-content {
+  background: rgba(var(--color-accent-rgb), 0.08);
+  border-color: rgba(var(--color-accent-rgb), 0.15);
+  border-bottom-right-radius: 4px;
 }
 
 .image-content {
