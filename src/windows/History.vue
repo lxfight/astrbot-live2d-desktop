@@ -213,81 +213,54 @@
                         </div>
                       </div>
                       <div v-else>
-                        <div v-for="(item, idx) in parseContent(msg.content)" :key="idx" class="content-item">
+                        <div v-for="(item, idx) in getMessagePreviewItems(msg.content)" :key="idx" class="content-item">
                           <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
                           <div v-else-if="item.type === 'image'" class="image-content">
-                            <n-image
-                              v-if="resolveMessageImageSource(item)"
-                              :src="resolveMessageImageSource(item) || undefined"
-                              width="200"
-                              object-fit="cover"
-                            />
-                            <div v-else class="image-placeholder">
-                              <n-icon size="40"><ImageIcon /></n-icon>
-                              <span>图片</span>
-                            </div>
+                            <n-image :src="item.src" width="200" object-fit="cover" />
                           </div>
                           <div v-else-if="item.type === 'audio'" class="audio-content">
-                            <template v-if="resolveMessageAudioSource(item)">
-                              <div class="media-content-header">
-                                <n-icon size="18"><Mic /></n-icon>
-                                <span>{{ item.name || '语音消息' }}</span>
-                              </div>
-                              <audio
-                                class="audio-player"
-                                :src="resolveMessageAudioSource(item) || undefined"
-                                controls
-                                preload="metadata"
-                                @click.stop
-                              ></audio>
-                            </template>
-                            <div v-else class="media-placeholder">
-                              <n-icon size="20"><Mic /></n-icon>
-                              <span>语音消息</span>
+                            <div class="media-content-header">
+                              <n-icon size="18"><Mic /></n-icon>
+                              <span>{{ item.label }}</span>
                             </div>
+                            <audio
+                              class="audio-player"
+                              :src="item.src"
+                              controls
+                              preload="metadata"
+                              @click.stop
+                            ></audio>
                           </div>
                           <div v-else-if="item.type === 'video'" class="video-content">
-                            <template v-if="resolveMessageVideoSource(item)">
-                              <div class="media-content-header">
-                                <n-icon size="18"><Video /></n-icon>
-                                <span>{{ item.name || '视频' }}</span>
-                              </div>
-                              <video
-                                class="video-player"
-                                :src="resolveMessageVideoSource(item) || undefined"
-                                controls
-                                preload="metadata"
-                                playsinline
-                                @click.stop
-                              ></video>
-                            </template>
-                            <div v-else class="media-placeholder">
-                              <n-icon size="20"><Video /></n-icon>
-                              <span>视频</span>
+                            <div class="media-content-header">
+                              <n-icon size="18"><Video /></n-icon>
+                              <span>{{ item.label }}</span>
                             </div>
+                            <video
+                              class="video-player"
+                              :src="item.src"
+                              controls
+                              preload="metadata"
+                              playsinline
+                              @click.stop
+                            ></video>
                           </div>
                           <div v-else-if="item.type === 'file'" class="file-content">
-                            <template v-if="resolveMessageFileSource(item)">
-                              <div class="file-header">
-                                <div class="file-meta">
-                                  <n-icon size="18"><FileText /></n-icon>
-                                  <span class="file-name">{{ item.name || '文件' }}</span>
-                                </div>
-                                <div class="file-actions">
-                                  <button class="file-action-btn" @click.stop="openHistoryFile(item)">
-                                    <ExternalLink :size="14" />
-                                    <span>打开</span>
-                                  </button>
-                                  <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
-                                    <Download :size="14" />
-                                    <span>下载</span>
-                                  </button>
-                                </div>
+                            <div class="file-header">
+                              <div class="file-meta">
+                                <n-icon size="18"><FileText /></n-icon>
+                                <span class="file-name">{{ item.name }}</span>
                               </div>
-                            </template>
-                            <div v-else class="media-placeholder">
-                              <n-icon size="20"><FileText /></n-icon>
-                              <span>{{ item.name || '文件' }}</span>
+                              <div class="file-actions">
+                                <button class="file-action-btn" @click.stop="openHistoryFile(item)">
+                                  <ExternalLink :size="14" />
+                                  <span>打开</span>
+                                </button>
+                                <button class="file-action-btn" @click.stop="downloadHistoryFile(item)">
+                                  <Download :size="14" />
+                                  <span>下载</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -340,8 +313,6 @@ import {
   buildHistoryRenderableItems,
   getLruCacheEntry,
   parseHistoryContent,
-  resolveHistoryMediaSource,
-  resolveHistoryImageSource,
   setLruCacheEntry,
   type HistoryContentElement,
   type HistoryRenderableItem,
@@ -486,6 +457,7 @@ const CONTENT_CACHE_LIMIT = 1000
 const PREVIEW_CACHE_LIMIT = 500
 const markdownRenderCache = new Map<string, string>()
 const messageContentCache = new Map<string, HistoryContentElement[]>()
+const messagePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const performancePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const historyResourceBaseUrl = ref('')
 const historyResourcePath = ref('/resources')
@@ -499,6 +471,27 @@ function buildPerformanceCacheKey(content: string): string {
   }
 
   return `${historyResourceBaseUrl.value}::${historyResourcePath.value}::${historyResourceToken.value}::${content.length}::${hash}`
+}
+
+function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
+  const cacheKey = `message::${buildPerformanceCacheKey(content)}`
+  const cached = getLruCacheEntry(messagePreviewCache, cacheKey)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  try {
+    const parsed = parseContent(content)
+    const items = buildHistoryRenderableItems(parsed, {
+      includeTtsText: true,
+      resourceBaseUrl: historyResourceBaseUrl.value,
+      resourcePath: historyResourcePath.value,
+      resourceToken: historyResourceToken.value,
+    })
+    return setLruCacheEntry(messagePreviewCache, cacheKey, items, PREVIEW_CACHE_LIMIT)
+  } catch {
+    return setLruCacheEntry(messagePreviewCache, cacheKey, [], PREVIEW_CACHE_LIMIT)
+  }
 }
 
 onMounted(async () => {
@@ -530,6 +523,7 @@ onUnmounted(() => {
   charts = []
   markdownRenderCache.clear()
   messageContentCache.clear()
+  messagePreviewCache.clear()
   performancePreviewCache.clear()
   connectionStore.stopStorageSync()
   themeStore.stopStorageSync()
@@ -1047,7 +1041,7 @@ function isPerformanceMessage(msg: any): boolean {
 }
 
 function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
-  const cacheKey = buildPerformanceCacheKey(content)
+  const cacheKey = `performance::${buildPerformanceCacheKey(content)}`
   const cached = getLruCacheEntry(performancePreviewCache, cacheKey)
   if (cached !== undefined) {
     return cached
@@ -1067,44 +1061,11 @@ function getPerformancePreviewItems(content: string): HistoryRenderableItem[] {
   }
 }
 
-function resolveMessageImageSource(item: any): string | null {
-  return resolveHistoryImageSource(item, {
-    resourceBaseUrl: historyResourceBaseUrl.value,
-    resourcePath: historyResourcePath.value,
-    resourceToken: historyResourceToken.value,
-  })
-}
-
-function resolveMessageAudioSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, {
-    resourceBaseUrl: historyResourceBaseUrl.value,
-    resourcePath: historyResourcePath.value,
-    resourceToken: historyResourceToken.value,
-  })
-}
-
-function resolveMessageVideoSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, {
-    resourceBaseUrl: historyResourceBaseUrl.value,
-    resourcePath: historyResourcePath.value,
-    resourceToken: historyResourceToken.value,
-  })
-}
-
-function resolveMessageFileSource(item: any): string | null {
-  return resolveHistoryMediaSource(item, {
-    resourceBaseUrl: historyResourceBaseUrl.value,
-    resourcePath: historyResourcePath.value,
-    resourceToken: historyResourceToken.value,
-  })
-}
-
 function getHistoryFileSource(item: any): string | null {
   if (typeof item?.src === 'string' && item.src.trim()) {
     return item.src.trim()
   }
-
-  return resolveMessageFileSource(item)
+  return null
 }
 
 function getHistoryFileName(item: any): string {
