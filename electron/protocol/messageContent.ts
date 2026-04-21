@@ -24,23 +24,54 @@ function encodeInlineDataUrl(buffer: Buffer, mime: string): string {
   return `data:${mime};base64,${buffer.toString('base64')}`
 }
 
+function normalizeBinaryPayload(bytes: unknown): Buffer | null {
+  if (!bytes) {
+    return null
+  }
+
+  try {
+    if (bytes instanceof ArrayBuffer) {
+      return Buffer.from(bytes)
+    }
+
+    if (ArrayBuffer.isView(bytes)) {
+      return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    }
+
+    if (Array.isArray(bytes)) {
+      return Buffer.from(bytes)
+    }
+
+    if (typeof bytes === 'object') {
+      const entries = Object.entries(bytes as Record<string, unknown>)
+        .filter(([key]) => /^\d+$/.test(key))
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+
+      if (entries.length > 0) {
+        return Buffer.from(entries.map(([, value]) => Number(value) & 0xff))
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 export function decodeBinaryPayload(item: MessageContent): PreparedInlineResource | null {
   const bytes = item.bytes
   if (!bytes) {
     return null
   }
 
-  try {
-    const buffer = bytes instanceof ArrayBuffer
-      ? Buffer.from(bytes)
-      : Buffer.from(bytes as Uint8Array | number[])
-
-    return {
-      mime: item.mime || 'application/octet-stream',
-      buffer,
-    }
-  } catch {
+  const buffer = normalizeBinaryPayload(bytes)
+  if (!buffer) {
     return null
+  }
+
+  return {
+    mime: item.mime || 'application/octet-stream',
+    buffer,
   }
 }
 
