@@ -1,7 +1,7 @@
 import { app, type BrowserWindow } from 'electron'
 import path from 'path'
 
-export type RendererEntryName = 'main' | 'settings' | 'history' | 'welcome'
+export type RendererEntryName = 'main' | 'settings' | 'welcome'
 
 const RENDERER_DEV_SERVER_URL = 'http://localhost:5173/'
 

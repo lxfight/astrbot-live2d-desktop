@@ -70,7 +70,6 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'main.html'),
         settings: resolve(__dirname, 'settings.html'),
-        history: resolve(__dirname, 'history.html'),
         welcome: resolve(__dirname, 'welcome.html'),
       },
       output: {
