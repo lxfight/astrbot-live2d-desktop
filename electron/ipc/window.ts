@@ -1,8 +1,7 @@
 import { ipcMain, shell, app, dialog, BrowserWindow } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
-import { showSettingsWindow, closeSettingsWindow } from '../windows/settingsWindow'
-import { showHistoryWindow, closeHistoryWindow } from '../windows/historyWindow'
+import { showSettingsWindow, closeSettingsWindow, markSettingsWindowRendererReady } from '../windows/settingsWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
@@ -96,6 +95,15 @@ function getSenderWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow | nu
   return BrowserWindow.fromWebContents(event.sender)
 }
 
+function normalizeWindowPage(page?: string): string | undefined {
+  if (typeof page !== 'string') {
+    return undefined
+  }
+
+  const normalizedPage = page.trim().replace(/^\/+/, '')
+  return normalizedPage || undefined
+}
+
 async function fetchResourceBuffer(source: string): Promise<Buffer> {
   const response = await fetch(source)
   if (!response.ok) {
@@ -116,7 +124,8 @@ async function writeResourceToPath(source: string, targetPath: string): Promise<
  * 打开设置窗口
  */
 ipcMain.handle('window:openSettings', async (_event, page?: string) => {
-  showSettingsWindow(page)
+  const normalizedPage = normalizeWindowPage(page)
+  showSettingsWindow(normalizedPage)
   return { success: true }
 })
 
@@ -168,19 +177,23 @@ ipcMain.handle('window:closeCurrent', async (event) => {
   return { success: true }
 })
 
-/**
- * 打开历史记录窗口
- */
-ipcMain.handle('window:openHistory', async () => {
-  showHistoryWindow()
-  return { success: true }
-})
+ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) => {
+  const targetWindow = getSenderWindow(event)
+  if (!targetWindow) {
+    return { success: false, error: '未找到当前窗口' }
+  }
 
-/**
- * 关闭历史记录窗口
- */
-ipcMain.handle('window:closeHistory', async () => {
-  closeHistoryWindow()
+  if (windowKind === 'settings') {
+    const handled = markSettingsWindowRendererReady(targetWindow)
+    return handled
+      ? { success: true }
+      : { success: false, error: '设置窗口状态不匹配' }
+  }
+
+  if (!targetWindow.isDestroyed() && !targetWindow.isVisible()) {
+    targetWindow.show()
+  }
+
   return { success: true }
 })
 

@@ -37,7 +37,7 @@
 ### 应用运行阶段
 
 1. Electron 注册 `cubism://` 协议
-2. 渲染进程通过 `index.html` 预加载 Core
+2. 渲染进程通过多入口页面（`main.html` 等）按需预加载 Core
 3. `src/utils/cubism/CubismModel.ts` 通过 `@cubism-framework` 使用生成后的官方 framework
 4. 模型按 `.model3.json` → `.moc3` → 纹理 → motion/expression/physics/pose 的顺序加载
 

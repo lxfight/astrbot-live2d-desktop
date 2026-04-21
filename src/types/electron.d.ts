@@ -102,8 +102,7 @@ declare global {
         toggleMaximizeCurrent: () => Promise<{ success: boolean; maximized?: boolean; error?: string }>
         isMaximizedCurrent: () => Promise<boolean>
         closeCurrent: () => Promise<{ success: boolean; error?: string }>
-        openHistory: () => Promise<{ success: boolean }>
-        closeHistory: () => Promise<{ success: boolean }>
+        notifyRendererReady: (windowKind: string) => Promise<{ success: boolean; error?: string }>
         closeWelcome: () => Promise<{ success: boolean }>
         getScreenshotSettings: () => Promise<ScreenshotSettings>
         updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>

@@ -141,6 +141,20 @@ body {
   background: transparent;
 }
 
+html.window-kind-settings,
+body.window-kind-settings,
+html.window-kind-history,
+body.window-kind-history {
+  background: var(--desktop-window-bg);
+}
+
+html.window-kind-main,
+body.window-kind-main,
+html.window-kind-welcome,
+body.window-kind-welcome {
+  background: transparent;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

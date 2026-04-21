@@ -1,7 +1,8 @@
-import { BrowserWindow, app } from 'electron'
+import { BrowserWindow } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
+import { loadRendererEntry } from './rendererEntry'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -30,17 +31,7 @@ export function createWelcomeWindow(): BrowserWindow {
     }
   })
 
-  // 开发环境加载 Vite 服务器
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
-
-  if (isDev) {
-    welcomeWindow.loadURL('http://localhost:5173/#/welcome')
-  } else {
-    // 生产环境下渲染进程文件在 app.getAppPath()/dist 中（通常位于 resources/app.asar/dist）
-    welcomeWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
-      hash: '/welcome'
-    })
-  }
+  void loadRendererEntry(welcomeWindow, 'welcome')
 
   welcomeWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error('[欢迎窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)

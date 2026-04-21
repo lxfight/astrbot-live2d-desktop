@@ -1,6 +1,5 @@
 import { app, Tray, Menu, nativeImage } from 'electron'
 import { showSettingsWindow } from '../windows/settingsWindow'
-import { showHistoryWindow } from '../windows/historyWindow'
 import { resolveAppIconPath } from './icon'
 import { getDesktopBehaviorCoordinator } from '../desktopBehavior/coordinator'
 
@@ -73,7 +72,7 @@ function updateTrayMenu(): void {
     },
     {
       label: '历史记录',
-      click: () => showHistoryWindow(),
+      click: () => showSettingsWindow('history/messages'),
     },
     { type: 'separator' },
     {

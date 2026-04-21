@@ -208,9 +208,6 @@ let introTimer: number | null = null
 let focusTimer: number | null = null
 
 onMounted(() => {
-  themeStore.syncFromStorage()
-  themeStore.startStorageSync()
-  
   // 定时自动张望
   lookTimer = window.setInterval(autoLookAround, 2500)
 
@@ -223,7 +220,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  themeStore.stopStorageSync()
   if (lookTimer !== null) clearInterval(lookTimer)
   if (introTimer !== null) clearTimeout(introTimer)
   if (focusTimer !== null) clearTimeout(focusTimer)
