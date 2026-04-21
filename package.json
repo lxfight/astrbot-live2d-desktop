@@ -161,7 +161,6 @@
     "utf-8-validate": "^6.0.6",
     "uuid": "^9.0.1",
     "vue": "^3.5.31",
-    "vue-router": "^4.6.4",
     "ws": "^8.20.0"
   },
   "optionalDependencies": {
