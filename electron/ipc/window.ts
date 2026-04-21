@@ -2,7 +2,6 @@ import { ipcMain, shell, app, dialog, BrowserWindow } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
 import { showSettingsWindow, closeSettingsWindow, markSettingsWindowRendererReady } from '../windows/settingsWindow'
-import { showHistoryWindow, closeHistoryWindow, markHistoryWindowRendererReady } from '../windows/historyWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
@@ -191,13 +190,6 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
       : { success: false, error: '设置窗口状态不匹配' }
   }
 
-  if (windowKind === 'history') {
-    const handled = markHistoryWindowRendererReady(targetWindow)
-    return handled
-      ? { success: true }
-      : { success: false, error: '历史窗口状态不匹配' }
-  }
-
   if (!targetWindow.isDestroyed() && !targetWindow.isVisible()) {
     targetWindow.show()
   }
@@ -206,18 +198,11 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
 })
 
 /**
- * 打开历史记录窗口
+ * 打开历史记录页面
  */
 ipcMain.handle('window:openHistory', async (_event, page?: string) => {
-  showHistoryWindow(normalizeWindowPage(page))
-  return { success: true }
-})
-
-/**
- * 关闭历史记录窗口
- */
-ipcMain.handle('window:closeHistory', async () => {
-  closeHistoryWindow()
+  const normalizedPage = normalizeWindowPage(page)
+  showSettingsWindow(normalizedPage || 'history/messages')
   return { success: true }
 })
 
