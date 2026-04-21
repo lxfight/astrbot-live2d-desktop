@@ -12,7 +12,7 @@ export interface ResourceLike {
 
 const LEGACY_DEFAULT_RESOURCE_BASE_URL = 'http://127.0.0.1:9091'
 const DEFAULT_RESOURCE_PATH = '/resources'
-const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', 'blob:'])
+const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', 'blob:', 'history-resource:'])
 
 export function normalizeResourceBaseUrl(resourceBaseUrl?: string): string {
   const baseUrl = (resourceBaseUrl || LEGACY_DEFAULT_RESOURCE_BASE_URL).trim()
@@ -89,6 +89,10 @@ function normalizeDirectResourceUrl(rawUrl: string): string | null {
   } catch {
     return null
   }
+}
+
+export function isDirectResourceUrl(rawUrl: string): boolean {
+  return normalizeDirectResourceUrl(rawUrl) !== null
 }
 
 function normalizeInlineResource(inline: string): string | null {

@@ -22,6 +22,12 @@ import type {
   ConnectionSettingsSavePayload as _ConnectionSettingsSavePayload,
   ConnectionSettingsSaveResult as _ConnectionSettingsSaveResult,
 } from '../shared/connectionSettings'
+import type {
+  HistoryGetMessagesResult as _HistoryGetMessagesResult,
+  HistoryMessageQueryOptions as _HistoryMessageQueryOptions,
+  HistoryMessageRecord as _HistoryMessageRecord,
+  HistorySaveMessageResult as _HistorySaveMessageResult,
+} from '../shared/history'
 
 declare global {
   type Unsubscribe = () => void
@@ -42,6 +48,10 @@ declare global {
   type ConnectionSettingsSavePayload = _ConnectionSettingsSavePayload
   type ConnectionSettingsSaveResult = _ConnectionSettingsSaveResult
   type ConnectionSettingsMigrateLegacyResult = _ConnectionSettingsMigrateLegacyResult
+  type HistoryMessageQueryOptions = _HistoryMessageQueryOptions
+  type HistoryMessageRecord = _HistoryMessageRecord
+  type HistoryGetMessagesResult = _HistoryGetMessagesResult
+  type HistorySaveMessageResult = _HistorySaveMessageResult
   interface BridgeSessionState {
     sessionId: string
     userId: string
@@ -154,8 +164,8 @@ declare global {
         onChanged: (callback: (event: ConnectionSettingsChangedEvent) => void) => Unsubscribe
       }
       history: {
-        getMessages: (options: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
-        saveMessage: (record: any) => Promise<{ success: boolean; error?: string }>
+        getMessages: (options: HistoryMessageQueryOptions) => Promise<HistoryGetMessagesResult>
+        saveMessage: (record: HistoryMessageRecord) => Promise<HistorySaveMessageResult>
         savePerformance: (record: any) => Promise<{ success: boolean; error?: string }>
         updateStatistics: (data: any) => Promise<{ success: boolean; error?: string }>
         getStatistics: (startDate: string, endDate: string) => Promise<{ success: boolean; data?: any[]; error?: string }>

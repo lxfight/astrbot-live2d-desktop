@@ -1,34 +1,31 @@
 import { ipcMain } from 'electron'
 import {
-  getMessages,
-  getMessagesCount,
-  saveMessage,
-  savePerformance,
-  updateStatistics,
-  getStatistics,
-  getAverageResponseTime,
-  clearHistory,
-  type MessageRecord,
-  type PerformanceRecord,
-  type StatisticsData
-} from '../database/schema'
+  clearHistoryStorage,
+  getHistoryAverageResponseTime,
+  getHistoryMessages,
+  getHistoryStatistics,
+  saveHistoryMessage,
+  saveHistoryPerformance,
+  updateHistoryStatistics,
+} from '../services/historyStorageService'
+import type { PerformanceRecord, StatisticsData } from '../database/schema'
+import type {
+  HistoryMessageQueryOptions,
+  HistoryMessageRecord,
+} from '../../src/shared/history'
 
 /**
  * 查询消息历史
  */
-ipcMain.handle('history:getMessages', (_event, options: {
-  limit?: number
-  offset?: number
-  startDate?: number
-  endDate?: number
-  messageType?: string
-  direction?: string
-  keyword?: string
-}) => {
+ipcMain.handle('history:getMessages', async (_event, options: HistoryMessageQueryOptions) => {
   try {
-    const messages = getMessages(options)
-    const total = getMessagesCount(options)
-    return { success: true, data: messages, total }
+    const result = await getHistoryMessages(options)
+    return {
+      success: true,
+      data: result.messages,
+      total: result.total,
+      repairedCount: result.repairedCount,
+    }
   } catch (error: any) {
     console.error('[IPC] 查询消息历史失败:', error)
     return { success: false, error: error.message }
@@ -38,10 +35,10 @@ ipcMain.handle('history:getMessages', (_event, options: {
 /**
  * 保存消息记录
  */
-ipcMain.handle('history:saveMessage', (_event, record: MessageRecord) => {
+ipcMain.handle('history:saveMessage', async (_event, record: HistoryMessageRecord) => {
   try {
-    saveMessage(record)
-    return { success: true }
+    const localizedContent = await saveHistoryMessage(record)
+    return { success: true, localizedContent }
   } catch (error: any) {
     console.error('[IPC] 保存消息失败:', error)
     return { success: false, error: error.message }
@@ -53,7 +50,7 @@ ipcMain.handle('history:saveMessage', (_event, record: MessageRecord) => {
  */
 ipcMain.handle('history:savePerformance', (_event, record: PerformanceRecord) => {
   try {
-    savePerformance(record)
+    saveHistoryPerformance(record)
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 保存表演记录失败:', error)
@@ -66,7 +63,7 @@ ipcMain.handle('history:savePerformance', (_event, record: PerformanceRecord) =>
  */
 ipcMain.handle('history:updateStatistics', (_event, data: StatisticsData) => {
   try {
-    updateStatistics(data)
+    updateHistoryStatistics(data)
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 更新统计数据失败:', error)
@@ -79,7 +76,7 @@ ipcMain.handle('history:updateStatistics', (_event, data: StatisticsData) => {
  */
 ipcMain.handle('history:getStatistics', (_event, startDate: string, endDate: string) => {
   try {
-    const statistics = getStatistics(startDate, endDate)
+    const statistics = getHistoryStatistics(startDate, endDate)
     return { success: true, data: statistics }
   } catch (error: any) {
     console.error('[IPC] 获取统计数据失败:', error)
@@ -89,7 +86,7 @@ ipcMain.handle('history:getStatistics', (_event, startDate: string, endDate: str
 
 ipcMain.handle('history:getAverageResponseTime', (_event, startDate: number, endDate: number) => {
   try {
-    const averageResponseTime = getAverageResponseTime(startDate, endDate)
+    const averageResponseTime = getHistoryAverageResponseTime(startDate, endDate)
     return { success: true, data: averageResponseTime }
   } catch (error: any) {
     console.error('[IPC] 获取平均响应时长失败:', error)
@@ -102,7 +99,7 @@ ipcMain.handle('history:getAverageResponseTime', (_event, startDate: number, end
  */
 ipcMain.handle('history:clearHistory', () => {
   try {
-    clearHistory()
+    clearHistoryStorage()
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 清空历史记录失败:', error)

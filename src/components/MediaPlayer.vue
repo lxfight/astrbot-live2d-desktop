@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
-import { resolveResourceSource, type ResourceLike } from '@/utils/resourceUrl'
+import { isDirectResourceUrl, resolveResourceSource, type ResourceLike } from '@/utils/resourceUrl'
 
 const audioRef = ref<HTMLAudioElement>()
 const videoRef = ref<HTMLVideoElement>()
@@ -117,7 +117,7 @@ function stopAudio() {
  */
 function showImage(urlOrData: string, duration?: number) {
   const imageUrl = resolveResourceSource(
-    urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
+    isDirectResourceUrl(urlOrData)
       ? { url: urlOrData }
       : { rid: urlOrData },
     {
@@ -163,7 +163,7 @@ function hideImage() {
  */
 function playVideo(urlOrData: string) {
   const videoUrl = resolveResourceSource(
-    urlOrData.startsWith('http://') || urlOrData.startsWith('https://') || urlOrData.startsWith('data:')
+    isDirectResourceUrl(urlOrData)
       ? { url: urlOrData }
       : { rid: urlOrData },
     {
