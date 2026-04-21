@@ -8,6 +8,7 @@ import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
 import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
+import { registerHistoryResourceProtocol } from './utils/historyResourceProtocol'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
@@ -170,6 +171,7 @@ export function initBridgeClient() {
  */
 app.whenReady().then(() => {
   registerCubismCoreProtocol()
+  registerHistoryResourceProtocol()
   initialize().catch(err => {
     console.error('[主进程] 初始化失败:', err)
     dialog.showErrorBox(

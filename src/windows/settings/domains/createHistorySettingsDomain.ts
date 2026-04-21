@@ -135,6 +135,13 @@ export function createHistorySettingsDomain(
         requestOptions.direction = directionFilter.value
       }
 
+      requestOptions.repairOffline = true
+      requestOptions.resourceContext = {
+        resourceBaseUrl: historyResourceBaseUrl.value,
+        resourcePath: historyResourcePath.value,
+        resourceToken: historyResourceToken.value,
+      }
+
       const result = await window.electron.history.getMessages(requestOptions)
       if (!result.success) {
         throw new Error(result.error || '加载历史记录失败')

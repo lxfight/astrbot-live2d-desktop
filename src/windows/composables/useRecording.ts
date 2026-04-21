@@ -230,9 +230,14 @@ export function useRecording(options: UseRecordingOptions) {
             userName: currentUserName.value || '桌面用户',
             messageType: 'friend',
             direction: 'outgoing',
-            content: result.content || content,
+            content,
             rawText: '[语音消息]',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            resourceContext: {
+              resourceBaseUrl: connectionStore.resourceBaseUrl,
+              resourcePath: connectionStore.resourcePath,
+              resourceToken: connectionStore.resourceToken,
+            }
           })
         } catch (error) {
           console.error('[主窗口] 保存语音消息记录失败:', error)

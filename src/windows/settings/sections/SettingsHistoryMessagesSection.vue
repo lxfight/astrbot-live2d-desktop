@@ -79,11 +79,12 @@
                 <div class="voice-bubble__wave">
                   <span></span><span></span><span></span><span></span><span></span>
                 </div>
-                <span class="voice-bubble__duration">{{ item.label }}</span>
+                <span class="voice-bubble__duration">{{ getVoiceDurationLabel(getVoiceItemKey(msg, idx)) }}</span>
                 <audio
                   :ref="(el) => setVoiceRef(el, getVoiceItemKey(msg, idx))"
                   :src="item.src"
                   preload="metadata"
+                  @loadedmetadata="onVoiceMetadataLoaded(getVoiceItemKey(msg, idx))"
                   @ended="onVoiceEnded(getVoiceItemKey(msg, idx))"
                 ></audio>
               </div>
@@ -182,15 +183,19 @@ const messageContentCache = new Map<string, HistoryContentElement[]>()
 const messagePreviewCache = new Map<string, HistoryRenderableItem[]>()
 
 const voiceRefs = new Map<string, HTMLAudioElement>()
+const voiceDurationLabels = ref<Record<string, string>>({})
 const playingVoiceKey = ref<string | null>(null)
 
 function setVoiceRef(element: any, key: string) {
   if (element) {
-    voiceRefs.set(key, element as HTMLAudioElement)
+    const audioElement = element as HTMLAudioElement
+    voiceRefs.set(key, audioElement)
+    syncVoiceDurationLabel(key, audioElement)
     return
   }
 
   voiceRefs.delete(key)
+  delete voiceDurationLabels.value[key]
 }
 
 function stopAllVoicePlayback() {
@@ -235,6 +240,40 @@ function onVoiceEnded(key: string) {
   if (playingVoiceKey.value === key) {
     playingVoiceKey.value = null
   }
+}
+
+function formatVoiceDuration(durationSeconds: number): string {
+  if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
+    return '--:--'
+  }
+
+  const totalSeconds = Math.max(0, Math.round(durationSeconds))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function syncVoiceDurationLabel(key: string, audio?: HTMLAudioElement | null) {
+  const targetAudio = audio || voiceRefs.get(key)
+  if (!targetAudio) {
+    return
+  }
+
+  voiceDurationLabels.value[key] = formatVoiceDuration(targetAudio.duration)
+}
+
+function onVoiceMetadataLoaded(key: string) {
+  syncVoiceDurationLabel(key)
+}
+
+function getVoiceDurationLabel(key: string): string {
+  return voiceDurationLabels.value[key] || '--:--'
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -311,6 +350,7 @@ function getMessageAuthorLabel(messageRecord: any): string {
 onBeforeUnmount(() => {
   stopAllVoicePlayback()
   voiceRefs.clear()
+  voiceDurationLabels.value = {}
   markdownRenderCache.clear()
   messageContentCache.clear()
   messagePreviewCache.clear()

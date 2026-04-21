@@ -987,13 +987,22 @@ onMounted(async () => {
           direction: 'incoming',
           content: payload.sequence,
           rawText,
-          timestamp: timestamp
-        }).then(() => {
+          timestamp: timestamp,
+          resourceContext: {
+            resourceBaseUrl: connectionStore.resourceBaseUrl,
+            resourcePath: connectionStore.resourcePath,
+            resourceToken: connectionStore.resourceToken,
+          }
+        }).then((saveResult: { success?: boolean; localizedContent?: PerformElement[]; error?: string }) => {
+          if (!saveResult?.success) {
+            throw new Error(saveResult?.error || '保存离线历史消息失败')
+          }
+
           // 保存表演记录（关联到消息）
           return window.electron.history.savePerformance({
             messageId: performanceId,
             sessionId: connectionStore.sessionId || 'default',
-            sequence: payload.sequence,
+            sequence: saveResult.localizedContent || payload.sequence,
             timestamp: timestamp
           })
         }).catch((error: any) => {

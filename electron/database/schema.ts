@@ -10,6 +10,120 @@ import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
 
 let db: Database.Database | null = null
 const require = createRequire(import.meta.url)
+const CURRENT_DB_VERSION = 2
+
+function setDatabaseVersion(database: Database.Database, version: number): void {
+  database.pragma(`user_version = ${Math.max(0, Math.floor(version))}`)
+}
+
+function getDatabaseVersion(database: Database.Database): number {
+  const version = database.pragma('user_version', { simple: true })
+  return Number.isFinite(version) ? Math.max(0, Math.floor(Number(version))) : 0
+}
+
+function migrateToV1(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id TEXT UNIQUE NOT NULL,
+      session_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT,
+      message_type TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      content TEXT NOT NULL,
+      raw_text TEXT,
+      timestamp INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type);
+    CREATE INDEX IF NOT EXISTS idx_messages_session_direction_timestamp ON messages(session_id, direction, timestamp DESC);
+
+    CREATE TABLE IF NOT EXISTS performances (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id TEXT NOT NULL,
+      sequence TEXT NOT NULL,
+      duration INTEGER,
+      interrupted INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (message_id) REFERENCES messages(message_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_performances_message ON performances(message_id);
+
+    CREATE TABLE IF NOT EXISTS statistics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      hour INTEGER,
+      message_count INTEGER DEFAULT 0,
+      text_count INTEGER DEFAULT 0,
+      image_count INTEGER DEFAULT 0,
+      audio_count INTEGER DEFAULT 0,
+      video_count INTEGER DEFAULT 0,
+      motion_usage TEXT,
+      expression_usage TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_statistics_date_hour ON statistics(date, hour);
+  `)
+
+  setDatabaseVersion(database, 1)
+}
+
+function migrateToV2(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS message_resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id TEXT NOT NULL,
+      content_index INTEGER NOT NULL,
+      media_type TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      file_name TEXT,
+      size_bytes INTEGER NOT NULL,
+      sha256 TEXT NOT NULL,
+      source_kind TEXT,
+      source_url TEXT,
+      source_rid TEXT,
+      data BLOB NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(message_id, content_index),
+      FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_message_resources_message_id ON message_resources(message_id);
+    CREATE INDEX IF NOT EXISTS idx_message_resources_sha256 ON message_resources(sha256);
+  `)
+
+  setDatabaseVersion(database, 2)
+}
+
+function runSchemaMigrations(database: Database.Database): void {
+  let version = getDatabaseVersion(database)
+
+  if (version < 1) {
+    migrateToV1(database)
+    version = 1
+  }
+
+  if (version < 2) {
+    migrateToV2(database)
+    version = 2
+  }
+
+  if (version !== CURRENT_DB_VERSION) {
+    setDatabaseVersion(database, CURRENT_DB_VERSION)
+  }
+}
 
 function ensureMessageSearchIndex(database: Database.Database): void {
   database.exec(`
@@ -82,66 +196,9 @@ export function initDatabase(): Database.Database {
 
   // 启用 WAL 模式以提升性能
   db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
 
-  // 创建表
-  db.exec(`
-    -- 用户配置表
-    CREATE TABLE IF NOT EXISTS user_config (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- 消息表
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      message_id TEXT UNIQUE NOT NULL,
-      session_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      user_name TEXT,
-      message_type TEXT NOT NULL,
-      direction TEXT NOT NULL,
-      content TEXT NOT NULL,
-      raw_text TEXT,
-      timestamp INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type);
-    CREATE INDEX IF NOT EXISTS idx_messages_session_direction_timestamp ON messages(session_id, direction, timestamp DESC);
-
-    -- 表演记录表
-    CREATE TABLE IF NOT EXISTS performances (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      message_id TEXT NOT NULL,
-      sequence TEXT NOT NULL,
-      duration INTEGER,
-      interrupted INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (message_id) REFERENCES messages(message_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_performances_message ON performances(message_id);
-
-    -- 统计数据表
-    CREATE TABLE IF NOT EXISTS statistics (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL,
-      hour INTEGER,
-      message_count INTEGER DEFAULT 0,
-      text_count INTEGER DEFAULT 0,
-      image_count INTEGER DEFAULT 0,
-      audio_count INTEGER DEFAULT 0,
-      video_count INTEGER DEFAULT 0,
-      motion_usage TEXT,
-      expression_usage TEXT,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_statistics_date_hour ON statistics(date, hour);
-  `)
+  runSchemaMigrations(db)
 
   ensureMessageSearchIndex(db)
 
@@ -257,6 +314,34 @@ export function savePerformance(record: PerformanceRecord): void {
     record.duration || null,
     record.interrupted ? 1 : 0
   )
+}
+
+export function updateMessageContent(messageId: string, content: unknown): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE messages
+    SET content = ?
+    WHERE message_id = ?
+  `).run(JSON.stringify(content), messageId)
+}
+
+export function updatePerformanceSequenceByMessageId(messageId: string, sequence: unknown): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE performances
+    SET sequence = ?
+    WHERE message_id = ?
+  `).run(JSON.stringify(sequence), messageId)
+}
+
+export function deleteHistoryMessageByMessageId(messageId: string): void {
+  const db = getDatabase()
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM performances WHERE message_id = ?').run(messageId)
+    db.prepare('DELETE FROM message_resources WHERE message_id = ?').run(messageId)
+    db.prepare('DELETE FROM messages WHERE message_id = ?').run(messageId)
+  })
+  transaction()
 }
 
 type MessageFilterOptions = {
@@ -443,6 +528,7 @@ export function clearHistory(): void {
   const db = getDatabase()
   db.exec(`
     DELETE FROM performances;
+    DELETE FROM message_resources;
     DELETE FROM messages;
     DELETE FROM statistics;
     VACUUM;

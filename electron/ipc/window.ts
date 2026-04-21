@@ -1,13 +1,18 @@
-import { ipcMain, shell, app, dialog, BrowserWindow } from 'electron'
+import { ipcMain, shell, app, dialog, BrowserWindow, net } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
 import { showSettingsWindow, closeSettingsWindow, markSettingsWindowRendererReady } from '../windows/settingsWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
+import { decodeInlineDataUrl } from '../protocol/messageContent'
+import {
+  HISTORY_RESOURCE_PROTOCOL_SCHEME,
+  getMessageResourceByUrl,
+} from '../database/messageResources'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
-const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:'])
+const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', `${HISTORY_RESOURCE_PROTOCOL_SCHEME}:`])
 const TEMP_RESOURCE_DIR = path.join(app.getPath('temp'), 'astrbot-live2d-history')
 
 /**
@@ -105,7 +110,21 @@ function normalizeWindowPage(page?: string): string | undefined {
 }
 
 async function fetchResourceBuffer(source: string): Promise<Buffer> {
-  const response = await fetch(source)
+  if (source.startsWith(`${HISTORY_RESOURCE_PROTOCOL_SCHEME}://`)) {
+    const resource = getMessageResourceByUrl(source)
+    if (!resource) {
+      throw new Error('本地历史资源不存在')
+    }
+
+    return Buffer.from(resource.data)
+  }
+
+  const inlineResource = decodeInlineDataUrl(source)
+  if (inlineResource) {
+    return inlineResource.buffer
+  }
+
+  const response = await net.fetch(source)
   if (!response.ok) {
     throw new Error(`资源请求失败 (${response.status})`)
   }
@@ -229,7 +248,7 @@ ipcMain.handle('window:openExternal', async (_event, url: string) => {
 ipcMain.handle('window:openResource', async (_event, source: string, suggestedName?: string) => {
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
-    return { success: false, error: '仅支持打开 http/https/data 协议资源' }
+    return { success: false, error: '仅支持打开 http/https/data/history-resource 协议资源' }
   }
 
   try {
@@ -252,7 +271,7 @@ ipcMain.handle('window:openResource', async (_event, source: string, suggestedNa
 ipcMain.handle('window:saveResource', async (_event, source: string, suggestedName?: string) => {
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
-    return { success: false, error: '仅支持保存 http/https/data 协议资源' }
+    return { success: false, error: '仅支持保存 http/https/data/history-resource 协议资源' }
   }
 
   try {
