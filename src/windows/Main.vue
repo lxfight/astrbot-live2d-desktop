@@ -433,7 +433,7 @@ const {
   setOpenInput,
 } = useRadialMenu({
   themeStore,
-  openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history') },
+  openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history/messages') },
   openSettings: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings() },
 })
 
@@ -878,7 +878,6 @@ onMounted(async () => {
   // 监听全局快捷键录音
   initializeAdvancedSettingsForSession()
   connectionStore.startStorageSync()
-  themeStore.startStorageSync()
   modelStore.startStorageSync()
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('resize', updateUIPositions)
@@ -1140,7 +1139,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
   connectionStore.stopStorageSync()
-  themeStore.stopStorageSync()
   modelStore.stopStorageSync()
   cleanupBubbleStack()
   releaseAllAudioWaiters()

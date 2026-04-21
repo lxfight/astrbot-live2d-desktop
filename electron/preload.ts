@@ -26,9 +26,12 @@ function normalizeRendererLogArg(arg: any): string {
 
 function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]): void {
   try {
-    const sourceLabel = window.location.hash
-      ? `renderer${window.location.hash}`
-      : 'renderer'
+    const fileName = window.location.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/i, '')
+    const sourceLabel = fileName
+      ? `renderer:${fileName}`
+      : window.location.hash
+        ? `renderer${window.location.hash}`
+        : 'renderer'
     ipcRenderer.send('log:renderer', {
       level,
       source: sourceLabel,
@@ -69,7 +72,8 @@ contextBridge.exposeInMainWorld('electron', {
     toggleMaximizeCurrent: () => ipcRenderer.invoke('window:toggleMaximizeCurrent'),
     isMaximizedCurrent: () => ipcRenderer.invoke('window:isMaximizedCurrent'),
     closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
-    openHistory: () => ipcRenderer.invoke('window:openHistory'),
+    notifyRendererReady: (windowKind: string) => ipcRenderer.invoke('window:notifyRendererReady', windowKind),
+    openHistory: (page?: string) => ipcRenderer.invoke('window:openHistory', page),
     closeHistory: () => ipcRenderer.invoke('window:closeHistory'),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
     getScreenshotSettings: () => ipcRenderer.invoke('window:getScreenshotSettings'),
@@ -133,6 +137,10 @@ contextBridge.exposeInMainWorld('electron', {
 
   // 历史记录
   history: {
+    getPendingPage: () => ipcRenderer.invoke('history:getPendingPage'),
+    onNavigateTo: (callback: (page: string) => void) => {
+      return subscribeIpc('history:navigateTo', callback)
+    },
     getMessages: (options: any) => ipcRenderer.invoke('history:getMessages', options),
     saveMessage: (record: any) => ipcRenderer.invoke('history:saveMessage', record),
     savePerformance: (record: any) => ipcRenderer.invoke('history:savePerformance', record),

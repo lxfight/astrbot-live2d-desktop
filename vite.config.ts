@@ -67,11 +67,17 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV === 'development',
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'main.html'),
+        settings: resolve(__dirname, 'settings.html'),
+        history: resolve(__dirname, 'history.html'),
+        welcome: resolve(__dirname, 'welcome.html'),
+      },
       output: {
         manualChunks: {
           'naive-ui': ['naive-ui'],
           'echarts': ['echarts'],
-          'vendor': ['vue', 'pinia', 'vue-router']
+          'vendor': ['vue', 'pinia']
         }
       }
     }

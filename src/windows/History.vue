@@ -86,7 +86,7 @@
                   placeholder="方向"
                   clearable
                   class="history-toolbar__select"
-                  @update:value="loadMessages"
+                  @update:value="handleDirectionFilterChange"
                 />
 
                 <n-button type="error" @click="handleClearHistory">清空历史</n-button>
@@ -280,7 +280,7 @@
                 :page-size="pageSize"
                 show-size-picker
                 :page-sizes="[10, 20, 50, 100]"
-                @update:page="loadMessages"
+                @update:page="handlePageChange"
                 @update:page-size="handlePageSizeChange"
                 class="history-pagination"
               />
@@ -338,7 +338,9 @@ const { palette } = storeToRefs(themeStore)
 // 初始化 marked + LaTeX 扩展（幂等）
 configureMarked()
 
-const activeTab = ref('statistics')
+type HistoryTabKey = 'statistics' | 'history' | 'analysis'
+
+const activeTab = ref<HistoryTabKey>('statistics')
 const isWindowMaximized = ref(false)
 const tabItems = [
   {
@@ -363,28 +365,119 @@ const activeTabMeta = computed(() => {
 })
 
 const historyWindowDisposers: Unsubscribe[] = []
+const deferredLoadTasks = new Map<string, Promise<void>>()
+let historyWindowInitialized = false
+
+function runDeferredLoadTask(key: string, loader: () => Promise<void> | void): Promise<void> {
+  const existingTask = deferredLoadTasks.get(key)
+  if (existingTask) {
+    return existingTask
+  }
+
+  const task = Promise.resolve(loader())
+    .catch((error) => {
+      deferredLoadTasks.delete(key)
+      throw error
+    })
+
+  deferredLoadTasks.set(key, task)
+  return task
+}
+
+function invalidateDeferredLoadTasks(keys: string[]): void {
+  for (const key of keys) {
+    deferredLoadTasks.delete(key)
+  }
+}
+
+async function ensureHistoryResourceConfigLoaded(force = false) {
+  if (force) {
+    invalidateDeferredLoadTasks(['historyResourceConfig'])
+  }
+
+  await runDeferredLoadTask('historyResourceConfig', syncHistoryResourceConfig)
+}
+
+async function ensureOverviewLoaded(force = false) {
+  if (force) {
+    invalidateDeferredLoadTasks(['historyOverview'])
+  }
+
+  await runDeferredLoadTask('historyOverview', loadAnalysisData)
+}
+
+async function ensureMessagesLoaded(force = false) {
+  if (force) {
+    invalidateDeferredLoadTasks(['historyMessages', 'historyResourceConfig'])
+  }
+
+  await Promise.all([
+    ensureHistoryResourceConfigLoaded(force),
+    runDeferredLoadTask('historyMessages', loadMessages),
+  ])
+}
+
+async function ensureStatisticsLoaded(force = false) {
+  if (force) {
+    invalidateDeferredLoadTasks(['historyStatistics'])
+  }
+
+  await runDeferredLoadTask('historyStatistics', loadStatistics)
+}
+
+async function handleTabActivated(tab = activeTab.value, force = false) {
+  await ensureOverviewLoaded(force)
+
+  if (tab === 'history') {
+    await ensureMessagesLoaded(force)
+    return
+  }
+
+  await ensureStatisticsLoaded(force)
+  if (!statisticsData.value.length) {
+    return
+  }
+
+  await nextTick()
+  if (tab === 'analysis') {
+    renderAnalysisCharts(statisticsData.value)
+    return
+  }
+
+  renderStatisticsCharts(statisticsData.value)
+}
+
+function resolveHistoryTabFromPage(page: string): HistoryTabKey | null {
+  const normalizedPage = page.trim().replace(/^\/+/, '')
+
+  if (normalizedPage === 'history' || normalizedPage === 'history/messages') {
+    return 'history'
+  }
+
+  if (normalizedPage === 'history/statistics') {
+    return 'statistics'
+  }
+
+  if (normalizedPage === 'history/analysis') {
+    return 'analysis'
+  }
+
+  return null
+}
+
+function navigateToPage(page: string) {
+  const nextTab = resolveHistoryTabFromPage(page)
+  if (nextTab) {
+    activeTab.value = nextTab
+  }
+}
 
 watch(activeTab, (newTab) => {
-  if (newTab === 'statistics') {
-    nextTick(() => {
-      if (statisticsData.value.length > 0) {
-        renderStatisticsCharts(statisticsData.value)
-      } else {
-        void loadStatistics()
-      }
-    })
-  } else if (newTab === 'analysis') {
-    void loadAnalysisData().then(() => {
-      nextTick(() => {
-        if (statisticsData.value.length > 0) {
-          renderAnalysisCharts(statisticsData.value)
-          return
-        }
-
-        void loadStatistics()
-      })
-    })
+  if (!historyWindowInitialized) {
+    return
   }
+
+  void handleTabActivated(newTab)
 })
 
 watch(palette, () => {
@@ -418,6 +511,7 @@ const statisticsData = ref<any[]>([])
 const messages = ref<any[]>([])
 const currentPage = ref(1)
 const pageSize = ref(20)
+const messageListTotal = ref(0)
 const totalPages = ref(0)
 const keyword = ref('')
 const directionFilter = ref<string>()
@@ -441,6 +535,7 @@ const expressionRankRef = ref<HTMLElement>()
 
 let charts: echarts.ECharts[] = []
 const debouncedLoadMessages = useDebounceFn(() => {
+  invalidateDeferredLoadTasks(['historyMessages'])
   void loadMessages()
 }, 250)
 const debouncedResizeCharts = useDebounceFn(() => {
@@ -451,10 +546,7 @@ const debouncedRefreshOnFocus = useDebounceFn(() => {
     return
   }
 
-  void syncHistoryResourceConfig()
-  void loadMessages()
-  void loadStatistics()
-  void loadAnalysisData()
+  void handleTabActivated(activeTab.value, true)
 }, 1000)
 const MARKDOWN_CACHE_LIMIT = 500
 const CONTENT_CACHE_LIMIT = 1000
@@ -499,9 +591,22 @@ function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
 }
 
 onMounted(async () => {
-  themeStore.syncFromStorage()
-  themeStore.startStorageSync()
   connectionStore.startStorageSync()
+
+  if (window.electron.history?.onNavigateTo) {
+    historyWindowDisposers.push(window.electron.history.onNavigateTo((page: string) => {
+      navigateToPage(page)
+    }))
+  }
+
+  let pendingPage: string | null = null
+  if (window.electron.history?.getPendingPage) {
+    pendingPage = await window.electron.history.getPendingPage()
+  }
+
+  if (pendingPage) {
+    navigateToPage(pendingPage)
+  }
 
   try {
     isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
@@ -509,28 +614,30 @@ onMounted(async () => {
     isWindowMaximized.value = false
   }
 
-  await syncHistoryResourceConfig()
-  await loadMessages()
-  await loadStatistics()
-  await loadAnalysisData()
-
   historyWindowDisposers.push(window.electron.window.onMaximizedChanged((maximized: boolean) => {
     isWindowMaximized.value = maximized
   }))
 
   window.addEventListener('resize', handleResize)
   window.addEventListener('focus', handleWindowFocus)
+
+  await nextTick()
+  await window.electron.window.notifyRendererReady('history')
+  historyWindowInitialized = true
+
+  void handleTabActivated(activeTab.value)
 })
 
 onUnmounted(() => {
+  historyWindowInitialized = false
   charts.forEach(chart => chart.dispose())
   charts = []
+  deferredLoadTasks.clear()
   markdownRenderCache.clear()
   messageContentCache.clear()
   messagePreviewCache.clear()
   performancePreviewCache.clear()
   connectionStore.stopStorageSync()
-  themeStore.stopStorageSync()
   for (const dispose of historyWindowDisposers.splice(0)) {
     dispose()
   }
@@ -581,8 +688,8 @@ async function loadMessages() {
 
     if (result.success) {
       messages.value = result.data || []
-      totalMessages.value = (result as any).total || 0
-      totalPages.value = Math.ceil(totalMessages.value / pageSize.value) || 1
+      messageListTotal.value = (result as any).total || 0
+      totalPages.value = Math.ceil(messageListTotal.value / pageSize.value) || 1
     }
   } catch (error: any) {
     message.error(`加载历史记录失败: ${error.message}`)
@@ -967,16 +1074,27 @@ function handleSearch() {
   debouncedLoadMessages()
 }
 
+function handleDirectionFilterChange() {
+  invalidateDeferredLoadTasks(['historyMessages'])
+  void loadMessages()
+}
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+  invalidateDeferredLoadTasks(['historyMessages'])
+  void loadMessages()
+}
+
 function handlePageSizeChange(size: number) {
   pageSize.value = size
   currentPage.value = 1
+  invalidateDeferredLoadTasks(['historyMessages'])
   void loadMessages()
 }
 
 function handleDateRangeChange(value: [number, number] | null) {
   dateRange.value = value ?? createDefaultDateRange()
-  void loadStatistics()
-  void loadAnalysisData()
+  void handleTabActivated(activeTab.value, true)
 }
 
 function handleClearHistory() {
@@ -990,9 +1108,7 @@ function handleClearHistory() {
         const result = await window.electron.history.clearHistory()
         if (result.success) {
           message.success('历史记录已清空')
-          await loadMessages()
-          await loadStatistics()
-          await loadAnalysisData()
+          await handleTabActivated(activeTab.value, true)
         }
       } catch (error: any) {
         message.error(`清空失败: ${error.message}`)
@@ -1002,10 +1118,7 @@ function handleClearHistory() {
 }
 
 async function handleRefresh() {
-  await syncHistoryResourceConfig()
-  await loadMessages()
-  await loadStatistics()
-  await loadAnalysisData()
+  await handleTabActivated(activeTab.value, true)
   message.success('已刷新')
 }
 

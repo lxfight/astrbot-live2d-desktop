@@ -1,8 +1,9 @@
-import { app, BrowserWindow, screen } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
 import { getDesktopBehaviorCoordinator } from '../desktopBehavior/coordinator'
+import { isRendererDevMode, loadRendererEntry } from './rendererEntry'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -47,15 +48,11 @@ export function createMainWindow(): BrowserWindow {
   const coordinator = getDesktopBehaviorCoordinator()
   coordinator.attachMainWindow(mainWindow)
 
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+  const isDev = isRendererDevMode()
 
+  void loadRendererEntry(mainWindow, 'main')
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173/#/main')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
-  } else {
-    mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
-      hash: '/main',
-    })
   }
 
   mainWindow.webContents.on('did-finish-load', () => {
