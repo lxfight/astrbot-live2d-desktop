@@ -103,8 +103,6 @@ declare global {
         isMaximizedCurrent: () => Promise<boolean>
         closeCurrent: () => Promise<{ success: boolean; error?: string }>
         notifyRendererReady: (windowKind: string) => Promise<{ success: boolean; error?: string }>
-        openHistory: (page?: string) => Promise<{ success: boolean }>
-        closeHistory: () => Promise<{ success: boolean }>
         closeWelcome: () => Promise<{ success: boolean }>
         getScreenshotSettings: () => Promise<ScreenshotSettings>
         updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>
@@ -156,8 +154,6 @@ declare global {
         onChanged: (callback: (event: ConnectionSettingsChangedEvent) => void) => Unsubscribe
       }
       history: {
-        getPendingPage: () => Promise<string | null>
-        onNavigateTo: (callback: (page: string) => void) => Unsubscribe
         getMessages: (options: any) => Promise<{ success: boolean; data?: any[]; error?: string }>
         saveMessage: (record: any) => Promise<{ success: boolean; error?: string }>
         savePerformance: (record: any) => Promise<{ success: boolean; error?: string }>

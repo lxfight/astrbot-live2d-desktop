@@ -198,15 +198,6 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
 })
 
 /**
- * 打开历史记录页面
- */
-ipcMain.handle('window:openHistory', async (_event, page?: string) => {
-  const normalizedPage = normalizeWindowPage(page)
-  showSettingsWindow(normalizedPage || 'history/messages')
-  return { success: true }
-})
-
-/**
  * 关闭欢迎窗口
  */
 ipcMain.handle('window:closeWelcome', async () => {
