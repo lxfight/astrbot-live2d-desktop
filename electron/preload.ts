@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+const MAX_LOG_STRING_LENGTH = 512
+const MAX_LOG_DEPTH = 4
+const MAX_LOG_ARRAY_PREVIEW = 6
+
 function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: T) => void) {
   const listener = (_event: unknown, ...args: T) => callback(...args)
   ipcRenderer.on(channel, listener)
@@ -8,17 +12,116 @@ function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: 
   }
 }
 
+function isErrorLike(arg: any): arg is { name?: unknown; message?: unknown; stack?: unknown; code?: unknown } {
+  const code = arg && typeof arg === 'object' ? (arg as { code?: unknown }).code : undefined
+  return Boolean(arg) && typeof arg === 'object' && (
+    typeof arg.name === 'string'
+    || typeof arg.message === 'string'
+    || typeof arg.stack === 'string'
+    || typeof code === 'string'
+    || typeof code === 'number'
+  )
+}
+
+function sanitizeErrorCode(code: unknown): string | number | undefined {
+  if (typeof code === 'string' || typeof code === 'number') {
+    return code
+  }
+
+  if (code != null) {
+    return String(code)
+  }
+
+  return undefined
+}
+
+function summarizeLogString(value: string): string {
+  if (value.startsWith('data:')) {
+    const separatorIndex = value.indexOf(',')
+    const header = separatorIndex >= 0 ? value.slice(0, separatorIndex + 1) : value
+    return `${header}<省略 ${Math.max(0, value.length - header.length)} 字符>`
+  }
+
+  if (value.length <= MAX_LOG_STRING_LENGTH) {
+    return value
+  }
+
+  return `${value.slice(0, MAX_LOG_STRING_LENGTH)}...(总长 ${value.length} 字符)`
+}
+
+function sanitizeLogValue(value: any, seen: WeakSet<object>, depth: number): any {
+  if (typeof value === 'string') {
+    return summarizeLogString(value)
+  }
+
+  if (typeof value !== 'object' || value === null) {
+    return value
+  }
+
+  if (isErrorLike(value)) {
+    return {
+      name: typeof value.name === 'string' ? value.name : 'UnknownError',
+      message: typeof value.message === 'string' ? summarizeLogString(value.message) : String(value),
+      stack: typeof value.stack === 'string' ? summarizeLogString(value.stack) : undefined,
+      code: sanitizeErrorCode(value.code),
+    }
+  }
+
+  if (seen.has(value)) {
+    return '[Circular]'
+  }
+
+  if (depth >= MAX_LOG_DEPTH) {
+    if (Array.isArray(value)) {
+      return `[Array:${value.length}]`
+    }
+    return '[Object]'
+  }
+
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    const preview = value
+      .slice(0, MAX_LOG_ARRAY_PREVIEW)
+      .map((item) => sanitizeLogValue(item, seen, depth + 1))
+    seen.delete(value)
+    return {
+      __type: 'array',
+      length: value.length,
+      preview,
+    }
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(value)) {
+    result[key] = sanitizeLogValue(entry, seen, depth + 1)
+  }
+  seen.delete(value)
+  return result
+}
+
 function normalizeRendererLogArg(arg: any): string {
   if (typeof arg === 'string') {
-    return arg
+    return summarizeLogString(arg)
   }
 
   if (arg instanceof Error) {
-    return arg.stack || `${arg.name}: ${arg.message}`
+    return summarizeLogString(arg.stack || `${arg.name}: ${arg.message}`)
+  }
+
+  if (isErrorLike(arg)) {
+    const stack = typeof arg.stack === 'string' ? summarizeLogString(arg.stack) : ''
+    if (stack) {
+      return stack
+    }
+
+    const name = typeof arg.name === 'string' ? arg.name : 'UnknownError'
+    const message = typeof arg.message === 'string' ? summarizeLogString(arg.message) : String(arg)
+    return `${name}: ${message}`
   }
 
   try {
-    return JSON.stringify(arg)
+    return JSON.stringify(sanitizeLogValue(arg, new WeakSet<object>(), 0))
   } catch {
     return String(arg)
   }

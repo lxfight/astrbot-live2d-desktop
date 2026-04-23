@@ -131,7 +131,7 @@ export interface InputMessagePayload {
 
 // 表演序列元素
 export interface PerformElement {
-  type: 'text' | 'tts' | 'motion' | 'expression' | 'image' | 'video' | 'wait'
+  type: 'text' | 'tts' | 'audio' | 'motion' | 'expression' | 'image' | 'video' | 'wait'
 
   // 文字气泡
   content?: string
@@ -168,6 +168,7 @@ export interface PerformElement {
 export interface PerformShowPayload {
   interrupt: boolean
   sequence: PerformElement[]
+  interruptible?: boolean
 }
 
 // 资源引用

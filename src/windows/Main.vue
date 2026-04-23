@@ -261,6 +261,83 @@ type AudioWaiter = {
 let audioWaiters: AudioWaiter[] = []
 const mainWindowDisposers: Unsubscribe[] = []
 
+function summarizeLogString(value: string, maxLength = 160): string {
+  if (!value) {
+    return value
+  }
+
+  if (value.startsWith('data:')) {
+    const separatorIndex = value.indexOf(',')
+    const header = separatorIndex >= 0 ? value.slice(0, separatorIndex + 1) : value
+    return `${header}<省略 ${Math.max(0, value.length - header.length)} 字符>`
+  }
+
+  if (value.length <= maxLength) {
+    return value
+  }
+
+  return `${value.slice(0, maxLength)}...(总长 ${value.length} 字符)`
+}
+
+function summarizePerformElementForLog(element: PerformElement): Record<string, unknown> {
+  const summary: Record<string, unknown> = {
+    type: element.type,
+  }
+
+  if (typeof element.position === 'string' && element.position) {
+    summary.position = element.position
+  }
+  if (typeof element.duration === 'number') {
+    summary.duration = element.duration
+  }
+  if (typeof element.content === 'string' && element.content) {
+    summary.content = summarizeLogString(element.content, 120)
+  }
+  if (typeof element.text === 'string' && element.text) {
+    summary.text = summarizeLogString(element.text, 120)
+  }
+  if (typeof element.url === 'string' && element.url) {
+    summary.url = summarizeLogString(element.url, 200)
+  }
+  if (typeof element.inline === 'string' && element.inline) {
+    summary.inline = summarizeLogString(element.inline, 200)
+  }
+  if (typeof element.rid === 'string' && element.rid) {
+    summary.rid = element.rid
+  }
+  if (typeof element.ttsMode === 'string' && element.ttsMode) {
+    summary.ttsMode = element.ttsMode
+  }
+  if (typeof element.volume === 'number') {
+    summary.volume = element.volume
+  }
+  if (typeof element.speed === 'number') {
+    summary.speed = element.speed
+  }
+  if (typeof element.group === 'string' && element.group) {
+    summary.group = element.group
+  }
+  if (typeof element.index === 'number') {
+    summary.index = element.index
+  }
+  if (typeof element.id === 'string' && element.id) {
+    summary.id = element.id
+  }
+
+  return summary
+}
+
+function summarizePerformPayloadForLog(payload: PerformSequence): Record<string, unknown> {
+  return {
+    interrupt: payload.interrupt,
+    interruptible: payload.interruptible ?? true,
+    sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
+    sequencePreview: Array.isArray(payload.sequence)
+      ? payload.sequence.map((element) => summarizePerformElementForLog(element))
+      : [],
+  }
+}
+
 function settleAudioWaiter(waiter: AudioWaiter) {
   if (waiter.timeoutId !== null) {
     clearTimeout(waiter.timeoutId)
@@ -986,7 +1063,7 @@ onMounted(async () => {
   }))
 
   mainWindowDisposers.push(window.electron.bridge.onPerformShow((payload: PerformSequence) => {
-    console.log('收到表演指令:', payload)
+    console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
 
     const { isFollowUp } = checkFollowUp()
 
