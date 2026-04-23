@@ -57,7 +57,7 @@
               :class="['content-item', `content-item--${item.type}`]"
             >
               <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-              <div v-else-if="item.type === 'image'" class="image-content">
+              <div v-else-if="item.type === 'image'" class="image-content" @click.capture="openMediaViewer('image', item.src)">
                 <n-image
                   :src="item.src"
                   :preview-src="item.src"
@@ -65,6 +65,7 @@
                   object-fit="cover"
                   preview-disabled
                   :lazy="true"
+                  style="pointer-events: none"
                 />
               </div>
               <div
@@ -88,8 +89,11 @@
                   @ended="onVoiceEnded(getVoiceItemKey(msg, idx))"
                 ></audio>
               </div>
-              <div v-else-if="item.type === 'video'" class="video-content">
-                <video class="video-player" :src="item.src" controls preload="metadata" playsinline></video>
+              <div v-else-if="item.type === 'video'" class="video-content" @click="openMediaViewer('video', item.src)">
+                <div class="video-preview-wrapper">
+                  <div class="video-play-hint"><Play :size="20" /></div>
+                  <video class="video-player" :src="item.src" preload="metadata" playsinline muted></video>
+                </div>
               </div>
               <div v-else-if="item.type === 'file'" class="file-content">
                 <div class="file-header">
@@ -124,6 +128,12 @@
       @update:page-size="handlePageSizeChange"
       class="history-pagination"
     />
+
+    <SettingsHistoryMediaViewer
+      v-model:visible="mediaViewerVisible"
+      :type="mediaViewerType"
+      :src="mediaViewerSrc"
+    />
   </section>
 </template>
 
@@ -136,6 +146,7 @@ import {
   ExternalLink,
   FileText,
   Mic,
+  Play,
   Search,
   User,
 } from 'lucide-vue-next'
@@ -149,6 +160,7 @@ import {
 } from '@/utils/historyContent'
 import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
 import { useHistorySettingsDomain } from '../domains/createHistorySettingsDomain'
+import SettingsHistoryMediaViewer from './SettingsHistoryMediaViewer.vue'
 
 const {
   currentPage,
@@ -185,6 +197,16 @@ const messagePreviewCache = new Map<string, HistoryRenderableItem[]>()
 const voiceRefs = new Map<string, HTMLAudioElement>()
 const voiceDurationLabels = ref<Record<string, string>>({})
 const playingVoiceKey = ref<string | null>(null)
+
+const mediaViewerVisible = ref(false)
+const mediaViewerType = ref<'image' | 'video' | null>(null)
+const mediaViewerSrc = ref<string | null>(null)
+
+function openMediaViewer(type: 'image' | 'video', src: string) {
+  mediaViewerType.value = type
+  mediaViewerSrc.value = src
+  mediaViewerVisible.value = true
+}
 
 function setVoiceRef(element: any, key: string) {
   if (element) {
