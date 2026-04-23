@@ -13,11 +13,26 @@ function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: 
 }
 
 function isErrorLike(arg: any): arg is { name?: unknown; message?: unknown; stack?: unknown; code?: unknown } {
+  const code = arg && typeof arg === 'object' ? (arg as { code?: unknown }).code : undefined
   return Boolean(arg) && typeof arg === 'object' && (
     typeof arg.name === 'string'
     || typeof arg.message === 'string'
     || typeof arg.stack === 'string'
+    || typeof code === 'string'
+    || typeof code === 'number'
   )
+}
+
+function sanitizeErrorCode(code: unknown): string | number | undefined {
+  if (typeof code === 'string' || typeof code === 'number') {
+    return code
+  }
+
+  if (code != null) {
+    return String(code)
+  }
+
+  return undefined
 }
 
 function summarizeLogString(value: string): string {
@@ -48,7 +63,7 @@ function sanitizeLogValue(value: any, seen: WeakSet<object>, depth: number): any
       name: typeof value.name === 'string' ? value.name : 'UnknownError',
       message: typeof value.message === 'string' ? summarizeLogString(value.message) : String(value),
       stack: typeof value.stack === 'string' ? summarizeLogString(value.stack) : undefined,
-      code: typeof value.code === 'number' ? value.code : undefined,
+      code: sanitizeErrorCode(value.code),
     }
   }
 

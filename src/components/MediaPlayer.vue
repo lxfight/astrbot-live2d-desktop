@@ -122,12 +122,26 @@ function buildAudioSourceLog(
   }
 }
 
+function sanitizeErrorCode(code: unknown): string | number | null {
+  if (typeof code === 'string' || typeof code === 'number') {
+    return code
+  }
+
+  if (code != null) {
+    return String(code)
+  }
+
+  return null
+}
+
 function formatPlaybackError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
+    const errorCode = sanitizeErrorCode((error as Error & { code?: unknown }).code)
     return {
       name: error.name,
       message: error.message,
       stack: error.stack || null,
+      code: errorCode,
     }
   }
 
@@ -136,7 +150,7 @@ function formatPlaybackError(error: unknown): Record<string, unknown> {
     return {
       name: typeof errorLike.name === 'string' ? errorLike.name : 'UnknownError',
       message: typeof errorLike.message === 'string' ? errorLike.message : String(error),
-      code: typeof errorLike.code === 'number' ? errorLike.code : null,
+      code: sanitizeErrorCode(errorLike.code),
     }
   }
 
