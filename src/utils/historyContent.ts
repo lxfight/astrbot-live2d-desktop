@@ -162,7 +162,7 @@ export function buildHistoryRenderableItems(
     if (type === 'image') {
       const src = resolveHistoryImageSource(element, options)
       if (src) {
-        items.push({ type: 'image', src, alt: 'History message image' })
+        items.push({ type: 'image', src, alt: '历史消息图片' })
       }
       continue
     }
