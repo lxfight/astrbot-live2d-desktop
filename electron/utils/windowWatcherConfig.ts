@@ -4,9 +4,9 @@
  * 定义窗口监听器的所有配置项，支持用户自定义
  */
 
-import { app } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
+import { getAppDataPath } from './appPaths'
 
 /**
  * 窗口事件类型
@@ -214,7 +214,7 @@ export function getMergedIgnoreRules(userConfig: WindowWatcherConfig): {
  * 配置文件路径
  */
 function getConfigPath(): string {
-  return path.join(app.getPath('userData'), 'window-watcher-config.json')
+  return path.join(getAppDataPath(), 'window-watcher-config.json')
 }
 
 /**

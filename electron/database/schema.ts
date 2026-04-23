@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3'
-import { app } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -7,6 +6,7 @@ import { createRequire } from 'module'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 import { buildMessageKeywordSearchCondition } from './messageSearch'
 import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
+import { getAppDataPath } from '../utils/appPaths'
 
 let db: Database.Database | null = null
 const require = createRequire(import.meta.url)
@@ -169,24 +169,8 @@ function ensureMessageSearchIndex(database: Database.Database): void {
 export function initDatabase(): Database.Database {
   if (db) return db
 
-  // 便携版判断:如果存在 PORTABLE_EXECUTABLE_DIR 环境变量,使用应用程序目录
-  let dbPath: string
-  const exePath = path.dirname(app.getPath('exe'))
-  const portableMarker = path.join(exePath, 'portable.txt')
-
-  if (process.env.PORTABLE_EXECUTABLE_DIR || fs.existsSync(portableMarker)) {
-    // 便携版:数据存储在应用程序目录下的 data 文件夹
-    const portableDataDir = path.join(exePath, 'data')
-    if (!fs.existsSync(portableDataDir)) {
-      fs.mkdirSync(portableDataDir, { recursive: true })
-    }
-    dbPath = path.join(portableDataDir, 'history.db')
-    console.log('[数据库] 便携模式,使用路径:', dbPath)
-  } else {
-    // 安装版:使用标准 userData 路径
-    dbPath = path.join(app.getPath('userData'), 'history.db')
-    console.log('[数据库] 标准模式,使用路径:', dbPath)
-  }
+  const dbPath = path.join(getAppDataPath(), 'history.db')
+  console.log('[数据库] 使用路径:', dbPath)
 
   const betterSqlitePackageJsonPath = require.resolve('better-sqlite3/package.json')
   const nativeBindingPath = resolveBetterSqliteNativeBindingPath(betterSqlitePackageJsonPath)
