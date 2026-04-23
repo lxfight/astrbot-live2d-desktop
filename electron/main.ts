@@ -88,8 +88,14 @@ async function initialize() {
     )
   }
   if (migrationResult.errors.length > 0) {
+    const displayedErrors = migrationResult.errors.slice(0, 5)
+    const remainingErrorCount = migrationResult.errors.length - displayedErrors.length
+    const truncatedSuffix = remainingErrorCount > 0
+      ? ` | 另外 ${remainingErrorCount} 个问题未展开`
+      : ''
+
     console.warn(
-      `[主进程] 数据迁移存在 ${migrationResult.errors.length} 个问题: ${migrationResult.errors.slice(0, 5).join(' | ')}`
+      `[主进程] 数据迁移存在 ${migrationResult.errors.length} 个问题: ${displayedErrors.join(' | ')}${truncatedSuffix}`
     )
   }
 

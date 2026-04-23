@@ -1,7 +1,32 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const { failingCopySources } = vi.hoisted(() => ({
+  failingCopySources: new Set<string>(),
+}))
+
+vi.mock('node:fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+  const mockedFs = {
+    ...actual,
+    copyFile: async (...args: Parameters<typeof actual.copyFile>) => {
+      const [sourcePath] = args
+      if (failingCopySources.has(sourcePath)) {
+        throw new Error('simulated copy failure')
+      }
+
+      return actual.copyFile(...args)
+    },
+  }
+
+  return {
+    ...mockedFs,
+    default: mockedFs,
+  }
+})
+
 import {
   APP_DATA_MIGRATION_MARKER_FILE,
   migrateAppDataByCopy,
@@ -27,6 +52,8 @@ function readFile(root: string, relativePath: string): string {
 
 describe('appDataMigration', () => {
   afterEach(() => {
+    failingCopySources.clear()
+
     while (tempRoots.length > 0) {
       const target = tempRoots.pop()
       if (target && fs.existsSync(target)) {
@@ -75,5 +102,21 @@ describe('appDataMigration', () => {
     expect(secondRun.attempted).toBe(false)
     expect(secondRun.skippedReason).toBe('marker-exists')
     expect(fs.existsSync(path.join(targetRoot, 'logs', 'new.log'))).toBe(false)
+  })
+
+  it('does not write the migration marker when copying fails', async () => {
+    const sourceRoot = createTempDir('astrbot-migration-error-source-')
+    const targetRoot = createTempDir('astrbot-migration-error-target-')
+
+    writeFile(sourceRoot, 'logs/app.log', 'legacy-log')
+    failingCopySources.add(path.join(sourceRoot, 'logs', 'app.log'))
+
+    const result = await migrateAppDataByCopy({ sourceRoot, targetRoot })
+
+    expect(result.attempted).toBe(true)
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors[0]).toContain('logs')
+    expect(result.copiedEntries).toEqual([])
+    expect(fs.existsSync(path.join(targetRoot, APP_DATA_MIGRATION_MARKER_FILE))).toBe(false)
   })
 })
