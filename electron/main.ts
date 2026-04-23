@@ -9,6 +9,8 @@ import { cleanupShortcuts } from './ipc/shortcut'
 import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
 import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
 import { registerHistoryResourceProtocol } from './utils/historyResourceProtocol'
+import { migrateLegacyAppDataIfNeeded } from './utils/appDataMigration'
+import { configureElectronDataPath } from './utils/appPaths'
 import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
@@ -35,11 +37,16 @@ if (process.platform === 'win32') {
 // 启用硬件加速以获得更好的性能
 // 注意：Windows 透明窗口在新版 Electron 中已支持硬件加速
 
+const appDataContext = configureElectronDataPath()
+
 // 全局 WebSocket 客户端实例
 export let bridgeClient: L2DBridgeClient | null = null
 
 initializeMainLogger()
 installMainProcessErrorHandlers()
+console.log(
+  `[主进程] 数据目录模式=${appDataContext.mode} 原始路径=${appDataContext.originalUserDataPath} 当前路径=${appDataContext.resolvedUserDataPath}`
+)
 
 // 锁屏前的状态，用于解锁后恢复
 let isBackgroundPaused = false
@@ -74,6 +81,24 @@ function resumeBackgroundActivities(reason: string): void {
  * 应用程序初始化
  */
 async function initialize() {
+  const migrationResult = await migrateLegacyAppDataIfNeeded()
+  if (migrationResult.copiedEntries.length > 0) {
+    console.log(
+      `[主进程] 已复制 ${migrationResult.copiedEntries.length} 个旧数据条目到当前数据目录`
+    )
+  }
+  if (migrationResult.errors.length > 0) {
+    const displayedErrors = migrationResult.errors.slice(0, 5)
+    const remainingErrorCount = migrationResult.errors.length - displayedErrors.length
+    const truncatedSuffix = remainingErrorCount > 0
+      ? ` | 另外 ${remainingErrorCount} 个问题未展开`
+      : ''
+
+    console.warn(
+      `[主进程] 数据迁移存在 ${migrationResult.errors.length} 个问题: ${displayedErrors.join(' | ')}${truncatedSuffix}`
+    )
+  }
+
   // 初始化数据库
   try {
     initDatabase()
