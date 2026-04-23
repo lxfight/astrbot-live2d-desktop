@@ -6,11 +6,16 @@ import { createRequire } from 'module'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 import { buildMessageKeywordSearchCondition } from './messageSearch'
 import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 import { getAppDataPath } from '../utils/appPaths'
 
 let db: Database.Database | null = null
 const require = createRequire(import.meta.url)
 const CURRENT_DB_VERSION = 2
+const USER_PROFILE_CONFIG_KEYS = {
+  userId: USER_CONFIG_KEYS.userId,
+  userName: USER_CONFIG_KEYS.userName,
+} as const
 
 function setDatabaseVersion(database: Database.Database, version: number): void {
   database.pragma(`user_version = ${Math.max(0, Math.floor(version))}`)
@@ -550,11 +555,11 @@ export function setUserConfig(key: string, value: string): void {
  * user_id 是设备级标识，首次生成后永不变更，与用户名无关
  */
 export function getUserId(): string {
-  let userId = getUserConfig('user_id')
+  let userId = getUserConfig(USER_PROFILE_CONFIG_KEYS.userId)
   if (!userId) {
     // 生成设备级 UUID，确保跨设备唯一性
     userId = crypto.randomUUID()
-    setUserConfig('user_id', userId)
+    setUserConfig(USER_PROFILE_CONFIG_KEYS.userId, userId)
   }
   return userId
 }
@@ -563,7 +568,7 @@ export function getUserId(): string {
  * 获取用户名称
  */
 export function getUserName(): string | null {
-  const userName = getUserConfig('user_name')
+  const userName = getUserConfig(USER_PROFILE_CONFIG_KEYS.userName)
   // 如果用户名为空或无效，返回 null（触发欢迎窗口）
   if (!userName || userName.trim() === '') {
     return null
@@ -575,7 +580,7 @@ export function getUserName(): string | null {
  * 设置用户名称
  */
 export function setUserName(name: string): void {
-  setUserConfig('user_name', name)
+  setUserConfig(USER_PROFILE_CONFIG_KEYS.userName, name)
 }
 
 /**
