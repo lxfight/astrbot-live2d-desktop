@@ -176,6 +176,7 @@ export class WindowWatcherManager {
         ignore: { processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'], titleKeywords: ['Program Manager', '锁屏', 'Lock Screen'] },
         aiResponse: { mode: 'first-open', specificApps: [] },
       }
+      this.throttler = new WindowThrottler(this.config)
     }
   }
   
@@ -251,32 +252,12 @@ export class WindowWatcherManager {
    * 处理窗口事件
    */
   private handleWindowEvent(event: WindowEvent): void {
-    // 使用节流器检查是否应该触发
-    if (this.throttler) {
-      const { shouldTrigger, reason } = this.throttler.shouldTrigger(event)
-      if (!shouldTrigger) {
-        console.log(`[窗口监听] 事件被节流: ${reason}`)
-        return
-      }
-    }
-    
-    // 更新状态
+    const shouldTrackFocusContext = event.type === 'focus' && !this.throttler?.shouldIgnoreEvent(event)
+
+    // 更新状态 (应该无条件执行，否则会导致活跃窗口识别错误)
     if (event.type === 'focus') {
       this.previousWindow = this.currentWindow
       this.currentWindow = event.window
-
-      // 添加到历史记录
-      this.windowHistory.push({ window: event.window, timestamp: event.timestamp })
-
-      // 限制历史记录长度
-      if (this.windowHistory.length > 100) {
-        this.windowHistory = this.windowHistory.slice(-50)
-      }
-
-      // 应用启动检测
-      if (this.appLaunchActive) {
-        this.detectAppLaunch(event.window)
-      }
     } else if (event.type === 'blur') {
       this.previousWindow = this.currentWindow
       this.currentWindow = null
@@ -292,6 +273,26 @@ export class WindowWatcherManager {
       event.type = 'fullscreen'
     } else if (event.type === 'restore' && !event.window.isFullscreen) {
       event.type = 'windowed'
+    }
+
+    if (shouldTrackFocusContext) {
+      this.windowHistory.push({ window: event.window, timestamp: event.timestamp })
+      if (this.windowHistory.length > 100) {
+        this.windowHistory = this.windowHistory.slice(-50)
+      }
+
+      if (this.appLaunchActive) {
+        this.detectAppLaunch(event.window)
+      }
+    }
+    
+    // 使用节流器检查是否应该触发 AI 响应（或通知监听器）
+    if (this.throttler) {
+      const { shouldTrigger, reason } = this.throttler.shouldTrigger(event)
+      if (!shouldTrigger) {
+        console.log(`[窗口监听] 事件被节流: ${reason}`)
+        return
+      }
     }
     
     // 通知所有监听器
