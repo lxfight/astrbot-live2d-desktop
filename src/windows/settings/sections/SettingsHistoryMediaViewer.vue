@@ -1,21 +1,22 @@
 <template>
   <teleport to="body">
     <transition name="fade">
-      <div v-if="visible" class="history-media-viewer-overlay" @click="closeViewer">
+      <div v-if="visible && src" class="history-media-viewer-overlay" @click="closeViewer">
         <button class="close-btn" @click="closeViewer">
           <X :size="24" />
         </button>
         <div class="media-container" @click.stop>
-          <img v-if="type === 'image'" :src="src || ''" alt="历史消息图片放大预览" />
-          <video v-else-if="type === 'video'" :src="src || ''" controls autoplay playsinline></video>
+          <img v-if="type === 'image'" :src="src" alt="历史消息图片放大预览" />
+          <video v-else-if="type === 'video'" :src="src" controls autoplay playsinline></video>
         </div>
-        <div class="hint-text">点击空白区域关闭</div>
+        <div class="hint-text">按 ESC 键或点击空白区域关闭</div>
       </div>
     </transition>
   </teleport>
 </template>
 
 <script setup lang="ts">
+import { onUnmounted, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -31,6 +32,30 @@ const emit = defineEmits<{
 function closeViewer() {
   emit('update:visible', false)
 }
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.visible) {
+    closeViewer()
+  }
+}
+
+watch(
+  () => props.visible,
+  (newVal) => {
+    if (newVal) {
+      document.body.style.overflow = 'hidden'
+      window.addEventListener('keydown', handleKeyDown)
+    } else {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }
+)
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
+  window.removeEventListener('keydown', handleKeyDown)
+})
 </script>
 
 <style scoped>
