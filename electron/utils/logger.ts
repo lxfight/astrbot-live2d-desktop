@@ -1,7 +1,7 @@
-import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import util from 'node:util'
+import { getAppDataPath } from './appPaths'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type LogOutputLevel = 'debug' | 'info'
@@ -50,7 +50,7 @@ function writeInternalError(message: string): void {
 
 function resolveUserDataPath(): string {
   try {
-    return app.getPath('userData')
+    return getAppDataPath()
   } catch {
     return path.join(process.cwd(), 'userData')
   }

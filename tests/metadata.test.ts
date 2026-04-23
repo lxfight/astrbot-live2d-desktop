@@ -39,6 +39,8 @@ describe('metadata', () => {
 
   it('centralizes main-process user config keys', () => {
     expect(USER_CONFIG_KEYS).toEqual({
+      userId: 'user_id',
+      userName: 'user_name',
       autoUpdateEnabled: 'app_auto_update_enabled',
       screenshotDefaultTarget: 'desktop_capture_default_target',
       screenshotQuality: 'desktop_capture_quality',

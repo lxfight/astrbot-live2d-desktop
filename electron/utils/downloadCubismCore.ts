@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { app, dialog, net, protocol } from 'electron'
+import { getAppDataPath } from './appPaths'
 
 const CUBISM_PROTOCOL_SCHEME = 'cubism'
 
@@ -70,17 +71,6 @@ protocol.registerSchemesAsPrivileged([
 
 let cubismProtocolRegistered = false
 
-function isPortableMode(): boolean {
-  const exePath = path.dirname(app.getPath('exe'))
-  const portableMarker = path.join(exePath, 'portable.txt')
-  return Boolean(process.env.PORTABLE_EXECUTABLE_DIR || fs.existsSync(portableMarker))
-}
-
-function getPortableDataDir(): string {
-  const exePath = path.dirname(app.getPath('exe'))
-  return path.join(exePath, 'data')
-}
-
 function getLegacyPackagedCubismCorePath(): string | null {
   if (!app.isPackaged) {
     return null
@@ -129,11 +119,7 @@ export function getCubismCorePath(): string {
     return path.join(process.cwd(), 'public', 'lib', getCubismCoreFilename())
   }
 
-  if (isPortableMode()) {
-    return path.join(getPortableDataDir(), 'lib', getCubismCoreFilename())
-  }
-
-  return path.join(app.getPath('userData'), 'lib', getCubismCoreFilename())
+  return path.join(getAppDataPath(), 'lib', getCubismCoreFilename())
 }
 
 export function getCubismCoreProtocolUrl(): string {

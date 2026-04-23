@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cubismAssetManifest'
+import { getAppDataPath } from '../utils/appPaths'
 
 /**
  * 获取模型存储目录
@@ -13,7 +14,7 @@ function getModelsDir(): string {
   if (isDev) {
     return path.join(process.cwd(), 'public', 'models')
   }
-  return path.join(app.getPath('userData'), 'models')
+  return path.join(getAppDataPath(), 'models')
 }
 
 function toPosixPath(p: string): string {

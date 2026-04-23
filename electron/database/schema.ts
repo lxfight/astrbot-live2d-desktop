@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3'
-import { app } from 'electron'
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -7,10 +6,16 @@ import { createRequire } from 'module'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 import { buildMessageKeywordSearchCondition } from './messageSearch'
 import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
+import { getAppDataPath } from '../utils/appPaths'
 
 let db: Database.Database | null = null
 const require = createRequire(import.meta.url)
 const CURRENT_DB_VERSION = 2
+const USER_PROFILE_CONFIG_KEYS = {
+  userId: USER_CONFIG_KEYS.userId,
+  userName: USER_CONFIG_KEYS.userName,
+} as const
 
 function setDatabaseVersion(database: Database.Database, version: number): void {
   database.pragma(`user_version = ${Math.max(0, Math.floor(version))}`)
@@ -169,24 +174,8 @@ function ensureMessageSearchIndex(database: Database.Database): void {
 export function initDatabase(): Database.Database {
   if (db) return db
 
-  // 便携版判断:如果存在 PORTABLE_EXECUTABLE_DIR 环境变量,使用应用程序目录
-  let dbPath: string
-  const exePath = path.dirname(app.getPath('exe'))
-  const portableMarker = path.join(exePath, 'portable.txt')
-
-  if (process.env.PORTABLE_EXECUTABLE_DIR || fs.existsSync(portableMarker)) {
-    // 便携版:数据存储在应用程序目录下的 data 文件夹
-    const portableDataDir = path.join(exePath, 'data')
-    if (!fs.existsSync(portableDataDir)) {
-      fs.mkdirSync(portableDataDir, { recursive: true })
-    }
-    dbPath = path.join(portableDataDir, 'history.db')
-    console.log('[数据库] 便携模式,使用路径:', dbPath)
-  } else {
-    // 安装版:使用标准 userData 路径
-    dbPath = path.join(app.getPath('userData'), 'history.db')
-    console.log('[数据库] 标准模式,使用路径:', dbPath)
-  }
+  const dbPath = path.join(getAppDataPath(), 'history.db')
+  console.log('[数据库] 使用路径:', dbPath)
 
   const betterSqlitePackageJsonPath = require.resolve('better-sqlite3/package.json')
   const nativeBindingPath = resolveBetterSqliteNativeBindingPath(betterSqlitePackageJsonPath)
@@ -566,11 +555,11 @@ export function setUserConfig(key: string, value: string): void {
  * user_id 是设备级标识，首次生成后永不变更，与用户名无关
  */
 export function getUserId(): string {
-  let userId = getUserConfig('user_id')
+  let userId = getUserConfig(USER_PROFILE_CONFIG_KEYS.userId)
   if (!userId) {
     // 生成设备级 UUID，确保跨设备唯一性
     userId = crypto.randomUUID()
-    setUserConfig('user_id', userId)
+    setUserConfig(USER_PROFILE_CONFIG_KEYS.userId, userId)
   }
   return userId
 }
@@ -579,7 +568,7 @@ export function getUserId(): string {
  * 获取用户名称
  */
 export function getUserName(): string | null {
-  const userName = getUserConfig('user_name')
+  const userName = getUserConfig(USER_PROFILE_CONFIG_KEYS.userName)
   // 如果用户名为空或无效，返回 null（触发欢迎窗口）
   if (!userName || userName.trim() === '') {
     return null
@@ -591,7 +580,7 @@ export function getUserName(): string | null {
  * 设置用户名称
  */
 export function setUserName(name: string): void {
-  setUserConfig('user_name', name)
+  setUserConfig(USER_PROFILE_CONFIG_KEYS.userName, name)
 }
 
 /**
