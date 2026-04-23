@@ -30,7 +30,7 @@ describe('advancedSettings', () => {
     expect(clampImageMaxSizeMb(999)).toBe(50)
   })
 
-  it('normalizes persisted settings and ignores removed wake-word fields', () => {
+  it('normalizes persisted settings and ignores removed legacy fields', () => {
     const normalized = normalizeAdvancedSettings({
       recordingShortcut: 'Ctrl+Shift+R',
       autoConnect: false,
@@ -51,7 +51,6 @@ describe('advancedSettings', () => {
 
     expect(normalized).toEqual({
       recordingShortcut: 'Ctrl+Shift+R',
-      autoConnect: false,
       autoLoadLastModel: false,
       themeFollowModel: false,
       lipSyncEnabled: false,
@@ -64,6 +63,7 @@ describe('advancedSettings', () => {
       maxRecordingSeconds: 60,
       logLevel: 'debug'
     })
+    expect(normalized).not.toHaveProperty('autoConnect')
     expect(normalized).not.toHaveProperty('wakeWordEnabled')
     expect(normalized).not.toHaveProperty('wakeKeywords')
   })
@@ -75,7 +75,6 @@ describe('advancedSettings', () => {
   it('uses defaults for newly added model behavior settings when missing', () => {
     const normalized = normalizeAdvancedSettings({
       recordingShortcut: 'Alt+R',
-      autoConnect: false,
       showBaseEventNotifications: true,
       maxRecordingSeconds: 20,
       logLevel: 'info',
@@ -127,9 +126,9 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
 
     const settings = loadAdvancedSettings()
     expect(settings.recordingShortcut).toBe('Ctrl+Q')
-    expect(settings.autoConnect).toBe(false)
     expect(settings.logLevel).toBe('debug')
     expect(settings.maxRecordingSeconds).toBe(25)
+    expect(settings).not.toHaveProperty('autoConnect')
     // missing fields filled from defaults
     expect(settings.bubbleStackMax).toBe(DEFAULT_ADVANCED_SETTINGS.bubbleStackMax)
   })
@@ -147,7 +146,6 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
   it('normalizes and persists settings to localStorage', () => {
     const saved = saveAdvancedSettings({
       recordingShortcut: 'Ctrl+W',
-      autoConnect: false,
       maxRecordingSeconds: 999,
       logLevel: 'debug',
     })
