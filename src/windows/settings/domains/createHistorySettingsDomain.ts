@@ -103,14 +103,10 @@ export function createHistorySettingsDomain(
       await connectionStore.ensureInitialized()
 
       if (force) {
-        await connectionStore.reloadPersistedSettings()
-      }
-
-      try {
-        const session = await window.electron.bridge.getSession()
-        connectionStore.applySessionState(session)
-      } catch (error) {
-        console.warn('[设置] 获取历史资源配置失败:', error)
+        await Promise.all([
+          connectionStore.reloadPersistedSettings(),
+          connectionStore.refreshLifecycleSnapshot(),
+        ])
       }
 
       historyResourceBaseUrl.value = connectionStore.resourceBaseUrl

@@ -18,7 +18,6 @@ export type AppLogLevel = 'info' | 'debug'
 
 export interface AdvancedSettings {
   recordingShortcut: string
-  autoConnect: boolean
   autoLoadLastModel: boolean
   themeFollowModel: boolean
   lipSyncEnabled: boolean
@@ -34,7 +33,6 @@ export interface AdvancedSettings {
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
-  autoConnect: true,
   autoLoadLastModel: true,
   themeFollowModel: true,
   lipSyncEnabled: true,
@@ -73,9 +71,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     recordingShortcut: typeof raw.recordingShortcut === 'string'
       ? raw.recordingShortcut
       : DEFAULT_ADVANCED_SETTINGS.recordingShortcut,
-    autoConnect: typeof raw.autoConnect === 'boolean'
-      ? raw.autoConnect
-      : DEFAULT_ADVANCED_SETTINGS.autoConnect,
     autoLoadLastModel: typeof raw.autoLoadLastModel === 'boolean'
       ? raw.autoLoadLastModel
       : DEFAULT_ADVANCED_SETTINGS.autoLoadLastModel,

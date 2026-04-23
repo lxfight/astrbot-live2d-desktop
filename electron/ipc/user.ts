@@ -3,7 +3,6 @@ import { setUserName, getUserName, getUserId } from '../database/schema'
 import { createMainWindow } from '../windows/mainWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { createTray } from '../utils/tray'
-import { initBridgeClient } from '../main'
 
 /**
  * 设置用户名称
@@ -16,9 +15,6 @@ ipcMain.handle('user:setUserName', async (_event, name: string) => {
     closeWelcomeWindow()
     createMainWindow()
     createTray()
-
-    // 初始化 Bridge 客户端
-    initBridgeClient()
 
     return { success: true }
   } catch (error) {

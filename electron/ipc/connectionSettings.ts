@@ -8,6 +8,7 @@ import {
   migrateLegacyConnectionSettings,
   saveConnectionSettings,
 } from '../services/connectionSettingsService'
+import { getBridgeConnectionController } from '../main'
 
 function getSourceWindowId(event: Electron.IpcMainInvokeEvent): number | undefined {
   const senderWindow = BrowserWindow.fromWebContents(event.sender)
@@ -41,6 +42,7 @@ ipcMain.handle('connectionSettings:load', async () => {
 ipcMain.handle('connectionSettings:save', async (event, payload: ConnectionSettingsSavePayload) => {
   const result = saveConnectionSettings(payload)
   if (result.success) {
+    await getBridgeConnectionController()?.handleConnectionSettingsUpdated(result.data)
     broadcastSettingsChanged(result.data, getSourceWindowId(event))
   }
   return result
@@ -49,8 +51,8 @@ ipcMain.handle('connectionSettings:save', async (event, payload: ConnectionSetti
 ipcMain.handle('connectionSettings:migrateLegacy', async (event, rawLegacyJson: string) => {
   const result = migrateLegacyConnectionSettings(rawLegacyJson)
   if (result.success) {
+    await getBridgeConnectionController()?.handleConnectionSettingsUpdated(result.data)
     broadcastSettingsChanged(result.data, getSourceWindowId(event))
   }
   return result
 })
-

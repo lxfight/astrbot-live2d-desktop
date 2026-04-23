@@ -7,7 +7,75 @@
 
     <n-form label-placement="top">
       <n-form-item label="启动时自动连接">
-        <n-switch v-model:value="advancedSettings.autoConnect" @update:value="applyAdvancedSettingChange" />
+        <n-switch
+          :value="connectionBehaviorSettings.autoConnectOnAppLaunch"
+          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ autoConnectOnAppLaunch: value })"
+        />
+      </n-form-item>
+      <n-form-item label="系统恢复后自动恢复连接">
+        <n-switch
+          :value="connectionBehaviorSettings.resumeDesiredConnectionOnWake"
+          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ resumeDesiredConnectionOnWake: value })"
+        />
+      </n-form-item>
+      <n-form-item label="启用自动重试">
+        <n-switch
+          :value="connectionBehaviorSettings.retryEnabled"
+          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ retryEnabled: value })"
+        />
+      </n-form-item>
+      <n-form-item label="重试基础延迟">
+        <n-space align="center">
+          <n-input-number
+            :value="connectionBehaviorSettings.retryBaseDelayMs"
+            :min="250"
+            :max="300000"
+            :step="250"
+            :precision="0"
+            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryBaseDelayMs: value ?? 1000 })"
+          />
+          <span>毫秒</span>
+        </n-space>
+      </n-form-item>
+      <n-form-item label="重试最大延迟">
+        <n-space align="center">
+          <n-input-number
+            :value="connectionBehaviorSettings.retryMaxDelayMs"
+            :min="250"
+            :max="300000"
+            :step="250"
+            :precision="0"
+            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryMaxDelayMs: value ?? 30000 })"
+          />
+          <span>毫秒</span>
+        </n-space>
+      </n-form-item>
+      <n-form-item label="最大重试次数">
+        <n-space align="center">
+          <n-input-number
+            :value="connectionBehaviorSettings.retryMaxAttempts"
+            :min="1"
+            :max="1000"
+            :precision="0"
+            clearable
+            placeholder="留空表示不限次数"
+            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryMaxAttempts: value })"
+          />
+          <span>次</span>
+        </n-space>
+      </n-form-item>
+      <n-form-item label="握手超时">
+        <n-space align="center">
+          <n-input-number
+            :value="connectionBehaviorSettings.handshakeTimeoutMs"
+            :min="1000"
+            :max="60000"
+            :step="500"
+            :precision="0"
+            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ handshakeTimeoutMs: value ?? 8000 })"
+          />
+          <span>毫秒</span>
+        </n-space>
       </n-form-item>
       <n-form-item label="启动时自动加载上次模型">
         <n-switch v-model:value="advancedSettings.autoLoadLastModel" @update:value="applyAdvancedSettingChange" />
@@ -162,6 +230,7 @@ const {
   advancedSettings,
   alwaysOnTopLevelLabel,
   applyAdvancedSettingChange,
+  connectionBehaviorSettings,
   desktopFeatureSettings,
   gameModeCapabilityLabel,
   passThroughCapabilityLabel,
@@ -169,6 +238,7 @@ const {
   platformCompatibilityNotice,
   platformDisplayName,
   screenshotSettings,
+  updateConnectionBehaviorSettings,
   updateDesktopFeatureSetting,
   updateScreenshotSettings,
 } = useAdvancedSettingsDomain()

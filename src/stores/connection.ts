@@ -3,12 +3,17 @@ import { computed, ref } from 'vue'
 import type { InputMessagePayload, MessageContent } from '@/types/protocol'
 import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 import {
+  buildDefaultBridgeLifecycleSnapshot,
+  type BridgeLifecycleSnapshot,
+} from '@/shared/bridgeLifecycle'
+import {
   buildDefaultConnectionSettingsEditable,
   normalizeConnectionSettingsEditable,
   type ConnectionSettingsEditable,
   type ConnectionSettingsPersistedV3,
 } from '@/shared/connectionSettings'
 import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
+import { ADVANCED_SETTINGS_KEY } from '@/utils/advancedSettings'
 
 const DEFAULT_RESOURCE_PATH = '/resources'
 const LEGACY_CONNECTION_SETTINGS_KEY = LOCAL_STORAGE_METADATA.connectionSettings.key
@@ -32,22 +37,6 @@ function buildRendererPreferredDefaults(): ConnectionSettingsEditable {
   return defaults
 }
 
-function getBridgeUrlValidationError(rawUrl: string): string | null {
-  let parsedUrl: URL
-
-  try {
-    parsedUrl = new URL(rawUrl)
-  } catch {
-    return '服务器地址格式无效，请填写完整的 WebSocket 地址'
-  }
-
-  if (parsedUrl.protocol !== 'ws:' && parsedUrl.protocol !== 'wss:') {
-    return '服务器地址必须使用 ws 或 wss 协议'
-  }
-
-  return null
-}
-
 function buildDefaultPersistedSettings(): ConnectionSettingsPersistedV3 {
   const defaults = buildDefaultConnectionSettingsEditable()
   return {
@@ -57,92 +46,70 @@ function buildDefaultPersistedSettings(): ConnectionSettingsPersistedV3 {
   }
 }
 
-function toPersistPayload(data: ConnectionSettingsEditable, expectedRevision: number) {
-  return {
-    data: normalizeConnectionSettingsEditable(data),
-    expectedRevision,
-  }
-}
-
-function isSameEditableSettings(a: ConnectionSettingsEditable, b: ConnectionSettingsEditable): boolean {
-  return a.serverUrl === b.serverUrl
-    && a.token === b.token
-    && a.customResourceBaseUrl === b.customResourceBaseUrl
-    && a.customResourcePath === b.customResourcePath
-    && a.customResourceToken === b.customResourceToken
-}
-
 export const useConnectionStore = defineStore('connection', () => {
-  const defaults = buildRendererPreferredDefaults()
-
-  const isConnected = ref(false)
-  const sessionId = ref('')
-  const userId = ref('')
-  const sessionResourceBaseUrl = ref('')
-  const sessionResourcePath = ref('')
-  const maxInlineBytes = ref<number | null>(null)
-
-  const serverUrl = ref(defaults.serverUrl)
-  const token = ref(defaults.token)
-  const customResourceBaseUrl = ref(defaults.customResourceBaseUrl)
-  const customResourcePath = ref(defaults.customResourcePath)
-  const customResourceToken = ref(defaults.customResourceToken)
-  const persistedSnapshot = ref<ConnectionSettingsEditable>(normalizeConnectionSettingsEditable(defaults))
-
-  const persistedRevision = ref(0)
-  const persistedUpdatedAt = ref(0)
+  const persistedSettings = ref<ConnectionSettingsPersistedV3>(buildDefaultPersistedSettings())
+  const lifecycleSnapshot = ref<BridgeLifecycleSnapshot>(buildDefaultBridgeLifecycleSnapshot())
 
   let initialized = false
   let initializePromise: Promise<void> | null = null
-  let settingsSyncBound = false
-  let settingsSyncDisposer: Unsubscribe | null = null
+  let syncBound = false
+  let lifecycleSnapshotHydrated = false
+  let settingsDisposer: Unsubscribe | null = null
+  let lifecycleDisposer: Unsubscribe | null = null
+
+  const serverUrl = computed(() => persistedSettings.value.serverUrl)
+  const token = computed(() => persistedSettings.value.token)
+  const customResourceBaseUrl = computed(() => persistedSettings.value.customResourceBaseUrl)
+  const customResourcePath = computed(() => persistedSettings.value.customResourcePath)
+  const customResourceToken = computed(() => persistedSettings.value.customResourceToken)
+  const persistedRevision = computed(() => persistedSettings.value.revision)
+  const persistedUpdatedAt = computed(() => persistedSettings.value.updatedAt)
+
+  const lifecycleStatus = computed(() => lifecycleSnapshot.value.status)
+  const desiredState = computed(() => lifecycleSnapshot.value.desiredState)
+  const isConnected = computed(() => lifecycleSnapshot.value.status === 'connected')
+  const sessionId = computed(() => lifecycleSnapshot.value.session?.sessionId || '')
+  const userId = computed(() => lifecycleSnapshot.value.session?.userId || '')
+  const maxInlineBytes = computed(() => {
+    const value = lifecycleSnapshot.value.session?.config?.maxInlineBytes
+    return typeof value === 'number' ? value : null
+  })
+  const nextRetryAt = computed(() => lifecycleSnapshot.value.nextRetryAt)
+  const reconnectAttempt = computed(() => lifecycleSnapshot.value.reconnectAttempt)
+  const lastError = computed(() => lifecycleSnapshot.value.lastError)
 
   const resourceBaseUrl = computed(() => {
-    const overrideValue = customResourceBaseUrl.value.trim()
+    const overrideValue = persistedSettings.value.customResourceBaseUrl.trim()
     if (overrideValue) {
       return overrideValue
     }
 
-    const sessionValue = sessionResourceBaseUrl.value.trim()
+    const sessionValue = lifecycleSnapshot.value.session?.config?.resourceBaseUrl?.trim() || ''
     if (sessionValue) {
       return sessionValue
     }
 
-    return deriveHttpBaseUrlFromWsUrl(serverUrl.value)
+    return deriveHttpBaseUrlFromWsUrl(persistedSettings.value.serverUrl)
   })
 
   const resourcePath = computed(() => {
-    const overrideValue = customResourcePath.value.trim()
+    const overrideValue = persistedSettings.value.customResourcePath.trim()
     if (overrideValue) {
       return overrideValue
     }
 
-    const sessionValue = sessionResourcePath.value.trim()
+    const sessionValue = lifecycleSnapshot.value.session?.config?.resourcePath?.trim() || ''
     return sessionValue || DEFAULT_RESOURCE_PATH
   })
 
   const resourceToken = computed(() => {
-    const overrideValue = customResourceToken.value.trim()
+    const overrideValue = persistedSettings.value.customResourceToken.trim()
     if (overrideValue) {
       return overrideValue
     }
 
-    return token.value.trim()
+    return persistedSettings.value.token.trim()
   })
-
-  const hasUnsavedChanges = computed(() => {
-    return !isSameEditableSettings(collectEditableSettings(), persistedSnapshot.value)
-  })
-
-  function collectEditableSettings(): ConnectionSettingsEditable {
-    return normalizeConnectionSettingsEditable({
-      serverUrl: serverUrl.value,
-      token: token.value,
-      customResourceBaseUrl: customResourceBaseUrl.value,
-      customResourcePath: customResourcePath.value,
-      customResourceToken: customResourceToken.value,
-    })
-  }
 
   function applyPersistedSettings(settings: ConnectionSettingsPersistedV3) {
     const baselineDefaults = buildDefaultConnectionSettingsEditable()
@@ -158,17 +125,27 @@ export const useConnectionStore = defineStore('connection', () => {
         })
       : baseEditable
 
-    serverUrl.value = editable.serverUrl
-    token.value = editable.token
-    customResourceBaseUrl.value = editable.customResourceBaseUrl
-    customResourcePath.value = editable.customResourcePath
-    customResourceToken.value = editable.customResourceToken
-    persistedSnapshot.value = editable
-    persistedRevision.value = settings.revision
-    persistedUpdatedAt.value = settings.updatedAt
+    persistedSettings.value = {
+      ...editable,
+      revision: settings.revision,
+      updatedAt: settings.updatedAt,
+    }
   }
 
-  async function migrateLegacySettingsIfNeeded() {
+  function applyLifecycleSnapshot(snapshot: BridgeLifecycleSnapshot | null | undefined) {
+    if (!snapshot) {
+      return
+    }
+
+    if (lifecycleSnapshotHydrated && snapshot.updatedAt < lifecycleSnapshot.value.updatedAt) {
+      return
+    }
+
+    lifecycleSnapshot.value = snapshot
+    lifecycleSnapshotHydrated = true
+  }
+
+  async function migrateLegacyConnectionSettingsIfNeeded() {
     if (typeof window === 'undefined') {
       return
     }
@@ -192,6 +169,22 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
+  async function migrateLegacyBehaviorSettingsIfNeeded() {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      const legacyRaw = localStorage.getItem(ADVANCED_SETTINGS_KEY) || ''
+      const migrateResult = await window.electron.connectionBehaviorSettings.migrateLegacy(legacyRaw)
+      if (!migrateResult.success) {
+        console.warn('[ConnectionStore] 迁移旧连接行为配置失败:', migrateResult.code, migrateResult.message)
+      }
+    } catch (error) {
+      console.warn('[ConnectionStore] 迁移旧连接行为配置异常:', error)
+    }
+  }
+
   async function reloadPersistedSettings() {
     const loadResult = await window.electron.connectionSettings.load()
     if (loadResult.success) {
@@ -204,6 +197,48 @@ export const useConnectionStore = defineStore('connection', () => {
     return { success: false as const, code: loadResult.code, error: loadResult.message }
   }
 
+  async function refreshLifecycleSnapshot() {
+    const snapshot = await window.electron.bridgeLifecycle.getSnapshot()
+    applyLifecycleSnapshot(snapshot)
+    return snapshot
+  }
+
+  function startSync() {
+    if (
+      syncBound
+      || typeof window === 'undefined'
+      || !window.electron?.connectionSettings
+      || !window.electron?.bridgeLifecycle
+    ) {
+      return
+    }
+
+    settingsDisposer = window.electron.connectionSettings.onChanged((event) => {
+      if (!event?.settings) {
+        return
+      }
+      applyPersistedSettings(event.settings)
+    })
+
+    lifecycleDisposer = window.electron.bridgeLifecycle.onStateChanged((snapshot) => {
+      applyLifecycleSnapshot(snapshot)
+    })
+
+    syncBound = true
+  }
+
+  function stopSync() {
+    if (!syncBound) {
+      return
+    }
+
+    settingsDisposer?.()
+    lifecycleDisposer?.()
+    settingsDisposer = null
+    lifecycleDisposer = null
+    syncBound = false
+  }
+
   async function ensureInitialized() {
     if (initialized) {
       return
@@ -214,189 +249,19 @@ export const useConnectionStore = defineStore('connection', () => {
     }
 
     initializePromise = (async () => {
-      await migrateLegacySettingsIfNeeded()
-      await reloadPersistedSettings()
+      startSync()
+      await migrateLegacyConnectionSettingsIfNeeded()
+      await migrateLegacyBehaviorSettingsIfNeeded()
+      await Promise.all([
+        reloadPersistedSettings(),
+        refreshLifecycleSnapshot(),
+      ])
       initialized = true
     })().finally(() => {
       initializePromise = null
     })
 
     return initializePromise
-  }
-
-  function applySessionState(session: BridgeSessionState | null | undefined) {
-    sessionId.value = session?.sessionId || ''
-    userId.value = session?.userId || ''
-
-    if (session?.config?.resourceBaseUrl) {
-      sessionResourceBaseUrl.value = session.config.resourceBaseUrl
-    } else if (!session) {
-      sessionResourceBaseUrl.value = ''
-    }
-
-    if (session?.config?.resourcePath) {
-      sessionResourcePath.value = session.config.resourcePath
-    } else if (!session) {
-      sessionResourcePath.value = ''
-    }
-
-    maxInlineBytes.value = typeof session?.config?.maxInlineBytes === 'number'
-      ? session.config.maxInlineBytes
-      : null
-  }
-
-  function resetSessionState() {
-    isConnected.value = false
-    sessionId.value = ''
-    userId.value = ''
-    sessionResourceBaseUrl.value = ''
-    sessionResourcePath.value = ''
-    maxInlineBytes.value = null
-  }
-
-  function setConnectionConfig(url: string, authToken: string) {
-    serverUrl.value = (url || '').trim() || defaults.serverUrl
-    token.value = (authToken || '').trim()
-  }
-
-  function setResourceConfig(baseUrl: string, path: string, accessToken: string) {
-    customResourceBaseUrl.value = (baseUrl || '').trim()
-    customResourcePath.value = (path || '').trim()
-    customResourceToken.value = (accessToken || '').trim()
-  }
-
-  async function savePersistedSettings() {
-    await ensureInitialized()
-    const saveResult = await window.electron.connectionSettings.save(
-      toPersistPayload(collectEditableSettings(), persistedRevision.value),
-    )
-
-    if (saveResult.success) {
-      applyPersistedSettings(saveResult.data)
-      return { success: true as const }
-    }
-
-    if (saveResult.code === 'CONFLICT_REVISION') {
-      await reloadPersistedSettings()
-      return {
-        success: false as const,
-        code: saveResult.code,
-        error: '连接配置已被其他窗口更新，当前表单已刷新为最新值，请确认后重试保存',
-      }
-    }
-
-    return {
-      success: false as const,
-      code: saveResult.code,
-      error: saveResult.message,
-    }
-  }
-
-  async function connect(url?: string, authToken?: string) {
-    await ensureInitialized()
-
-    try {
-      const targetUrl = (url || serverUrl.value || '').trim()
-      const normalizedToken = (authToken ?? token.value ?? '').trim()
-
-      if (!targetUrl) {
-        return { success: false, error: '服务器地址不能为空' }
-      }
-
-      const urlValidationError = getBridgeUrlValidationError(targetUrl)
-      if (urlValidationError) {
-        return { success: false, error: urlValidationError }
-      }
-
-      if (!normalizedToken) {
-        return { success: false, error: '认证密钥不能为空，请在设置中填写后再连接' }
-      }
-      if (normalizedToken.length < 16) {
-        return { success: false, error: '认证密钥长度至少 16 位' }
-      }
-
-      setConnectionConfig(targetUrl, normalizedToken)
-      const saveResult = await savePersistedSettings()
-      if (!saveResult.success) {
-        return { success: false, error: saveResult.error }
-      }
-
-      const result = await window.electron.bridge.connect(targetUrl, normalizedToken)
-      if (result.success) {
-        isConnected.value = true
-        const session = await window.electron.bridge.getSession()
-        applySessionState(session)
-        return { success: true }
-      }
-
-      return { success: false, error: result.error }
-    } catch (error: any) {
-      return { success: false, error: error.message }
-    }
-  }
-
-  async function disconnect() {
-    try {
-      await window.electron.bridge.disconnect()
-      resetSessionState()
-      return { success: true }
-    } catch (error: any) {
-      return { success: false, error: error.message }
-    }
-  }
-
-  async function checkConnection() {
-    await ensureInitialized()
-
-    const connected = await window.electron.bridge.isConnected()
-    isConnected.value = connected
-
-    if (connected) {
-      const session = await window.electron.bridge.getSession()
-      applySessionState(session)
-    } else {
-      applySessionState(null)
-    }
-
-    return connected
-  }
-
-  function handleConnected(session: BridgeSessionState | null | undefined) {
-    isConnected.value = true
-    applySessionState(session)
-  }
-
-  function handleDisconnected() {
-    resetSessionState()
-  }
-
-  function startStorageSync() {
-    if (
-      settingsSyncBound
-      || typeof window === 'undefined'
-      || !window.electron?.connectionSettings
-    ) {
-      return
-    }
-
-    settingsSyncDisposer = window.electron.connectionSettings.onChanged((event) => {
-      if (!event?.settings) {
-        return
-      }
-      applyPersistedSettings(event.settings)
-    })
-
-    settingsSyncBound = true
-  }
-
-  function stopStorageSync() {
-    if (!settingsSyncBound) {
-      return
-    }
-
-    settingsSyncDisposer?.()
-    settingsSyncDisposer = null
-    settingsSyncBound = false
   }
 
   async function sendMessage(content: MessageContent[], metadata: InputMessagePayload['metadata']) {
@@ -408,36 +273,33 @@ export const useConnectionStore = defineStore('connection', () => {
   }
 
   return {
-    isConnected,
-    sessionId,
-    userId,
-    resourceBaseUrl,
-    resourcePath,
-    resourceToken,
-    maxInlineBytes,
-    serverUrl,
-    token,
     customResourceBaseUrl,
     customResourcePath,
     customResourceToken,
-    hasUnsavedChanges,
+    desiredState,
+    ensureInitialized,
+    isConnected,
+    lastError,
+    lifecycleSnapshot,
+    lifecycleStatus,
+    maxInlineBytes,
+    nextRetryAt,
     persistedRevision,
+    persistedSettings,
     persistedUpdatedAt,
-    applySessionState,
-    resetSessionState,
-    setConnectionConfig,
-    setResourceConfig,
-    savePersistedSettings,
+    reconnectAttempt,
+    refreshLifecycleSnapshot,
     reloadPersistedSettings,
-    startStorageSync,
-    stopStorageSync,
-    handleConnected,
-    handleDisconnected,
-    connect,
-    disconnect,
-    checkConnection,
+    resourceBaseUrl,
+    resourcePath,
+    resourceToken,
     sendMessage,
     sendState,
-    ensureInitialized,
+    serverUrl,
+    sessionId,
+    startSync,
+    stopSync,
+    token,
+    userId,
   }
 })

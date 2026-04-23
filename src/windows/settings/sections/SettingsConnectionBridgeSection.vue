@@ -3,7 +3,7 @@
     <div class="settings-section__header">
       <h2>Bridge 连接</h2>
       <span class="status-pill" :class="isConnected ? 'status-pill--success' : 'status-pill--warning'">
-        {{ isConnected ? '已连接' : '未连接' }}
+        {{ connectionStatusText }}
       </span>
     </div>
     <p class="settings-section__desc">连接到 AstrBot Bridge 以控制 Live2D 模型和接收消息。</p>
@@ -32,10 +32,10 @@
       >
         保存连接配置
       </n-button>
-      <n-button type="primary" :disabled="isConnected || !token.trim()" @click="handleConnect">
+      <n-button type="primary" :disabled="!canConnect || !token.trim()" @click="handleConnect">
         {{ isConnected ? '已连接' : '连接服务器' }}
       </n-button>
-      <n-button :disabled="!isConnected" @click="handleDisconnect">断开连接</n-button>
+      <n-button :disabled="!canDisconnect" @click="handleDisconnect">断开连接</n-button>
     </div>
   </section>
 
@@ -68,6 +68,9 @@
 import { useConnectionSettingsDomain } from '../domains/createConnectionSettingsDomain'
 
 const {
+  canConnect,
+  canDisconnect,
+  connectionStatusText,
   handleConnect,
   handleDisconnect,
   handleSaveConnectionSettings,

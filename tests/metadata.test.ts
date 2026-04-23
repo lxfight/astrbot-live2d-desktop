@@ -46,6 +46,7 @@ describe('metadata', () => {
       screenshotQuality: 'desktop_capture_quality',
       screenshotMaxWidth: 'desktop_capture_max_width',
       connectionSettingsV3: 'connection_settings_v3',
+      connectionBehaviorSettingsV1: 'connection_behavior_settings_v1',
       alwaysOnTop: 'tray_always_on_top',
       fullPassThrough: 'tray_pass_through_mode',
       dynamicPassThrough: 'desktop_dynamic_pass_through',
