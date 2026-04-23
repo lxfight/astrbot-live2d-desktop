@@ -17,6 +17,11 @@ import {
   saveAdvancedSettings as persistAdvancedSettings,
 } from '@/utils/advancedSettings'
 import {
+  buildDefaultConnectionBehaviorSettings,
+  normalizeConnectionBehaviorSettings,
+  type ConnectionBehaviorSettingsPersistedV1,
+} from '@/shared/connectionBehaviorSettings'
+import {
   DEFAULT_DESKTOP_FEATURE_SETTINGS,
   type DesktopFeatureSettings,
 } from '@/utils/desktopFeatureSettings'
@@ -29,9 +34,11 @@ import { createDeferredTaskCache } from '../composables/createDeferredTaskCache'
 export interface AdvancedSettingsDomain {
   advancedSettings: Ref<AdvancedSettings>
   alwaysOnTopLevelLabel: ComputedRef<string>
+  applyConnectionBehaviorSettingsState: (settings: ConnectionBehaviorSettingsPersistedV1) => void
   applyDesktopFeatureSettingsState: (settings: DesktopFeatureSettings) => void
   applyAdvancedSettingChange: () => Promise<void>
   checkShortcutRegistration: (force?: boolean) => Promise<void>
+  connectionBehaviorSettings: Ref<ConnectionBehaviorSettingsPersistedV1>
   desktopFeatureSettings: Ref<DesktopFeatureSettings>
   ensureBaseReady: (force?: boolean) => Promise<void>
   ensureBehaviorReady: (force?: boolean) => Promise<void>
@@ -49,6 +56,7 @@ export interface AdvancedSettingsDomain {
   resetAll: () => Promise<void>
   screenshotSettings: Ref<ScreenshotSettings>
   shortcutRegistered: Ref<boolean>
+  updateConnectionBehaviorSettings: (patch: Partial<ConnectionBehaviorSettingsPersistedV1>) => Promise<void>
   updateDesktopFeatureSetting: (
     key: 'alwaysOnTop' | 'fullPassThrough' | 'dynamicPassThrough' | 'autoDetectFullscreen',
     value: boolean,
@@ -79,6 +87,9 @@ type MessageApi = ReturnType<typeof useMessage>
 
 export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSettingsDomain {
   const advancedSettings = ref<AdvancedSettings>({ ...DEFAULT_ADVANCED_SETTINGS })
+  const connectionBehaviorSettings = ref<ConnectionBehaviorSettingsPersistedV1>(
+    buildDefaultConnectionBehaviorSettings(),
+  )
   const desktopFeatureSettings = ref<DesktopFeatureSettings>({
     ...DEFAULT_DESKTOP_FEATURE_SETTINGS,
   })
@@ -178,6 +189,19 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
     await applyLogLevelSetting(advancedSettings.value.logLevel)
   }
 
+  function applyConnectionBehaviorSettingsState(settings: ConnectionBehaviorSettingsPersistedV1) {
+    connectionBehaviorSettings.value = normalizeConnectionBehaviorSettings(settings)
+  }
+
+  async function loadConnectionBehaviorSettings() {
+    const result = await window.electron.connectionBehaviorSettings.load()
+    if (!result.success) {
+      throw new Error(result.message)
+    }
+
+    applyConnectionBehaviorSettingsState(result.data)
+  }
+
   function applyDesktopFeatureSettingsState(settings: DesktopFeatureSettings) {
     desktopFeatureSettings.value = {
       alwaysOnTop: Boolean(settings.alwaysOnTop),
@@ -229,6 +253,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
   async function ensureBehaviorReady(force = false) {
     await Promise.all([
       ensureBaseReady(force),
+      taskCache.runTask('advanced:connection-behavior', loadConnectionBehaviorSettings, force),
       taskCache.runTask('advanced:desktop', loadDesktopFeatureSettings, force),
       taskCache.runTask('advanced:screenshot', loadScreenshotSettings, force),
       taskCache.runTask('advanced:platform', loadPlatformCapabilities, force),
@@ -301,6 +326,28 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
     }
   }
 
+  async function updateConnectionBehaviorSettings(patch: Partial<ConnectionBehaviorSettingsPersistedV1>) {
+    const previousSettings = { ...connectionBehaviorSettings.value }
+    connectionBehaviorSettings.value = normalizeConnectionBehaviorSettings({
+      ...connectionBehaviorSettings.value,
+      ...patch,
+    })
+
+    try {
+      const result = await window.electron.connectionBehaviorSettings.save({
+        data: connectionBehaviorSettings.value,
+      })
+      if (!result.success) {
+        throw new Error(result.message)
+      }
+
+      applyConnectionBehaviorSettingsState(result.data)
+    } catch (error: any) {
+      connectionBehaviorSettings.value = previousSettings
+      message.error(`保存失败: ${error?.message || String(error)}`)
+    }
+  }
+
   function handleShortcutKeyDown(event: KeyboardEvent) {
     event.preventDefault()
 
@@ -355,6 +402,14 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
     persistAdvancedSettings(advancedSettings.value)
     await applyLogLevelSetting(advancedSettings.value.logLevel)
 
+    const behaviorResult = await window.electron.connectionBehaviorSettings.save({
+      data: buildDefaultConnectionBehaviorSettings(),
+    })
+    if (!behaviorResult.success) {
+      throw new Error(behaviorResult.message)
+    }
+    applyConnectionBehaviorSettingsState(behaviorResult.data)
+
     const desktopSettings = await window.electron.desktopBehavior.updatePreferences(DEFAULT_DESKTOP_FEATURE_SETTINGS)
     applyDesktopFeatureSettingsState(desktopSettings)
 
@@ -368,9 +423,11 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
   return {
     advancedSettings,
     alwaysOnTopLevelLabel,
+    applyConnectionBehaviorSettingsState,
     applyDesktopFeatureSettingsState,
     applyAdvancedSettingChange,
     checkShortcutRegistration,
+    connectionBehaviorSettings,
     desktopFeatureSettings,
     ensureBaseReady,
     ensureBehaviorReady,
@@ -388,6 +445,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
     resetAll,
     screenshotSettings,
     shortcutRegistered,
+    updateConnectionBehaviorSettings,
     updateDesktopFeatureSetting,
     updateScreenshotSettings,
   }

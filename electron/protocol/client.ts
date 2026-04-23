@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import http from 'http'
 import https from 'https'
 import { PROTOCOL_VERSION } from '../../src/shared/metadata'
+import type { BridgeLifecycleErrorCode, BridgeSessionState } from '../../src/shared/bridgeLifecycle'
 import { getUserId } from '../database/schema'
 import { resolveHttpUrl } from '../utils/urlNormalize'
 import type {
@@ -29,21 +30,61 @@ import {
   handleToolCall,
 } from '../ipc/desktop'
 
+export interface BridgeOpenOptions {
+  url: string
+  token: string
+  handshakeTimeoutMs: number
+  onSocketOpen?: () => void
+}
+
+export interface BridgeClientDisconnectInfo {
+  code: number
+  reason: string
+  errorCode: BridgeLifecycleErrorCode | null
+  errorMessage: string | null
+}
+
+export interface BridgeClientError extends Error {
+  code: BridgeLifecycleErrorCode
+}
+
+function createBridgeClientError(code: BridgeLifecycleErrorCode, message: string): BridgeClientError {
+  const error = new Error(message) as BridgeClientError
+  error.name = 'BridgeClientError'
+  error.code = code
+  return error
+}
+
+function createOpenCloseError(info: BridgeClientDisconnectInfo): BridgeClientError {
+  if (info.errorCode && info.errorMessage) {
+    return createBridgeClientError(info.errorCode, info.errorMessage)
+  }
+
+  return createBridgeClientError(
+    'WS_UNEXPECTED_CLOSE',
+    `连接在握手阶段断开: ${info.reason || info.code || 'unknown'}`,
+  )
+}
+
 /**
  * L2D-Bridge WebSocket 客户端
  */
 export class L2DBridgeClient extends EventEmitter {
   private ws: WebSocket | null = null
-  private url: string = ''
-  private token: string = ''
-  private sessionId: string = ''
-  private userId: string = ''
+  private url = ''
+  private token = ''
+  private sessionId = ''
+  private userId = ''
   private heartbeatTimer: NodeJS.Timeout | null = null
-  private reconnectTimer: NodeJS.Timeout | null = null
-  private reconnectAttempts: number = 0
-  private maxReconnectAttempts: number = 10
-  private isConnecting: boolean = false
-  private shouldReconnect: boolean = true
+  private handshakeTimer: NodeJS.Timeout | null = null
+  private ready = false
+  private pendingOpen:
+    | {
+        resolve: () => void
+        reject: (error: BridgeClientError) => void
+      }
+    | null = null
+  private pendingDisconnectError: { code: BridgeLifecycleErrorCode; message: string } | null = null
   private serverConfig: { resourceBaseUrl?: string; resourcePath?: string; maxInlineBytes?: number } = {}
   private pendingRequests: Map<string, {
     resolve: (payload: any) => void
@@ -51,38 +92,41 @@ export class L2DBridgeClient extends EventEmitter {
     timer: NodeJS.Timeout
   }> = new Map()
 
-  constructor() {
-    super()
-  }
-
   /**
-   * 连接到服务器
+   * 建立单次连接并等待握手完成
    */
-  async connect(url: string, token?: string): Promise<void> {
-    if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
-      return
+  async open(options: BridgeOpenOptions): Promise<BridgeSessionState> {
+    if (this.ws) {
+      throw createBridgeClientError('CLIENT_UNAVAILABLE', '连接客户端忙碌中，请稍后重试')
     }
 
-    const normalizedToken = (token || '').trim()
+    const normalizedUrl = (options.url || '').trim()
+    const normalizedToken = (options.token || '').trim()
+
     if (!normalizedToken) {
-      throw new Error('认证密钥不能为空，请在设置中填写后再连接')
+      throw createBridgeClientError('TOKEN_REQUIRED', '认证密钥不能为空，请在设置中填写后再连接')
     }
 
-    this.url = url
+    this.url = normalizedUrl
     this.token = normalizedToken
-    this.isConnecting = true
-    this.shouldReconnect = true
+    this.ready = false
+    this.pendingDisconnectError = null
+    this.resetSessionState()
 
-    return new Promise((resolve, reject) => {
+    return await new Promise<BridgeSessionState>((resolve, reject) => {
       try {
-        this.ws = new WebSocket(url)
+        this.pendingOpen = {
+          resolve: () => resolve(this.getSession()),
+          reject,
+        }
+
+        this.ws = new WebSocket(normalizedUrl)
 
         this.ws.on('open', () => {
           console.log('[L2D] WebSocket 已连接')
-          this.isConnecting = false
-          this.reconnectAttempts = 0
+          options.onSocketOpen?.()
           this.sendHandshake()
-          resolve()
+          this.startHandshakeTimeout(options.handshakeTimeoutMs)
         })
 
         this.ws.on('message', (data: Buffer) => {
@@ -95,51 +139,158 @@ export class L2DBridgeClient extends EventEmitter {
         })
 
         this.ws.on('close', (code, reason) => {
-          console.log(`[L2D] WebSocket 已断开: ${code} - ${reason}`)
-          this.isConnecting = false
-          this.stopHeartbeat()
-          this.emit('disconnected', { code, reason: reason.toString() })
-          // close 在所有断连场景都会触发（含 error 后），仅在此处安排重连
-          if (this.shouldReconnect) {
-            this.scheduleReconnect()
+          const disconnectInfo = this.handleSocketClose(code, reason.toString())
+          if (this.pendingOpen) {
+            this.rejectPendingOpen(createOpenCloseError(disconnectInfo))
+            return
+          }
+
+          if (this.ready || disconnectInfo.errorCode || disconnectInfo.errorMessage) {
+            this.emit('disconnected', disconnectInfo)
           }
         })
 
         this.ws.on('error', (error) => {
           console.error('[L2D] WebSocket 错误:', error)
-          this.isConnecting = false
-          this.emit('error', error)
-          reject(error)
+          if (this.pendingOpen) {
+            this.rejectPendingOpen(
+              createBridgeClientError(
+                'WS_CONNECT_FAILED',
+                error instanceof Error ? error.message : String(error),
+              ),
+            )
+          }
         })
       } catch (error) {
-        this.isConnecting = false
-        reject(error)
+        this.rejectPendingOpen(
+          createBridgeClientError(
+            'WS_CONNECT_FAILED',
+            error instanceof Error ? error.message : String(error),
+          ),
+        )
       }
     })
   }
 
   /**
-   * 断开连接
+   * 主动关闭连接
    */
-  disconnect(): void {
+  close(): void {
+    this.stopHandshakeTimeout()
     this.stopHeartbeat()
-    this.stopReconnect()
-    this.shouldReconnect = false
-
-    for (const [, pending] of this.pendingRequests) {
-      clearTimeout(pending.timer)
-      pending.reject(new Error('连接已断开'))
-    }
-    this.pendingRequests.clear()
 
     if (this.ws) {
-      this.ws.close()
+      const ws = this.ws
       this.ws = null
+
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.terminate()
+      } else {
+        ws.close()
+      }
     }
 
+    if (this.pendingOpen) {
+      this.rejectPendingOpen(createBridgeClientError('CLIENT_UNAVAILABLE', '连接已关闭'))
+    }
+
+    this.clearPendingRequests(new Error('连接已断开'))
+    this.ready = false
+    this.pendingDisconnectError = null
+    this.resetSessionState()
+  }
+
+  private handleSocketClose(code: number, reason: string): BridgeClientDisconnectInfo {
+    console.log(`[L2D] WebSocket 已断开: ${code} - ${reason}`)
+    this.stopHandshakeTimeout()
+    this.stopHeartbeat()
+
+    const wasReady = this.ready
+    const disconnectInfo: BridgeClientDisconnectInfo = {
+      code,
+      reason,
+      errorCode: this.pendingDisconnectError?.code || null,
+      errorMessage: this.pendingDisconnectError?.message || null,
+    }
+
+    this.pendingDisconnectError = null
+    this.clearPendingRequests(new Error('连接已断开'))
+    this.ready = false
+    this.ws = null
+    this.resetSessionState()
+
+    if (!wasReady && !this.pendingOpen) {
+      return disconnectInfo
+    }
+
+    return disconnectInfo
+  }
+
+  private resetSessionState(): void {
     this.sessionId = ''
     this.userId = ''
     this.serverConfig = {}
+  }
+
+  private clearPendingRequests(error: Error): void {
+    for (const [, pending] of this.pendingRequests) {
+      clearTimeout(pending.timer)
+      pending.reject(error)
+    }
+    this.pendingRequests.clear()
+  }
+
+  private startHandshakeTimeout(timeoutMs: number): void {
+    this.stopHandshakeTimeout()
+    this.handshakeTimer = setTimeout(() => {
+      this.rejectPendingOpen(
+        createBridgeClientError('HANDSHAKE_TIMEOUT', '连接已建立但握手未完成，请检查服务端状态与认证配置'),
+      )
+      if (this.ws) {
+        this.ws.close(1008, '握手超时')
+      }
+    }, timeoutMs)
+  }
+
+  private stopHandshakeTimeout(): void {
+    if (this.handshakeTimer) {
+      clearTimeout(this.handshakeTimer)
+      this.handshakeTimer = null
+    }
+  }
+
+  private rejectPendingOpen(error: BridgeClientError): void {
+    if (!this.pendingOpen) {
+      return
+    }
+
+    const pendingOpen = this.pendingOpen
+    this.pendingOpen = null
+    this.stopHandshakeTimeout()
+    pendingOpen.reject(error)
+  }
+
+  private resolvePendingOpen(): void {
+    if (!this.pendingOpen) {
+      return
+    }
+
+    const pendingOpen = this.pendingOpen
+    this.pendingOpen = null
+    this.stopHandshakeTimeout()
+    pendingOpen.resolve()
+  }
+
+  private markProtocolDisconnect(code: BridgeLifecycleErrorCode, message: string): void {
+    this.pendingDisconnectError = { code, message }
+    if (this.ws) {
+      this.ws.close(1008, message)
+    }
+  }
+
+  private rejectOpenWithProtocolError(code: BridgeLifecycleErrorCode, message: string): void {
+    this.rejectPendingOpen(createBridgeClientError(code, message))
+    this.markProtocolDisconnect(code, message)
   }
 
   /**
@@ -159,7 +310,7 @@ export class L2DBridgeClient extends EventEmitter {
       op: OPS.SYS_HANDSHAKE,
       id: uuidv4(),
       ts: Date.now(),
-      payload
+      payload,
     })
   }
 
@@ -172,7 +323,6 @@ export class L2DBridgeClient extends EventEmitter {
       console.log('[L2D] 收到数据包:', packet.op, safePayload)
     }
 
-    // 拦截等待中的请求响应（按 packet.id 匹配）
     const pending = this.pendingRequests.get(packet.id)
     if (pending) {
       this.pendingRequests.delete(packet.id)
@@ -191,7 +341,6 @@ export class L2DBridgeClient extends EventEmitter {
         break
 
       case OPS.SYS_PONG:
-        // 心跳响应，静默处理
         break
 
       case OPS.PERFORM_SHOW:
@@ -207,18 +356,7 @@ export class L2DBridgeClient extends EventEmitter {
         break
 
       case OPS.SYS_ERROR:
-        if (
-          packet.error?.code === ERROR_CODE.AUTH_FAILED
-          || packet.error?.code === ERROR_CODE.VERSION_MISMATCH
-        ) {
-          this.shouldReconnect = false
-          console.error('[L2D] 握手失败（认证或版本不匹配），已停止自动重连')
-
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.close(1008, packet.error?.message || '握手失败')
-          }
-        }
-        this.emit('error', packet.error)
+        this.handleSystemErrorPacket(packet)
         break
 
       case OPS.DESKTOP_WINDOW_LIST:
@@ -238,7 +376,6 @@ export class L2DBridgeClient extends EventEmitter {
         break
 
       case OPS.STATE_READY:
-        // 服务器就绪通知，静默处理
         break
 
       default:
@@ -246,11 +383,35 @@ export class L2DBridgeClient extends EventEmitter {
     }
   }
 
+  private handleSystemErrorPacket(packet: BasePacket): void {
+    const errorCode = packet.error?.code
+    const errorMessage = packet.error?.message || '服务端返回协议错误'
+
+    if (errorCode === ERROR_CODE.AUTH_FAILED) {
+      if (this.pendingOpen) {
+        this.rejectOpenWithProtocolError('AUTH_FAILED', errorMessage)
+      } else {
+        this.markProtocolDisconnect('AUTH_FAILED', errorMessage)
+      }
+      return
+    }
+
+    if (errorCode === ERROR_CODE.VERSION_MISMATCH) {
+      if (this.pendingOpen) {
+        this.rejectOpenWithProtocolError('VERSION_MISMATCH', errorMessage)
+      } else {
+        this.markProtocolDisconnect('VERSION_MISMATCH', errorMessage)
+      }
+      return
+    }
+
+    console.error('[L2D] 收到系统错误:', packet.error)
+  }
+
   /**
    * 处理握手确认
    */
   private handleHandshakeAck(payload: HandshakeAckPayload): void {
-    // 服务器返回的 sessionId 和 userId 在 session 对象中
     const session = (payload as any).session
     this.sessionId = session?.sessionId || payload.sessionId || ''
     this.userId = session?.userId || payload.userId || ''
@@ -258,7 +419,7 @@ export class L2DBridgeClient extends EventEmitter {
     console.log('[L2D] 握手成功:', {
       sessionId: this.sessionId,
       userId: this.userId,
-      capabilities: payload.capabilities
+      capabilities: payload.capabilities,
     })
 
     this.serverConfig = {
@@ -266,17 +427,10 @@ export class L2DBridgeClient extends EventEmitter {
       resourcePath: payload.config?.resourcePath,
       maxInlineBytes: payload.config?.maxInlineBytes,
     }
-    this.shouldReconnect = true
 
+    this.ready = true
     this.startHeartbeat()
-
-    // 发送连接成功事件（包含完整的 payload）
-    this.emit('connected', {
-      sessionId: this.sessionId,
-      userId: this.userId,
-      capabilities: payload.capabilities,
-      config: payload.config
-    })
+    this.resolvePendingOpen()
   }
 
   /**
@@ -289,9 +443,9 @@ export class L2DBridgeClient extends EventEmitter {
       this.send({
         op: OPS.SYS_PING,
         id: uuidv4(),
-        ts: Date.now()
+        ts: Date.now(),
       })
-    }, 30000) // 30秒
+    }, 30000)
   }
 
   /**
@@ -301,46 +455,6 @@ export class L2DBridgeClient extends EventEmitter {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer)
       this.heartbeatTimer = null
-    }
-  }
-
-  /**
-   * 安排重连
-   */
-  private scheduleReconnect(): void {
-    if (!this.shouldReconnect) {
-      return
-    }
-
-    if (this.reconnectTimer) {
-      return // 已安排重连，去重
-    }
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[L2D] 达到最大重连次数，停止重连')
-      return
-    }
-
-    this.stopReconnect()
-
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000)
-    console.log(`[L2D] ${delay}ms 后尝试重连 (${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`)
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++
-      this.connect(this.url, this.token).catch((error) => {
-        console.error('[L2D] 重连失败:', error)
-      })
-    }, delay)
-  }
-
-  /**
-   * 停止重连
-   */
-  private stopReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
     }
   }
 
@@ -356,7 +470,7 @@ export class L2DBridgeClient extends EventEmitter {
       payload: {
         ...payload,
         content: preparedContent,
-      }
+      },
     })
 
     return preparedContent
@@ -370,7 +484,7 @@ export class L2DBridgeClient extends EventEmitter {
       op: OPS.INPUT_TOUCH,
       id: uuidv4(),
       ts: Date.now(),
-      payload: { x, y, action }
+      payload: { x, y, action },
     })
   }
 
@@ -382,7 +496,7 @@ export class L2DBridgeClient extends EventEmitter {
       op,
       id: uuidv4(),
       ts: Date.now(),
-      payload
+      payload,
     })
   }
 
@@ -394,7 +508,7 @@ export class L2DBridgeClient extends EventEmitter {
       op: OPS.STT_TRANSCRIBE,
       id: uuidv4(),
       ts: Date.now(),
-      payload
+      payload,
     })
   }
 
@@ -475,32 +589,19 @@ export class L2DBridgeClient extends EventEmitter {
   /**
    * 获取连接状态
    */
-  isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN && !!this.sessionId
+  isReady(): boolean {
+    return this.ready && this.ws?.readyState === WebSocket.OPEN && !!this.sessionId
   }
 
   /**
    * 获取会话信息
    */
-  getSession(): {
-    sessionId: string
-    userId: string
-    config: { resourceBaseUrl?: string; resourcePath?: string; maxInlineBytes?: number }
-  } {
+  getSession(): BridgeSessionState {
     return {
       sessionId: this.sessionId,
       userId: this.userId,
-      config: { ...this.serverConfig }
+      config: { ...this.serverConfig },
     }
-  }
-
-  getConnectionInfo(): { url: string; token: string } {
-    return { url: this.url, token: this.token }
-  }
-
-  resetReconnect(): void {
-    this.reconnectAttempts = 0
-    this.stopReconnect()
   }
 
   /**
@@ -632,7 +733,7 @@ export class L2DBridgeClient extends EventEmitter {
   }
 
   private resolveHttpResourceUrl(rawUrl: string): string {
-    return resolveHttpUrl(rawUrl, this.getConnectionInfo().url)
+    return resolveHttpUrl(rawUrl, this.url)
   }
 
   /**

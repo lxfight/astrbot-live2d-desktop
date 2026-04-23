@@ -48,20 +48,20 @@ function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]
 contextBridge.exposeInMainWorld('electron', {
   // 连接管理
   bridge: {
-    connect: (url: string, token?: string) => ipcRenderer.invoke('bridge:connect', url, token),
-    disconnect: () => ipcRenderer.invoke('bridge:disconnect'),
-    isConnected: () => ipcRenderer.invoke('bridge:isConnected'),
     getSession: () => ipcRenderer.invoke('bridge:getSession'),
     sendMessage: (payload: any) => ipcRenderer.invoke('bridge:sendMessage', payload),
     sendTouch: (x: number, y: number, action: string) => ipcRenderer.invoke('bridge:sendTouch', x, y, action),
     sendState: (op: string, payload: any) => ipcRenderer.invoke('bridge:sendState', op, payload),
 
-    // 事件监听（单订阅模式，避免重复注册堆积）
-    onConnected: (callback: (payload: any) => void) => subscribeIpc('bridge:connected', callback),
-    onDisconnected: (callback: (info: any) => void) => subscribeIpc('bridge:disconnected', callback),
-    onError: (callback: (error: any) => void) => subscribeIpc('bridge:error', callback),
     onPerformShow: (callback: (payload: any) => void) => subscribeIpc('perform:show', callback),
     onPerformInterrupt: (callback: () => void) => subscribeIpc('perform:interrupt', callback)
+  },
+
+  bridgeLifecycle: {
+    getSnapshot: () => ipcRenderer.invoke('bridgeLifecycle:getSnapshot'),
+    connect: () => ipcRenderer.invoke('bridgeLifecycle:connect'),
+    disconnect: () => ipcRenderer.invoke('bridgeLifecycle:disconnect'),
+    onStateChanged: (callback: (snapshot: any) => void) => subscribeIpc('bridgeLifecycle:stateChanged', callback),
   },
 
   // 窗口管理
@@ -131,6 +131,13 @@ contextBridge.exposeInMainWorld('electron', {
     save: (payload: any) => ipcRenderer.invoke('connectionSettings:save', payload),
     migrateLegacy: (rawLegacyJson: string) => ipcRenderer.invoke('connectionSettings:migrateLegacy', rawLegacyJson),
     onChanged: (callback: (event: any) => void) => subscribeIpc('connectionSettings:changed', callback),
+  },
+
+  connectionBehaviorSettings: {
+    load: () => ipcRenderer.invoke('connectionBehaviorSettings:load'),
+    save: (payload: any) => ipcRenderer.invoke('connectionBehaviorSettings:save', payload),
+    migrateLegacy: (rawLegacyJson: string) => ipcRenderer.invoke('connectionBehaviorSettings:migrateLegacy', rawLegacyJson),
+    onChanged: (callback: (event: any) => void) => subscribeIpc('connectionBehaviorSettings:changed', callback),
   },
 
   // 历史记录

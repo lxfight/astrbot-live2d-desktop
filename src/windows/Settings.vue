@@ -141,6 +141,7 @@ const navigationReady = ref(false)
 const settingsWindowDisposers: Unsubscribe[] = []
 
 onMounted(async () => {
+  await connectionStore.ensureInitialized()
   modelStore.startStorageSync()
 
   if (window.electron.settings?.onNavigateTo) {
@@ -172,22 +173,18 @@ onMounted(async () => {
   }))
 
   settingsWindowDisposers.push(window.electron.connectionSettings.onChanged(async () => {
-    if (connectionDomain.hasUnsavedConnectionSettings.value) {
-      message.warning('检测到其他窗口更新了连接配置，请先保存或放弃当前修改后再同步')
-      return
-    }
-
-    await connectionStore.reloadPersistedSettings()
+    await connectionDomain.handleExternalSettingsChanged()
     await historyDomain.syncResourceConfig(true)
   }))
 
-  settingsWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
-    connectionStore.handleConnected(payload)
-    void historyDomain.syncResourceConfig(true)
+  settingsWindowDisposers.push(window.electron.connectionBehaviorSettings.onChanged((event) => {
+    if (!event?.settings) {
+      return
+    }
+    advancedDomain.applyConnectionBehaviorSettingsState(event.settings)
   }))
 
-  settingsWindowDisposers.push(window.electron.bridge.onDisconnected(() => {
-    connectionStore.handleDisconnected()
+  settingsWindowDisposers.push(window.electron.bridgeLifecycle.onStateChanged(() => {
     void historyDomain.syncResourceConfig(true)
   }))
 

@@ -312,7 +312,7 @@ ipcMain.handle('window:getPlatformCapabilities', async () => {
  */
 import { getWindowWatcher } from '../utils/windowWatcher'
 import type { WindowEvent } from '../utils/windowWatcher'
-import { bridgeClient } from '../main'
+import { getBridgeConnectionController } from '../main'
 import { getUserName } from '../database/schema'
 
 // 存储已注册的渲染进程
@@ -375,10 +375,12 @@ ipcMain.handle('window:startWatching', async (event) => {
   if (!appLaunchListenerRegistered) {
     appLaunchListenerRegistered = true
     removeAppLaunchListener = watcher.onAppLaunch((appName: string) => {
-      if (!bridgeClient?.isConnected()) return
-      const session = bridgeClient.getSession()
+      const controller = getBridgeConnectionController()
+      if (!controller?.isConnected()) return
+      const session = controller.getSession()
+      if (!session) return
       const userName = getUserName()?.trim() || 'Desktop User'
-      bridgeClient.sendMessage({
+      void controller.sendMessage({
         content: [
           {
             type: 'text',
@@ -391,6 +393,8 @@ ipcMain.handle('window:startWatching', async (event) => {
           sessionId: session.sessionId,
           messageType: 'notify',
         },
+      }).catch((error) => {
+        console.error('[窗口监听] 发送应用启动通知失败:', error)
       })
     })
   }

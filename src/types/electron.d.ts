@@ -16,6 +16,19 @@ import type {
   DesktopRevealReason as _DesktopRevealReason,
 } from '../../electron/desktopBehavior/types'
 import type {
+  BridgeLifecycleCommandResult as _BridgeLifecycleCommandResult,
+  BridgeLifecycleSnapshot as _BridgeLifecycleSnapshot,
+  BridgeSessionState as _BridgeSessionState,
+} from '../shared/bridgeLifecycle'
+import type {
+  ConnectionBehaviorSettingsChangedEvent as _ConnectionBehaviorSettingsChangedEvent,
+  ConnectionBehaviorSettingsLoadResult as _ConnectionBehaviorSettingsLoadResult,
+  ConnectionBehaviorSettingsMigrateLegacyResult as _ConnectionBehaviorSettingsMigrateLegacyResult,
+  ConnectionBehaviorSettingsSavePayload as _ConnectionBehaviorSettingsSavePayload,
+  ConnectionBehaviorSettingsSaveResult as _ConnectionBehaviorSettingsSaveResult,
+  ConnectionBehaviorSettingsPersistedV1 as _ConnectionBehaviorSettingsPersistedV1,
+} from '../shared/connectionBehaviorSettings'
+import type {
   ConnectionSettingsChangedEvent as _ConnectionSettingsChangedEvent,
   ConnectionSettingsLoadResult as _ConnectionSettingsLoadResult,
   ConnectionSettingsMigrateLegacyResult as _ConnectionSettingsMigrateLegacyResult,
@@ -43,6 +56,15 @@ declare global {
   type DesktopBehaviorRuntimeState = _DesktopBehaviorRuntimeState
   type DesktopBehaviorSnapshot = _DesktopBehaviorSnapshot
   type DesktopRevealReason = _DesktopRevealReason
+  type BridgeLifecycleCommandResult = _BridgeLifecycleCommandResult
+  type BridgeLifecycleSnapshot = _BridgeLifecycleSnapshot
+  type BridgeSessionState = _BridgeSessionState
+  type ConnectionBehaviorSettingsChangedEvent = _ConnectionBehaviorSettingsChangedEvent
+  type ConnectionBehaviorSettingsLoadResult = _ConnectionBehaviorSettingsLoadResult
+  type ConnectionBehaviorSettingsSavePayload = _ConnectionBehaviorSettingsSavePayload
+  type ConnectionBehaviorSettingsSaveResult = _ConnectionBehaviorSettingsSaveResult
+  type ConnectionBehaviorSettingsMigrateLegacyResult = _ConnectionBehaviorSettingsMigrateLegacyResult
+  type ConnectionBehaviorSettingsPersistedV1 = _ConnectionBehaviorSettingsPersistedV1
   type ConnectionSettingsChangedEvent = _ConnectionSettingsChangedEvent
   type ConnectionSettingsLoadResult = _ConnectionSettingsLoadResult
   type ConnectionSettingsSavePayload = _ConnectionSettingsSavePayload
@@ -52,15 +74,6 @@ declare global {
   type HistoryMessageRecord = _HistoryMessageRecord
   type HistoryGetMessagesResult = _HistoryGetMessagesResult
   type HistorySaveMessageResult = _HistorySaveMessageResult
-  interface BridgeSessionState {
-    sessionId: string
-    userId: string
-    config: {
-      resourceBaseUrl?: string
-      resourcePath?: string
-      maxInlineBytes?: number
-    }
-  }
 
   interface UpdateState {
     status: 'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
@@ -92,18 +105,18 @@ declare global {
   interface Window {
     electron: {
       bridge: {
-        connect: (url: string, token?: string) => Promise<{ success: boolean; error?: string }>
-        disconnect: () => Promise<{ success: boolean; error?: string }>
-        isConnected: () => Promise<boolean>
         getSession: () => Promise<BridgeSessionState | null>
         sendMessage: (payload: any) => Promise<{ success: boolean; error?: string; content?: any[] }>
         sendTouch: (x: number, y: number, action: string) => Promise<{ success: boolean; error?: string }>
         sendState: (op: string, payload: any) => Promise<{ success: boolean; error?: string }>
-        onConnected: (callback: (payload: any) => void) => Unsubscribe
-        onDisconnected: (callback: (info: any) => void) => Unsubscribe
-        onError: (callback: (error: any) => void) => Unsubscribe
         onPerformShow: (callback: (payload: any) => void) => Unsubscribe
         onPerformInterrupt: (callback: () => void) => Unsubscribe
+      }
+      bridgeLifecycle: {
+        getSnapshot: () => Promise<BridgeLifecycleSnapshot>
+        connect: () => Promise<BridgeLifecycleCommandResult>
+        disconnect: () => Promise<BridgeLifecycleCommandResult>
+        onStateChanged: (callback: (snapshot: BridgeLifecycleSnapshot) => void) => Unsubscribe
       }
       window: {
         openSettings: (page?: string) => Promise<{ success: boolean }>
@@ -162,6 +175,12 @@ declare global {
         save: (payload: ConnectionSettingsSavePayload) => Promise<ConnectionSettingsSaveResult>
         migrateLegacy: (rawLegacyJson: string) => Promise<ConnectionSettingsMigrateLegacyResult>
         onChanged: (callback: (event: ConnectionSettingsChangedEvent) => void) => Unsubscribe
+      }
+      connectionBehaviorSettings: {
+        load: () => Promise<ConnectionBehaviorSettingsLoadResult>
+        save: (payload: ConnectionBehaviorSettingsSavePayload) => Promise<ConnectionBehaviorSettingsSaveResult>
+        migrateLegacy: (rawLegacyJson: string) => Promise<ConnectionBehaviorSettingsMigrateLegacyResult>
+        onChanged: (callback: (event: ConnectionBehaviorSettingsChangedEvent) => void) => Unsubscribe
       }
       history: {
         getMessages: (options: HistoryMessageQueryOptions) => Promise<HistoryGetMessagesResult>

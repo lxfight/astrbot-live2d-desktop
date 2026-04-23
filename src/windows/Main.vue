@@ -240,6 +240,13 @@ const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { sourceRgb } = storeToRefs(themeStore)
+const {
+  desiredState,
+  lastError,
+  lifecycleStatus,
+  nextRetryAt,
+  reconnectAttempt,
+} = storeToRefs(connectionStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas> | null>(null)
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -849,6 +856,49 @@ function handleStorageChange(event: StorageEvent) {
   }
 }
 
+function formatRetryHint(): string {
+  if (!nextRetryAt.value) {
+    return '连接已断开，等待自动重试'
+  }
+
+  const seconds = Math.max(1, Math.ceil((nextRetryAt.value - Date.now()) / 1000))
+  return `连接已断开，${seconds} 秒后自动重试（第 ${reconnectAttempt.value} 次）`
+}
+
+watch(lifecycleStatus, (status, previousStatus) => {
+  if (status === 'connected' && previousStatus !== 'connected') {
+    showBaseEventStatus('已连接到服务器', 'success')
+    return
+  }
+
+  if (status === 'waiting_retry') {
+    showBaseEventStatus(formatRetryHint(), 'warning', 3600)
+    return
+  }
+
+  if (status === 'suspended') {
+    showBaseEventStatus('系统挂起，连接已暂停', 'info', 3600)
+    return
+  }
+
+  if (
+    status === 'idle'
+    && previousStatus
+    && previousStatus !== 'idle'
+    && desiredState.value === 'disconnected'
+  ) {
+    showBaseEventStatus('已断开连接', 'warning')
+  }
+})
+
+watch(lastError, (error, previousError) => {
+  if (!error || error.at === previousError?.at) {
+    return
+  }
+
+  showModelStatus(`连接错误: ${error.message}`, 'error', 4200)
+})
+
 function handleAudioStart(audioElement: HTMLAudioElement) {
   console.log('[主窗口] 音频开始播放，启动口型同步')
   if (!advancedSettings.value.lipSyncEnabled) {
@@ -865,6 +915,8 @@ function handleAudioEnd() {
 
 // 监听表演指令
 onMounted(async () => {
+  await connectionStore.ensureInitialized()
+
   // 获取用户名称
   try {
     const name = await window.electron.user.getUserName()
@@ -877,7 +929,6 @@ onMounted(async () => {
 
   // 监听全局快捷键录音
   initializeAdvancedSettingsForSession()
-  connectionStore.startStorageSync()
   modelStore.startStorageSync()
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('resize', updateUIPositions)
@@ -1074,39 +1125,6 @@ onMounted(async () => {
     interruptPerformance()
   }))
 
-  mainWindowDisposers.push(window.electron.bridge.onConnected((payload: BridgeSessionState) => {
-    showBaseEventStatus('已连接到服务器', 'success')
-    console.log('连接信息:', payload)
-
-    connectionStore.handleConnected(payload)
-  }))
-
-  mainWindowDisposers.push(window.electron.bridge.onDisconnected((info: unknown) => {
-    showBaseEventStatus('已断开连接', 'warning')
-    console.log('断开信息:', info)
-
-    connectionStore.handleDisconnected()
-  }))
-
-  mainWindowDisposers.push(window.electron.bridge.onError((error: { message?: string } | string) => {
-    const errorMessage = typeof error === 'string' ? error : (error.message || '未知错误')
-    showModelStatus(`连接错误: ${errorMessage}`, 'error')
-  }))
-
-  // 检查初始连接状态
-  await connectionStore.checkConnection()
-
-  // 自动连接功能
-  if (advancedSettings.value.autoConnect && !connectionStore.isConnected) {
-    console.log('[Main] Auto connect on startup')
-    const result = await connectionStore.connect()
-    if (result.success) {
-      console.log('[Main] Auto connect success')
-    } else {
-      console.warn('[Main] Auto connect failed:', result.error)
-    }
-  }
-
   const lastModelPath = modelStore.getLastModel()
   if (advancedSettings.value.autoLoadLastModel && lastModelPath) {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
@@ -1147,7 +1165,7 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('resize', updateUIPositions)
-  connectionStore.stopStorageSync()
+  connectionStore.stopSync()
   modelStore.stopStorageSync()
   cleanupBubbleStack()
   releaseAllAudioWaiters()

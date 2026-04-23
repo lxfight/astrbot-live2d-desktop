@@ -3,7 +3,7 @@ import { APP_METADATA } from '../src/shared/metadata'
 import { createMainWindow } from './windows/mainWindow'
 import { createWelcomeWindow } from './windows/welcomeWindow'
 import { initDatabase, closeDatabase, getUserName } from './database/schema'
-import { L2DBridgeClient } from './protocol/client'
+import { BridgeConnectionController } from './bridge/BridgeConnectionController'
 import { createTray, destroyTray } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
 import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
@@ -24,6 +24,8 @@ import './ipc/user'
 import './ipc/log'
 import './ipc/update'
 import './ipc/connectionSettings'
+import './ipc/connectionBehaviorSettings'
+import './ipc/bridgeLifecycle'
 
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
@@ -39,8 +41,8 @@ if (process.platform === 'win32') {
 
 const appDataContext = configureElectronDataPath()
 
-// 全局 WebSocket 客户端实例
-export let bridgeClient: L2DBridgeClient | null = null
+// 全局连接控制器实例
+export let bridgeConnectionController: BridgeConnectionController | null = null
 
 initializeMainLogger()
 installMainProcessErrorHandlers()
@@ -57,7 +59,9 @@ function pauseBackgroundActivities(reason: string): void {
 
   console.log(`[主进程] 暂停后台活动: ${reason}`)
   getDesktopBehaviorCoordinator().setBackgroundPaused(true)
-  if (bridgeClient) bridgeClient.disconnect()
+  if (bridgeConnectionController) {
+    void bridgeConnectionController.handleSystemSuspend(reason === 'lock-screen' ? 'lock-screen' : 'suspend')
+  }
 }
 
 function resumeBackgroundActivities(reason: string): void {
@@ -66,15 +70,36 @@ function resumeBackgroundActivities(reason: string): void {
 
   console.log(`[主进程] 恢复后台活动: ${reason}`)
   getDesktopBehaviorCoordinator().setBackgroundPaused(false)
-  if (bridgeClient) {
-    const { url, token } = bridgeClient.getConnectionInfo()
-    if (url) {
-      bridgeClient.resetReconnect()
-      bridgeClient.connect(url, token).catch((err) => {
-        console.error('[主进程] 恢复后重连失败:', err)
-      })
-    }
+  if (bridgeConnectionController) {
+    void bridgeConnectionController.handleSystemResume().catch((err) => {
+      console.error('[主进程] 恢复后重连失败:', err)
+    })
   }
+}
+
+function broadcastToAllWindows(channel: string, payload?: unknown): void {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, payload)
+    }
+  })
+}
+
+export function initBridgeConnectionController() {
+  bridgeConnectionController = new BridgeConnectionController()
+
+  bridgeConnectionController.on('stateChanged', (snapshot) => {
+    broadcastToAllWindows('bridgeLifecycle:stateChanged', snapshot)
+  })
+
+  bridgeConnectionController.on('perform:show', (payload) => {
+    broadcastToAllWindows('perform:show', payload)
+  })
+
+  bridgeConnectionController.on('perform:interrupt', () => {
+    console.log('[主进程] 收到中断指令')
+    broadcastToAllWindows('perform:interrupt')
+  })
 }
 
 /**
@@ -115,6 +140,13 @@ async function initialize() {
   // 数据库可用后再初始化更新器，避免启动竞态访问 user_config
   initializeAutoUpdater()
 
+  initBridgeConnectionController()
+  const controller = bridgeConnectionController
+  if (!controller) {
+    throw new Error('连接控制器初始化失败')
+  }
+  await controller.initialize()
+
   // 检查 Cubism Core 是否存在
   if (!checkCubismCoreExists()) {
     console.log('[主进程] Live2D SDK 不存在，提示用户下载')
@@ -143,52 +175,7 @@ async function initialize() {
     // 非首次启动，直接创建主窗口
     createMainWindow()
     createTray()
-    initBridgeClient()
   }
-}
-
-/**
- * 初始化 Bridge 客户端
- */
-export function initBridgeClient() {
-  // 创建 WebSocket 客户端
-  bridgeClient = new L2DBridgeClient()
-
-  // 监听连接事件
-  bridgeClient.on('connected', (payload) => {
-    console.log('[主进程] 已连接到服务器:', payload)
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('bridge:connected', payload)
-    })
-    // 应用启动检测已整合到 WindowWatcherManager，由 IPC 层管理
-  })
-
-  bridgeClient.on('disconnected', (info) => {
-    console.log('[主进程] 已断开连接:', info)
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('bridge:disconnected', info)
-    })
-  })
-
-  bridgeClient.on('error', (error) => {
-    console.error('[主进程] 连接错误:', error)
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('bridge:error', error)
-    })
-  })
-
-  bridgeClient.on('perform:show', (payload) => {
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('perform:show', payload)
-    })
-  })
-
-  bridgeClient.on('perform:interrupt', () => {
-    console.log('[主进程] 收到中断指令')
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('perform:interrupt')
-    })
-  })
 }
 
 /**
@@ -246,11 +233,11 @@ app.on('window-all-closed', () => {
  */
 app.on('before-quit', () => {
   try {
-    if (bridgeClient) {
-      bridgeClient.disconnect()
+    if (bridgeConnectionController) {
+      bridgeConnectionController.dispose()
     }
   } catch (err) {
-    console.error('[主进程] 断开 Bridge 连接失败:', err)
+    console.error('[主进程] 关闭连接控制器失败:', err)
   }
   cleanupShortcuts()
   destroyTray()
@@ -264,8 +251,8 @@ app.on('before-quit', () => {
 })
 
 /**
- * 导出全局客户端实例
+ * 导出全局连接控制器实例
  */
-export function getBridgeClient(): L2DBridgeClient | null {
-  return bridgeClient
+export function getBridgeConnectionController(): BridgeConnectionController | null {
+  return bridgeConnectionController
 }
