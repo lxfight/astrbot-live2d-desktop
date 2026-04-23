@@ -2,7 +2,7 @@
   <teleport to="body">
     <transition name="fade">
       <div v-if="visible && src" class="history-media-viewer-overlay" @click="closeViewer">
-        <button class="close-btn" @click="closeViewer">
+        <button class="close-btn" type="button" @click.stop="closeViewer">
           <X :size="24" />
         </button>
         <div class="media-container" @click.stop>

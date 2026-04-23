@@ -27,7 +27,7 @@ describe('historyContent', () => {
 
     expect(items).toEqual([
       { type: 'text', text: 'hello' },
-      { type: 'image', src: 'data:image/png;base64,abcd', alt: 'History message image' },
+      { type: 'image', src: 'data:image/png;base64,abcd', alt: '历史消息图片' },
     ])
   })
 
@@ -74,7 +74,7 @@ describe('historyContent', () => {
       {
         type: 'image',
         src: 'http://127.0.0.1:8090/custom-media/img_002',
-        alt: 'History message image',
+        alt: '历史消息图片',
       },
       {
         type: 'audio',
