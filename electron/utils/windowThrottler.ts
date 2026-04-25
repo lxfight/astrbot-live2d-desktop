@@ -49,7 +49,7 @@ export class WindowThrottler {
     }
     
     // 2. 检查是否在忽略列表中
-    if (this.shouldIgnore(event)) {
+    if (this.shouldIgnoreEvent(event)) {
       return { shouldTrigger: false, reason: '在忽略列表中' }
     }
     
@@ -96,7 +96,7 @@ export class WindowThrottler {
   /**
    * 检查是否应该忽略
    */
-  private shouldIgnore(event: WindowEvent): boolean {
+  shouldIgnoreEvent(event: WindowEvent): boolean {
     const { processName, title } = event.window
     
     // 检查进程名（使用合并后的规则）

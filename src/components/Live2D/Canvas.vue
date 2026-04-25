@@ -547,14 +547,6 @@ defineExpose({
   getModelOverlayBounds,
   getTextureSource: () => model?.getTextureSource(),
   getTextureSources: () => model?.getTextureSources() || [],
-  startLipSync: (audioElement: HTMLAudioElement) => {
-    if (model) {
-      model.startLipSync(audioElement)
-    }
-  },
-  stopLipSync: () => {
-    model?.stopLipSync()
-  }
 })
 </script>
 

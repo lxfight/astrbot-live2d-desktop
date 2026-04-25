@@ -20,7 +20,6 @@ export interface AdvancedSettings {
   recordingShortcut: string
   autoLoadLastModel: boolean
   themeFollowModel: boolean
-  lipSyncEnabled: boolean
   silenceDetectionEnabled: boolean
   showBaseEventNotifications: boolean
   maxRecordingSeconds: number
@@ -35,7 +34,6 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
   autoLoadLastModel: true,
   themeFollowModel: true,
-  lipSyncEnabled: true,
   silenceDetectionEnabled: false,
   showBaseEventNotifications: true,
   maxRecordingSeconds: 30,
@@ -77,9 +75,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
     themeFollowModel: typeof raw.themeFollowModel === 'boolean'
       ? raw.themeFollowModel
       : DEFAULT_ADVANCED_SETTINGS.themeFollowModel,
-    lipSyncEnabled: typeof raw.lipSyncEnabled === 'boolean'
-      ? raw.lipSyncEnabled
-      : DEFAULT_ADVANCED_SETTINGS.lipSyncEnabled,
     silenceDetectionEnabled: typeof raw.silenceDetectionEnabled === 'boolean'
       ? raw.silenceDetectionEnabled
       : DEFAULT_ADVANCED_SETTINGS.silenceDetectionEnabled,

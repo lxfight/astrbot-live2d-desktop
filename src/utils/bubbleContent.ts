@@ -86,6 +86,7 @@ export function splitPerformSequenceForBubble(
     if (!hasBubblePosition && (
       type === 'text' ||
       type === 'image' ||
+      type === 'audio' ||
       (type === 'tts' && normalizeBubbleText(ttsText))
     )) {
       const nextPosition = typeof element.position === 'string' ? element.position.trim() : ''
@@ -104,6 +105,15 @@ export function splitPerformSequenceForBubble(
       if (normalizeBubbleText(ttsText)) {
         appendBubbleTextItem(bubbleItems, ttsText)
       }
+      remainingSequence.push(element)
+      continue
+    }
+
+    if (type === 'audio') {
+      const audioText = typeof element.text === 'string' && normalizeBubbleText(element.text)
+        ? element.text
+        : '[语音消息]'
+      appendBubbleTextItem(bubbleItems, audioText)
       remainingSequence.push(element)
       continue
     }

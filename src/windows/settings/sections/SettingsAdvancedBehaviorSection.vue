@@ -80,12 +80,6 @@
       <n-form-item label="启动时自动加载上次模型">
         <n-switch v-model:value="advancedSettings.autoLoadLastModel" @update:value="applyAdvancedSettingChange" />
       </n-form-item>
-      <n-form-item label="音频播放时启用口型同步">
-        <n-switch v-model:value="advancedSettings.lipSyncEnabled" @update:value="applyAdvancedSettingChange" />
-        <template #feedback>
-          关闭后仍会播放音频，但不会再驱动模型口型变化。
-        </template>
-      </n-form-item>
       <n-form-item label="录音时启用静音检测">
         <n-switch v-model:value="advancedSettings.silenceDetectionEnabled" @update:value="applyAdvancedSettingChange" />
         <template #feedback>
