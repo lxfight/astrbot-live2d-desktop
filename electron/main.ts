@@ -30,6 +30,7 @@ import './ipc/bridgeLifecycle'
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 app.commandLine.appendSwitch('disable-gpu-program-cache')
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
 // Windows 任务栏图标/分组需要 AppUserModelID 才能稳定生效
 if (process.platform === 'win32') {

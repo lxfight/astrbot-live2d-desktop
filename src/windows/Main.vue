@@ -37,7 +37,6 @@
     <!-- 媒体播放器 -->
     <MediaPlayer
       ref="mediaPlayerRef"
-      @audio-start="handleAudioStart"
       @audio-end="handleAudioEnd"
     />
 
@@ -487,6 +486,8 @@ const {
   resolveModelOverlayAnchor,
   updateStackPositions,
   pushBubble,
+  holdBubble,
+  releaseBubble,
   clearAllBubbles,
   cleanup: cleanupBubbleStack,
   checkFollowUp,
@@ -644,10 +645,11 @@ async function extractAndApplyModelTheme(modelPath: string) {
 
 // Create performance queue
 const performQueue = new PerformanceQueue()
+let latestBubbleEntryId: string | null = null
 
 // Register performance queue callbacks
 performQueue.onText((content, position, _duration) => {
-  pushBubble([{ type: 'text', text: content }], position, false)
+  latestBubbleEntryId = pushBubble([{ type: 'text', text: content }], position, false)
 })
 
 performQueue.onMotion((group, index, priority) => {
@@ -662,9 +664,18 @@ performQueue.onAudio((source, volume) => {
   const mediaPlayer = mediaPlayerRef.value
   if (!mediaPlayer) return
 
+  const audioBubbleEntryId = latestBubbleEntryId
+  if (audioBubbleEntryId) {
+    holdBubble(audioBubbleEntryId)
+  }
+
   const audioEndPromise = waitForNextAudioEnd()
   void mediaPlayer.playAudio(source, volume)
-  return audioEndPromise
+  return audioEndPromise.finally(() => {
+    if (audioBubbleEntryId) {
+      releaseBubble(audioBubbleEntryId)
+    }
+  })
 })
 
 performQueue.onImage((url, _duration) => {
@@ -680,7 +691,7 @@ performQueue.onImage((url, _duration) => {
     return
   }
 
-  pushBubble([{ type: 'image', src: resolvedSrc, alt: 'AstrBot message image' }], 'center', false)
+  latestBubbleEntryId = pushBubble([{ type: 'image', src: resolvedSrc, alt: 'AstrBot message image' }], 'center', false)
 })
 
 performQueue.onVideo((url) => {
@@ -714,6 +725,7 @@ async function loadModelWithState(modelPath: string) {
 
 function interruptPerformance() {
   performQueue.interrupt()
+  latestBubbleEntryId = null
 
   clearAllBubbles()
 
@@ -976,17 +988,8 @@ watch(lastError, (error, previousError) => {
   showModelStatus(`连接错误: ${error.message}`, 'error', 4200)
 })
 
-function handleAudioStart(audioElement: HTMLAudioElement) {
-  console.log('[主窗口] 音频开始播放，启动口型同步')
-  if (!advancedSettings.value.lipSyncEnabled) {
-    return
-  }
-  live2dCanvasRef.value?.startLipSync(audioElement)
-}
-
 function handleAudioEnd() {
   console.log('[主窗口] 音频播放结束')
-  live2dCanvasRef.value?.stopLipSync()
   resolveNextAudioWaiter()
 }
 
@@ -1086,7 +1089,7 @@ onMounted(async () => {
       )
 
       if (bubbleItems.length > 0) {
-        pushBubble(bubbleItems, position, shouldInterrupt)
+        latestBubbleEntryId = pushBubble(bubbleItems, position, shouldInterrupt)
       }
 
       if (remainingSequence.length > 0) {

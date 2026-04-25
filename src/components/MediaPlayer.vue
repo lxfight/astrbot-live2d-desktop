@@ -57,7 +57,6 @@ const connectionStore = useConnectionStore()
 
 let isAudioActive = false
 let imageHideTimer: number | null = null
-let activeAudioObjectUrl: string | null = null
 let currentAudioSourceLog: Record<string, unknown> | null = null
 let isResettingAudioElement = false
 
@@ -67,7 +66,6 @@ const READY_STATE_LABELS = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA'
 
 // 定义 emit
 const emit = defineEmits<{
-  audioStart: [audioElement: HTMLAudioElement]
   audioEnd: []
 }>()
 
@@ -97,7 +95,6 @@ function buildAudioSourceLog(
   source: ResourceLike,
   resolvedUrl: string | null = null,
   playbackUrl: string | null = null,
-  usesObjectUrl = false,
 ): Record<string, unknown> {
   const inline = typeof source.inline === 'string' ? source.inline.trim() : ''
   const url = typeof source.url === 'string' ? source.url.trim() : ''
@@ -118,7 +115,6 @@ function buildAudioSourceLog(
     hasRid: Boolean(rid),
     resolvedUrl: previewUrl(resolvedUrl),
     playbackUrl: previewUrl(playbackUrl),
-    usesObjectUrl,
   }
 }
 
@@ -179,18 +175,8 @@ function describeAudioState(audioElement?: HTMLAudioElement): Record<string, unk
   }
 }
 
-function revokeActiveAudioObjectUrl() {
-  if (!activeAudioObjectUrl) {
-    return
-  }
-
-  URL.revokeObjectURL(activeAudioObjectUrl)
-  activeAudioObjectUrl = null
-}
-
 function clearAudioElementSource(audioElement?: HTMLAudioElement) {
   if (!audioElement) {
-    revokeActiveAudioObjectUrl()
     currentAudioSourceLog = null
     return
   }
@@ -208,30 +194,7 @@ function clearAudioElementSource(audioElement?: HTMLAudioElement) {
   } finally {
     isResettingAudioElement = false
   }
-
-  revokeActiveAudioObjectUrl()
   currentAudioSourceLog = null
-}
-
-async function buildAudioPlaybackUrl(resolvedUrl: string): Promise<{ playbackUrl: string; usesObjectUrl: boolean }> {
-  if (!isDataUrl(resolvedUrl)) {
-    return {
-      playbackUrl: resolvedUrl,
-      usesObjectUrl: false,
-    }
-  }
-
-  const response = await fetch(resolvedUrl)
-  if (!response.ok) {
-    throw new Error(`内联音频读取失败 (${response.status})`)
-  }
-
-  const blob = await response.blob()
-  activeAudioObjectUrl = URL.createObjectURL(blob)
-  return {
-    playbackUrl: activeAudioObjectUrl,
-    usesObjectUrl: true,
-  }
 }
 
 function waitForAudioReady(audioElement: HTMLAudioElement, timeoutMs = AUDIO_READY_TIMEOUT_MS): Promise<void> {
@@ -299,7 +262,6 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
 
   let resolvedAudioUrl: string | null = null
   let playbackAudioUrl: string | null = null
-  let usesObjectUrl = false
 
   try {
     stopAudio()
@@ -318,10 +280,8 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
       throw new Error('音频资源地址不可用')
     }
 
-    const preparedPlayback = await buildAudioPlaybackUrl(resolvedAudioUrl)
-    playbackAudioUrl = preparedPlayback.playbackUrl
-    usesObjectUrl = preparedPlayback.usesObjectUrl
-    currentAudioSourceLog = buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl, usesObjectUrl)
+    playbackAudioUrl = resolvedAudioUrl
+    currentAudioSourceLog = buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl)
 
     console.log('[媒体播放器] 播放音频:', currentAudioSourceLog)
     audioElement.src = playbackAudioUrl
@@ -329,13 +289,10 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
     audioElement.load()
     await waitForAudioReady(audioElement)
     await audioElement.play()
-
-    // 发射音频开始事件，传递 audio 元素用于口型同步
-    emit('audioStart', audioElement)
   } catch (error) {
     console.error('[媒体播放器] 音频播放失败:', {
       error: formatPlaybackError(error),
-      source: currentAudioSourceLog || buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl, usesObjectUrl),
+      source: currentAudioSourceLog || buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl),
       element: describeAudioState(audioElement),
     })
     clearAudioElementSource(audioElement)
@@ -448,7 +405,6 @@ function hideVideo() {
 function handleAudioEnded() {
   console.log('[媒体播放器] 音频播放结束')
   isAudioActive = false
-  revokeActiveAudioObjectUrl()
   currentAudioSourceLog = null
   emit('audioEnd')
 }

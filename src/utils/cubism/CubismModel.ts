@@ -126,16 +126,6 @@ export class CubismModel {
   private isInitialized: boolean = false
   private isUpdating: boolean = false
 
-  // 口型同步相关
-  private lipSyncContext: AudioContext | null = null
-  private lipSyncAnalyser: AnalyserNode | null = null
-  private lipSyncSource: MediaElementAudioSourceNode | null = null
-  private lipSyncAudioElement: HTMLAudioElement | null = null
-  private lipSyncFrameId: number | null = null
-  private lipSyncEndedHandler: (() => void) | null = null
-  private lipSyncValue: number = 0
-  private lipSyncParamId: string = 'ParamMouthOpenY'
-
   private eyeBlinkIds: CubismIdHandle[] = []
   private lipSyncIds: CubismIdHandle[] = []
 
@@ -395,9 +385,6 @@ export class CubismModel {
       }
     }
 
-    if (this.lipSyncIds.length > 0) {
-      this.lipSyncParamId = this.lipSyncIds[0].getString().s
-    }
   }
 
   /**
@@ -912,11 +899,6 @@ export class CubismModel {
     model.addParameterValueById('ParamEyeBallX', dragX)
     model.addParameterValueById('ParamEyeBallY', dragY)
 
-    // 更新口型同步
-    if (this.lipSyncValue > 0) {
-      model.addParameterValueById(this.lipSyncParamId, this.lipSyncValue, 0.8)
-    }
-
     // 更新模型
     model.saveParameters()
     model.update()
@@ -1057,129 +1039,6 @@ export class CubismModel {
     }
 
     this.expressionManager.startMotion(expressionData.expression, false)
-  }
-
-  // ============================================================================
-  // 口型同步方法
-  // ============================================================================
-
-  /**
-   * 开始口型同步
-   */
-  startLipSync(audioElement: HTMLAudioElement): void {
-    console.log('[CubismModel] 开始口型同步')
-
-    this.stopLipSync()
-
-    try {
-      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
-      if (!AudioContextCtor) {
-        console.warn('[CubismModel] 当前环境不支持 AudioContext')
-        return
-      }
-
-      if (!this.lipSyncContext || this.lipSyncAudioElement !== audioElement) {
-        this.destroyLipSyncPipeline()
-        this.lipSyncContext = new AudioContextCtor()
-        this.lipSyncAnalyser = this.lipSyncContext.createAnalyser()
-        this.lipSyncAnalyser.fftSize = 256
-        this.lipSyncSource = this.lipSyncContext.createMediaElementSource(audioElement)
-        this.lipSyncSource.connect(this.lipSyncAnalyser)
-        this.lipSyncAnalyser.connect(this.lipSyncContext.destination)
-        this.lipSyncAudioElement = audioElement
-      }
-
-      if (this.lipSyncContext.state === 'suspended') {
-        void this.lipSyncContext.resume().catch(() => {})
-      }
-
-      const analyser = this.lipSyncAnalyser
-      if (!analyser) {
-        console.warn('[CubismModel] 口型同步分析器未初始化')
-        return
-      }
-      const bufferLength = analyser.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-
-      // 口型同步动画循环
-      const updateLipSync = () => {
-        if (audioElement.paused || audioElement.ended) {
-          this.lipSyncValue = 0
-          return
-        }
-
-        // 获取音频频率数据
-        analyser.getByteFrequencyData(dataArray)
-
-        // 计算平均音量（0-255）
-        let sum = 0
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i]
-        }
-        const average = sum / bufferLength
-
-        // 将音量映射到口型开合度（0-1）
-        this.lipSyncValue = Math.min(average / 128, 1.0)
-
-        // 继续下一帧
-        this.lipSyncFrameId = requestAnimationFrame(updateLipSync)
-      }
-
-      updateLipSync()
-
-      this.lipSyncEndedHandler = () => {
-        this.stopLipSync()
-      }
-      audioElement.addEventListener('ended', this.lipSyncEndedHandler)
-
-    } catch (error) {
-      console.error('[CubismModel] 口型同步初始化失败:', error)
-    }
-  }
-
-  /**
-   * 停止口型同步
-   */
-  stopLipSync(): void {
-    if (this.lipSyncFrameId !== null) {
-      cancelAnimationFrame(this.lipSyncFrameId)
-      this.lipSyncFrameId = null
-    }
-
-    if (this.lipSyncAudioElement && this.lipSyncEndedHandler) {
-      this.lipSyncAudioElement.removeEventListener('ended', this.lipSyncEndedHandler)
-    }
-
-    this.lipSyncEndedHandler = null
-    this.lipSyncValue = 0
-  }
-
-  /**
-   * 销毁口型同步管线
-   */
-  private destroyLipSyncPipeline(): void {
-    this.stopLipSync()
-
-    if (this.lipSyncSource) {
-      try {
-        this.lipSyncSource.disconnect()
-      } catch {}
-      this.lipSyncSource = null
-    }
-
-    if (this.lipSyncAnalyser) {
-      try {
-        this.lipSyncAnalyser.disconnect()
-      } catch {}
-      this.lipSyncAnalyser = null
-    }
-
-    if (this.lipSyncContext) {
-      void this.lipSyncContext.close().catch(() => {})
-      this.lipSyncContext = null
-    }
-
-    this.lipSyncAudioElement = null
   }
 
   // ============================================================================
@@ -1559,9 +1418,6 @@ export class CubismModel {
 
     console.log('[CubismModel] 销毁模型')
     this.destroyed = true
-
-    this.stopLipSync()
-    this.destroyLipSyncPipeline()
 
     // 清理 WebGL 资源
     if (this.gl) {
