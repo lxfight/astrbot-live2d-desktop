@@ -8,6 +8,7 @@ import type { WatcherSettingsDomain } from './createWatcherSettingsDomain'
 
 export interface MaintenanceSettingsDomain {
   handleClearCache: () => void
+  handleExportLogs: () => Promise<void>
   handleOpenLogs: () => Promise<void>
   handleResetSettings: () => void
 }
@@ -53,6 +54,16 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
     }
 
     message.error(`打开日志目录失败: ${result.error || '未知错误'}`)
+  }
+
+  async function handleExportLogs() {
+    const result = await window.electron.log.exportBundle(3)
+    if (result.success) {
+      message.success(`已导出 ${result.count} 个日志文件: ${result.path}`)
+      return
+    }
+
+    message.error(`导出日志失败: ${result.error || '未知错误'}`)
   }
 
   function handleClearCache() {
@@ -105,6 +116,7 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
 
   return {
     handleClearCache,
+    handleExportLogs,
     handleOpenLogs,
     handleResetSettings,
   }

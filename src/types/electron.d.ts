@@ -232,7 +232,8 @@ declare global {
         getDirectory: () => Promise<string>
         openDirectory: () => Promise<{ success: boolean; path: string; error?: string }>
         setLevel: (level: 'info' | 'debug') => Promise<{ success: boolean; level: 'info' | 'debug' }>
-        getConfig: () => Promise<{ level: 'info' | 'debug'; retentionDays: number }>
+        getConfig: () => Promise<{ level: 'info' | 'debug'; retentionDays: number; maxFileBytes: number }>
+        exportBundle: (days?: number) => Promise<{ success: boolean; path: string; count: number; error?: string }>
       }
       update: {
         check: () => Promise<UpdateCheckResult>

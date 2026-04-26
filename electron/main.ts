@@ -11,7 +11,7 @@ import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, regist
 import { registerHistoryResourceProtocol } from './utils/historyResourceProtocol'
 import { migrateLegacyAppDataIfNeeded } from './utils/appDataMigration'
 import { configureElectronDataPath } from './utils/appPaths'
-import { initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
+import { createScopedLogger, initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import './ipc/connection'
 import './ipc/desktopBehavior'
@@ -47,9 +47,15 @@ export let bridgeConnectionController: BridgeConnectionController | null = null
 
 initializeMainLogger()
 installMainProcessErrorHandlers()
+const logger = createScopedLogger('main.lifecycle')
 console.log(
   `[主进程] 数据目录模式=${appDataContext.mode} 原始路径=${appDataContext.originalUserDataPath} 当前路径=${appDataContext.resolvedUserDataPath}`
 )
+logger.info('data_path.configured', {
+  mode: appDataContext.mode,
+  originalUserDataPath: appDataContext.originalUserDataPath,
+  resolvedUserDataPath: appDataContext.resolvedUserDataPath,
+})
 
 // 锁屏前的状态，用于解锁后恢复
 let isBackgroundPaused = false
@@ -59,6 +65,7 @@ function pauseBackgroundActivities(reason: string): void {
   isBackgroundPaused = true
 
   console.log(`[主进程] 暂停后台活动: ${reason}`)
+  logger.info('background.pause', { reason })
   getDesktopBehaviorCoordinator().setBackgroundPaused(true)
   if (bridgeConnectionController) {
     void bridgeConnectionController.handleSystemSuspend(reason === 'lock-screen' ? 'lock-screen' : 'suspend')
@@ -70,15 +77,22 @@ function resumeBackgroundActivities(reason: string): void {
   isBackgroundPaused = false
 
   console.log(`[主进程] 恢复后台活动: ${reason}`)
+  logger.info('background.resume', { reason })
   getDesktopBehaviorCoordinator().setBackgroundPaused(false)
   if (bridgeConnectionController) {
     void bridgeConnectionController.handleSystemResume().catch((err) => {
       console.error('[主进程] 恢复后重连失败:', err)
+      logger.error('background.resume_reconnect.failed', err, { reason })
     })
   }
 }
 
 function broadcastToAllWindows(channel: string, payload?: unknown): void {
+  logger.debug('broadcast', {
+    channel,
+    windowCount: BrowserWindow.getAllWindows().length,
+    payload,
+  })
   BrowserWindow.getAllWindows().forEach((win) => {
     if (!win.isDestroyed()) {
       win.webContents.send(channel, payload)
@@ -87,6 +101,7 @@ function broadcastToAllWindows(channel: string, payload?: unknown): void {
 }
 
 export function initBridgeConnectionController() {
+  logger.info('bridge_controller.init')
   bridgeConnectionController = new BridgeConnectionController()
 
   bridgeConnectionController.on('stateChanged', (snapshot) => {
@@ -107,7 +122,13 @@ export function initBridgeConnectionController() {
  * 应用程序初始化
  */
 async function initialize() {
+  const timer = logger.timer('initialize')
+  logger.info('initialize.start')
   const migrationResult = await migrateLegacyAppDataIfNeeded()
+  logger.info('app_data_migration.completed', {
+    copiedCount: migrationResult.copiedEntries.length,
+    errorCount: migrationResult.errors.length,
+  })
   if (migrationResult.copiedEntries.length > 0) {
     console.log(
       `[主进程] 已复制 ${migrationResult.copiedEntries.length} 个旧数据条目到当前数据目录`
@@ -128,8 +149,11 @@ async function initialize() {
   // 初始化数据库
   try {
     initDatabase()
+    logger.info('database.init.success')
   } catch (error) {
     console.error('[主进程] 数据库初始化失败:', error)
+    logger.error('database.init.failed', error)
+    timer.fail(error)
     dialog.showErrorBox(
       '数据库初始化失败',
       `无法创建或打开数据库文件，应用将退出。\n\n错误详情: ${error instanceof Error ? error.message : String(error)}`
@@ -140,10 +164,12 @@ async function initialize() {
 
   // 数据库可用后再初始化更新器，避免启动竞态访问 user_config
   initializeAutoUpdater()
+  logger.info('auto_updater.initialized')
 
   initBridgeConnectionController()
   const controller = bridgeConnectionController
   if (!controller) {
+    timer.fail(new Error('连接控制器初始化失败'))
     throw new Error('连接控制器初始化失败')
   }
   await controller.initialize()
@@ -151,17 +177,25 @@ async function initialize() {
   // 检查 Cubism Core 是否存在
   if (!checkCubismCoreExists()) {
     console.log('[主进程] Live2D SDK 不存在，提示用户下载')
+    logger.warn('cubism_core.missing')
     const userConfirmed = await showDownloadDialog()
 
     if (userConfirmed) {
+      logger.info('cubism_core.download.confirmed')
       const downloadSuccess = await downloadWithProgress()
       if (!downloadSuccess) {
         console.error('[主进程] SDK 下载失败，应用退出')
+        const error = new Error('SDK 下载失败')
+        logger.error('cubism_core.download.failed', error)
+        timer.fail(error)
         app.quit()
         return
       }
+      logger.info('cubism_core.download.success')
     } else {
       console.log('[主进程] 用户取消下载，应用退出')
+      logger.warn('cubism_core.download.cancelled')
+      timer.done({ quitReason: 'cubism_core_download_cancelled' })
       app.quit()
       return
     }
@@ -171,22 +205,27 @@ async function initialize() {
   const userName = getUserName()
   if (!userName) {
     // 首次启动，显示欢迎窗口
+    logger.info('startup.first_launch')
     createWelcomeWindow()
   } else {
     // 非首次启动，直接创建主窗口
+    logger.info('startup.normal', { hasUserName: true })
     createMainWindow()
     createTray()
   }
+  timer.done({ firstLaunch: !userName })
 }
 
 /**
  * 应用程序就绪
  */
 app.whenReady().then(() => {
+  logger.info('app.ready')
   registerCubismCoreProtocol()
   registerHistoryResourceProtocol()
   initialize().catch(err => {
     console.error('[主进程] 初始化失败:', err)
+    logger.error('initialize.failed', err)
     dialog.showErrorBox(
       '初始化失败',
       `应用初始化过程中发生错误，将退出。\n\n${err instanceof Error ? err.message : String(err)}`
@@ -224,6 +263,7 @@ app.whenReady().then(() => {
  * 所有窗口关闭
  */
 app.on('window-all-closed', () => {
+  logger.info('window_all_closed', { platform: process.platform })
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -233,12 +273,14 @@ app.on('window-all-closed', () => {
  * 应用退出前清理
  */
 app.on('before-quit', () => {
+  logger.info('before_quit.start')
   try {
     if (bridgeConnectionController) {
       bridgeConnectionController.dispose()
     }
   } catch (err) {
     console.error('[主进程] 关闭连接控制器失败:', err)
+    logger.error('bridge_controller.dispose.failed', err)
   }
   cleanupShortcuts()
   destroyTray()
@@ -247,7 +289,9 @@ app.on('before-quit', () => {
     closeDatabase()
   } catch (err) {
     console.error('[主进程] 关闭数据库失败:', err)
+    logger.error('database.close.failed', err)
   }
+  logger.info('before_quit.done')
   shutdownMainLogger()
 })
 

@@ -5,6 +5,9 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cubismAssetManifest'
 import { getAppDataPath } from '../utils/appPaths'
+import { createScopedLogger } from '../utils/logger'
+
+const logger = createScopedLogger('ipc.model')
 
 /**
  * 获取模型存储目录
@@ -149,6 +152,7 @@ function pickBestModelFile(rootDir: string, absoluteFiles: string[]): string {
  * 选择模型文件夹
  */
 ipcMain.handle('model:selectFolder', async () => {
+  const timer = logger.timer('select_folder')
   try {
     const mainWindow = getMainWindow()
     const dialogOptions = {
@@ -161,13 +165,16 @@ ipcMain.handle('model:selectFolder', async () => {
       : await dialog.showOpenDialog(dialogOptions)
 
     if (result.canceled || result.filePaths.length === 0) {
+      timer.done({ canceled: true })
       return { success: false, canceled: true }
     }
 
     const folderPath = result.filePaths[0]
+    timer.done({ canceled: false, folderPath })
     return { success: true, folderPath }
   } catch (error: any) {
     console.error('[IPC] 选择模型文件夹失败:', error)
+    timer.fail(error)
     return { success: false, error: error.message }
   }
 })
@@ -176,13 +183,16 @@ ipcMain.handle('model:selectFolder', async () => {
  * 导入模型
  */
 ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: string) => {
+  const timer = logger.timer('import', { sourceDir, modelName })
   try {
     const normalizedModelName = normalizeModelName(modelName)
     if (!normalizedModelName.success) {
+      timer.done({ success: false, reason: 'invalid_model_name', error: normalizedModelName.error })
       return { success: false, error: normalizedModelName.error }
     }
 
     if (!fs.existsSync(sourceDir) || !fs.statSync(sourceDir).isDirectory()) {
+      timer.done({ success: false, reason: 'invalid_source_dir' })
       return { success: false, error: '请选择有效的模型文件夹' }
     }
 
@@ -191,16 +201,34 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     if (modelFiles.length === 0) {
       const cubism2Files = findCubism2ModelJsonFiles(sourceDir)
       if (cubism2Files.length > 0) {
+        timer.done({
+          success: false,
+          reason: 'cubism2_model_detected',
+          cubism2ModelCount: cubism2Files.length,
+        })
         return { success: false, error: '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 模型。' }
       }
+      timer.done({ success: false, reason: 'model3_not_found' })
       return { success: false, error: '该文件夹内未找到 .model3.json 模型文件' }
     }
     const chosenModelFile = pickBestModelFile(sourceDir, modelFiles)
+    logger.debug('import.model_file_selected', {
+      sourceDir,
+      modelFileCount: modelFiles.length,
+      chosenModelFile,
+    })
     const validationResult = validateCubismModelAssets(chosenModelFile)
     const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
     const optionalIssues = validationResult.issues.filter((issue) => issue.severity === 'optional')
 
     if (requiredIssues.length > 0) {
+      timer.done({
+        success: false,
+        reason: 'required_assets_missing',
+        chosenModelFile,
+        requiredIssues: formatCubismAssetIssues(requiredIssues),
+        optionalIssueCount: optionalIssues.length,
+      })
       return {
         success: false,
         error: `模型资源不完整：${formatCubismAssetIssues(requiredIssues).join(', ')}`
@@ -218,14 +246,16 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     const resolvedSource = path.resolve(sourceDir).toLowerCase()
     const resolvedTarget = path.resolve(targetDir).toLowerCase()
     if (resolvedSource !== resolvedTarget) {
+      logger.info('import.copy.start', { sourceDir, targetDir })
       await copyDirectory(sourceDir, targetDir)
+      logger.info('import.copy.success', { sourceDir, targetDir })
     }
 
     const relChosen = toPosixPath(path.relative(sourceDir, chosenModelFile))
     const modelPath = app.isPackaged
       ? pathToFileURL(path.join(targetDir, relChosen)).toString()
       : `/models/${normalizedModelName.value}/${relChosen}`
-    return {
+    const response = {
       success: true,
       modelPath,
       chosenFile: relChosen,
@@ -233,8 +263,19 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       warnings: formatCubismAssetIssues(optionalIssues),
       manifest: validationResult.manifest
     }
+    timer.done({
+      success: true,
+      modelName: normalizedModelName.value,
+      sourceDir,
+      targetDir,
+      chosenFile: relChosen,
+      modelFileCount: modelFiles.length,
+      optionalIssueCount: optionalIssues.length,
+    })
+    return response
   } catch (error: any) {
     console.error('[IPC] 导入模型失败:', error)
+    timer.fail(error)
     return { success: false, error: error.message }
   }
 })
@@ -243,9 +284,11 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
  * 获取已导入的模型列表
  */
 ipcMain.handle('model:getList', async () => {
+  const timer = logger.timer('get_list')
   try {
     const modelsDir = getModelsDir()
     if (!fs.existsSync(modelsDir)) {
+      timer.done({ modelsDir, count: 0, exists: false })
       return { success: true, models: [] }
     }
 
@@ -270,9 +313,11 @@ ipcMain.handle('model:getList', async () => {
       }
     }
 
+    timer.done({ modelsDir, count: models.length })
     return { success: true, models }
   } catch (error: any) {
     console.error('[IPC] 获取模型列表失败:', error)
+    timer.fail(error)
     return { success: false, error: error.message }
   }
 })
@@ -281,19 +326,25 @@ ipcMain.handle('model:getList', async () => {
  * 删除模型
  */
 ipcMain.handle('model:delete', async (_event, modelName: string) => {
+  const timer = logger.timer('delete', { modelName })
   try {
     const normalizedModelName = normalizeModelName(modelName)
     if (!normalizedModelName.success) {
+      timer.done({ success: false, reason: 'invalid_model_name', error: normalizedModelName.error })
       return { success: false, error: normalizedModelName.error }
     }
 
     const modelDir = path.join(getModelsDir(), normalizedModelName.value)
     if (fs.existsSync(modelDir)) {
+      logger.info('delete.directory.start', { modelDir })
       await removeDirectoryWithRetry(modelDir)
+      logger.info('delete.directory.success', { modelDir })
     }
+    timer.done({ success: true, modelName: normalizedModelName.value, modelDir })
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 删除模型失败:', error)
+    timer.fail(error)
     const code = typeof error?.code === 'string' ? `[${error.code}] ` : ''
     return { success: false, error: `${code}${error?.message || String(error)}` }
   }
@@ -303,14 +354,17 @@ ipcMain.handle('model:delete', async (_event, modelName: string) => {
  * 加载模型到主窗口
  */
 ipcMain.handle('model:load', async (_event, modelPath: string) => {
+  const timer = logger.timer('load', { modelPath })
   try {
     const mainWindow = getMainWindow()
     if (mainWindow) {
       mainWindow.webContents.send('model:load', modelPath)
     }
+    timer.done({ dispatched: Boolean(mainWindow), windowId: mainWindow?.id })
     return { success: true }
   } catch (error: any) {
     console.error('[IPC] 加载模型失败:', error)
+    timer.fail(error)
     return { success: false, error: error.message }
   }
 })

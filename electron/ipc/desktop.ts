@@ -8,6 +8,7 @@ import { loadScreenshotSettings } from '../utils/screenshotSettings'
 import {
   safeGetActiveWindow as safeLoadActiveWindow,
 } from '../utils/activeWinLoader'
+import { createScopedLogger } from '../utils/logger'
 import type {
   DesktopWindowInfo,
   DesktopCaptureRequestPayload,
@@ -16,6 +17,8 @@ import type {
   DesktopWindowActivePayload,
   DesktopToolDeclaration,
 } from '../protocol/types'
+
+const logger = createScopedLogger('desktop.capture')
 
 async function safeGetActiveWin(): Promise<any | null> {
   return await safeLoadActiveWindow()
@@ -152,19 +155,41 @@ function toWindowInfo(win: any): DesktopWindowInfo {
 // ──────── 公开 API（供 client.ts 调用）────────
 
 export async function getWindowList(): Promise<DesktopWindowListPayload> {
+  const timer = logger.timer('window_list')
   const win = await safeGetActiveWin()
   if (!win || isOwnWindow(win)) {
+    timer.done({
+      count: 0,
+      ignoredOwnWindow: Boolean(win && isOwnWindow(win)),
+    })
     return { windows: [] }
   }
-  return { windows: [toWindowInfo(win)] }
+  const payload = { windows: [toWindowInfo(win)] }
+  timer.done({
+    count: payload.windows.length,
+    title: payload.windows[0]?.title,
+    processName: payload.windows[0]?.processName,
+  })
+  return payload
 }
 
 export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
+  const timer = logger.timer('active_window')
   const win = await safeGetActiveWin()
   if (!win || isOwnWindow(win)) {
+    timer.done({
+      hasWindow: false,
+      ignoredOwnWindow: Boolean(win && isOwnWindow(win)),
+    })
     return { window: null }
   }
-  return { window: toWindowInfo(win) }
+  const windowInfo = toWindowInfo(win)
+  timer.done({
+    hasWindow: true,
+    title: windowInfo.title,
+    processName: windowInfo.processName,
+  })
+  return { window: windowInfo }
 }
 
 /**
@@ -176,6 +201,14 @@ export async function captureScreenshot(
   uploadFn?: (jpegBuf: Buffer, mime: string) => Promise<string | null>,
   options: CaptureScreenshotOptions = {}
 ): Promise<DesktopCaptureResponsePayload> {
+  const timer = logger.timer('screenshot', {
+    requestedTarget: req.target,
+    requestedWindowId: req.windowId,
+    requestedQuality: req.quality,
+    requestedMaxWidth: req.maxWidth,
+    hasUploadFn: Boolean(uploadFn),
+    maxInlineBytes: options.maxInlineBytes,
+  })
   const screenshotSettings = loadScreenshotSettings()
   const target = req.target || screenshotSettings.defaultTarget
   const activeWin = await safeGetActiveWin()
@@ -186,6 +219,11 @@ export async function captureScreenshot(
 
   const getDesktopSource = async (): Promise<Electron.DesktopCapturerSource> => {
     const targetDisplay = getDisplayFromActiveWindow(activeWin)
+    logger.debug('desktop_source.select.start', {
+      displayId: targetDisplay.id,
+      displayBounds: targetDisplay.bounds,
+      displaySize: targetDisplay.size,
+    })
     const desktopSources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: targetDisplay.size,
@@ -194,10 +232,17 @@ export async function captureScreenshot(
     if (!desktopSource) {
       throw new Error('无法获取桌面截图源')
     }
+    logger.debug('desktop_source.select.success', {
+      displayId: targetDisplay.id,
+      sourceId: desktopSource.id,
+      sourceName: desktopSource.name,
+      sourceCount: desktopSources.length,
+    })
     return desktopSource
   }
 
   let src: Electron.DesktopCapturerSource
+  let fallbackReason: string | null = null
 
   if (target === 'desktop') {
     src = await getDesktopSource()
@@ -205,6 +250,7 @@ export async function captureScreenshot(
     const shouldFallbackToDesktop = target === 'active' && shouldBypassActiveWindowCapture(activeWin)
 
     if (shouldFallbackToDesktop) {
+      fallbackReason = 'active_window_bypassed'
       src = await getDesktopSource()
     } else {
       const windowSources = await desktopCapturer.getSources({
@@ -212,10 +258,20 @@ export async function captureScreenshot(
         thumbnailSize: thumbSize,
       })
       src = pickWindowSource(windowSources, target, req.windowId, activeWin)
+      logger.debug('window_source.select', {
+        target,
+        requestedWindowId: req.windowId,
+        activeWindowId: activeWin?.id,
+        activeWindowTitle: activeWin?.title,
+        sourceId: src?.id,
+        sourceName: src?.name,
+        sourceCount: windowSources.length,
+      })
 
       const candidateSize = src?.thumbnail?.getSize?.()
       const invalidWindowSource = !candidateSize || candidateSize.width <= 16 || candidateSize.height <= 16
       if (invalidWindowSource) {
+        fallbackReason = 'invalid_window_source'
         src = await getDesktopSource()
       }
     }
@@ -226,24 +282,36 @@ export async function captureScreenshot(
 
   const invalidCapture = size.width <= 16 || size.height <= 16 || jpegBuf.length < 2048
   if (invalidCapture && target !== 'desktop') {
+    fallbackReason = 'invalid_capture'
     src = await getDesktopSource()
     size = src.thumbnail.getSize()
     jpegBuf = src.thumbnail.toJPEG(quality)
   }
 
   if (size.width <= 16 || size.height <= 16) {
+    timer.fail(new Error('截图源不可捕获，请稍后重试'), {
+      target,
+      sourceId: src.id,
+      sourceName: src.name,
+      width: size.width,
+      height: size.height,
+      bytes: jpegBuf.length,
+      fallbackReason,
+    })
     throw new Error('截图源不可捕获，请稍后重试')
   }
 
   let image: string
+  let imageMode: 'inline' | 'upload' | 'upload_fallback' = 'inline'
   if (!uploadFn || jpegBuf.length <= inlineThreshold) {
     image = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
   } else {
     const url = await uploadFn(jpegBuf, 'image/jpeg')
+    imageMode = url ? 'upload' : 'upload_fallback'
     image = url || `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
   }
 
-  return {
+  const result = {
     image,
     width: size.width,
     height: size.height,
@@ -253,6 +321,18 @@ export async function captureScreenshot(
       processName: activeWin?.owner?.name,
     },
   }
+  timer.done({
+    target,
+    sourceId: src.id,
+    sourceName: src.name,
+    width: size.width,
+    height: size.height,
+    bytes: jpegBuf.length,
+    inlineThreshold,
+    imageMode,
+    fallbackReason,
+  })
+  return result
 }
 
 // ──────── 工具声明与调用分发 ────────
@@ -301,7 +381,25 @@ export async function handleToolCall(
   args: Record<string, any>,
   ctx: ToolCallContext = {}
 ): Promise<any> {
+  const timer = logger.timer('tool_call', {
+    toolName,
+    args,
+    hasUploadFn: Boolean(ctx.uploadFn),
+    maxInlineBytes: ctx.maxInlineBytes,
+  })
   const handler = toolHandlers[toolName]
-  if (!handler) throw new Error(`未知工具: ${toolName}`)
-  return await handler(args, ctx)
+  if (!handler) {
+    const error = new Error(`未知工具: ${toolName}`)
+    timer.fail(error)
+    throw error
+  }
+
+  try {
+    const result = await handler(args, ctx)
+    timer.done({ result })
+    return result
+  } catch (error) {
+    timer.fail(error)
+    throw error
+  }
 }

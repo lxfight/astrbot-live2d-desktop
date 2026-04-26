@@ -13,6 +13,7 @@ import { L2DBridgeClient, type BridgeClientDisconnectInfo } from '../protocol/cl
 import type { InputMessagePayload, MessageContent } from '../protocol/types'
 import { classifyConnectError, classifyDisconnect, type BridgeFailure } from './bridgeFailureClassifier'
 import { calculateRetryDelayMs } from './bridgeRetryPolicy'
+import { createScopedLogger, type LogMeta } from '../utils/logger'
 
 type LifecycleEventMap = {
   stateChanged: (snapshot: BridgeLifecycleSnapshot) => void
@@ -23,6 +24,8 @@ type LifecycleEventMap = {
 
 type DisconnectSource = 'manual' | 'socket-close' | 'socket-error' | 'system-suspend' | 'settings-changed'
 type ConnectReason = 'startup' | 'manual' | 'retry' | 'resume' | 'settings-changed'
+
+const logger = createScopedLogger('bridge.lifecycle')
 
 function toDisconnectEvent(source: DisconnectSource, failure?: BridgeFailure): BridgeLifecycleSnapshot['lastDisconnect'] {
   return {
@@ -39,6 +42,29 @@ function isTransportLayerChanged(
 ): boolean {
   return previousSettings.serverUrl !== nextSettings.serverUrl
     || previousSettings.token !== nextSettings.token
+}
+
+function summarizeSnapshot(snapshot: BridgeLifecycleSnapshot): LogMeta {
+  return {
+    status: snapshot.status,
+    desiredState: snapshot.desiredState,
+    reconnectAttempt: snapshot.reconnectAttempt,
+    nextRetryAt: snapshot.nextRetryAt,
+    suspendReason: snapshot.suspendReason,
+    activeConfigRevision: snapshot.activeConfigRevision,
+    serverUrl: snapshot.serverUrl,
+    hasToken: snapshot.hasToken,
+    sessionId: snapshot.session?.sessionId,
+    lastError: snapshot.lastError
+      ? {
+          code: snapshot.lastError.code,
+          message: snapshot.lastError.message,
+          retryable: snapshot.lastError.retryable,
+          at: snapshot.lastError.at,
+        }
+      : null,
+    lastDisconnect: snapshot.lastDisconnect,
+  }
 }
 
 export class BridgeConnectionController extends EventEmitter {
@@ -64,14 +90,25 @@ export class BridgeConnectionController extends EventEmitter {
 
   async initialize(): Promise<void> {
     if (this.initialized) {
+      logger.debug('initialize.skipped', { reason: 'already_initialized' })
       return
     }
 
+    logger.info('initialize.start')
     const connectionLoadResult = loadConnectionSettings()
     if (connectionLoadResult.success) {
       this.currentSettings = connectionLoadResult.data
+      logger.debug('settings.load.success', {
+        revision: this.currentSettings.revision,
+        serverUrl: this.currentSettings.serverUrl,
+        hasToken: Boolean(this.currentSettings.token.trim()),
+      })
     } else {
       console.error('[BridgeConnectionController] 读取连接配置失败:', connectionLoadResult.code, connectionLoadResult.message)
+      logger.warn('settings.load.failed', {
+        code: connectionLoadResult.code,
+        message: connectionLoadResult.message,
+      })
       this.currentSettings = buildDefaultConnectionSettingsSnapshot()
     }
 
@@ -86,6 +123,11 @@ export class BridgeConnectionController extends EventEmitter {
     })
 
     this.initialized = true
+    logger.info('initialize.success', {
+      startupDecisionPending: this.startupDecisionPending,
+      autoConnectOnAppLaunch: this.behaviorSettings.autoConnectOnAppLaunch,
+      snapshot: summarizeSnapshot(this.snapshot),
+    })
 
     if (!this.startupDecisionPending && this.behaviorSettings.autoConnectOnAppLaunch) {
       this.applySnapshot({ desiredState: 'connected' })
@@ -94,9 +136,11 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   dispose(): void {
+    logger.info('dispose.start', { snapshot: summarizeSnapshot(this.snapshot) })
     this.cancelRetryTimer()
     this.closePendingClient()
     this.closeActiveClient()
+    logger.info('dispose.success')
   }
 
   getSnapshot(): BridgeLifecycleSnapshot {
@@ -112,12 +156,20 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   async connect(): Promise<BridgeLifecycleCommandResult> {
+    logger.info('connect.requested', {
+      serverUrl: this.currentSettings.serverUrl,
+      hasToken: Boolean(this.currentSettings.token.trim()),
+    })
     const validation = validateBridgeEndpointDraft({
       serverUrl: this.currentSettings.serverUrl,
       token: this.currentSettings.token,
     })
 
     if (!validation.valid) {
+      logger.warn('connect.validation_failed', {
+        code: validation.code,
+        message: validation.message,
+      })
       return {
         success: false,
         code: validation.code,
@@ -136,6 +188,7 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   async disconnect(): Promise<BridgeLifecycleCommandResult> {
+    logger.info('disconnect.requested', { snapshot: summarizeSnapshot(this.snapshot) })
     this.hasUserDrivenAction = true
     this.cancelRetryTimer()
     this.closePendingClient()
@@ -161,6 +214,16 @@ export class BridgeConnectionController extends EventEmitter {
   async handleConnectionSettingsUpdated(settings: ConnectionSettingsPersistedV3): Promise<void> {
     const previousSettings = this.currentSettings
     this.currentSettings = settings
+    const transportLayerChanged = isTransportLayerChanged(previousSettings, settings)
+
+    logger.info('settings.updated', {
+      previousRevision: previousSettings.revision,
+      nextRevision: settings.revision,
+      serverUrl: settings.serverUrl,
+      hasToken: Boolean(settings.token.trim()),
+      transportLayerChanged,
+      desiredState: this.snapshot.desiredState,
+    })
 
     this.applySnapshot({
       activeConfigRevision: settings.revision,
@@ -172,7 +235,7 @@ export class BridgeConnectionController extends EventEmitter {
       return
     }
 
-    if (isTransportLayerChanged(previousSettings, settings)) {
+    if (transportLayerChanged) {
       await this.restartWithCurrentSettings('settings-changed')
     }
   }
@@ -182,6 +245,14 @@ export class BridgeConnectionController extends EventEmitter {
     options: { resolveStartupDecision?: boolean } = {},
   ): Promise<void> {
     this.behaviorSettings = settings
+    logger.info('behavior_settings.updated', {
+      resolveStartupDecision: Boolean(options.resolveStartupDecision),
+      startupDecisionPending: this.startupDecisionPending,
+      autoConnectOnAppLaunch: settings.autoConnectOnAppLaunch,
+      retryEnabled: settings.retryEnabled,
+      retryMaxAttempts: settings.retryMaxAttempts,
+      resumeDesiredConnectionOnWake: settings.resumeDesiredConnectionOnWake,
+    })
 
     if (options.resolveStartupDecision && this.startupDecisionPending) {
       this.startupDecisionPending = false
@@ -225,9 +296,15 @@ export class BridgeConnectionController extends EventEmitter {
 
   async handleSystemSuspend(reason: 'lock-screen' | 'suspend'): Promise<void> {
     if (this.snapshot.desiredState !== 'connected') {
+      logger.debug('system_suspend.ignored', {
+        reason,
+        desiredState: this.snapshot.desiredState,
+        status: this.snapshot.status,
+      })
       return
     }
 
+    logger.info('system_suspend.start', { reason, snapshot: summarizeSnapshot(this.snapshot) })
     this.cancelRetryTimer()
     this.closePendingClient()
     this.closeActiveClient()
@@ -257,9 +334,14 @@ export class BridgeConnectionController extends EventEmitter {
 
   async handleSystemResume(): Promise<void> {
     if (this.snapshot.status !== 'suspended' || this.snapshot.desiredState !== 'connected') {
+      logger.debug('system_resume.ignored', {
+        status: this.snapshot.status,
+        desiredState: this.snapshot.desiredState,
+      })
       return
     }
 
+    logger.info('system_resume.start', { snapshot: summarizeSnapshot(this.snapshot) })
     this.applySnapshot({ suspendReason: null })
     await this.openCurrentSettings('resume')
   }
@@ -269,6 +351,10 @@ export class BridgeConnectionController extends EventEmitter {
       throw new Error('未连接到服务器')
     }
 
+    logger.debug('send_message.start', {
+      contentCount: Array.isArray(payload.content) ? payload.content.length : 0,
+      sessionId: this.snapshot.session?.sessionId,
+    })
     return await this.activeClient.sendMessage(payload)
   }
 
@@ -277,6 +363,7 @@ export class BridgeConnectionController extends EventEmitter {
       throw new Error('未连接到服务器')
     }
 
+    logger.debug('send_touch', { x, y, action, sessionId: this.snapshot.session?.sessionId })
     this.activeClient.sendTouch(x, y, action)
   }
 
@@ -285,10 +372,12 @@ export class BridgeConnectionController extends EventEmitter {
       throw new Error('未连接到服务器')
     }
 
+    logger.debug('send_state', { op, sessionId: this.snapshot.session?.sessionId })
     this.activeClient.sendState(op, payload)
   }
 
   private async restartWithCurrentSettings(reason: ConnectReason): Promise<void> {
+    logger.info('restart.start', { reason, snapshot: summarizeSnapshot(this.snapshot) })
     this.cancelRetryTimer()
     this.closePendingClient()
     this.closeActiveClient()
@@ -296,12 +385,22 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   private async openCurrentSettings(reason: ConnectReason): Promise<BridgeLifecycleCommandResult> {
+    const timer = logger.timer('connect', {
+      reason,
+      serverUrl: this.currentSettings.serverUrl,
+      configRevision: this.currentSettings.revision,
+      hasToken: Boolean(this.currentSettings.token.trim()),
+    })
     const validation = validateBridgeEndpointDraft({
       serverUrl: this.currentSettings.serverUrl,
       token: this.currentSettings.token,
     })
 
     if (!validation.valid) {
+      timer.fail(new Error(validation.message), {
+        code: validation.code,
+        retryable: false,
+      })
       this.applyFailure(
         {
           code: validation.code,
@@ -320,6 +419,13 @@ export class BridgeConnectionController extends EventEmitter {
     }
 
     const generation = ++this.currentGeneration
+    logger.info('connect.start', {
+      reason,
+      generation,
+      reconnectAttempt: reason === 'retry' ? this.snapshot.reconnectAttempt : 0,
+      serverUrl: this.currentSettings.serverUrl,
+      handshakeTimeoutMs: this.behaviorSettings.handshakeTimeoutMs,
+    })
     this.cancelRetryTimer()
     this.closePendingClient()
     this.closeActiveClient()
@@ -350,12 +456,20 @@ export class BridgeConnectionController extends EventEmitter {
           if (generation !== this.currentGeneration || this.pendingClient !== candidateClient) {
             return
           }
+          logger.debug('socket.open', { generation, reason })
           this.applySnapshot({ status: 'handshaking' })
         },
       })
 
       if (generation !== this.currentGeneration || this.pendingClient !== candidateClient || this.snapshot.desiredState !== 'connected') {
+        logger.warn('connect.superseded', {
+          reason,
+          generation,
+          currentGeneration: this.currentGeneration,
+          desiredState: this.snapshot.desiredState,
+        })
         candidateClient.close()
+        timer.done({ superseded: true, generation })
         return {
           success: true,
           snapshot: this.getSnapshot(),
@@ -372,6 +486,13 @@ export class BridgeConnectionController extends EventEmitter {
         suspendReason: null,
         lastError: null,
       })
+      logger.info('connect.success', {
+        reason,
+        generation,
+        sessionId: session.sessionId,
+        userId: session.userId,
+      })
+      timer.done({ generation, sessionId: session.sessionId })
 
       return {
         success: true,
@@ -379,6 +500,12 @@ export class BridgeConnectionController extends EventEmitter {
       }
     } catch (error) {
       if (generation !== this.currentGeneration) {
+        logger.warn('connect.failed_superseded', {
+          reason,
+          generation,
+          currentGeneration: this.currentGeneration,
+        })
+        timer.fail(error, { generation, superseded: true })
         return {
           success: false,
           code: 'CLIENT_UNAVAILABLE',
@@ -393,6 +520,14 @@ export class BridgeConnectionController extends EventEmitter {
       candidateClient.close()
 
       const failure = classifyConnectError(error)
+      logger.warn('connect.failed', {
+        reason,
+        generation,
+        code: failure.code,
+        message: failure.message,
+        retryable: failure.retryable,
+      })
+      timer.fail(error, { generation, code: failure.code, retryable: failure.retryable })
       this.applyFailure(failure, 'socket-error')
 
       return {
@@ -405,6 +540,7 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   private promoteActiveClient(client: L2DBridgeClient, generation: number): void {
+    logger.debug('client.promote', { generation })
     this.activeClient = client
 
     const onDisconnected = (info: BridgeClientDisconnectInfo) => {
@@ -412,6 +548,13 @@ export class BridgeConnectionController extends EventEmitter {
         return
       }
 
+      logger.warn('client.disconnected', {
+        generation,
+        code: info.code,
+        reason: info.reason,
+        errorCode: info.errorCode,
+        errorMessage: info.errorMessage,
+      })
       this.activeClient = null
       this.clearActiveClientListeners()
       const failure = classifyDisconnect(info)
@@ -420,18 +563,21 @@ export class BridgeConnectionController extends EventEmitter {
 
     const onPerformShow = (payload: unknown) => {
       if (generation === this.currentGeneration && this.activeClient === client) {
+        logger.debug('perform_show.received', { generation, payload })
         this.emit('perform:show', payload)
       }
     }
 
     const onPerformInterrupt = () => {
       if (generation === this.currentGeneration && this.activeClient === client) {
+        logger.info('perform_interrupt.received', { generation })
         this.emit('perform:interrupt')
       }
     }
 
     const onSttResult = (payload: unknown) => {
       if (generation === this.currentGeneration && this.activeClient === client) {
+        logger.debug('stt_result.received', { generation, payload })
         this.emit('stt:result', payload)
       }
     }
@@ -466,6 +612,7 @@ export class BridgeConnectionController extends EventEmitter {
       return
     }
 
+    logger.debug('pending_client.close')
     const pendingClient = this.pendingClient
     this.pendingClient = null
     pendingClient.close()
@@ -476,6 +623,7 @@ export class BridgeConnectionController extends EventEmitter {
       return
     }
 
+    logger.debug('active_client.close')
     const activeClient = this.activeClient
     this.clearActiveClientListeners()
     this.activeClient = null
@@ -486,11 +634,18 @@ export class BridgeConnectionController extends EventEmitter {
     if (this.retryTimer) {
       clearTimeout(this.retryTimer)
       this.retryTimer = null
+      logger.debug('retry.cancel')
     }
   }
 
   private scheduleRetry(failure: BridgeFailure): void {
     if (this.snapshot.desiredState !== 'connected' || !failure.retryable || !this.behaviorSettings.retryEnabled) {
+      logger.warn('retry.skip', {
+        desiredState: this.snapshot.desiredState,
+        retryable: failure.retryable,
+        retryEnabled: this.behaviorSettings.retryEnabled,
+        code: failure.code,
+      })
       this.applySnapshot({
         status: 'error',
         nextRetryAt: null,
@@ -503,6 +658,11 @@ export class BridgeConnectionController extends EventEmitter {
       this.behaviorSettings.retryMaxAttempts !== null
       && nextAttempt > this.behaviorSettings.retryMaxAttempts
     ) {
+      logger.warn('retry.max_attempts_reached', {
+        nextAttempt,
+        retryMaxAttempts: this.behaviorSettings.retryMaxAttempts,
+        code: failure.code,
+      })
       this.applySnapshot({
         status: 'error',
         reconnectAttempt: nextAttempt - 1,
@@ -515,6 +675,13 @@ export class BridgeConnectionController extends EventEmitter {
 
     const delay = calculateRetryDelayMs(this.behaviorSettings, nextAttempt)
     const nextRetryAt = Date.now() + delay
+    logger.info('retry.schedule', {
+      attempt: nextAttempt,
+      delayMs: delay,
+      nextRetryAt,
+      code: failure.code,
+      message: failure.message,
+    })
     this.applySnapshot({
       status: 'waiting_retry',
       reconnectAttempt: nextAttempt,
@@ -531,6 +698,13 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   private applyFailure(failure: BridgeFailure, disconnectSource: DisconnectSource): void {
+    logger.warn('failure.apply', {
+      disconnectSource,
+      code: failure.code,
+      message: failure.message,
+      retryable: failure.retryable,
+      desiredState: this.snapshot.desiredState,
+    })
     this.cancelRetryTimer()
     this.closePendingClient()
 
@@ -559,11 +733,24 @@ export class BridgeConnectionController extends EventEmitter {
   }
 
   private applySnapshot(patch: Partial<BridgeLifecycleSnapshot>): void {
+    const previousSnapshot = this.snapshot
     this.snapshot = {
       ...this.snapshot,
       ...patch,
       updatedAt: Date.now(),
     }
+    const stateChanged = previousSnapshot.status !== this.snapshot.status
+      || previousSnapshot.desiredState !== this.snapshot.desiredState
+      || previousSnapshot.reconnectAttempt !== this.snapshot.reconnectAttempt
+      || previousSnapshot.nextRetryAt !== this.snapshot.nextRetryAt
+      || previousSnapshot.suspendReason !== this.snapshot.suspendReason
+
+    const event = stateChanged ? 'state.changed' : 'state.updated'
+    logger.debug(event, {
+      patch,
+      previous: summarizeSnapshot(previousSnapshot),
+      next: summarizeSnapshot(this.snapshot),
+    })
     this.emit('stateChanged', this.getSnapshot())
   }
 }

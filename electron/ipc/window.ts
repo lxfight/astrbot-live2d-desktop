@@ -10,10 +10,12 @@ import {
   HISTORY_RESOURCE_PROTOCOL_SCHEME,
   getMessageResourceByUrl,
 } from '../database/messageResources'
+import { createScopedLogger } from '../utils/logger'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', `${HISTORY_RESOURCE_PROTOCOL_SCHEME}:`])
 const TEMP_RESOURCE_DIR = path.join(app.getPath('temp'), 'astrbot-live2d-history')
+const logger = createScopedLogger('ipc.window')
 
 /**
  * 清理临时资源目录（删除超过 1 小时的文件）
@@ -144,6 +146,7 @@ async function writeResourceToPath(source: string, targetPath: string): Promise<
  */
 ipcMain.handle('window:openSettings', async (_event, page?: string) => {
   const normalizedPage = normalizeWindowPage(page)
+  logger.info('open_settings', { page: normalizedPage })
   showSettingsWindow(normalizedPage)
   return { success: true }
 })
@@ -152,6 +155,7 @@ ipcMain.handle('window:openSettings', async (_event, page?: string) => {
  * 关闭设置窗口
  */
 ipcMain.handle('window:closeSettings', async () => {
+  logger.info('close_settings')
   closeSettingsWindow()
   return { success: true }
 })
@@ -159,9 +163,11 @@ ipcMain.handle('window:closeSettings', async () => {
 ipcMain.handle('window:minimizeCurrent', async (event) => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
+    logger.warn('minimize_current.failed', { reason: 'window_not_found' })
     return { success: false, error: '未找到当前窗口' }
   }
 
+  logger.info('minimize_current', { windowId: targetWindow.id })
   targetWindow.minimize()
   return { success: true }
 })
@@ -169,29 +175,40 @@ ipcMain.handle('window:minimizeCurrent', async (event) => {
 ipcMain.handle('window:toggleMaximizeCurrent', async (event) => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
+    logger.warn('toggle_maximize_current.failed', { reason: 'window_not_found' })
     return { success: false, error: '未找到当前窗口' }
   }
 
+  const wasMaximized = targetWindow.isMaximized()
   if (targetWindow.isMaximized()) {
     targetWindow.unmaximize()
   } else {
     targetWindow.maximize()
   }
 
+  logger.info('toggle_maximize_current', {
+    windowId: targetWindow.id,
+    wasMaximized,
+    maximized: targetWindow.isMaximized(),
+  })
   return { success: true, maximized: targetWindow.isMaximized() }
 })
 
 ipcMain.handle('window:isMaximizedCurrent', async (event) => {
   const targetWindow = getSenderWindow(event)
-  return targetWindow ? targetWindow.isMaximized() : false
+  const maximized = targetWindow ? targetWindow.isMaximized() : false
+  logger.debug('is_maximized_current', { windowId: targetWindow?.id, maximized })
+  return maximized
 })
 
 ipcMain.handle('window:closeCurrent', async (event) => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
+    logger.warn('close_current.failed', { reason: 'window_not_found' })
     return { success: false, error: '未找到当前窗口' }
   }
 
+  logger.info('close_current', { windowId: targetWindow.id })
   targetWindow.close()
   return { success: true }
 })
@@ -199,11 +216,13 @@ ipcMain.handle('window:closeCurrent', async (event) => {
 ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
+    logger.warn('renderer_ready.failed', { windowKind, reason: 'window_not_found' })
     return { success: false, error: '未找到当前窗口' }
   }
 
   if (windowKind === 'settings') {
     const handled = markSettingsWindowRendererReady(targetWindow)
+    logger.info('renderer_ready.settings', { windowId: targetWindow.id, handled })
     return handled
       ? { success: true }
       : { success: false, error: '设置窗口状态不匹配' }
@@ -213,6 +232,11 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
     targetWindow.show()
   }
 
+  logger.info('renderer_ready', {
+    windowId: targetWindow.id,
+    windowKind,
+    visible: targetWindow.isVisible(),
+  })
   return { success: true }
 })
 
@@ -220,16 +244,22 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
  * 关闭欢迎窗口
  */
 ipcMain.handle('window:closeWelcome', async () => {
+  logger.info('close_welcome')
   closeWelcomeWindow()
   return { success: true }
 })
 
 ipcMain.handle('window:getScreenshotSettings', async () => {
-  return loadScreenshotSettings()
+  const settings = loadScreenshotSettings()
+  logger.debug('get_screenshot_settings', { settings })
+  return settings
 })
 
 ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
-  return saveScreenshotSettings(settings)
+  logger.info('update_screenshot_settings', { settings })
+  const savedSettings = saveScreenshotSettings(settings)
+  logger.info('update_screenshot_settings.success', { settings: savedSettings })
+  return savedSettings
 })
 
 /**
@@ -238,16 +268,23 @@ ipcMain.handle('window:updateScreenshotSettings', async (_event, settings) => {
 ipcMain.handle('window:openExternal', async (_event, url: string) => {
   const safeUrl = toSafeExternalUrl(url)
   if (!safeUrl) {
+    logger.warn('open_external.rejected', { url })
     return { success: false, error: '仅支持打开 http/https/mailto 协议链接' }
   }
 
   await shell.openExternal(safeUrl)
+  logger.info('open_external.success', { url: safeUrl })
   return { success: true }
 })
 
 ipcMain.handle('window:openResource', async (_event, source: string, suggestedName?: string) => {
+  const timer = logger.timer('open_resource', {
+    source,
+    suggestedName,
+  })
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
+    timer.done({ success: false, reason: 'unsupported_protocol' })
     return { success: false, error: '仅支持打开 http/https/data/history-resource 协议资源' }
   }
 
@@ -259,18 +296,26 @@ ipcMain.handle('window:openResource', async (_event, source: string, suggestedNa
     await writeResourceToPath(safeSource, tempFilePath)
     const openError = await shell.openPath(tempFilePath)
     if (openError) {
+      timer.done({ success: false, error: openError, path: tempFilePath })
       return { success: false, error: openError }
     }
 
+    timer.done({ success: true, path: tempFilePath })
     return { success: true, path: tempFilePath }
   } catch (error: any) {
+    timer.fail(error)
     return { success: false, error: error?.message || String(error) }
   }
 })
 
 ipcMain.handle('window:saveResource', async (_event, source: string, suggestedName?: string) => {
+  const timer = logger.timer('save_resource', {
+    source,
+    suggestedName,
+  })
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
+    timer.done({ success: false, reason: 'unsupported_protocol' })
     return { success: false, error: '仅支持保存 http/https/data/history-resource 协议资源' }
   }
 
@@ -281,12 +326,15 @@ ipcMain.handle('window:saveResource', async (_event, source: string, suggestedNa
     })
 
     if (result.canceled || !result.filePath) {
+      timer.done({ success: false, canceled: true })
       return { success: false, canceled: true }
     }
 
     await writeResourceToPath(safeSource, result.filePath)
+    timer.done({ success: true, path: result.filePath })
     return { success: true, path: result.filePath }
   } catch (error: any) {
+    timer.fail(error)
     return { success: false, error: error?.message || String(error) }
   }
 })
@@ -302,7 +350,9 @@ ipcMain.handle('window:getAppVersion', async () => {
  * 获取当前平台能力
  */
 ipcMain.handle('window:getPlatformCapabilities', async () => {
-  return getPlatformCapabilities()
+  const capabilities = getPlatformCapabilities()
+  logger.debug('get_platform_capabilities', { capabilities })
+  return capabilities
 })
 
 /**
@@ -342,13 +392,19 @@ function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): s
 
 // 窗口事件监听器注册
 ipcMain.handle('window:startWatching', async (event) => {
+  const timer = logger.timer('start_watching')
   const window = BrowserWindow.fromWebContents(event.sender)
   if (!window) {
+    timer.done({ success: false, reason: 'window_not_found' })
     return { success: false, error: '无法获取窗口实例' }
   }
 
   // 添加到已注册列表
   registeredRenderers.add(window)
+  logger.info('watcher.renderer_registered', {
+    windowId: window.id,
+    registeredCount: registeredRenderers.size,
+  })
 
   // 获取窗口监听器实例
   const watcher = getWindowWatcher()
@@ -395,6 +451,7 @@ ipcMain.handle('window:startWatching', async (event) => {
         },
       }).catch((error) => {
         console.error('[窗口监听] 发送应用启动通知失败:', error)
+        logger.error('app_launch_notify.failed', error, { appName })
       })
     })
   }
@@ -403,6 +460,10 @@ ipcMain.handle('window:startWatching', async (event) => {
   // 窗口关闭时移除渲染进程
   window.on('closed', () => {
     registeredRenderers.delete(window)
+    logger.info('watcher.renderer_closed', {
+      windowId: window.id,
+      registeredCount: registeredRenderers.size,
+    })
 
     // 如果没有渲染进程了，停止监听器并移除全局监听器
     if (registeredRenderers.size === 0) {
@@ -418,56 +479,79 @@ ipcMain.handle('window:startWatching', async (event) => {
       }
       watcher.stopAppLaunchDetection()
       watcher.stop()
+      logger.info('watcher.stopped_after_last_renderer')
     }
   })
 
+  timer.done({
+    success: true,
+    windowId: window.id,
+    watcherActive: watcher.isActive(),
+    globalListenerRegistered,
+    appLaunchListenerRegistered,
+  })
   return { success: true }
 })
 
 // 获取当前活跃窗口
 ipcMain.handle('window:getActiveWindow', async () => {
   const watcher = getWindowWatcher()
-  return watcher.getCurrentWindow()
+  const currentWindow = watcher.getCurrentWindow()
+  logger.debug('get_active_window', { currentWindow })
+  return currentWindow
 })
 
 // 获取窗口历史记录
 ipcMain.handle('window:getWindowHistory', async () => {
   const watcher = getWindowWatcher()
-  return watcher.getWindowHistory()
+  const history = watcher.getWindowHistory()
+  logger.debug('get_window_history', { count: history.length })
+  return history
 })
 
 // 获取所有已知窗口
 ipcMain.handle('window:getAllWindows', async () => {
   const watcher = getWindowWatcher()
-  return watcher.getAllWindows()
+  const windows = watcher.getAllWindows()
+  logger.debug('get_all_windows', { count: windows.length })
+  return windows
 })
 
 // 构建 AI 上下文
 ipcMain.handle('window:buildAIContext', async () => {
   const watcher = getWindowWatcher()
-  return watcher.buildAIContext()
+  const context = watcher.buildAIContext()
+  logger.debug('build_ai_context', { context })
+  return context
 })
 
 // 获取窗口监听配置
 ipcMain.handle('window:getWatcherConfig', async () => {
   const watcher = getWindowWatcher()
-  return await watcher.getConfig()
+  const config = await watcher.getConfig()
+  logger.debug('get_watcher_config', { config })
+  return config
 })
 
 // 更新窗口监听配置
 ipcMain.handle('window:updateWatcherConfig', async (_event, config) => {
+  const timer = logger.timer('update_watcher_config', { config })
   const watcher = getWindowWatcher()
   await watcher.updateConfig(config)
   // 配置更新后重新同步应用启动检测
   await watcher.startAppLaunchDetection()
+  timer.done()
   return { success: true }
 })
 
 // 重置窗口监听配置
 ipcMain.handle('window:resetWatcherConfig', async () => {
+  const timer = logger.timer('reset_watcher_config')
   const watcher = getWindowWatcher()
   await watcher.resetConfig()
   // 配置重置后重新同步应用启动检测
   await watcher.startAppLaunchDetection()
-  return { success: true, config: await watcher.getConfig() }
+  const config = await watcher.getConfig()
+  timer.done({ config })
+  return { success: true, config }
 })

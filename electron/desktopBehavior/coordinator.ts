@@ -14,6 +14,7 @@ import {
   computeDesktopBehaviorEffectiveState,
   createDefaultDesktopBehaviorRuntimeState,
 } from './store'
+import { createScopedLogger } from '../utils/logger'
 import type {
   DesktopBehaviorEffectiveState,
   DesktopBehaviorRuntimeState,
@@ -22,6 +23,8 @@ import type {
 } from './types'
 
 type RevealPolicy = 'none' | 'showInactive' | 'focus'
+
+const logger = createScopedLogger('desktop.behavior')
 
 function cloneRuntimeState(runtime: DesktopBehaviorRuntimeState): DesktopBehaviorRuntimeState {
   return { ...runtime }
@@ -85,6 +88,12 @@ class DesktopBehaviorCoordinator {
   )
 
   constructor() {
+    logger.info('coordinator.create', {
+      capabilities: this.capabilities,
+      preferences: this.preferences,
+      runtime: this.runtime,
+      effective: this.effective,
+    })
     setGameModeVisibilityHandler((hidden) => {
       this.setGameModeHidden(hidden)
     })
@@ -92,6 +101,11 @@ class DesktopBehaviorCoordinator {
   }
 
   attachMainWindow(window: BrowserWindow): void {
+    logger.info('main_window.attach', {
+      windowId: window.id,
+      effective: this.effective,
+      mousePassthroughEnabled: this.mousePassthroughEnabled,
+    })
     this.mainWindow = window
     this.applyEffectiveState({
       previousEffective: null,
@@ -103,12 +117,17 @@ class DesktopBehaviorCoordinator {
 
     window.on('closed', () => {
       if (this.mainWindow === window) {
+        logger.info('main_window.closed', { windowId: window.id })
         this.mainWindow = null
       }
     })
   }
 
   reapplyMainWindowState(options?: { raiseToTop?: boolean }): void {
+    logger.debug('main_window.reapply', {
+      raiseToTop: Boolean(options?.raiseToTop),
+      effective: this.effective,
+    })
     this.applyEffectiveState({
       previousEffective: null,
       nextEffective: this.effective,
@@ -137,6 +156,10 @@ class DesktopBehaviorCoordinator {
   }
 
   setMousePassthrough(ignoreMouseEvents: boolean): boolean {
+    logger.debug('mouse_passthrough.requested', {
+      requested: Boolean(ignoreMouseEvents),
+      current: this.mousePassthroughEnabled,
+    })
     this.applyMousePassthrough(Boolean(ignoreMouseEvents))
     return this.mousePassthroughEnabled
   }
@@ -144,6 +167,10 @@ class DesktopBehaviorCoordinator {
   updatePreferences(patch: Partial<DesktopFeatureSettings>): DesktopFeatureSettings {
     const previousPreferences = clonePreferences(this.preferences)
     const previousRuntime = cloneRuntimeState(this.runtime)
+    logger.info('preferences.update', {
+      patch,
+      previousPreferences,
+    })
     this.preferences = saveDesktopBehaviorPreferences(patch)
     this.syncGameModePreference()
     this.recomputeAndApply(previousPreferences, previousRuntime, { revealPolicy: 'none' })
@@ -152,9 +179,14 @@ class DesktopBehaviorCoordinator {
 
   setModelReady(ready: boolean): DesktopBehaviorSnapshot {
     if (this.runtime.modelReady === ready) {
+      logger.debug('model_ready.unchanged', { ready })
       return this.getSnapshot()
     }
 
+    logger.info('model_ready.update', {
+      previous: this.runtime.modelReady,
+      next: ready,
+    })
     const previousPreferences = clonePreferences(this.preferences)
     const previousRuntime = cloneRuntimeState(this.runtime)
     this.runtime = {
@@ -167,9 +199,14 @@ class DesktopBehaviorCoordinator {
 
   setBackgroundPaused(paused: boolean): DesktopBehaviorSnapshot {
     if (this.runtime.backgroundPaused === paused) {
+      logger.debug('background_paused.unchanged', { paused })
       return this.getSnapshot()
     }
 
+    logger.info('background_paused.update', {
+      previous: this.runtime.backgroundPaused,
+      next: paused,
+    })
     const revealPolicy: RevealPolicy = !paused ? 'showInactive' : 'none'
     const previousPreferences = clonePreferences(this.preferences)
     const previousRuntime = cloneRuntimeState(this.runtime)
@@ -183,9 +220,14 @@ class DesktopBehaviorCoordinator {
 
   setGameModeHidden(hidden: boolean): DesktopBehaviorSnapshot {
     if (this.runtime.gameModeHidden === hidden) {
+      logger.debug('game_mode_hidden.unchanged', { hidden })
       return this.getSnapshot()
     }
 
+    logger.info('game_mode_hidden.update', {
+      previous: this.runtime.gameModeHidden,
+      next: hidden,
+    })
     const revealPolicy: RevealPolicy = !hidden ? 'showInactive' : 'none'
     const previousPreferences = clonePreferences(this.preferences)
     const previousRuntime = cloneRuntimeState(this.runtime)
@@ -203,6 +245,11 @@ class DesktopBehaviorCoordinator {
         ? 'focus'
         : 'showInactive'
 
+    logger.info('reveal.requested', {
+      reason,
+      revealPolicy,
+      effective: this.effective,
+    })
     this.applyEffectiveState({
       previousEffective: null,
       nextEffective: this.effective,
@@ -214,6 +261,9 @@ class DesktopBehaviorCoordinator {
 
   private syncGameModePreference(): void {
     if (!this.capabilities.gameMode.supported) {
+      logger.debug('game_mode.sync.unsupported', {
+        reason: this.capabilities.gameMode.reason,
+      })
       disableGameMode()
       if (this.runtime.gameModeHidden) {
         this.runtime = {
@@ -225,10 +275,12 @@ class DesktopBehaviorCoordinator {
     }
 
     if (this.preferences.autoDetectFullscreen) {
+      logger.info('game_mode.sync.enable')
       enableGameMode()
       return
     }
 
+    logger.info('game_mode.sync.disable')
     disableGameMode()
     if (this.runtime.gameModeHidden) {
       this.runtime = {
@@ -261,6 +313,13 @@ class DesktopBehaviorCoordinator {
     this.effective = nextEffective
 
     if (effectiveChanged) {
+      logger.info('effective.changed', {
+        previousEffective,
+        nextEffective,
+        preferencesChanged,
+        runtimeChanged,
+        revealPolicy: options?.revealPolicy ?? 'none',
+      })
       this.applyEffectiveState({
         previousEffective,
         nextEffective,
@@ -268,6 +327,10 @@ class DesktopBehaviorCoordinator {
         raiseToTop: nextEffective.alwaysOnTop && (!previousEffective.alwaysOnTop || options?.revealPolicy === 'focus'),
       })
     } else if (options?.revealPolicy && options.revealPolicy !== 'none') {
+      logger.debug('effective.reveal_without_state_change', {
+        nextEffective,
+        revealPolicy: options.revealPolicy,
+      })
       this.applyEffectiveState({
         previousEffective: null,
         nextEffective,
@@ -283,6 +346,7 @@ class DesktopBehaviorCoordinator {
 
   private emitSnapshotChanged(): void {
     const snapshot = this.getSnapshot()
+    logger.debug('snapshot.broadcast', { snapshot })
     for (const listener of this.listeners) {
       listener(snapshot)
     }
@@ -295,6 +359,10 @@ class DesktopBehaviorCoordinator {
     raiseToTop: boolean
   }): void {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      logger.debug('effective.apply.skipped', {
+        reason: 'main_window_unavailable',
+        nextEffective: options.nextEffective,
+      })
       return
     }
 
@@ -302,6 +370,14 @@ class DesktopBehaviorCoordinator {
     const window = this.mainWindow
 
     applyDesktopBounds(window)
+    logger.debug('effective.apply.start', {
+      windowId: window.id,
+      previousEffective,
+      nextEffective,
+      revealPolicy,
+      raiseToTop,
+      visibleBefore: window.isVisible(),
+    })
 
     if (previousEffective?.alwaysOnTop && !nextEffective.alwaysOnTop) {
       window.setAlwaysOnTop(false)
@@ -322,16 +398,30 @@ class DesktopBehaviorCoordinator {
         window.moveTop()
       }
     }
+    logger.debug('effective.apply.done', {
+      windowId: window.id,
+      visibleAfter: window.isVisible(),
+      alwaysOnTop: nextEffective.alwaysOnTop,
+      zOrderLevel: nextEffective.zOrderLevel,
+    })
   }
 
   private applyMousePassthrough(ignoreMouseEvents: boolean, force = false): void {
     if (!force && this.mousePassthroughEnabled === ignoreMouseEvents) {
+      logger.debug('mouse_passthrough.unchanged', { ignoreMouseEvents })
       return
     }
 
+    logger.info('mouse_passthrough.apply', {
+      previous: this.mousePassthroughEnabled,
+      next: ignoreMouseEvents,
+      force,
+      mousePassthroughForward: this.capabilities.mousePassthroughForward,
+    })
     this.mousePassthroughEnabled = ignoreMouseEvents
 
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      logger.debug('mouse_passthrough.window_unavailable', { ignoreMouseEvents })
       return
     }
 

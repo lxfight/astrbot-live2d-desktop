@@ -127,18 +127,39 @@ function normalizeRendererLogArg(arg: any): string {
   }
 }
 
+function resolveRendererWindowKind(): string {
+  const bodyKind = document.body?.dataset?.windowKind
+  if (bodyKind) {
+    return bodyKind
+  }
+
+  const fileName = window.location.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/i, '')
+  if (fileName) {
+    return fileName
+  }
+
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  return hash.split('/').filter(Boolean)[0] || 'unknown'
+}
+
 function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]): void {
   try {
     const fileName = window.location.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/i, '')
+    const windowKind = resolveRendererWindowKind()
     const sourceLabel = fileName
-      ? `renderer:${fileName}`
+      ? `renderer:${windowKind || fileName}`
       : window.location.hash
         ? `renderer${window.location.hash}`
         : 'renderer'
     ipcRenderer.send('log:renderer', {
       level,
       source: sourceLabel,
-      args: args.map((item) => normalizeRendererLogArg(item))
+      args: args.map((item) => normalizeRendererLogArg(item)),
+      context: {
+        windowKind,
+        path: window.location.pathname,
+        hash: window.location.hash,
+      },
     })
   } catch {
     // ignore ipc log failure to avoid affecting business flow
@@ -285,7 +306,8 @@ contextBridge.exposeInMainWorld('electron', {
     getDirectory: () => ipcRenderer.invoke('log:getDirectory'),
     openDirectory: () => ipcRenderer.invoke('log:openDirectory'),
     setLevel: (level: 'info' | 'debug') => ipcRenderer.invoke('log:setLevel', level),
-    getConfig: () => ipcRenderer.invoke('log:getConfig')
+    getConfig: () => ipcRenderer.invoke('log:getConfig'),
+    exportBundle: (days?: number) => ipcRenderer.invoke('log:exportBundle', days)
   },
 
   // 自动更新
