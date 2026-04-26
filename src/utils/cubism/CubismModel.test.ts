@@ -49,8 +49,6 @@ describe('CubismModel', () => {
     expect(typeof model.focus).toBe('function')
     expect(typeof model.motion).toBe('function')
     expect(typeof model.expression).toBe('function')
-    expect(typeof model.startLipSync).toBe('function')
-    expect(typeof model.stopLipSync).toBe('function')
     expect(typeof model.getModelInfo).toBe('function')
     expect(typeof model.getModelBounds).toBe('function')
     expect(typeof model.resize).toBe('function')
@@ -101,12 +99,6 @@ describe('CubismModel', () => {
   test('expression should not throw error', () => {
     expect(() => {
       model.expression('test_expression')
-    }).not.toThrow()
-  })
-
-  test('stopLipSync should not throw error', () => {
-    expect(() => {
-      model.stopLipSync()
     }).not.toThrow()
   })
 

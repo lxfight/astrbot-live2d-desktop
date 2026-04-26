@@ -288,6 +288,25 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     }, delay)
   }
 
+  function holdBubble(id: string) {
+    const entry = bubbleStack.value.find((item) => item.id === id)
+    if (!entry) return
+    entry.pinned = true
+    if (entry.hideTimerId !== null) {
+      clearTimeout(entry.hideTimerId)
+      entry.hideTimerId = null
+    }
+  }
+
+  function releaseBubble(id: string) {
+    const entry = bubbleStack.value.find((item) => item.id === id)
+    if (!entry) return
+    entry.pinned = false
+    if (entry.typingDone) {
+      startEntryHideTimer(entry)
+    }
+  }
+
   function removeEntry(id: string) {
     const idx = bubbleStack.value.findIndex((e) => e.id === id)
     if (idx === -1) return
@@ -349,8 +368,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
 
   // ─── 主入口：推入新气泡 ────────────────────────────────────
 
-  function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, interrupt: boolean) {
-    if (!bubbleItems.length) return
+  function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, interrupt: boolean): string | null {
+    if (!bubbleItems.length) return null
 
     if (interrupt) {
       clearAllBubbles()
@@ -384,6 +403,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
       updateStackPositions()
       void runEntryTypewriter(reactiveEntry)
     })
+
+    return reactiveEntry.id
   }
 
   // ─── 追踪表演时间 ──────────────────────────────────────────
@@ -411,6 +432,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     resolveModelOverlayAnchor,
     updateStackPositions,
     pushBubble,
+    holdBubble,
+    releaseBubble,
     clearAllBubbles,
     cleanup,
     checkFollowUp,
