@@ -129,6 +129,9 @@ export class CubismModel {
   private eyeBlinkIds: CubismIdHandle[] = []
   private lipSyncIds: CubismIdHandle[] = []
 
+  /** 外部驱动的 LipSync 音量值（0.0 ~ 1.0），由音频分析器每帧更新 */
+  private externalLipSyncValue: number = 0.0
+
   // 动画相关
   private lastUpdateTime: number = 0
   private deltaTime: number = 0
@@ -151,7 +154,7 @@ export class CubismModel {
 
   // 动作和表情文件
   private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion }>> = new Map()
-  private expressionFiles: Array<{ name: string; file: string; expression?: CubismExpressionMotion }> = []
+  private expressionFiles: Array<{ name: string; file: string; mood?: string; expression?: CubismExpressionMotion }> = []
   private hitAreaNames: string[] = []
 
   // 性能监控
@@ -899,6 +902,13 @@ export class CubismModel {
     model.addParameterValueById('ParamEyeBallX', dragX)
     model.addParameterValueById('ParamEyeBallY', dragY)
 
+    // 应用外部 LipSync 音量驱动（TTS 播放时由音频分析器提供）
+    if (this.externalLipSyncValue > 0 && this.lipSyncIds.length > 0) {
+      for (const lipSyncId of this.lipSyncIds) {
+        model.setParameterValueById(lipSyncId, this.externalLipSyncValue)
+      }
+    }
+
     // 更新模型
     model.saveParameters()
     model.update()
@@ -968,6 +978,14 @@ export class CubismModel {
     const normalizedY = (y / viewportHeight) * 2 - 1
 
     this.dragManager.set(normalizedX, normalizedY)
+  }
+
+  /**
+   * 设置外部 LipSync 音量值（由音频分析器每帧调用）
+   * @param value 归一化音量 0.0 ~ 1.0
+   */
+  setLipSyncValue(value: number): void {
+    this.externalLipSyncValue = Math.max(0, Math.min(1, value))
   }
 
   /**

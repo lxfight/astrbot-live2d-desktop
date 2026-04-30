@@ -3,6 +3,7 @@
     <!-- 音频播放器 -->
     <audio
       ref="audioRef"
+      crossorigin="anonymous"
       preload="auto"
       @abort="handleAudioAbort"
       @ended="handleAudioEnded"
@@ -454,7 +455,9 @@ defineExpose({
   showImage,
   hideImage,
   playVideo,
-  hideVideo
+  hideVideo,
+  /** 获取底层 audio 元素引用（用于 LipSync 等外部分析） */
+  getAudioElement: () => audioRef.value,
 })
 
 onBeforeUnmount(() => {

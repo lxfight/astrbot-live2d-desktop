@@ -5,10 +5,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
+import { LipSyncAnalyzer } from '@/utils/cubism/LipSyncAnalyzer'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
 let renderFrameId: number | null = null
+const lipSyncAnalyzer = new LipSyncAnalyzer()
 
 function stopRenderLoop() {
   if (renderFrameId !== null) {
@@ -32,6 +34,11 @@ function startRenderLoop() {
     const elapsed = timestamp - lastTime
     if (elapsed >= frameInterval) {
       lastTime = timestamp - (elapsed % frameInterval)
+
+      // 更新 LipSync 音量分析并注入模型
+      const lipSyncValue = lipSyncAnalyzer.update()
+      model.setLipSyncValue(lipSyncValue)
+
       model.update()
       model.render()
     }
@@ -196,6 +203,20 @@ function getModelOverlayBounds(): {
 } | null {
   if (!model) return null
   return model.getModelOverlayBounds()
+}
+
+/**
+ * 开始 LipSync 音频驱动
+ */
+function startLipSync(audioElement: HTMLAudioElement): void {
+  lipSyncAnalyzer.start(audioElement)
+}
+
+/**
+ * 停止 LipSync 音频驱动
+ */
+function stopLipSync(): void {
+  lipSyncAnalyzer.stop()
 }
 
 // 拖动相关状态
@@ -510,6 +531,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopRenderLoop()
   stopPassThroughDetection()
+  lipSyncAnalyzer.destroy()
 
   if (model) {
     model.destroy()
@@ -545,6 +567,8 @@ defineExpose({
   setModelScale,
   getModelBounds,
   getModelOverlayBounds,
+  startLipSync,
+  stopLipSync,
   getTextureSource: () => model?.getTextureSource(),
   getTextureSources: () => model?.getTextureSources() || [],
 })

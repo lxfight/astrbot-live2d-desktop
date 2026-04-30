@@ -671,7 +671,22 @@ performQueue.onAudio((source, volume) => {
 
   const audioEndPromise = waitForNextAudioEnd()
   void mediaPlayer.playAudio(source, volume)
+
+  // 启动 LipSync 音频驱动
+  const audioElement = mediaPlayer.getAudioElement?.()
+  console.log('[Main.onAudio] audioElement=%o, isHTMLAudio=%s',
+    audioElement, audioElement instanceof HTMLAudioElement)
+  if (audioElement) {
+    console.log('[Main.onAudio] 启动 LipSync, audio.src=%s, audio.readyState=%d',
+      audioElement.src?.substring(0, 80), audioElement.readyState)
+    live2dCanvasRef.value?.startLipSync(audioElement)
+  } else {
+    console.warn('[Main.onAudio] 无法获取 audioElement，LipSync 未启动')
+  }
+
   return audioEndPromise.finally(() => {
+    console.log('[Main.onAudio] 音频播放结束，停止 LipSync')
+    live2dCanvasRef.value?.stopLipSync()
     if (audioBubbleEntryId) {
       releaseBubble(audioBubbleEntryId)
     }
@@ -995,7 +1010,9 @@ function handleAudioEnd() {
 
 // 监听表演指令
 onMounted(async () => {
+  console.log('[Main.vue] onMounted 开始执行')
   await connectionStore.ensureInitialized()
+  console.log('[Main.vue] connectionStore.ensureInitialized 完成')
 
   // 获取用户名称
   try {
@@ -1065,6 +1082,7 @@ onMounted(async () => {
     }
   }))
 
+  console.log('[Main.vue] 准备注册 onPerformShow, window.electron.bridge=', !!window.electron.bridge)
   mainWindowDisposers.push(window.electron.bridge.onPerformShow((payload: PerformSequence) => {
     console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
 
@@ -1093,10 +1111,14 @@ onMounted(async () => {
       }
 
       if (remainingSequence.length > 0) {
+        console.log('[Main] performQueue.enqueue, remainingSequence:', JSON.stringify(remainingSequence.map(e => ({ type: e.type, text: typeof e.text === 'string' ? e.text.substring(0, 50) : undefined }))))
         performQueue.enqueue({
           sequence: remainingSequence as PerformElement[],
           interruptible: payload.interruptible !== false
         })
+      } else {
+        console.log('[Main] remainingSequence 为空，所有元素都归 bubbleItems')
+        console.log('[Main] bubbleItems:', JSON.stringify(bubbleItems.map(e => ({ type: e.type }))))
       }
 
       // 保存表演记录和更新统计
