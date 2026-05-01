@@ -154,7 +154,7 @@ export class CubismModel {
 
   // 动作和表情文件
   private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion }>> = new Map()
-  private expressionFiles: Array<{ name: string; file: string; mood?: string; expression?: CubismExpressionMotion }> = []
+  private expressionFiles: Array<{ name: string; file: string; expression?: CubismExpressionMotion }> = []
   private hitAreaNames: string[] = []
 
   // 性能监控
