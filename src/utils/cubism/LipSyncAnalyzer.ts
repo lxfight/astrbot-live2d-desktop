@@ -43,26 +43,20 @@ export class LipSyncAnalyzer {
    * 只需要重新连接 destination 即可。
    */
   start(audioElement: HTMLAudioElement): void {
-    console.log('[LipSync] start() 被调用, audioElement=%o, currentConnected=%o, captured=%s',
-      audioElement, this.connectedElement, this.elementCaptured)
-
     // 已经是活跃状态且连着同一个元素 → 确保 destination 连通即可
     if (this.connectedElement === audioElement && this.analyser) {
-      console.log('[LipSync] 已经连接到同一个元素，确保 destination 连通')
       this.ensureDestinationConnected()
       return
     }
 
     // 换了不同的 audio 元素 → 先清理旧的
     if (this.connectedElement && this.connectedElement !== audioElement) {
-      console.log('[LipSync] 切换 audio 元素: 旧=%o → 新=%o', this.connectedElement, audioElement)
       this.fullCleanup()
     }
 
     try {
       // 首次连接这个 audio 元素
       if (!this.elementCaptured) {
-        console.log('[LipSync] 首次连接，创建 AudioContext + MediaElementSource')
         const ctx = new AudioContext()
         this.audioContext = ctx
 
@@ -78,19 +72,11 @@ export class LipSyncAnalyzer {
         this.frequencyData = new Uint8Array(analyser.frequencyBinCount)
         this.connectedElement = audioElement
         this.elementCaptured = true
-
-        console.log('[LipSync] AudioContext 创建成功, state=%s, fftSize=%d',
-          ctx.state, analyser.fftSize)
-      } else {
-        console.log('[LipSync] audio 元素已被接管，复用已有节点')
       }
 
       // 确保 AudioContext 没有被挂起（浏览器自动播放策略）
       if (this.audioContext && this.audioContext.state === 'suspended') {
-        console.log('[LipSync] AudioContext 处于 suspended 状态，尝试 resume...')
-        this.audioContext.resume().then(() => {
-          console.log('[LipSync] AudioContext resume 成功, state=%s', this.audioContext?.state)
-        }).catch((err) => {
+        this.audioContext.resume().catch((err) => {
           console.error('[LipSync] AudioContext resume 失败:', err)
         })
       }
@@ -110,18 +96,14 @@ export class LipSyncAnalyzer {
    * 这样下次 start 同一个元素时不需要重新 createMediaElementSource
    */
   stop(): void {
-    console.log('[LipSync] stop() 被调用')
     this._currentValue = 0.0
 
     // 只断开 analyser → destination，保留 source → analyser
     if (this.analyser) {
       try {
         this.analyser.disconnect()
-        console.log('[LipSync] analyser 已从 destination 断开')
       } catch { /* ignore */ }
     }
-
-    console.log('[LipSync] 分析器已暂停（AudioContext 保留）')
   }
 
   /**
@@ -132,10 +114,8 @@ export class LipSyncAnalyzer {
     if (!this.analyser || !this.audioContext) return
     try {
       this.analyser.connect(this.audioContext.destination)
-      console.log('[LipSync] analyser → destination 已连接')
-    } catch (e) {
+    } catch {
       // 可能已经连接了，忽略
-      console.warn('[LipSync] analyser → destination 连接失败:', e)
     }
   }
 
@@ -160,15 +140,12 @@ export class LipSyncAnalyzer {
       this.audioContext.close().catch(() => {})
       this.audioContext = null
     }
-
-    console.log('[LipSync] 完全清理完成')
   }
 
   /**
    * 销毁分析器（组件卸载时调用）
    */
   destroy(): void {
-    console.log('[LipSync] destroy() 被调用')
     this._currentValue = 0.0
     this.fullCleanup()
   }
