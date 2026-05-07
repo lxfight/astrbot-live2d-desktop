@@ -4,6 +4,7 @@
 
 - `USAGE_TUTORIAL.zh-CN.md`：连接、模型导入、日常使用、常见问题
 - `PLATFORM_SUPPORT.zh-CN.md`：Windows / macOS / Linux (X11 / Wayland) 平台能力矩阵
+- `CUBISM_RUNTIME.zh-CN.md`：Cubism 运行时接入方式、模型发现优先级、表情兼容边界
 - `DESKTOP_BEHAVIOR_ARCHITECTURE.zh-CN.md`：置顶/穿透/显示的主进程统一协调架构
 
 服务端部署请参考适配器文档：

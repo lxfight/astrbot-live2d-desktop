@@ -18,12 +18,33 @@
 
 ## 功能亮点
 
-- Live2D 模型渲染，支持 Cubism 3/4（`.model3.json`）模型
+- Live2D 模型渲染，仅支持 Cubism 3/4 的 `.model3.json` 模型
+- 不支持 Cubism 2 `.model.json` 模型导入与运行
 - 与 AstrBot WebSocket 实时交互，低延迟消息与表演推送
 - 文本/图片/语音输入，自动触发表演序列播放
 - 历史消息、表演记录与统计分析
 - 录音链路与全局快捷键
 - 托盘、置顶、鼠标穿透等桌面助手能力
+
+## 模型兼容边界
+
+- 当前桌面端只接受 `.model3.json` 作为模型入口文件；检测到 `.model.json` 会直接拒绝导入。
+- “支持 Cubism 3/4” 的含义是：支持 Cubism 3/4 时代常见的 `.model3.json` 资源组织方式，不代表兼容 Cubism 2。
+- 模型动作与表情会按以下顺序自适应发现：
+  1. `.model3.json` 内的标准 `FileReferences` 声明
+  2. 模型目录中的 `.vtube.json` companion 声明
+  3. 模型目录递归扫描得到的 `.motion3.json` / `.exp3.json` fallback
+- 如果模型目录存在 `astrbot.live2d.profile.json`，应用会自动尝试加载它，为表情目录补充别名、语义标签和语义预设；如果文件不存在、读取失败或内容无效，则只是不启用这部分附加语义信息。
+- 目录扫描 fallback 属于兼容补全，不等价于官方标准声明。遇到重名候选时会按内置规则择优，并可能产生兼容告警。
+
+## 表情能力边界
+
+- `exp3`：当前表情目录与组合能力以 `.exp3.json` 解析结果为基础。只有成功解析且包含有效参数的表情，才会进入 `combo` / `semantic` 等参数化能力构建；解析失败或无有效参数时，若原生表情加载成功，仍可能以单表情回退方式可用。
+- `combo`：支持一次请求中组合多个表情，并按权重叠加；是否能稳定组合取决于表情参数是否冲突。
+- `semantic`：支持按语义标签选择表情，但它不是任意自然语言理解。
+  - 只有已发现且成功解析出参数的表情，才会参与标签归类与语义路由。
+  - 仅靠目录扫描发现的表情，默认不会自动开放推断语义标签；需要在 `astrbot.live2d.profile.json` 中显式配置 `tags` 或 `semanticPresets`。
+- 更完整的加载规则与限制说明见 [`docs/CUBISM_RUNTIME.zh-CN.md`](./docs/CUBISM_RUNTIME.zh-CN.md)。
 
 ## 技术栈
 
@@ -64,7 +85,14 @@
 
 ### 4) 导入模型
 
-首次启动导入 Live2D 模型目录（`.model3.json`），即可开始对话与互动。
+首次启动导入包含 `.model3.json` 的 Live2D 模型目录，即可开始对话与互动。
+
+建议把以下兼容文件放在同一模型目录内，应用会自动参与发现流程，并在可解析时纳入兼容清单：
+
+- `.model3.json`：标准模型入口
+- `.vtube.json`：可选 companion 声明
+- `astrbot.live2d.profile.json`：可选表情别名 / 标签 / 语义预设
+- `.motion3.json` / `.exp3.json`：可被标准声明、companion 或目录扫描发现
 
 ## 开发指南
 
@@ -160,6 +188,9 @@ astrbot-live2d-desktop/
 
 ## 已知限制
 
+- 不支持 Cubism 2 `.model.json` 模型
+- `.vtube.json` 仅作为 companion 补充来源使用，不代表完整兼容 VTube Studio 的全部配置语义
+- `semantic` 表情选择依赖已发现的表情目录与 profile 标注，不能保证所有第三方模型都能自动得到理想语义映射
 - 受 Cubism Core 版本影响，部分较新 moc3 版本可能不兼容
 - 某些环境下透明窗口与 GPU 驱动组合存在兼容差异
 
