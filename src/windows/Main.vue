@@ -203,7 +203,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import type { PerformElement, PerformSequence } from '@/types/protocol'
+import type { PerformElement, PerformSequence, StateModelPayload } from '@/types/protocol'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
@@ -230,6 +230,7 @@ import { configureMarked, renderBubbleMarkdown } from '@/utils/markedLatex'
 import { extractModelThemeColor } from '@/utils/modelTheme'
 import { sleep } from '@/utils/async'
 import { rgbToHexString } from '@/utils/color'
+import type { CubismExpressionRequest } from '@/utils/cubism'
 import { useBubbleStack } from './composables/useBubbleStack'
 import { useRecording } from './composables/useRecording'
 import { useRadialMenu } from './composables/useRadialMenu'
@@ -316,11 +317,35 @@ function summarizePerformElementForLog(element: PerformElement): Record<string, 
   if (typeof element.group === 'string' && element.group) {
     summary.group = element.group
   }
+  if (typeof element.motionType === 'string' && element.motionType) {
+    summary.motionType = element.motionType
+  }
   if (typeof element.index === 'number') {
     summary.index = element.index
   }
-  if (typeof element.id === 'string' && element.id) {
+  if ((typeof element.id === 'string' && element.id) || typeof element.id === 'number') {
     summary.id = element.id
+  }
+  if (Array.isArray(element.combo) && element.combo.length > 0) {
+    summary.combo = element.combo.map((item) => ({
+      id: item.id,
+      weight: item.weight,
+    }))
+  }
+  if (Array.isArray(element.semantic) && element.semantic.length > 0) {
+    summary.semantic = element.semantic.map((item) => ({
+      tag: item.tag,
+      weight: item.weight,
+    }))
+  }
+  if (typeof element.fade === 'number') {
+    summary.fade = element.fade
+  }
+  if (typeof element.holdMs === 'number') {
+    summary.holdMs = element.holdMs
+  }
+  if (typeof element.resetPolicy === 'string' && element.resetPolicy) {
+    summary.resetPolicy = element.resetPolicy
   }
 
   return summary
@@ -335,6 +360,40 @@ function summarizePerformPayloadForLog(payload: PerformSequence): Record<string,
       ? payload.sequence.map((element) => summarizePerformElementForLog(element))
       : [],
   }
+}
+
+function collectExpressionUsageKeys(element: PerformElement & { expressionId?: string | number }): string[] {
+  if (Array.isArray(element.combo) && element.combo.length > 0) {
+    return element.combo
+      .map((item) => String(item.id || '').trim())
+      .filter((value) => Boolean(value))
+  }
+
+  const explicitExpressionId = element.expressionId ?? element.id
+  if (explicitExpressionId !== undefined && explicitExpressionId !== null) {
+    const normalized = String(explicitExpressionId).trim()
+    return normalized ? [normalized] : []
+  }
+
+  if (!Array.isArray(element.semantic) || element.semantic.length === 0) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const keys: string[] = []
+  for (const item of element.semantic) {
+    const normalizedTag = String(item.tag || '').trim().toLowerCase()
+    if (!normalizedTag) {
+      continue
+    }
+    const key = `semantic:${normalizedTag}`
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    keys.push(key)
+  }
+  return keys
 }
 
 function settleAudioWaiter(waiter: AudioWaiter) {
@@ -656,8 +715,17 @@ performQueue.onMotion((group, index, priority) => {
   live2dCanvasRef.value?.playMotion(group, index, priority)
 })
 
-performQueue.onExpression((id) => {
-  live2dCanvasRef.value?.setExpression(id)
+performQueue.onExpression((element) => {
+  const expressionRequest: CubismExpressionRequest = {
+    id: element.id,
+    combo: element.combo,
+    semantic: element.semantic,
+    fade: element.fade,
+    holdMs: element.holdMs,
+    resetPolicy: element.resetPolicy,
+    motionType: element.motionType,
+  }
+  live2dCanvasRef.value?.setExpression(expressionRequest)
 })
 
 performQueue.onAudio((source, volume) => {
@@ -716,10 +784,25 @@ async function loadModelWithState(modelPath: string) {
   const savedPosition = modelStore.getModelPosition(modelPath)
   const savedScale = modelStore.getModelScale(modelPath)
   loadingModelPath.value = modelPath
-  await live2dCanvasRef.value?.loadModel(modelPath, savedPosition || undefined, savedScale)
+  const prepareResult = await window.electron.model.prepareLoad(modelPath)
+  if (!prepareResult.success || !prepareResult.descriptor) {
+    throw new Error(prepareResult.error || '解析模型资源失败')
+  }
+
+  const { descriptor } = prepareResult
+  if (descriptor.warnings.length > 0) {
+    console.warn('[主窗口] 模型兼容发现告警:', descriptor.warnings)
+  }
+
+  await live2dCanvasRef.value?.loadModel(
+    descriptor.modelPath,
+    savedPosition || undefined,
+    savedScale,
+    descriptor.compatibilityManifest,
+  )
   hasModel.value = true
-  modelStore.setCurrentModel(modelPath)
-  themeStore.setCurrentModel(modelPath)
+  modelStore.setCurrentModel(descriptor.modelPath)
+  themeStore.setCurrentModel(descriptor.modelPath)
   applyModelPositionState(savedPosition)
 }
 
@@ -767,7 +850,7 @@ async function handleImportModel() {
     }
 
     if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
-      showModelStatus(`模型存在可降级资源缺失：${importResult.warnings.join('；')}`, 'warning', 5200)
+      showModelStatus(`模型存在兼容或可降级资源告警：${importResult.warnings.join('；')}`, 'warning', 5200)
     }
 
     await loadModelWithState(importResult.modelPath!)
@@ -811,25 +894,31 @@ async function handleModelLoaded() {
 }
 
 // 模型信息变化
-async function handleModelInfoChanged(modelInfo: {
-  name: string;
-  motionGroups: string[] | Record<string, Array<{ index: number; file: string }>>;
-  expressions: string[]
-}) {
+async function handleModelInfoChanged(modelInfo: StateModelPayload) {
   console.log('[主窗口] 模型信息变化:', modelInfo)
   if (modelInfo.name) {
     themeStore.setModelName(modelInfo.name)
   }
 
-  // 如果已连接到服务器，发送模型信息更新
-  if (connectionStore.isConnected) {
-    try {
-      await connectionStore.sendState('state.model', modelInfo)
-      console.log('[主窗口] 模型信息已发送到服务器')
-    } catch (error: any) {
-      console.error('[主窗口] 发送模型信息失败:', error)
-    }
+  await syncModelInfoToBridge(modelInfo, '模型信息变化')
+}
+
+async function syncModelInfoToBridge(modelInfo: StateModelPayload | null | undefined, reason: string) {
+  if (!connectionStore.isConnected || !modelInfo?.name) {
+    return
   }
+
+  try {
+    await connectionStore.sendState('state.model', modelInfo)
+    console.log(`[主窗口] 已同步模型信息到服务器: ${reason}`)
+  } catch (error: any) {
+    console.error(`[主窗口] 同步模型信息失败: ${reason}`, error)
+  }
+}
+
+async function syncCurrentModelInfoToBridge(reason: string) {
+  const modelInfo = live2dCanvasRef.value?.getModelInfo()
+  await syncModelInfoToBridge(modelInfo, reason)
 }
 
 // 模型位置变化（拖动时）
@@ -957,6 +1046,7 @@ function formatRetryHint(): string {
 watch(lifecycleStatus, (status, previousStatus) => {
   if (status === 'connected' && previousStatus !== 'connected') {
     showBaseEventStatus('已连接到服务器', 'success')
+    void syncCurrentModelInfoToBridge('连接建立后补发当前模型状态')
     return
   }
 
@@ -1171,8 +1261,7 @@ onMounted(async () => {
             }
             case 'expression':
             {
-              const exprKey = element.expressionId || element.id
-              if (exprKey) {
+              for (const exprKey of collectExpressionUsageKeys(element)) {
                 expressionUsage[exprKey] = (expressionUsage[exprKey] || 0) + 1
               }
               break

@@ -33,4 +33,39 @@ describe('PerformanceQueue', () => {
 
     resolveAudio?.()
   })
+
+  it('passes the full expression payload to the callback', async () => {
+    const queue = new PerformanceQueue()
+    const received: Array<Record<string, unknown>> = []
+
+    queue.onExpression((element) => {
+      received.push(element as Record<string, unknown>)
+    })
+
+    queue.enqueue({
+      sequence: [{
+        type: 'expression',
+        combo: [
+          { id: 'Smile', weight: 0.8 },
+          { id: 'Thinking', weight: 0.35 },
+        ],
+        holdMs: 1200,
+        resetPolicy: 'previous',
+        motionType: 'happy',
+      }],
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(received).toEqual([{
+      type: 'expression',
+      combo: [
+        { id: 'Smile', weight: 0.8 },
+        { id: 'Thinking', weight: 0.35 },
+      ],
+      holdMs: 1200,
+      resetPolicy: 'previous',
+      motionType: 'happy',
+    }])
+  })
 })

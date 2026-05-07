@@ -2,8 +2,9 @@ import { ipcMain, dialog, app } from 'electron'
 import { getMainWindow } from '../windows/mainWindow'
 import fs from 'fs'
 import path from 'path'
-import { pathToFileURL } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cubismAssetManifest'
+import { createCubismModelLoadDescriptor } from '../utils/cubismModelDiscovery'
 import { getAppDataPath } from '../utils/appPaths'
 import { createScopedLogger } from '../utils/logger'
 
@@ -53,6 +54,24 @@ function findModelJsonFiles(rootDir: string): string[] {
 
 function findCubism2ModelJsonFiles(rootDir: string): string[] {
   return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
+}
+
+function resolveModelAbsolutePath(modelPath: string): string {
+  const normalized = String(modelPath || '').trim()
+  if (!normalized) {
+    throw new Error('模型路径不能为空')
+  }
+
+  if (normalized.startsWith('file://')) {
+    return fileURLToPath(normalized)
+  }
+
+  if (normalized.startsWith('/models/')) {
+    const relativePath = normalized.slice('/models/'.length).replace(/\//g, path.sep)
+    return path.join(getModelsDir(), relativePath)
+  }
+
+  throw new Error(`不支持的模型路径格式: ${normalized}`)
 }
 
 function normalizeModelName(rawName: unknown): { success: true; value: string } | { success: false; error: string } {
@@ -260,7 +279,10 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       modelPath,
       chosenFile: relChosen,
       modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f))),
-      warnings: formatCubismAssetIssues(optionalIssues),
+      warnings: [
+        ...formatCubismAssetIssues(optionalIssues),
+        ...validationResult.discoveryWarnings,
+      ],
       manifest: validationResult.manifest
     }
     timer.done({
@@ -271,6 +293,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       chosenFile: relChosen,
       modelFileCount: modelFiles.length,
       optionalIssueCount: optionalIssues.length,
+      discoveryWarningCount: validationResult.discoveryWarnings.length,
     })
     return response
   } catch (error: any) {
@@ -347,6 +370,30 @@ ipcMain.handle('model:delete', async (_event, modelName: string) => {
     timer.fail(error)
     const code = typeof error?.code === 'string' ? `[${error.code}] ` : ''
     return { success: false, error: `${code}${error?.message || String(error)}` }
+  }
+})
+
+/**
+ * 解析模型加载描述
+ */
+ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
+  const timer = logger.timer('prepare_load', { modelPath })
+  try {
+    const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+    timer.done({
+      modelPath,
+      discoveryMode: descriptor.compatibilityManifest.discovery.mode,
+      sourceCount: descriptor.compatibilityManifest.discovery.sources.length,
+      warningCount: descriptor.warnings.length,
+    })
+    return {
+      success: true,
+      descriptor,
+    }
+  } catch (error: any) {
+    timer.fail(error)
+    return { success: false, error: error.message }
   }
 })
 

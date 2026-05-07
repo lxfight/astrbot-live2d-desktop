@@ -281,6 +281,7 @@ contextBridge.exposeInMainWorld('electron', {
     import: (sourcePath: string, modelName: string) => ipcRenderer.invoke('model:import', sourcePath, modelName),
     getList: () => ipcRenderer.invoke('model:getList'),
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),
+    prepareLoad: (modelPath: string) => ipcRenderer.invoke('model:prepareLoad', modelPath),
     load: (modelPath: string) => ipcRenderer.invoke('model:load', modelPath),
     onLoad: (callback: (modelPath: string) => void) => {
       return subscribeIpc('model:load', callback)

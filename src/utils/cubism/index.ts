@@ -1,10 +1,23 @@
 /**
  * Cubism SDK 模块导出
  */
+import type {
+  CubismCompatibilityManifest as SharedCubismCompatibilityManifest,
+  CubismModelDiscoveryInfo as SharedCubismModelDiscoveryInfo,
+} from '@/shared/cubismModelDiscovery'
 
 // 主要类
 export { CubismModel, LoadStep, MotionPriority, CubismModelSettingJson } from './CubismModel'
 export type { ICubismModelSetting } from './CubismModel'
+export { parseExp3Text } from './exp3Parser'
+export { loadExpressionProfile } from './expressionProfile'
+export { buildExpressionCatalog } from './expressionCatalog'
+export type { ParsedExpressionFile } from './exp3Parser'
+export type { ExpressionProfile } from './expressionProfile'
+export type {
+  ExpressionCatalogEntry,
+  ExpressionCatalogBuildResult
+} from './expressionCatalog'
 
 // 核心数据结构
 export {
@@ -21,10 +34,53 @@ export type { CubismIdHandle } from './CubismCore'
 // 类型定义
 // ============================================================================
 
+export type CubismExpressionResetPolicy = 'previous' | 'neutral' | 'keep'
+
+export type CubismExpressionComboItem = {
+  id: string
+  weight?: number
+}
+
+export type CubismExpressionSemanticItem = {
+  tag: string
+  weight?: number
+}
+
+export type CubismExpressionRequest = {
+  id?: string | number
+  combo?: CubismExpressionComboItem[]
+  semantic?: CubismExpressionSemanticItem[]
+  fade?: number
+  holdMs?: number
+  resetPolicy?: CubismExpressionResetPolicy
+  motionType?: string
+}
+
+export type CubismExpressionCapabilities = {
+  expressionCombo: boolean
+  semanticExpression: boolean
+  expressionProfile: boolean
+}
+
+export type CubismExpressionCatalogItem = {
+  id: string
+  aliases: string[]
+  tags: string[]
+  conflictGroups: string[]
+  supportsCombo: boolean
+}
+
+export type CubismModelDiscoveryInfo = SharedCubismModelDiscoveryInfo
+export type CubismCompatibilityManifest = SharedCubismCompatibilityManifest
+
 export type CubismModelInfo = {
   name: string
   motionGroups: Record<string, Array<{ index: number; file: string }>>
   expressions: string[]
+  capabilities: CubismExpressionCapabilities
+  expressionCatalog?: CubismExpressionCatalogItem[]
+  semanticPresets?: Record<string, string[]>
+  discovery?: CubismModelDiscoveryInfo
 }
 
 export type ModelBounds = {

@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
+import type { CubismCompatibilityManifest, CubismExpressionRequest, CubismModelInfo } from '@/utils/cubism'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
@@ -46,18 +47,19 @@ const emit = defineEmits<{
   modelLoaded: []
   modelClick: [{ x: number; y: number }]
   modelRightClick: [{ x: number; y: number }]
-  modelInfoChanged: [{
-    name: string;
-    motionGroups: Record<string, Array<{ index: number; file: string }>>;
-    expressions: string[]
-  }]
+  modelInfoChanged: [CubismModelInfo]
   modelPositionChanged: [{ x: number; y: number }]
 }>()
 
 /**
  * 加载 Live2D 模型
  */
-async function loadModel(modelPath: string, initialPosition?: { x: number; y: number }, initialScale: number = 1.0) {
+async function loadModel(
+  modelPath: string,
+  initialPosition?: { x: number; y: number },
+  initialScale: number = 1.0,
+  compatibilityManifest?: CubismCompatibilityManifest | null,
+) {
   if (!canvasRef.value) {
     console.error('[Live2D] Canvas 未初始化')
     return
@@ -75,7 +77,7 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
     }
 
     // 加载新模型
-    model = await Live2DModel.from(modelPath)
+    model = await Live2DModel.from(modelPath, compatibilityManifest)
 
     // 初始化 WebGL 并启动渲染循环，传入初始位置
     model.initWebGL(canvasRef.value, initialPosition, initialScale)
@@ -98,9 +100,32 @@ async function loadModel(modelPath: string, initialPosition?: { x: number; y: nu
 /**
  * 获取当前模型信息
  */
-function getModelInfo() {
+function getModelInfo(): CubismModelInfo {
   if (!model) {
-    return { name: '', motionGroups: [], expressions: [] }
+    return {
+      name: '',
+      motionGroups: {},
+      expressions: [],
+      capabilities: {
+        expressionCombo: false,
+        semanticExpression: false,
+        expressionProfile: false,
+      },
+      expressionCatalog: [],
+      semanticPresets: {},
+      discovery: {
+        mode: 'standard',
+        sources: [],
+        companionFiles: [],
+        standardDeclaredExpressions: 0,
+        standardDeclaredMotionGroups: 0,
+        discoveredExpressions: 0,
+        discoveredMotionGroups: 0,
+        scannedExpressionCount: 0,
+        scannedMotionCount: 0,
+        warnings: [],
+      },
+    }
   }
   return model.getModelInfo()
 }
@@ -116,9 +141,9 @@ function playMotion(group: string, index: number = 0, priority?: number) {
 /**
  * 设置表情
  */
-function setExpression(expressionId: string | number) {
+function setExpression(expression: string | number | CubismExpressionRequest) {
   if (!model) return
-  model.expression(expressionId)
+  model.expression(expression)
 }
 
 /**

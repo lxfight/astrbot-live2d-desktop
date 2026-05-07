@@ -4,6 +4,9 @@
  * - 同类型指令串行执行
  */
 import type { ResourceLike } from './resourceUrl'
+import type {
+  PerformElement as ProtocolPerformElement,
+} from '@/types/protocol'
 
 export type PerformElementType =
   | 'text'
@@ -16,28 +19,8 @@ export type PerformElementType =
   | 'delay'
   | 'wait'
 
-export interface PerformElement {
-  type: PerformElementType | string
-
-  // 文字气泡
-  content?: string
-  position?: 'top' | 'center' | 'bottom'
-  duration?: number
-
-  // 动作
-  group?: string
-  index?: number
-  priority?: number
-
-  // 表情
-  id?: string | number
-
-  // 媒体
-  url?: string
-  inline?: string
-  rid?: string
-  text?: string
-  volume?: number
+export interface PerformElement extends Omit<ProtocolPerformElement, 'type'> {
+  type: PerformElementType | ProtocolPerformElement['type'] | string
 }
 
 export interface PerformSequence {
@@ -55,7 +38,7 @@ type TextCallback = (content: string, position: string, duration: number) => May
 
 type MotionCallback = (group: string, index: number, priority: number) => MaybePromise<void>
 
-type ExpressionCallback = (id: string | number) => MaybePromise<void>
+type ExpressionCallback = (element: PerformElement) => MaybePromise<void>
 
 type AudioCallback = (source: ResourceLike, volume: number) => MaybePromise<void>
 
@@ -422,11 +405,11 @@ export class PerformanceQueue {
               return
             }
 
-            if (!this.onExpressionCallback || element.id === undefined) {
+            if (!this.onExpressionCallback) {
               return
             }
 
-            await withAbort(this.onExpressionCallback(element.id), taskSignal)
+            await withAbort(this.onExpressionCallback(element), taskSignal)
           } finally {
             this.completeSequenceElement(sequenceState)
           }

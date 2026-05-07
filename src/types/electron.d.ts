@@ -41,6 +41,10 @@ import type {
   HistoryMessageRecord as _HistoryMessageRecord,
   HistorySaveMessageResult as _HistorySaveMessageResult,
 } from '../shared/history'
+import type {
+  CubismCompatibilityManifest as _CubismCompatibilityManifest,
+  CubismModelLoadDescriptor as _CubismModelLoadDescriptor,
+} from '../shared/cubismModelDiscovery'
 
 declare global {
   type Unsubscribe = () => void
@@ -74,6 +78,8 @@ declare global {
   type HistoryMessageRecord = _HistoryMessageRecord
   type HistoryGetMessagesResult = _HistoryGetMessagesResult
   type HistorySaveMessageResult = _HistorySaveMessageResult
+  type CubismCompatibilityManifest = _CubismCompatibilityManifest
+  type CubismModelLoadDescriptor = _CubismModelLoadDescriptor
 
   interface UpdateState {
     status: 'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
@@ -213,6 +219,7 @@ declare global {
         }>
         getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>
         delete: (modelName: string) => Promise<{ success: boolean; error?: string }>
+        prepareLoad: (modelPath: string) => Promise<{ success: boolean; descriptor?: CubismModelLoadDescriptor; error?: string }>
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>
         onLoad: (callback: (modelPath: string) => void) => Unsubscribe
       }

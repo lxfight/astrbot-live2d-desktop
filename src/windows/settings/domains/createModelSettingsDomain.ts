@@ -134,6 +134,10 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
       message.info(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`)
     }
 
+    if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
+      message.warning(`模型存在兼容或可降级资源告警：${importResult.warnings.join('；')}`)
+    }
+
     message.success('模型导入成功')
     await ensureLibraryReady(true)
   }
