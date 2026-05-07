@@ -40,6 +40,7 @@ import { nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
+import { useThemeStore } from '@/stores/theme'
 import { createSettingsSectionRegistry } from './settings/settingsRegistry'
 import { useSettingsNavigation } from './settings/composables/useSettingsNavigation'
 import { useSettingsWindowChrome } from './settings/composables/useSettingsWindowChrome'
@@ -82,6 +83,7 @@ const message = useMessage()
 const dialog = useDialog()
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
+const themeStore = useThemeStore()
 
 const {
   activeChild,
@@ -143,6 +145,7 @@ const settingsWindowDisposers: Unsubscribe[] = []
 onMounted(async () => {
   await connectionStore.ensureInitialized()
   modelStore.startStorageSync()
+  themeStore.startStorageSync()
 
   if (window.electron.settings?.onNavigateTo) {
     settingsWindowDisposers.push(window.electron.settings.onNavigateTo((page: string) => {
@@ -194,6 +197,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   modelStore.stopStorageSync()
+  themeStore.stopStorageSync()
 
   for (const dispose of settingsWindowDisposers.splice(0)) {
     dispose()
