@@ -254,6 +254,7 @@ export class CubismModel {
   private discoveryInfo: CubismModelInfo['discovery'] | null = null
   private activeExpressionRuntime: ActiveExpressionRuntime | null = null
   private activeLegacyExpressionName: string | null = null
+  private expressionParameterIdHandles: Map<string, CubismIdHandle> = new Map()
   private hitAreaNames: string[] = []
 
   // 性能监控
@@ -610,6 +611,7 @@ export class CubismModel {
     this.hasExpressionProfile = false
     this.activeExpressionRuntime = null
     this.activeLegacyExpressionName = null
+    this.expressionParameterIdHandles.clear()
     const expressionDefinitions = this.getResolvedExpressionDefinitions()
     if (expressionDefinitions.length === 0) {
       console.log('[CubismModel] 无表情文件')
@@ -1143,24 +1145,36 @@ export class CubismModel {
     }
 
     for (const parameter of parsed.parameters) {
+      const parameterId = this.getExpressionParameterIdHandle(parameter.parameterId)
       switch (parameter.blend) {
         case 'multiply':
           if (typeof model.multiplyParameterValueById === 'function') {
-            model.multiplyParameterValueById(parameter.parameterId, parameter.value, normalizedWeight)
+            model.multiplyParameterValueById(parameterId, parameter.value, normalizedWeight)
           } else if (typeof model.getParameterValueById === 'function') {
-            const currentValue = model.getParameterValueById(parameter.parameterId)
-            model.setParameterValueById(parameter.parameterId, currentValue * parameter.value, normalizedWeight)
+            const currentValue = model.getParameterValueById(parameterId)
+            model.setParameterValueById(parameterId, currentValue * parameter.value, normalizedWeight)
           }
           break
         case 'overwrite':
-          model.setParameterValueById(parameter.parameterId, parameter.value, normalizedWeight)
+          model.setParameterValueById(parameterId, parameter.value, normalizedWeight)
           break
         case 'add':
         default:
-          model.addParameterValueById(parameter.parameterId, parameter.value, normalizedWeight)
+          model.addParameterValueById(parameterId, parameter.value, normalizedWeight)
           break
       }
     }
+  }
+
+  private getExpressionParameterIdHandle(parameterId: string): CubismIdHandle {
+    const cached = this.expressionParameterIdHandles.get(parameterId)
+    if (cached) {
+      return cached
+    }
+
+    const handle = CubismFramework.getIdManager().getId(parameterId)
+    this.expressionParameterIdHandles.set(parameterId, handle)
+    return handle
   }
 
   private updateCustomExpressionRuntime(model: any): void {
@@ -2033,6 +2047,7 @@ export class CubismModel {
     this.discoveryInfo = null
     this.activeExpressionRuntime = null
     this.activeLegacyExpressionName = null
+    this.expressionParameterIdHandles.clear()
     this.hitAreaNames = []
     this.gl = null
     this.canvas = null
