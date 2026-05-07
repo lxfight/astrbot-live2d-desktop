@@ -365,18 +365,15 @@ export class L2DBridgeClient extends EventEmitter {
    */
   private handlePacket(packet: BasePacket): void {
     if (packet.op !== OPS.SYS_PONG) {
+      const safePayload = this.sanitizeForLog(packet.payload, packet.op)
       logger.debug('packet.in', {
         op: packet.op,
         id: packet.id,
         hasError: Boolean(packet.error),
-        payload: this.sanitizeForLog(packet.payload),
+        payload: safePayload,
         error: packet.error,
       })
-    }
-
-    if (packet.op !== OPS.SYS_PONG) {
-      const safePayload = this.sanitizeForLog(packet.payload)
-      console.log('[L2D] 收到数据包:', packet.op, safePayload)
+      console.log('[L2D] 收到数据包:', packet.op, JSON.stringify(safePayload, null, 2))
     }
 
     const pending = this.pendingRequests.get(packet.id)
@@ -613,7 +610,76 @@ export class L2DBridgeClient extends EventEmitter {
   /**
    * 脱敏处理用于日志输出
    */
-  private sanitizeForLog(payload: any): any {
+  private summarizePerformElementForLog(element: any): Record<string, unknown> {
+    if (!element || typeof element !== 'object') {
+      return { type: typeof element }
+    }
+
+    const summary: Record<string, unknown> = {
+      type: element.type,
+    }
+    const summarizeText = (value: string): string => {
+      const MAX_STRING_LEN = 200
+      if (value.length <= MAX_STRING_LEN) {
+        return value
+      }
+      return value.slice(0, MAX_STRING_LEN) + '...'
+    }
+
+    for (const key of ['content', 'text', 'url', 'inline']) {
+      if (typeof element[key] === 'string' && element[key]) {
+        summary[key] = summarizeText(element[key])
+      }
+    }
+    for (const key of ['rid', 'ttsMode', 'position', 'group', 'motionType', 'resetPolicy']) {
+      if (typeof element[key] === 'string' && element[key]) {
+        summary[key] = element[key]
+      }
+    }
+    for (const key of ['duration', 'volume', 'speed', 'index', 'priority', 'fade', 'holdMs']) {
+      if (typeof element[key] === 'number') {
+        summary[key] = element[key]
+      }
+    }
+    if ((typeof element.id === 'string' && element.id) || typeof element.id === 'number') {
+      summary.id = element.id
+    }
+    if (Array.isArray(element.combo)) {
+      summary.combo = element.combo.map((item: any) => ({
+        id: item?.id,
+        weight: item?.weight,
+      }))
+    }
+    if (Array.isArray(element.semantic)) {
+      summary.semantic = element.semantic.map((item: any) => ({
+        tag: item?.tag,
+        weight: item?.weight,
+      }))
+    }
+
+    return summary
+  }
+
+  private summarizePerformShowForLog(payload: any): Record<string, unknown> {
+    if (!payload || typeof payload !== 'object') {
+      return { payload }
+    }
+
+    return {
+      interrupt: payload.interrupt,
+      interruptible: payload.interruptible ?? true,
+      sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
+      sequencePreview: Array.isArray(payload.sequence)
+        ? payload.sequence.map((element: any) => this.summarizePerformElementForLog(element))
+        : [],
+    }
+  }
+
+  private sanitizeForLog(payload: any, op?: string): any {
+    if (op === OPS.PERFORM_SHOW) {
+      return this.summarizePerformShowForLog(payload)
+    }
+
     if (!payload || typeof payload !== 'object') return payload
     const sensitiveKeys = ['token', 'password', 'secret', 'apiKey', 'accessKey']
     const MAX_STRING_LEN = 200
