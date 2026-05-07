@@ -117,6 +117,18 @@ export function createEmptyExpressionTypePresets(): Live2DExpressionTypePresetMa
   }, {} as Live2DExpressionTypePresetMap)
 }
 
+export function cloneExpressionTypePresets(
+  presets: Partial<Record<Live2DExpressionType, readonly string[] | undefined>>
+): Live2DExpressionTypePresetMap {
+  return LIVE2D_EXPRESSION_TYPES.reduce((result, key) => {
+    const items = presets[key]
+    result[key] = Array.isArray(items)
+      ? items.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : []
+    return result
+  }, {} as Live2DExpressionTypePresetMap)
+}
+
 export function isLive2DExpressionType(value: string): value is Live2DExpressionType {
   return (LIVE2D_EXPRESSION_TYPES as readonly string[]).includes(value)
 }

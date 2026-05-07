@@ -4,6 +4,7 @@ import { useMessage } from 'naive-ui'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
 import {
+  cloneExpressionTypePresets,
   createEmptyExpressionTypePresets,
   type Live2DExpressionTypeEntry,
   type Live2DExpressionTypePresetMap,
@@ -185,13 +186,14 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
 
     expressionTypeSaving.value = true
     try {
+      const plainPresets = cloneExpressionTypePresets(expressionTypePresets.value)
       window.electron.log.info('[设置] 开始保存表情类型配置', {
         modelPath,
-        assignedTypeCount: Object.values(expressionTypePresets.value).filter((items) => items.length > 0).length,
+        assignedTypeCount: Object.values(plainPresets).filter((items) => items.length > 0).length,
       })
       const result = await window.electron.model.saveExpressionTypes(
         modelPath,
-        expressionTypePresets.value,
+        plainPresets,
       )
       if (!result.success) {
         message.error(`保存表情类型失败: ${result.error}`)
