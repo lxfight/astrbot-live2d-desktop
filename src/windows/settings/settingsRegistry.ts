@@ -86,7 +86,10 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsModelCurrentSection.vue'),
-      prepare: (force) => advancedDomain.ensureBaseReady(force),
+      prepare: async (force) => {
+        await advancedDomain.ensureBaseReady(force)
+        await modelDomain.ensureExpressionTypesReady(force)
+      },
     },
     'model/library': {
       key: 'model/library',

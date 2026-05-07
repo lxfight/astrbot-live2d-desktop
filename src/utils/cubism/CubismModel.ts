@@ -1021,7 +1021,12 @@ export class CubismModel {
       }
 
       const presetMatches = this.semanticPresets[tag.toLowerCase()] ?? []
-      const presetId = presetMatches[0]
+      const executableMatches = presetMatches
+        .map((item) => this.resolveExpressionName(item))
+        .filter((item): item is string => Boolean(item))
+      const presetId = executableMatches.length > 0
+        ? executableMatches[Math.floor(Math.random() * executableMatches.length)]
+        : null
       if (!presetId) {
         continue
       }

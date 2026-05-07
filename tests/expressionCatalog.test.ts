@@ -35,10 +35,13 @@ describe('buildExpressionCatalog', () => {
         Smile: ['happy_face', '开心'],
       },
       tags: {
+        Smile: ['happy', 'speaking'],
         Think: ['thinking'],
       },
       semanticPresets: {
         happy: ['happy_face'],
+        speaking: ['Smile'],
+        thinking: ['Think'],
       },
     })
 
@@ -143,6 +146,33 @@ describe('buildExpressionCatalog', () => {
     ])
     expect(result.semanticPresets).toEqual({
       happy: ['Laugh'],
+    })
+  })
+
+  it('uses profile semantic presets as the source of truth', () => {
+    const result = buildExpressionCatalog(parsedExpressions, {
+      semanticPresets: {
+        happy: [],
+        thinking: ['Think'],
+      },
+      tags: {
+        Think: ['thinking'],
+      },
+    })
+
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        id: 'Smile',
+        tags: [],
+      }),
+      expect.objectContaining({
+        id: 'Think',
+        tags: ['thinking'],
+      }),
+    ])
+    expect(result.semanticPresets).toEqual({
+      happy: [],
+      thinking: ['Think'],
     })
   })
 })

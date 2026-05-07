@@ -151,4 +151,30 @@ describe('CubismModel expression runtime', () => {
     expect(restored).toEqual(['IdleSmile'])
     expect(model.activeExpressionRuntime).toBeNull()
   })
+
+  it('randomly picks an executable expression from semantic type presets', () => {
+    const model = Object.create(CubismModel.prototype) as any
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.8)
+
+    model.semanticPresets = {
+      happy: ['SmileA', 'SmileB'],
+    }
+    model.expressionFiles = [
+      { name: 'SmileA', aliases: ['SmileA'], parsed: { parameters: [] } },
+      { name: 'SmileB', aliases: ['SmileB'], parsed: { parameters: [] } },
+    ]
+    model.expressionCatalogMap = new Map()
+
+    const members = model.resolveExpressionMembers({
+      semantic: [{ tag: 'happy', weight: 0.7 }],
+    })
+
+    expect(randomSpy).toHaveBeenCalled()
+    expect(members).toEqual([
+      expect.objectContaining({
+        id: 'SmileB',
+        weight: 0.7,
+      }),
+    ])
+  })
 })

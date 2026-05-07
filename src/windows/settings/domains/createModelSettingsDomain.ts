@@ -3,6 +3,11 @@ import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
+import {
+  createEmptyExpressionTypePresets,
+  type Live2DExpressionTypeEntry,
+  type Live2DExpressionTypePresetMap,
+} from '@/shared/live2dExpressionTypes'
 
 export interface ModelSettingsDomain {
   currentModelDisplay: ComputedRef<string>
@@ -12,12 +17,19 @@ export interface ModelSettingsDomain {
   currentModelStatusClass: ComputedRef<string>
   currentModelStatusLabel: ComputedRef<string>
   ensureLibraryReady: (force?: boolean) => Promise<void>
+  ensureExpressionTypesReady: (force?: boolean) => Promise<void>
+  expressionTypeStatus: Ref<'idle' | 'loading' | 'ready' | 'error'>
+  expressionTypeProfilePath: Ref<string>
+  expressionTypeExpressions: Ref<Live2DExpressionTypeEntry[]>
+  expressionTypePresets: Ref<Live2DExpressionTypePresetMap>
   getModelPreviewStyle: (modelPath: string) => Record<string, string>
   handleDeleteModel: (modelName: string) => Promise<void>
+  handleExpressionTypeChange: (type: keyof Live2DExpressionTypePresetMap, value: string[]) => void
   handleImportModel: () => Promise<void>
   handleLoadModel: (modelPath: string) => Promise<void>
   handleModelScaleChange: (value: number) => void
   handleResetModelScale: () => void
+  handleSaveExpressionTypes: () => Promise<void>
   inactiveModelSwatchStyle: ComputedRef<Record<string, string>>
   libraryStatus: Ref<'idle' | 'loading' | 'ready' | 'error'>
   modelList: Ref<Array<{ name: string; path: string }>>
@@ -46,6 +58,10 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
 
   const modelList = ref<Array<{ name: string; path: string }>>([])
   const libraryStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const expressionTypeStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const expressionTypeProfilePath = ref('')
+  const expressionTypeExpressions = ref<Live2DExpressionTypeEntry[]>([])
+  const expressionTypePresets = ref<Live2DExpressionTypePresetMap>(createEmptyExpressionTypePresets())
 
   const themeSwatchStyle = computed(() => ({
     background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
@@ -94,6 +110,63 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
       libraryStatus.value = 'error'
       throw error
     }
+  }
+
+  async function ensureExpressionTypesReady(force = false) {
+    if (!currentModelPath.value) {
+      expressionTypeStatus.value = 'idle'
+      expressionTypeProfilePath.value = ''
+      expressionTypeExpressions.value = []
+      expressionTypePresets.value = createEmptyExpressionTypePresets()
+      return
+    }
+
+    if (expressionTypeStatus.value === 'ready' && !force) {
+      return
+    }
+
+    expressionTypeStatus.value = 'loading'
+
+    try {
+      const result = await window.electron.model.getExpressionTypes(currentModelPath.value)
+      if (!result.success || !result.expressions || !result.presets) {
+        throw new Error(result.error || '读取表情类型失败')
+      }
+
+      expressionTypeProfilePath.value = result.profilePath || ''
+      expressionTypeExpressions.value = result.expressions
+      expressionTypePresets.value = result.presets
+      expressionTypeStatus.value = 'ready'
+    } catch (error) {
+      expressionTypeStatus.value = 'error'
+      throw error
+    }
+  }
+
+  function handleExpressionTypeChange(type: keyof Live2DExpressionTypePresetMap, value: string[]) {
+    expressionTypePresets.value = {
+      ...expressionTypePresets.value,
+      [type]: value,
+    }
+  }
+
+  async function handleSaveExpressionTypes() {
+    if (!currentModelPath.value) {
+      message.error('当前未加载模型')
+      return
+    }
+
+    const result = await window.electron.model.saveExpressionTypes(
+      currentModelPath.value,
+      expressionTypePresets.value,
+    )
+    if (!result.success) {
+      message.error(`保存表情类型失败: ${result.error}`)
+      return
+    }
+
+    message.success('表情类型已保存，重新加载当前模型后生效')
+    await ensureExpressionTypesReady(true)
   }
 
   function handleModelScaleChange(value: number) {
@@ -166,12 +239,19 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     currentModelStatusClass,
     currentModelStatusLabel,
     ensureLibraryReady,
+    ensureExpressionTypesReady,
+    expressionTypeStatus,
+    expressionTypeProfilePath,
+    expressionTypeExpressions,
+    expressionTypePresets,
     getModelPreviewStyle,
     handleDeleteModel,
+    handleExpressionTypeChange,
     handleImportModel,
     handleLoadModel,
     handleModelScaleChange,
     handleResetModelScale,
+    handleSaveExpressionTypes,
     inactiveModelSwatchStyle,
     libraryStatus,
     modelList,

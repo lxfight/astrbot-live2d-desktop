@@ -100,10 +100,15 @@ function resolveCatalogExpressionId(value: string, aliasIndex: Map<string, strin
   return aliasIndex.get(normalized.toLowerCase()) ?? null
 }
 
+function hasProfileSemanticPresets(profile: ExpressionProfile | null): boolean {
+  return Boolean(profile?.semanticPresets && Object.keys(profile.semanticPresets).length > 0)
+}
+
 export function buildExpressionCatalog(
   parsedExpressions: ExpressionCatalogInput[],
   profile: ExpressionProfile | null
 ): ExpressionCatalogBuildResult {
+  const useProfileSemanticPresets = hasProfileSemanticPresets(profile)
   const entries: ExpressionCatalogEntry[] = parsedExpressions
     .filter(({ parsed }) => parsed.parameters.length > 0)
     .map(({ parsed, source }) => {
@@ -113,7 +118,9 @@ export function buildExpressionCatalog(
         ...(profile?.aliases?.[parsed.id] ?? [])
       ])
       const allowInferredSemantic = source !== 'scan' || hasExplicitTags(profile, parsed.id)
-      const tags = allowInferredSemantic ? inferred.tags : []
+      const tags = useProfileSemanticPresets
+        ? uniqueStrings(profile?.tags?.[parsed.id] ?? [])
+        : allowInferredSemantic ? inferred.tags : []
       const conflictGroups = inferConflictGroups(tags)
 
       return {
@@ -121,7 +128,9 @@ export function buildExpressionCatalog(
         file: parsed.file,
         aliases,
         tags,
-        confidence: allowInferredSemantic ? inferred.confidence : 0.35,
+        confidence: useProfileSemanticPresets
+          ? tags.length > 0 ? 1 : 0.35
+          : allowInferredSemantic ? inferred.confidence : 0.35,
         parameterIds: parsed.parameterIds,
         conflictGroups,
         supportsCombo: parsed.parameters.length > 0
@@ -137,16 +146,18 @@ export function buildExpressionCatalog(
 
   const semanticPresets: Record<string, string[]> = {}
 
-  for (const entry of entries) {
-    for (const tag of entry.tags) {
-      const presetKey = normalizePresetKey(tag)
-      if (!presetKey) {
-        continue
+  if (!useProfileSemanticPresets) {
+    for (const entry of entries) {
+      for (const tag of entry.tags) {
+        const presetKey = normalizePresetKey(tag)
+        if (!presetKey) {
+          continue
+        }
+        if (!semanticPresets[presetKey]) {
+          semanticPresets[presetKey] = []
+        }
+        semanticPresets[presetKey].push(entry.id)
       }
-      if (!semanticPresets[presetKey]) {
-        semanticPresets[presetKey] = []
-      }
-      semanticPresets[presetKey].push(entry.id)
     }
   }
 
@@ -160,9 +171,7 @@ export function buildExpressionCatalog(
       .map((item) => resolveCatalogExpressionId(item, aliasIndex))
       .filter((item): item is string => Boolean(item)))
 
-    if (resolvedItems.length > 0) {
-      semanticPresets[presetKey] = resolvedItems
-    }
+    semanticPresets[presetKey] = resolvedItems
   }
 
   return {

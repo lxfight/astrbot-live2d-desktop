@@ -7,8 +7,23 @@ import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cub
 import { createCubismModelLoadDescriptor } from '../utils/cubismModelDiscovery'
 import { getAppDataPath } from '../utils/appPaths'
 import { createScopedLogger } from '../utils/logger'
+import {
+  LIVE2D_EXPRESSION_TYPES,
+  createEmptyExpressionTypePresets,
+  isLive2DExpressionType,
+  type Live2DExpressionTypePresetMap,
+} from '../../src/shared/live2dExpressionTypes'
 
 const logger = createScopedLogger('ipc.model')
+const EXPRESSION_PROFILE_FILE_NAME = 'astrbot.live2d.profile.json'
+
+type ExpressionProfilePayload = {
+  version?: unknown
+  modelId?: unknown
+  aliases?: unknown
+  tags?: unknown
+  semanticPresets?: unknown
+}
 
 /**
  * 获取模型存储目录
@@ -72,6 +87,117 @@ function resolveModelAbsolutePath(modelPath: string): string {
   }
 
   throw new Error(`不支持的模型路径格式: ${normalized}`)
+}
+
+function resolveModelDirectory(modelAbsolutePath: string): string {
+  return path.dirname(modelAbsolutePath)
+}
+
+function resolveExpressionProfilePath(modelAbsolutePath: string): string {
+  return path.join(resolveModelDirectory(modelAbsolutePath), EXPRESSION_PROFILE_FILE_NAME)
+}
+
+async function readExpressionProfile(profilePath: string): Promise<ExpressionProfilePayload> {
+  try {
+    const text = await fs.promises.readFile(profilePath, 'utf8')
+    const payload = JSON.parse(text)
+    return payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload as ExpressionProfilePayload
+      : {}
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') {
+      return {}
+    }
+    throw error
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  const rawItems = Array.isArray(value) ? value : [value]
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const item of rawItems) {
+    if (typeof item !== 'string') {
+      continue
+    }
+
+    const normalized = item.trim()
+    if (!normalized) {
+      continue
+    }
+
+    const key = normalized.toLowerCase()
+    if (seen.has(key)) {
+      continue
+    }
+
+    seen.add(key)
+    result.push(normalized)
+  }
+
+  return result
+}
+
+function normalizeProfileSemanticPresets(
+  value: unknown,
+  validExpressionIds: Set<string>,
+): Live2DExpressionTypePresetMap {
+  const presets = createEmptyExpressionTypePresets()
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return presets
+  }
+
+  for (const [key, rawItems] of Object.entries(value)) {
+    const presetKey = key.trim().toLowerCase()
+    if (!isLive2DExpressionType(presetKey)) {
+      continue
+    }
+
+    presets[presetKey] = normalizeStringArray(rawItems)
+      .filter((item) => validExpressionIds.has(item))
+  }
+
+  return presets
+}
+
+function normalizeRequestedExpressionPresets(
+  value: unknown,
+  validExpressionIds: Set<string>,
+): Live2DExpressionTypePresetMap {
+  const presets = createEmptyExpressionTypePresets()
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return presets
+  }
+
+  for (const [key, rawItems] of Object.entries(value)) {
+    const presetKey = key.trim().toLowerCase()
+    if (!isLive2DExpressionType(presetKey)) {
+      continue
+    }
+
+    presets[presetKey] = normalizeStringArray(rawItems)
+      .filter((item) => validExpressionIds.has(item))
+  }
+
+  return presets
+}
+
+function buildPresetAliasTags(presets: Live2DExpressionTypePresetMap): Record<string, string[]> {
+  const tags: Record<string, string[]> = {}
+
+  for (const type of LIVE2D_EXPRESSION_TYPES) {
+    for (const expressionId of presets[type]) {
+      if (!tags[expressionId]) {
+        tags[expressionId] = []
+      }
+      if (!tags[expressionId].includes(type)) {
+        tags[expressionId].push(type)
+      }
+    }
+  }
+
+  return tags
 }
 
 function normalizeModelName(rawName: unknown): { success: true; value: string } | { success: false; error: string } {
@@ -407,6 +533,93 @@ ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
       descriptor,
     }
   } catch (error: any) {
+    timer.fail(error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
+ * 读取当前模型的固定表情类型分配。
+ */
+ipcMain.handle('model:getExpressionTypes', async (_event, modelPath: string) => {
+  const timer = logger.timer('get_expression_types', { modelPath })
+  try {
+    const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+    const expressions = descriptor.compatibilityManifest.expressions.map((entry) => ({
+      id: entry.id,
+      file: entry.file,
+      aliases: entry.aliases,
+      source: entry.source,
+    }))
+    const validExpressionIds = new Set(expressions.map((entry) => entry.id))
+    const profilePath = resolveExpressionProfilePath(modelAbsolutePath)
+    const profile = await readExpressionProfile(profilePath)
+    const presets = normalizeProfileSemanticPresets(profile.semanticPresets, validExpressionIds)
+
+    timer.done({
+      modelPath,
+      expressionCount: expressions.length,
+      assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter((type) => presets[type].length > 0).length,
+      profilePath,
+    })
+    return {
+      success: true,
+      modelPath,
+      profilePath,
+      expressions,
+      presets,
+    }
+  } catch (error: any) {
+    console.error('[IPC] 读取模型表情类型失败:', error)
+    timer.fail(error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
+ * 保存当前模型的固定表情类型分配。
+ */
+ipcMain.handle('model:saveExpressionTypes', async (_event, modelPath: string, rawPresets: unknown) => {
+  const timer = logger.timer('save_expression_types', { modelPath })
+  try {
+    const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+    const validExpressionIds = new Set(
+      descriptor.compatibilityManifest.expressions.map((entry) => entry.id)
+    )
+    const presets = normalizeRequestedExpressionPresets(rawPresets, validExpressionIds)
+    const profilePath = resolveExpressionProfilePath(modelAbsolutePath)
+    const profile = await readExpressionProfile(profilePath)
+    const nextProfile: ExpressionProfilePayload = {
+      ...profile,
+      version: typeof profile.version === 'number' ? Math.max(profile.version, 2) : 2,
+      semanticPresets: presets,
+      tags: {
+        ...(profile.tags && typeof profile.tags === 'object' && !Array.isArray(profile.tags)
+          ? profile.tags as Record<string, unknown>
+          : {}),
+        ...buildPresetAliasTags(presets),
+      },
+    }
+
+    await fs.promises.writeFile(
+      profilePath,
+      `${JSON.stringify(nextProfile, null, 2)}\n`,
+      'utf8',
+    )
+
+    timer.done({
+      modelPath,
+      profilePath,
+      assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter((type) => presets[type].length > 0).length,
+    })
+    return {
+      success: true,
+      profilePath,
+    }
+  } catch (error: any) {
+    console.error('[IPC] 保存模型表情类型失败:', error)
     timer.fail(error)
     return { success: false, error: error.message }
   }
