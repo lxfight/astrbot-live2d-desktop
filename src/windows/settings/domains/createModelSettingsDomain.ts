@@ -1,4 +1,4 @@
-import { computed, inject, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
+import { computed, inject, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
 import { useModelStore } from '@/stores/model'
@@ -12,7 +12,7 @@ import {
 export interface ModelSettingsDomain {
   currentModelDisplay: ComputedRef<string>
   currentModelInitial: ComputedRef<string>
-  currentModelPath: Ref<string>
+  currentModelPath: ComputedRef<string>
   currentModelScaleValue: ComputedRef<number>
   currentModelStatusClass: ComputedRef<string>
   currentModelStatusLabel: ComputedRef<string>
@@ -55,7 +55,7 @@ type MessageApi = ReturnType<typeof useMessage>
 export function createModelSettingsDomain(message: MessageApi): ModelSettingsDomain {
   const modelStore = useModelStore()
   const themeStore = useThemeStore()
-  const { currentModelPath, palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
+  const { currentModelPath: themeCurrentModelPath, palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
 
   const modelList = ref<Array<{ name: string; path: string }>>([])
   const libraryStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -75,7 +75,17 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     boxShadow: 'none',
   }))
 
-  const currentModelDisplay = computed(() => resolvedModelName.value || '尚未加载模型')
+  const currentModelPath = computed(() => (
+    themeCurrentModelPath.value
+    || modelStore.currentModel
+    || modelStore.getLastModel()
+    || ''
+  ))
+  const currentModelDisplay = computed(() => (
+    currentModelPath.value
+      ? resolvedModelName.value || currentModelPath.value.split(/[/\\]/).filter(Boolean).pop() || '当前模型'
+      : '尚未加载模型'
+  ))
   const currentModelInitial = computed(() => currentModelDisplay.value.slice(0, 1).toUpperCase())
   const currentModelStatusLabel = computed(() => currentModelPath.value ? '使用中' : '未加载')
   const currentModelStatusClass = computed(() => (
@@ -145,6 +155,17 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     }
   }
 
+  watch(currentModelPath, (nextPath, previousPath) => {
+    if (nextPath === previousPath) {
+      return
+    }
+
+    expressionTypeStatus.value = 'idle'
+    expressionTypeProfilePath.value = ''
+    expressionTypeExpressions.value = []
+    expressionTypePresets.value = createEmptyExpressionTypePresets()
+  })
+
   function handleExpressionTypeChange(type: keyof Live2DExpressionTypePresetMap, value: string[]) {
     expressionTypePresets.value = {
       ...expressionTypePresets.value,
@@ -153,7 +174,8 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   }
 
   async function handleSaveExpressionTypes() {
-    if (!currentModelPath.value) {
+    const modelPath = currentModelPath.value
+    if (!modelPath) {
       message.error('当前未加载模型')
       return
     }
@@ -163,8 +185,12 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
 
     expressionTypeSaving.value = true
     try {
+      window.electron.log.info('[设置] 开始保存表情类型配置', {
+        modelPath,
+        assignedTypeCount: Object.values(expressionTypePresets.value).filter((items) => items.length > 0).length,
+      })
       const result = await window.electron.model.saveExpressionTypes(
-        currentModelPath.value,
+        modelPath,
         expressionTypePresets.value,
       )
       if (!result.success) {
@@ -173,13 +199,17 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
       }
 
       await ensureExpressionTypesReady(true)
-      const loadResult = await window.electron.model.load(currentModelPath.value)
+      const loadResult = await window.electron.model.load(modelPath)
       if (!loadResult.success) {
         message.warning(`表情类型已保存，但重新加载模型失败: ${loadResult.error}`)
         return
       }
 
       message.success('表情类型已保存，正在重新加载当前模型')
+    } catch (error: any) {
+      const messageText = error?.message || String(error)
+      window.electron.log.error('[设置] 保存表情类型配置异常', messageText)
+      message.error(`保存表情类型失败: ${messageText}`)
     } finally {
       expressionTypeSaving.value = false
     }
