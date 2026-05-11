@@ -152,7 +152,7 @@ describe('CubismModel expression runtime', () => {
     expect(model.activeExpressionRuntime).toBeNull()
   })
 
-  it('randomly picks an executable expression from semantic type presets', () => {
+  it('randomly picks an executable expression from semantic type presets with visible weight', () => {
     const model = Object.create(CubismModel.prototype) as any
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.8)
 
@@ -173,7 +173,7 @@ describe('CubismModel expression runtime', () => {
     expect(members).toEqual([
       expect.objectContaining({
         id: 'SmileB',
-        weight: 0.7,
+        weight: 0.8,
       }),
     ])
   })

@@ -246,6 +246,7 @@ export class CubismModel {
   private textures: WebGLTexture[] = []
 
   private static readonly MODEL_BOUNDS_PADDING = 8
+  private static readonly SEMANTIC_EXPRESSION_MIN_WEIGHT = 0.8
 
   // 动作和表情文件
   private motionGroups: Map<string, Array<{ file: string; motion?: CubismMotion; source: CubismModelDiscoverySource }>> = new Map()
@@ -961,6 +962,14 @@ export class CubismModel {
     return Math.min(Math.max(weight, 0), 1)
   }
 
+  private normalizeSemanticExpressionWeight(value: unknown, fallback = 1): number {
+    const weight = this.normalizeExpressionWeight(value, fallback)
+    if (weight <= 0) {
+      return 0
+    }
+    return Math.max(weight, CubismModel.SEMANTIC_EXPRESSION_MIN_WEIGHT)
+  }
+
   private cloneResolvedExpressionMembers(
     members: ResolvedExpressionMember[] | null | undefined
   ): ResolvedExpressionMember[] | null {
@@ -1028,12 +1037,24 @@ export class CubismModel {
         ? executableMatches[Math.floor(Math.random() * executableMatches.length)]
         : null
       if (!presetId) {
+        console.warn(`[CubismModel] 语义表情未命中可执行表情: tag=${tag}`, {
+          presetMatches,
+          executableMatches,
+        })
         continue
       }
 
+      const requestedWeight = this.normalizeExpressionWeight(item.weight, 1)
+      const effectiveWeight = this.normalizeSemanticExpressionWeight(item.weight, 1)
+      console.log(`[CubismModel] 语义表情命中: tag=${tag}, expression=${presetId}`, {
+        candidates: executableMatches,
+        requestedWeight,
+        effectiveWeight,
+      })
+
       resolved.push({
         id: presetId,
-        weight: this.normalizeExpressionWeight(item.weight, 1)
+        weight: effectiveWeight
       })
     }
 
@@ -1152,6 +1173,17 @@ export class CubismModel {
       resetPolicy
     }
     this.activeLegacyExpressionName = null
+    console.log('[CubismModel] 自定义表情运行时已启动:', {
+      expressions: members.map((member) => ({
+        id: member.id,
+        weight: member.weight,
+        parameters: member.parsed.parameterIds,
+      })),
+      holdMs,
+      fadeInMs,
+      fadeOutMs,
+      resetPolicy,
+    })
   }
 
   private refreshActiveExpressionRuntime(): void {
