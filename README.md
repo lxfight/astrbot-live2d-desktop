@@ -1,6 +1,8 @@
 # AstrBot Live2D Desktop
 
-[![QQ Group](https://img.shields.io/badge/QQ群-953245617-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=WdyqoP-AOEXqGAN08lOFfVSguF2EmBeO&jump_from=webapi&authKey=tPyfv90TVYSGVhbAhsAZCcSBotJuTTLf03wnn7/lQZPUkWfoQ/J8e9nkAipkOzwh)
+[![QQ Group](https://img.shields.io/badge/QQ群-1101928371-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/q/ZaEiwF7vuG)
+
+入群口令：`F7vuG`
 
 一个基于 Electron + Vue 3 的 Live2D 桌面客户端。
 可与 AstrBot 实时通信，让模型展示文本、动作、表情、语音与多媒体内容。
