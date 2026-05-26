@@ -1,16 +1,16 @@
 allowBuilds:
-  '@parcel/watcher': set this to true or false
-  active-win: set this to true or false
-  better-sqlite3: set this to true or false
-  bufferutil: set this to true or false
-  electron: set this to true or false
-  electron-winstaller: set this to true or false
-  esbuild: set this to true or false
-  extract-file-icon: set this to true or false
-  koffi: set this to true or false
-  node-window-manager: set this to true or false
-  sharp: set this to true or false
-  utf-8-validate: set this to true or false
+  '@parcel/watcher': true
+  active-win: true
+  better-sqlite3: true
+  bufferutil: true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  extract-file-icon: true
+  koffi: true
+  node-window-manager: true
+  sharp: true
+  utf-8-validate: true
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - active-win
