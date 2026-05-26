@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS } from '@/shared/metadata'
 import type { ConnectionSettingsDomain } from './createConnectionSettingsDomain'
 import type { AdvancedSettingsDomain } from './createAdvancedSettingsDomain'
@@ -46,32 +47,34 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
     watcherDomain,
   } = options
 
+  const { t } = useI18n()
+
   async function handleOpenLogs() {
     const result = await window.electron.log.openDirectory()
     if (result.success) {
-      message.success(`已打开日志目录: ${result.path}`)
+      message.success(t('toast.logDirOpened', { path: result.path }))
       return
     }
 
-    message.error(`打开日志目录失败: ${result.error || '未知错误'}`)
+    message.error(t('toast.logDirOpenFailed', { error: result.error || '未知错误' }))
   }
 
   async function handleExportLogs() {
     const result = await window.electron.log.exportBundle(3)
     if (result.success) {
-      message.success(`已导出 ${result.count} 个日志文件: ${result.path}`)
+      message.success(t('toast.logExported', { count: result.count, path: result.path }))
       return
     }
 
-    message.error(`导出日志失败: ${result.error || '未知错误'}`)
+    message.error(t('toast.logExportFailed', { error: result.error || '未知错误' }))
   }
 
   function handleClearCache() {
     dialog.warning({
-      title: '清除缓存',
-      content: '确定要清除所有缓存数据吗？',
-      positiveText: '确定',
-      negativeText: '取消',
+      title: t('settings.maintenance.clearCacheTitle'),
+      content: t('settings.maintenance.clearCacheContent'),
+      positiveText: t('dialog.confirm'),
+      negativeText: t('dialog.cancel'),
       onPositiveClick: () => {
         const preservedEntries = SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS
           .map((key) => [key, localStorage.getItem(key)] as const)
@@ -84,17 +87,17 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
           }
         }
 
-        message.success('缓存已清除')
+        message.success(t('toast.cacheCleared'))
       },
     })
   }
 
   function handleResetSettings() {
     dialog.error({
-      title: '重置设置',
-      content: '确定要重置所有设置吗？此操作不可恢复！',
-      positiveText: '确定',
-      negativeText: '取消',
+      title: t('settings.maintenance.resetSettingsTitle'),
+      content: t('settings.maintenance.resetSettingsContent'),
+      positiveText: t('dialog.confirm'),
+      negativeText: t('dialog.cancel'),
       onPositiveClick: async () => {
         try {
           localStorage.clear()
@@ -106,9 +109,9 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
           await window.electron.shortcut.unregister()
           await advancedDomain.checkShortcutRegistration(true)
 
-          message.success('设置已重置')
+          message.success(t('toast.settingsReset'))
         } catch (error: any) {
-          message.error(`重置失败: ${error?.message || String(error)}`)
+          message.error(t('toast.settingsResetFailed', { error: error?.message || String(error) }))
         }
       },
     })

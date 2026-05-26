@@ -1,5 +1,6 @@
 import { computed, inject, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { DEFAULT_UPDATER_SETTINGS } from '@/utils/updaterSettings'
 import { createDeferredTaskCache } from '../composables/createDeferredTaskCache'
 
@@ -33,6 +34,7 @@ export function useAboutSettingsDomain() {
 type MessageApi = ReturnType<typeof useMessage>
 
 export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDomain {
+  const { t } = useI18n()
   const appVersion = ref('')
   const checkingUpdate = ref(false)
   const updateState = ref<UpdateState | null>(null)
@@ -43,7 +45,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
   const taskCache = createDeferredTaskCache()
 
   const updateStatusLabel = computed(() => {
-    if (!updateState.value) return '更新状态未知'
+    if (!updateState.value) return t('settings.about.updateStatusUnknown')
     if (updateState.value.status === 'downloading' && typeof updateState.value.progress === 'number') {
       return `${updateState.value.message}（${Math.round(updateState.value.progress)}%）`
     }
@@ -95,7 +97,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
       }
     } catch (error: any) {
       updaterSettings.value = previousSettings
-      message.error(`保存失败: ${error?.message || String(error)}`)
+      message.error(t('toast.aboutSaveFailed', { error: error?.message || String(error) }))
     }
   }
 
@@ -111,7 +113,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
 
       message.warning(result.message)
     } catch (error: any) {
-      message.error(`检查更新失败: ${error?.message || String(error)}`)
+      message.error(t('toast.updateCheckFailed', { error: error?.message || String(error) }))
     } finally {
       checkingUpdate.value = false
     }
@@ -124,7 +126,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
         message.warning(result.message)
       }
     } catch (error: any) {
-      message.error(`安装更新失败: ${error?.message || String(error)}`)
+      message.error(t('toast.updateInstallFailed', { error: error?.message || String(error) }))
     }
   }
 

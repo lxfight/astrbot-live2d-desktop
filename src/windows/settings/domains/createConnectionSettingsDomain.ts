@@ -1,5 +1,6 @@
 import { computed, inject, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useConnectionStore } from '@/stores/connection'
 import {
   buildDefaultConnectionSettingsEditable,
@@ -57,6 +58,7 @@ function isSameEditableSettings(a: ConnectionSettingsEditable, b: ConnectionSett
 }
 
 export function createConnectionSettingsDomain(message: MessageApi): ConnectionSettingsDomain {
+  const { t } = useI18n()
   const connectionStore = useConnectionStore()
 
   const serverUrl = ref('')
@@ -86,21 +88,21 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
   const connectionStatusText = computed(() => {
     switch (connectionStore.lifecycleStatus) {
       case 'connecting':
-        return '正在建立连接'
+        return t('settings.connection.status.connecting')
       case 'handshaking':
-        return '正在握手'
+        return t('settings.connection.status.handshaking')
       case 'connected':
-        return '在线'
+        return t('settings.connection.status.online')
       case 'waiting_retry':
         return connectionStore.nextRetryAt
-          ? `等待重试（第 ${connectionStore.reconnectAttempt} 次）`
-          : '等待重试'
+          ? t('settings.connection.status.waitingRetry', { attempt: connectionStore.reconnectAttempt })
+          : t('settings.connection.status.waiting')
       case 'suspended':
-        return '系统挂起中'
+        return t('settings.connection.status.suspended')
       case 'error':
-        return connectionStore.lastError?.message || '连接失败'
+        return connectionStore.lastError?.message || t('settings.connection.status.connectionFailed')
       default:
-        return '离线'
+        return t('settings.connection.status.offline')
     }
   })
 
@@ -116,12 +118,12 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
 
   const workspaceRows = computed(() => {
     return [
-      { label: '连接状态', value: connectionStatusText.value },
-      { label: '期望状态', value: connectionStore.desiredState === 'connected' ? '保持连接' : '保持断开' },
-      { label: '用户 ID', value: userId.value || '尚未分配' },
-      { label: '会话 ID', value: sessionId.value || '尚未建立' },
-      { label: '资源地址', value: resourceBaseUrl.value || '自动跟随' },
-      { label: '资源路径', value: resourcePath.value || '/resources' },
+      { label: t('settings.connection.workspace.connectionStatus'), value: connectionStatusText.value },
+      { label: t('settings.connection.workspace.desiredState'), value: connectionStore.desiredState === 'connected' ? t('settings.connection.workspace.keepConnected') : t('settings.connection.workspace.keepDisconnected') },
+      { label: t('settings.connection.workspace.userId'), value: userId.value || t('settings.connection.workspace.notAssigned') },
+      { label: t('settings.connection.workspace.sessionId'), value: sessionId.value || t('settings.connection.workspace.notEstablished') },
+      { label: t('settings.connection.workspace.resourceBaseUrl'), value: resourceBaseUrl.value || t('settings.connection.workspace.autoFollow') },
+      { label: t('settings.connection.workspace.resourcePath'), value: resourcePath.value || '/resources' },
     ]
   })
 
@@ -166,7 +168,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       status.value = 'ready'
     } catch (error) {
       status.value = 'error'
-      throw error instanceof Error ? error : new Error('连接配置初始化失败')
+      throw error instanceof Error ? error : new Error(t('settings.connection.initFailed'))
     }
   }
 
@@ -194,7 +196,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       syncDraftFromStore()
       return {
         success: false as const,
-        error: '连接配置已被其他窗口更新，当前表单已刷新为最新值，请确认后重试保存',
+        error: t('settings.connection.settingsStaleWarning'),
       }
     }
 
@@ -213,11 +215,11 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
     try {
       const saveResult = await persistDraft()
       if (saveResult.success) {
-        message.success('连接配置已保存')
+        message.success(t('toast.connectionSaved'))
         return
       }
 
-      message.error(`保存失败: ${saveResult.error}`)
+      message.error(t('toast.connectionSaveFailed', { error: saveResult.error }))
     } finally {
       savingConnectionSettings.value = false
     }
@@ -237,35 +239,35 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
 
     const saveResult = await persistDraft()
     if (!saveResult.success) {
-      message.error(`连接失败: ${saveResult.error}`)
+      message.error(t('toast.connectFailed', { error: saveResult.error }))
       return
     }
 
     const result = await window.electron.bridgeLifecycle.connect()
     if (result.success) {
-      message.success('连接请求已提交')
+      message.success(t('toast.connectRequested'))
       await connectionStore.refreshLifecycleSnapshot()
       return
     }
 
-    message.error(`连接失败: ${result.message}`)
+    message.error(t('toast.connectFailed', { error: result.message }))
   }
 
   async function handleDisconnect() {
     const result = await window.electron.bridgeLifecycle.disconnect()
     if (result.success) {
-      message.success('已断开连接')
+      message.success(t('toast.disconnected'))
       await connectionStore.refreshLifecycleSnapshot()
       return
     }
 
-    message.error(`断开失败: ${result.message}`)
+    message.error(t('toast.disconnectFailed', { error: result.message }))
   }
 
   async function handleExternalSettingsChanged() {
     await connectionStore.reloadPersistedSettings()
     if (hasUnsavedConnectionSettings.value) {
-      message.warning('检测到其他窗口更新了连接配置，请先保存或放弃当前修改后再同步')
+      message.warning(t('settings.connection.settingsStaleWarning'))
       return
     }
 
@@ -282,7 +284,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
 
     const result = await persistDraft()
     if (!result.success) {
-      throw new Error(`连接配置重置失败: ${result.error}`)
+      throw new Error(t('settings.connection.resetFailed', { error: result.error }))
     }
 
     await refreshConnectionState(true)

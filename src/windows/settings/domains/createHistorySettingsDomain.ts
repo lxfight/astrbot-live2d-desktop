@@ -2,6 +2,7 @@ import { inject, ref, type InjectionKey, type Ref } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { format } from 'date-fns'
 import { useDialog, useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useConnectionStore } from '@/stores/connection'
 import { createDeferredTaskCache } from '../composables/createDeferredTaskCache'
 
@@ -76,6 +77,7 @@ export function createHistorySettingsDomain(
   options: CreateHistorySettingsDomainOptions,
 ): HistorySettingsDomain {
   const { dialog, message } = options
+  const { t } = useI18n()
   const connectionStore = useConnectionStore()
   const taskCache = createDeferredTaskCache()
 
@@ -94,8 +96,8 @@ export function createHistorySettingsDomain(
   const historyResourceToken = ref('')
 
   const directionOptions = [
-    { label: '发送', value: 'outgoing' },
-    { label: '接收', value: 'incoming' },
+    { label: t('settings.history.direction.outgoing'), value: 'outgoing' },
+    { label: t('settings.history.direction.incoming'), value: 'incoming' },
   ] as const
 
   async function syncResourceConfig(force = false) {
@@ -140,14 +142,14 @@ export function createHistorySettingsDomain(
 
       const result = await window.electron.history.getMessages(requestOptions)
       if (!result.success) {
-        throw new Error(result.error || '加载历史记录失败')
+        throw new Error(result.error || t('toast.historyLoadedFailed'))
       }
 
       messages.value = result.data || []
       totalMessages.value = (result as any).total || 0
       totalPages.value = Math.max(1, Math.ceil(totalMessages.value / pageSize.value) || 1)
     } catch (error) {
-      throw normalizeError(error, '加载历史记录失败')
+      throw normalizeError(error, t('toast.historyLoadedFailed'))
     }
   }
 
@@ -164,12 +166,12 @@ export function createHistorySettingsDomain(
     try {
       const result = await window.electron.history.getStatistics(startDate, endDate)
       if (!result.success) {
-        throw new Error(result.error || '加载统计数据失败')
+        throw new Error(result.error || t('toast.historyStatsFailed'))
       }
 
       statisticsData.value = result.data || []
     } catch (error) {
-      throw normalizeError(error, '加载统计数据失败')
+      throw normalizeError(error, t('toast.historyStatsFailed'))
     }
   }
 
@@ -198,7 +200,7 @@ export function createHistorySettingsDomain(
 
   const debouncedRefreshMessages = useDebounceFn(() => {
     void refreshMessages().catch((error) => {
-      message.error(normalizeError(error, '加载历史记录失败').message)
+      message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }, 250)
 
@@ -210,14 +212,14 @@ export function createHistorySettingsDomain(
   function handleDirectionFilterChange() {
     currentPage.value = 1
     void refreshMessages().catch((error) => {
-      message.error(normalizeError(error, '加载历史记录失败').message)
+      message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
 
   function handlePageChange(page: number) {
     currentPage.value = page
     void refreshMessages().catch((error) => {
-      message.error(normalizeError(error, '加载历史记录失败').message)
+      message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
 
@@ -225,14 +227,14 @@ export function createHistorySettingsDomain(
     pageSize.value = size
     currentPage.value = 1
     void refreshMessages().catch((error) => {
-      message.error(normalizeError(error, '加载历史记录失败').message)
+      message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
 
   function handleDateRangeChange(value: [number, number] | null) {
     dateRange.value = value
     void refreshStatistics().catch((error) => {
-      message.error(normalizeError(error, '加载统计数据失败').message)
+      message.error(normalizeError(error, t('toast.historyStatsFailed')).message)
     })
   }
 
@@ -259,24 +261,24 @@ export function createHistorySettingsDomain(
   async function openHistoryFile(item: any) {
     const source = getHistoryFileSource(item)
     if (!source) {
-      message.warning('文件资源不可用')
+      message.warning(t('toast.fileResourceUnavailable'))
       return
     }
 
     try {
       const result = await window.electron.window.openResource(source, getHistoryFileName(item))
       if (!result.success) {
-        throw new Error(result.error || '打开文件失败')
+        throw new Error(result.error || t('toast.fileOpenFailed', { error: '' }))
       }
     } catch (error) {
-      message.error(`打开文件失败: ${normalizeError(error, '打开文件失败').message}`)
+      message.error(t('toast.fileOpenFailed', { error: normalizeError(error, '打开文件失败').message }))
     }
   }
 
   async function downloadHistoryFile(item: any) {
     const source = getHistoryFileSource(item)
     if (!source) {
-      message.warning('文件资源不可用')
+      message.warning(t('toast.fileResourceUnavailable'))
       return
     }
 
@@ -287,12 +289,12 @@ export function createHistorySettingsDomain(
       }
 
       if (!result.success) {
-        throw new Error(result.error || '下载文件失败')
+        throw new Error(result.error || t('toast.fileDownloadFailed', { error: '' }))
       }
 
-      message.success('文件已开始保存')
+      message.success(t('toast.fileSaved'))
     } catch (error) {
-      message.error(`下载文件失败: ${normalizeError(error, '下载文件失败').message}`)
+      message.error(t('toast.fileDownloadFailed', { error: normalizeError(error, '下载文件失败').message }))
     }
   }
 
@@ -302,23 +304,23 @@ export function createHistorySettingsDomain(
         refreshMessages({ syncResource: true }),
         refreshStatistics(),
       ])
-      message.success('已刷新')
+      message.success(t('toast.historyRefreshed'))
     } catch (error) {
-      message.error(normalizeError(error, '加载历史记录失败').message)
+      message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     }
   }
 
   function handleClearHistory() {
     dialog.error({
-      title: '清空历史记录',
-      content: '确定要清空所有历史记录吗？此操作不可恢复！',
-      positiveText: '确定',
-      negativeText: '取消',
+      title: t('settings.history.clearTitle'),
+      content: t('settings.history.clearContent'),
+      positiveText: t('dialog.confirm'),
+      negativeText: t('dialog.cancel'),
       onPositiveClick: async () => {
         try {
           const result = await window.electron.history.clearHistory()
           if (!result.success) {
-            throw new Error(result.error || '清空历史记录失败')
+            throw new Error(result.error || t('toast.historyClearFailed', { error: '' }))
           }
 
           currentPage.value = 1
@@ -326,9 +328,9 @@ export function createHistorySettingsDomain(
             refreshMessages(),
             refreshStatistics(),
           ])
-          message.success('历史记录已清空')
+          message.success(t('toast.historyCleared'))
         } catch (error) {
-          message.error(`清空失败: ${normalizeError(error, '清空历史记录失败').message}`)
+          message.error(t('toast.historyClearFailed', { error: normalizeError(error, '清空历史记录失败').message }))
         }
       },
     })

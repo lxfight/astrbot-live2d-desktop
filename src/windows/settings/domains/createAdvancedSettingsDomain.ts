@@ -8,6 +8,7 @@ import {
   type WritableComputedRef,
 } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import {
   type AdvancedSettings,
   DEFAULT_ADVANCED_SETTINGS,
@@ -86,6 +87,7 @@ function normalizeScreenshotSettings(settings: ScreenshotSettings): ScreenshotSe
 type MessageApi = ReturnType<typeof useMessage>
 
 export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSettingsDomain {
+  const { t } = useI18n()
   const advancedSettings = ref<AdvancedSettings>({ ...DEFAULT_ADVANCED_SETTINGS })
   const connectionBehaviorSettings = ref<ConnectionBehaviorSettingsPersistedV1>(
     buildDefaultConnectionBehaviorSettings(),
@@ -112,7 +114,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
 
   const platformDisplayName = computed(() => {
     const capabilities = platformCapabilities.value
-    if (!capabilities) return '未知'
+    if (!capabilities) return t('settings.advanced.platform.unknown')
     if (capabilities.platform === 'win32') return 'Windows'
     if (capabilities.platform === 'darwin') return 'macOS'
     if (capabilities.platform === 'linux') {
@@ -125,26 +127,26 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
 
   const gameModeCapabilityLabel = computed(() => {
     const capabilities = platformCapabilities.value
-    if (!capabilities) return '未知'
+    if (!capabilities) return t('settings.advanced.platform.unknown')
     if (!capabilities.gameMode.supported) {
-      return `不可用（${capabilities.gameMode.reason || '当前平台暂不支持'}）`
+      return t('settings.advanced.platform.gameModeUnavailable', { reason: capabilities.gameMode.reason || '当前平台暂不支持' })
     }
     return capabilities.gameMode.mode === 'native-window-manager'
-      ? '可用（原生窗口管理器）'
-      : '可用（活跃窗口启发式）'
+      ? t('settings.advanced.platform.gameModeNative')
+      : t('settings.advanced.platform.gameModeHeuristic')
   })
 
   const passThroughCapabilityLabel = computed(() => {
     const capabilities = platformCapabilities.value
-    if (!capabilities) return '未知'
+    if (!capabilities) return t('settings.advanced.platform.unknown')
     return capabilities.mousePassthroughForward
-      ? '支持'
-      : '不支持（当前平台无法稳定转发鼠标事件）'
+      ? t('settings.advanced.platform.passThroughSupported')
+      : t('settings.advanced.platform.passThroughUnsupported')
   })
 
   const alwaysOnTopLevelLabel = computed(() => {
     const capabilities = platformCapabilities.value
-    if (!capabilities) return '未知'
+    if (!capabilities) return t('settings.advanced.platform.unknown')
     return capabilities.alwaysOnTopLevel === 'screen-saver' ? 'screen-saver' : 'default'
   })
 
@@ -156,20 +158,20 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
       if (capabilities.linuxSessionType === 'wayland') {
         return {
           type: 'warning',
-          text: 'Wayland 会话下智能穿透与自动检测全屏应用不可用；建议在支持 X11 的环境中使用以获得更完整体验。',
+          text: t('settings.advanced.platform.waylandNotice'),
         }
       }
 
       return {
         type: 'info',
-        text: 'Linux 会话下智能穿透不可用，自动更新需通过 Releases 手动下载。',
+        text: t('settings.advanced.platform.linuxNotice'),
       }
     }
 
     if (capabilities.platform === 'win32' && !capabilities.gameMode.supported) {
       return {
         type: 'info',
-        text: `当前 Windows 平台已关闭自动检测全屏应用：${capabilities.gameMode.reason || '能力不可用'}`,
+        text: t('settings.advanced.platform.win32GameModeDisabled', { reason: capabilities.gameMode.reason || '能力不可用' }),
       }
     }
 
@@ -298,7 +300,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
       applyDesktopFeatureSettingsState(savedSettings)
     } catch (error: any) {
       desktopFeatureSettings.value = previousSettings
-      message.error(`保存失败: ${error?.message || String(error)}`)
+      message.error(t('toast.aboutSaveFailed', { error: error?.message || String(error) }))
     }
   }
 
@@ -322,7 +324,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
       screenshotSettings.value = normalizeScreenshotSettings(nextSettings)
     } catch (error: any) {
       screenshotSettings.value = previousSettings
-      message.error(`保存失败: ${error?.message || String(error)}`)
+      message.error(t('toast.aboutSaveFailed', { error: error?.message || String(error) }))
     }
   }
 
@@ -344,7 +346,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
       applyConnectionBehaviorSettingsState(result.data)
     } catch (error: any) {
       connectionBehaviorSettings.value = previousSettings
-      message.error(`保存失败: ${error?.message || String(error)}`)
+      message.error(t('toast.aboutSaveFailed', { error: error?.message || String(error) }))
     }
   }
 
@@ -376,25 +378,25 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
     shortcutRegistered.value = false
     taskCache.invalidate(['advanced:shortcut-registration'])
     await applyAdvancedSettingChange()
-    message.success('快捷键已清除')
+    message.success(t('toast.shortcutCleared'))
   }
 
   async function handleRegisterShortcut() {
     if (!advancedSettings.value.recordingShortcut) {
-      message.warning('请先设置快捷键')
+      message.warning(t('toast.shortcutNotSet'))
       return
     }
 
     const electronFormat = convertToElectronFormat(advancedSettings.value.recordingShortcut)
     const result = await window.electron.shortcut.register(electronFormat)
     if (!result.success) {
-      message.error(`注册失败: ${result.error}`)
+      message.error(t('toast.shortcutRegisterFailed', { error: result.error }))
       return
     }
 
     shortcutRegistered.value = true
     advancedSettings.value = persistAdvancedSettings(advancedSettings.value)
-    message.success('快捷键注册成功')
+    message.success(t('toast.shortcutRegistered'))
   }
 
   async function resetAll() {

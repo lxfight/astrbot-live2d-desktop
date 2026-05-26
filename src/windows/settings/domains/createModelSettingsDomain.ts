@@ -1,6 +1,7 @@
 import { computed, inject, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
 import {
@@ -54,6 +55,7 @@ export function useModelSettingsDomain() {
 type MessageApi = ReturnType<typeof useMessage>
 
 export function createModelSettingsDomain(message: MessageApi): ModelSettingsDomain {
+  const { t } = useI18n()
   const modelStore = useModelStore()
   const themeStore = useThemeStore()
   const { currentModelPath: themeCurrentModelPath, palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
@@ -84,11 +86,11 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   ))
   const currentModelDisplay = computed(() => (
     currentModelPath.value
-      ? resolvedModelName.value || currentModelPath.value.split(/[/\\]/).filter(Boolean).pop() || '当前模型'
-      : '尚未加载模型'
+      ? resolvedModelName.value || currentModelPath.value.split(/[/\\]/).filter(Boolean).pop() || t('settings.model.currentModel')
+      : t('settings.model.noModelLoaded')
   ))
   const currentModelInitial = computed(() => currentModelDisplay.value.slice(0, 1).toUpperCase())
-  const currentModelStatusLabel = computed(() => currentModelPath.value ? '使用中' : '未加载')
+  const currentModelStatusLabel = computed(() => currentModelPath.value ? t('settings.model.status.inUse') : t('settings.model.status.notLoaded'))
   const currentModelStatusClass = computed(() => (
     currentModelPath.value ? 'status-pill--accent' : 'status-pill--warning'
   ))
@@ -103,7 +105,7 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   async function loadModelList() {
     const result = await window.electron.model.getList()
     if (!result.success || !result.models) {
-      throw new Error(result.error || '加载模型列表失败')
+      throw new Error(result.error || t('toast.modelListFailed'))
     }
 
     modelList.value = result.models
@@ -143,7 +145,7 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     try {
       const result = await window.electron.model.getExpressionTypes(currentModelPath.value)
       if (!result.success || !result.expressions || !result.presets) {
-        throw new Error(result.error || '读取表情类型失败')
+        throw new Error(result.error || t('toast.modelExpressionReadFailed'))
       }
 
       expressionTypeProfilePath.value = result.profilePath || ''
@@ -177,7 +179,7 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   async function handleSaveExpressionTypes() {
     const modelPath = currentModelPath.value
     if (!modelPath) {
-      message.error('当前未加载模型')
+      message.error(t('settings.model.notLoadedWarn'))
       return
     }
     if (expressionTypeSaving.value) {
@@ -196,22 +198,22 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
         plainPresets,
       )
       if (!result.success) {
-        message.error(`保存表情类型失败: ${result.error}`)
+        message.error(t('toast.expressionSaveFailed', { error: result.error }))
         return
       }
 
       await ensureExpressionTypesReady(true)
       const loadResult = await window.electron.model.load(modelPath)
       if (!loadResult.success) {
-        message.warning(`表情类型已保存，但重新加载模型失败: ${loadResult.error}`)
+        message.warning(t('settings.model.expressionReloadFailed', { error: loadResult.error }))
         return
       }
 
-      message.success('表情类型已保存，正在重新加载当前模型')
+      message.success(t('toast.expressionSaved'))
     } catch (error: any) {
       const messageText = error?.message || String(error)
       window.electron.log.error('[设置] 保存表情类型配置异常', messageText)
-      message.error(`保存表情类型失败: ${messageText}`)
+      message.error(t('toast.expressionSaveFailed', { error: messageText }))
     } finally {
       expressionTypeSaving.value = false
     }
@@ -240,42 +242,42 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     }
 
     if (!result.success) {
-      message.error(`选择文件夹失败: ${result.error}`)
+      message.error(t('main.model.folderFailed', { message: result.error }))
       return
     }
 
     const folderName = result.folderPath?.split(/[/\\]/).pop() || 'model'
     const importResult = await window.electron.model.import(result.folderPath!, folderName)
     if (!importResult.success) {
-      message.error(`导入模型失败: ${importResult.error}`)
+      message.error(t('main.status.modelImportFailed', { message: importResult.error }))
       return
     }
 
     if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
-      message.info(`检测到多个模型文件，已自动选择：${importResult.chosenFile}`)
+      message.info(t('main.model.multiFileDetected', { file: importResult.chosenFile }))
     }
 
     if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
-      message.warning(`模型存在兼容或可降级资源告警：${importResult.warnings.join('；')}`)
+      message.warning(t('main.model.compatibilityWarning', { warnings: importResult.warnings.join('；') }))
     }
 
-    message.success('模型导入成功')
+    message.success(t('toast.modelImported'))
     await ensureLibraryReady(true)
   }
 
   async function handleLoadModel(modelPath: string) {
     await window.electron.model.load(modelPath)
-    message.success('模型加载指令已发送，实际结果以主窗口提示为准')
+    message.success(t('toast.modelLoadSent'))
   }
 
   async function handleDeleteModel(modelName: string) {
     const result = await window.electron.model.delete(modelName)
     if (!result.success) {
-      message.error(`删除失败: ${result.error}`)
+      message.error(t('toast.modelDeleteFailed', { error: result.error }))
       return
     }
 
-    message.success('模型已删除')
+    message.success(t('toast.modelDeleted'))
     await ensureLibraryReady(true)
   }
 

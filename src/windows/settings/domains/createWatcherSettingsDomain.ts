@@ -1,5 +1,6 @@
 import { computed, inject, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { createDeferredTaskCache } from '../composables/createDeferredTaskCache'
 
 const BUILTIN_PROCESS_NAMES = [
@@ -112,6 +113,7 @@ export function useWatcherSettingsDomain() {
 type MessageApi = ReturnType<typeof useMessage>
 
 export function createWatcherSettingsDomain(message: MessageApi): WatcherSettingsDomain {
+  const { t } = useI18n()
   const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const saving = ref(false)
   const draftConfig = ref<WindowWatcherConfig>(createDefaultWatcherConfig())
@@ -198,9 +200,9 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
       await window.electron.window.updateWatcherConfig(cloneWatcherConfig(draftConfig.value))
       taskCache.invalidate(['watcher:config'])
       await ensureReady(true)
-      message.success('窗口监听配置已保存')
+      message.success(t('toast.watcherConfigSaved'))
     } catch (error: any) {
-      message.error(`保存失败: ${error?.message || String(error)}`)
+      message.error(t('toast.watcherConfigSaveFailed', { error: error?.message || String(error) }))
     } finally {
       saving.value = false
     }
@@ -214,9 +216,9 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
       applySavedConfig(result.config)
       taskCache.invalidate(['watcher:config'])
       status.value = 'ready'
-      message.success('窗口监听配置已重置')
+      message.success(t('toast.watcherConfigReset'))
     } catch (error: any) {
-      message.error(`重置失败: ${error?.message || String(error)}`)
+      message.error(t('toast.watcherConfigResetFailed', { error: error?.message || String(error) }))
       throw error
     } finally {
       saving.value = false
