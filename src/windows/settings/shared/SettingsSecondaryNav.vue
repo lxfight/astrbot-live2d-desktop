@@ -2,7 +2,7 @@
   <aside class="settings-secondary-nav">
     <transition name="slide-fade" mode="out-in">
       <div class="settings-secondary-nav__header" :key="activeGroup">
-        <strong>{{ activeGroupLabel }}</strong>
+        <strong>{{ $t(`settings.menu.${activeGroup}`) }}</strong>
       </div>
     </transition>
 
@@ -16,7 +16,7 @@
           type="button"
           @click="$emit('select-child', item.key)"
         >
-          <span>{{ item.label }}</span>
+          <span>{{ $t(`settings.menu.${activeGroup}.${item.key}`) }}</span>
         </button>
       </div>
     </transition>
@@ -29,7 +29,6 @@ import type { SettingsChildKey, SettingsGroupKey, SettingsMenuChild } from '../s
 defineProps<{
   activeChild: SettingsChildKey
   activeGroup: SettingsGroupKey
-  activeGroupLabel: string
   items: SettingsMenuChild[]
 }>()
 

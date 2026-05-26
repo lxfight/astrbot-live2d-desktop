@@ -1,17 +1,17 @@
 <template>
   <header class="settings-titlebar window-drag-region" @dblclick="$emit('titlebar-dblclick')">
     <div class="settings-titlebar__brand">
-      <span class="settings-titlebar__view">设置</span>
+      <span class="settings-titlebar__view">{{ $t('settings.titlebar.title') }}</span>
     </div>
 
     <div class="settings-titlebar__actions window-no-drag">
-      <button class="settings-titlebar__button" type="button" aria-label="最小化" @click="$emit('minimize')">
+      <button class="settings-titlebar__button" type="button" :aria-label="$t('settings.titlebar.minimize')" @click="$emit('minimize')">
         <Minus :size="16" />
       </button>
       <button
         class="settings-titlebar__button"
         type="button"
-        :aria-label="isWindowMaximized ? '还原' : '最大化'"
+        :aria-label="isWindowMaximized ? $t('settings.titlebar.restore') : $t('settings.titlebar.maximize')"
         @click="$emit('toggle-maximize')"
       >
         <component :is="isWindowMaximized ? Copy : Square" :size="14" />
@@ -19,7 +19,7 @@
       <button
         class="settings-titlebar__button settings-titlebar__button--close"
         type="button"
-        aria-label="关闭"
+        :aria-label="$t('settings.titlebar.close')"
         @click="$emit('close')"
       >
         <X :size="16" />

@@ -17,7 +17,6 @@
       <SettingsSecondaryNav
         :active-child="activeChild"
         :active-group="activeGroup"
-        :active-group-label="activeGroupMeta.label"
         :items="activeGroupChildren"
         @select-child="selectChild"
       />
@@ -89,7 +88,6 @@ const {
   activeChild,
   activeGroup,
   activeGroupChildren,
-  activeGroupMeta,
   navigateToPage,
   selectChild,
   selectGroup,

@@ -17,7 +17,7 @@
           <component :is="group.icon" :size="20" />
         </button>
       </template>
-      {{ group.label }}
+      {{ $t(`settings.menu.${group.key}`) }}
     </n-tooltip>
   </nav>
 </template>
