@@ -1,6 +1,7 @@
 import { ipcMain, globalShortcut } from 'electron'
 import { getMainWindow } from '../windows/mainWindow'
 import { createScopedLogger } from '../utils/logger'
+import { t } from '../../src/i18n/mainProcess'
 
 let currentShortcut: string | null = null
 let isRecording = false
@@ -32,7 +33,7 @@ ipcMain.handle('shortcut:register', async (_event, accelerator: string) => {
     } else {
       console.error('[快捷键] 注册失败:', accelerator)
       timer.done({ success: false, reason: 'occupied_or_invalid' })
-      return { success: false, error: '快捷键已被占用或无效' }
+      return { success: false, error: t('shortcut.occupiedOrInvalid') }
     }
   } catch (error: any) {
     console.error('[快捷键] 注册失败:', error)

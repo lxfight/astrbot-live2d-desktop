@@ -5,6 +5,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { app, dialog, net, protocol } from 'electron'
 import { getAppDataPath } from './appPaths'
+import { t } from '../../src/i18n/mainProcess'
 
 const CUBISM_PROTOCOL_SCHEME = 'cubism'
 
@@ -232,10 +233,10 @@ export async function downloadCubismCore(): Promise<void> {
 export async function showDownloadDialog(): Promise<boolean> {
   const result = await dialog.showMessageBox({
      type: 'info',
-     title: 'Live2D SDK 下载',
-     message: '首次使用需要下载 Live2D Cubism SDK',
-     detail: `应用需要下载 Live2D Cubism Core 文件才能正常运行。\n\n当前基线：${getCubismRuntimeConfig().sdkBaseline}\n来源：${getCubismCoreDownloadUrl()}\n\n点击"确定"开始下载（约 200KB）。`,
-     buttons: ['确定', '取消'],
+     title: t('cubism.download.title'),
+     message: t('cubism.download.message'),
+     detail: t('cubism.download.detail', { baseline: getCubismRuntimeConfig().sdkBaseline, url: getCubismCoreDownloadUrl() }),
+     buttons: [t('dialog.confirm'), t('dialog.cancel')],
     defaultId: 0,
     cancelId: 1
   })
@@ -252,20 +253,20 @@ export async function downloadWithProgress(): Promise<boolean> {
 
     await dialog.showMessageBox({
       type: 'info',
-      title: '下载完成',
-      message: 'Live2D SDK 下载成功',
-      detail: '应用将继续启动。',
-      buttons: ['确定']
+      title: t('cubism.download.successTitle'),
+      message: t('cubism.download.successMessage'),
+      detail: t('cubism.download.successDetail'),
+      buttons: [t('dialog.confirm')]
     })
 
     return true
   } catch (error) {
     await dialog.showMessageBox({
       type: 'error',
-      title: '下载失败',
-      message: 'Live2D SDK 下载失败',
-      detail: `错误信息: ${error instanceof Error ? error.message : String(error)}\n\n请检查网络连接后重试。`,
-      buttons: ['确定']
+      title: t('cubism.download.failedTitle'),
+      message: t('cubism.download.failedMessage'),
+      detail: t('cubism.download.failedDetail', { error: error instanceof Error ? error.message : String(error) }),
+      buttons: [t('dialog.confirm')]
     })
 
     return false

@@ -6,6 +6,7 @@ import path from 'node:path'
 import { writeLogEntry } from './logger'
 import { loadUpdaterSettings, saveUpdaterSettings } from './updaterSettings'
 import type { UpdaterSettings } from '../../src/utils/updaterSettings'
+import { t } from '../../src/i18n/mainProcess'
 
 type UpdateStatus =
   | 'disabled'
@@ -47,7 +48,7 @@ let checkInProgress = false
 
 let updateState: UpdateState = {
   status: 'idle',
-  message: '未检查更新',
+  message: t('updater.notChecked'),
   currentVersion: app.getVersion()
 }
 
@@ -141,7 +142,7 @@ function installPortableUpdate(): InstallUpdateResult {
   if (!currentExePath) {
     return {
       success: false,
-      message: '未找到当前便携版可执行文件路径'
+      message: t('updater.portable.exeNotFound')
     }
   }
 
@@ -149,21 +150,21 @@ function installPortableUpdate(): InstallUpdateResult {
   if (!downloadedExePath || !fs.existsSync(downloadedExePath)) {
     return {
       success: false,
-      message: '未找到已下载的便携版更新文件'
+      message: t('updater.portable.downloadNotFound')
     }
   }
 
   if (!fs.existsSync(currentExePath)) {
     return {
       success: false,
-      message: '当前便携版可执行文件不存在，无法替换更新'
+      message: t('updater.portable.exeNotExist')
     }
   }
 
   if (path.resolve(currentExePath) === path.resolve(downloadedExePath)) {
     return {
       success: false,
-      message: '下载的更新文件路径异常，无法执行便携版替换更新'
+      message: t('updater.portable.pathAbnormal')
     }
   }
 
@@ -198,14 +199,14 @@ function installPortableUpdate(): InstallUpdateResult {
 
     return {
       success: true,
-      message: '正在关闭应用并替换便携版更新'
+      message: t('updater.closingReplace')
     }
   } catch (error) {
     const message = extractErrorMessage(error)
     writeLogEntry('error', 'updater', '启动便携版更新替换脚本失败:', message)
     return {
       success: false,
-      message: `启动便携版更新失败: ${message}`
+      message: t('updater.portableReplaceFailed', { message })
     }
   }
 }
@@ -254,7 +255,9 @@ function extractErrorMessage(error: unknown): string {
 function handleUpdateAvailable(info: UpdateInfo): void {
   setUpdateState({
     status: autoUpdater.autoDownload ? 'downloading' : 'available',
-    message: `发现新版本 ${info.version}，${autoUpdater.autoDownload ? '正在下载更新' : '可手动下载'}`,
+    message: autoUpdater.autoDownload
+      ? t('updater.newVersionFound', { version: info.version })
+      : t('updater.newVersionManual', { version: info.version }),
     latestVersion: info.version,
     releaseDate: info.releaseDate
   })
@@ -263,7 +266,7 @@ function handleUpdateAvailable(info: UpdateInfo): void {
 function handleDownloadProgress(progress: ProgressInfo): void {
   setUpdateState({
     status: 'downloading',
-    message: `正在下载更新：${Math.round(progress.percent)}%`,
+    message: t('updater.downloading', { percent: Math.round(progress.percent) }),
     progress: progress.percent
   })
 }
@@ -271,19 +274,17 @@ function handleDownloadProgress(progress: ProgressInfo): void {
 async function promptInstallUpdate(info: UpdateInfo): Promise<void> {
   try {
     const focusedWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
-    const installPromptMessage = isPortableBuild()
-      ? `新版本 ${info.version} 已下载完成`
-      : `新版本 ${info.version} 已下载完成`
+    const installPromptMessage = t('updater.downloadComplete', { version: info.version })
     const installPromptDetail = isPortableBuild()
-      ? '是否现在关闭应用并替换便携版更新？'
-      : '是否现在重启并安装更新？'
-    const confirmButtonText = isPortableBuild() ? '立即替换' : '立即安装'
+      ? t('updater.dialog.installPromptPortable')
+      : t('updater.dialog.installPromptRegular')
+    const confirmButtonText = isPortableBuild() ? t('updater.dialog.installNowPortable') : t('updater.dialog.installNowRegular')
     const result = await dialog.showMessageBox(focusedWindow, {
       type: 'info',
-      title: '发现新版本',
+      title: t('updater.dialog.newVersionTitle'),
       message: installPromptMessage,
       detail: installPromptDetail,
-      buttons: [confirmButtonText, '稍后'],
+      buttons: [confirmButtonText, t('updater.dialog.later')],
       defaultId: 0,
       cancelId: 1
     })
@@ -294,7 +295,7 @@ async function promptInstallUpdate(info: UpdateInfo): Promise<void> {
       if (!installResult.success) {
         await dialog.showMessageBox(focusedWindow, {
           type: 'error',
-          title: '更新失败',
+          title: t('updater.dialog.updateFailedTitle'),
           message: installResult.message
         })
       }
@@ -308,7 +309,7 @@ function setupAutoUpdaterListeners(): void {
   autoUpdater.on('checking-for-update', () => {
     setUpdateState({
       status: 'checking',
-      message: '正在检查更新...',
+      message: t('updater.checking'),
       progress: undefined
     })
     writeLogEntry('info', 'updater', '开始检查更新')
@@ -322,7 +323,7 @@ function setupAutoUpdaterListeners(): void {
   autoUpdater.on('update-not-available', () => {
     setUpdateState({
       status: 'not-available',
-      message: '当前已是最新版本',
+      message: t('updater.upToDate'),
       latestVersion: undefined,
       progress: undefined,
       releaseDate: undefined
@@ -338,8 +339,8 @@ function setupAutoUpdaterListeners(): void {
     setUpdateState({
       status: 'downloaded',
       message: isPortableBuild()
-        ? `新版本 ${info.version} 已下载完成，等待替换`
-        : `新版本 ${info.version} 已下载完成，等待安装`,
+        ? t('updater.downloadedWaitReplace', { version: info.version })
+        : t('updater.downloadedWaitInstall', { version: info.version }),
       latestVersion: info.version,
       progress: 100,
       releaseDate: info.releaseDate
@@ -352,7 +353,7 @@ function setupAutoUpdaterListeners(): void {
     const message = extractErrorMessage(error)
     setUpdateState({
       status: 'error',
-      message: `自动更新异常: ${message}`,
+      message: t('updater.error', { message }),
       progress: undefined
     })
     writeLogEntry('error', 'updater', '自动更新异常:', message)
@@ -361,18 +362,18 @@ function setupAutoUpdaterListeners(): void {
 
 function getDisabledReason(): string {
   if (!app.isPackaged) {
-    return '开发环境不启用自动更新'
+    return t('updater.disabled.dev')
   }
 
   if (!isAutoUpdateSupportedPlatform()) {
-    return '当前平台暂不支持自动更新'
+    return t('updater.disabled.platform')
   }
 
   if (!hasUpdateConfigFile()) {
-    return '缺少自动更新配置文件（app-update.yml）'
+    return t('updater.disabled.noConfig')
   }
 
-  return '自动更新不可用'
+  return t('updater.disabled.generic')
 }
 
 export function getUpdateState(): UpdateState {
@@ -412,7 +413,7 @@ export function initializeAutoUpdater(): void {
 
   setUpdateState({
     status: 'idle',
-    message: '自动更新已启用'
+    message: t('updater.autoUpdateEnabled')
   })
 
   writeLogEntry(
@@ -424,7 +425,7 @@ export function initializeAutoUpdater(): void {
   if (!isAutoUpdateCheckEnabled()) {
     setUpdateState({
       status: 'idle',
-      message: '自动检查更新已关闭，可手动检查更新',
+      message: t('updater.autoCheckDisabled'),
     })
     writeLogEntry('info', 'updater', '用户已关闭自动检查更新')
     return
@@ -445,14 +446,14 @@ export function updateUpdaterSettings(patch: Partial<UpdaterSettings>): UpdaterS
   if (!nextSettings.autoUpdateEnabled && checkInProgress) {
     setUpdateState({
       status: 'idle',
-      message: '自动检查更新已关闭，可手动检查更新',
+      message: t('updater.autoCheckDisabled'),
       progress: undefined,
     })
   }
   if (!nextSettings.autoUpdateEnabled && updateState.status !== 'downloaded') {
     setUpdateState({
       status: 'idle',
-      message: '自动检查更新已关闭，可手动检查更新',
+      message: t('updater.autoCheckDisabled'),
       progress: undefined,
     })
   }
@@ -476,7 +477,7 @@ export async function checkForAppUpdates(manual = true): Promise<UpdateCheckResu
   if (checkInProgress) {
     return {
       success: true,
-      message: '正在检查更新，请稍候',
+      message: t('updater.alreadyChecking'),
       state: getUpdateState()
     }
   }
@@ -487,7 +488,7 @@ export async function checkForAppUpdates(manual = true): Promise<UpdateCheckResu
     if (manual) {
       setUpdateState({
         status: 'checking',
-        message: '正在手动检查更新...',
+        message: t('updater.manualChecking'),
         progress: undefined
       })
     }
@@ -496,14 +497,14 @@ export async function checkForAppUpdates(manual = true): Promise<UpdateCheckResu
 
     return {
       success: true,
-      message: '已发起更新检查',
+      message: t('updater.checkInitiated'),
       state: getUpdateState()
     }
   } catch (error) {
     const message = extractErrorMessage(error)
     setUpdateState({
       status: 'error',
-      message: `检查更新失败: ${message}`,
+      message: t('updater.checkFailed', { message }),
       progress: undefined
     })
     writeLogEntry('error', 'updater', '检查更新失败:', message)
@@ -522,7 +523,7 @@ export function quitAndInstallUpdate(): { success: boolean; message: string } {
   if (updateState.status !== 'downloaded') {
     return {
       success: false,
-      message: '当前没有可安装的已下载更新'
+      message: t('updater.noInstalledDownload')
     }
   }
 
@@ -536,6 +537,6 @@ export function quitAndInstallUpdate(): { success: boolean; message: string } {
 
   return {
     success: true,
-    message: '正在重启并安装更新'
+    message: t('updater.restartInstall')
   }
 }

@@ -2,6 +2,7 @@ import { app, Tray, Menu, nativeImage } from 'electron'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { resolveAppIconPath } from './icon'
 import { getDesktopBehaviorCoordinator } from '../desktopBehavior/coordinator'
+import { t } from '../../src/i18n/mainProcess'
 
 let tray: Tray | null = null
 
@@ -63,20 +64,20 @@ function updateTrayMenu(): void {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: '显示主窗口',
+      label: t('tray.showMain'),
       click: () => revealMainOrOpenModelLibrary('manual'),
     },
     {
-      label: '设置',
+      label: t('tray.settings'),
       click: () => showSettingsWindow(),
     },
     {
-      label: '历史记录',
+      label: t('tray.history'),
       click: () => showSettingsWindow('history/messages'),
     },
     { type: 'separator' },
     {
-      label: '退出',
+      label: t('tray.quit'),
       click: () => {
         app.quit()
       },
