@@ -136,10 +136,10 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       loader: () => import('./sections/SettingsAdvancedShortcutSection.vue'),
       prepare: (force) => advancedDomain.ensureShortcutReady(force),
     },
-    'advanced/window-watcher': {
-      key: 'advanced/window-watcher',
+    'advanced/windowWatcher': {
+      key: 'advanced/windowWatcher',
       group: 'advanced',
-      child: 'window-watcher',
+      child: 'windowWatcher',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedWatcherSection.vue'),

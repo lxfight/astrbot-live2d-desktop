@@ -10,7 +10,7 @@ export type SettingsChildKey =
   | 'statistics'
   | 'behavior'
   | 'shortcut'
-  | 'window-watcher'
+  | 'windowWatcher'
   | 'data'
   | 'info'
 
@@ -55,7 +55,7 @@ export const settingsMenuGroups: SettingsMenuGroup[] = [
     children: [
       { key: 'behavior' },
       { key: 'shortcut' },
-      { key: 'window-watcher' },
+      { key: 'windowWatcher' },
       { key: 'data' },
     ],
   },
