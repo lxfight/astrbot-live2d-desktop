@@ -41,15 +41,15 @@
 
     <n-form label-placement="top">
       <n-form-item :label="$t('settings.advanced.watcher.globalInterval')">
-        <n-input-number v-model:value="draftConfig.throttle.globalInterval" :min="0" :max="60000" :step="100" placeholder="默认 1000ms" />
+        <n-input-number v-model:value="draftConfig.throttle.globalInterval" :min="0" :max="60000" :step="100" :placeholder="$t('settings.advanced.watcher.globalIntervalPlaceholder')" />
         <template #feedback>{{ $t('settings.advanced.watcher.globalIntervalFeedback') }}</template>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.watcher.perWindowInterval')">
-        <n-input-number v-model:value="draftConfig.throttle.perWindowInterval" :min="0" :max="60000" :step="100" placeholder="默认 3000ms" />
+        <n-input-number v-model:value="draftConfig.throttle.perWindowInterval" :min="0" :max="60000" :step="100" :placeholder="$t('settings.advanced.watcher.perWindowIntervalPlaceholder')" />
         <template #feedback>{{ $t('settings.advanced.watcher.perWindowIntervalFeedback') }}</template>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.watcher.minInterval')">
-        <n-input-number v-model:value="draftConfig.throttle.minInterval" :min="0" :max="1000" :step="10" placeholder="默认 100ms" />
+        <n-input-number v-model:value="draftConfig.throttle.minInterval" :min="0" :max="1000" :step="10" :placeholder="$t('settings.advanced.watcher.minIntervalPlaceholder')" />
         <template #feedback>{{ $t('settings.advanced.watcher.minIntervalFeedback') }}</template>
       </n-form-item>
     </n-form>
