@@ -10,7 +10,7 @@
 - 补充 `exp3` / `combo` / `semantic` 的能力边界，说明哪些场景是稳定能力，哪些只是兼容兜底。
 
 ### Docs
-- 更新 `README.md`、`docs/USAGE_TUTORIAL.zh-CN.md`、`docs/CUBISM_RUNTIME.zh-CN.md`、`docs/README.md`，统一对外说明实际支持范围与限制。
+- 更新 `README.md`、`docs/USAGE_TUTORIAL.zh-CN.md`、`docs/CUBISM_RUNTIME.zh-CN.md`、`docs/README.zh-CN.md`，统一对外说明实际支持范围与限制。
 
 ## [1.1.0-beta.9] - 2026-03-07
 
