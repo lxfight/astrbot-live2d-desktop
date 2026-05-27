@@ -1,6 +1,7 @@
 # AstrBot Live2D Desktop
 
 [![QQ Group](https://img.shields.io/badge/QQ群-1101928371-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/q/ZaEiwF7vuG)
+[English](./README.en.md)
 
 入群口令：`F7vuG`
 
