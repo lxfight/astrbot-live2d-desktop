@@ -46,24 +46,6 @@ export function createLive2DExpressionTypeMeta(t: ExpressionTypeResolver): Live2
   ]
 }
 
-/** @deprecated Use createLive2DExpressionTypeMeta(t) instead */
-export const LIVE2D_EXPRESSION_TYPE_META: Live2DExpressionTypeMeta[] = [
-  { key: 'neutral', label: '中性', group: '基础' },
-  { key: 'happy', label: '开心', group: '情绪' },
-  { key: 'sad', label: '难过', group: '情绪' },
-  { key: 'angry', label: '生气', group: '情绪' },
-  { key: 'anxious', label: '紧张/害怕', group: '情绪' },
-  { key: 'surprised', label: '惊讶', group: '状态' },
-  { key: 'thinking', label: '思考/困惑', group: '状态' },
-  { key: 'tired', label: '疲惫/困倦', group: '状态' },
-  { key: 'disgusted', label: '厌恶/嫌弃', group: '状态' },
-  { key: 'blush', label: '脸红/害羞', group: '效果' },
-  { key: 'playful', label: '俏皮', group: '效果' },
-  { key: 'sweat', label: '流汗', group: '效果' },
-  { key: 'special', label: '特殊效果', group: '效果' },
-  { key: 'speaking', label: '说话', group: '效果' },
-]
-
 export type Live2DExpressionTypePresetMap = Record<Live2DExpressionType, string[]>
 
 export type Live2DExpressionTypeEntry = {
