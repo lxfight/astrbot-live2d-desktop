@@ -39,6 +39,8 @@ export default {
   'main.input.send': '发送',
   'main.input.sendImage': '发送图片',
   'main.input.holdToRecord': '按住录音',
+  'main.input.clickToRecord': '点击录音',
+  'main.input.clickToStop': '点击停止',
   'main.input.sendingFailed': '发送失败: {message}',
   'main.input.sent': '消息已发送',
   'main.input.imageTooLarge': '图片大小不能超过 {max}MB',
@@ -190,6 +192,9 @@ export default {
   'toast.cacheCleared': '缓存已清除',
   'toast.settingsReset': '设置已重置',
   'toast.settingsResetFailed': '重置失败: {error}',
+  'toast.cubismCoreDownloadSuccess': 'Live2D SDK 下载成功',
+  'toast.cubismCoreDownloadFailed': 'Live2D SDK 下载失败: {error}',
+  'toast.cubismCoreAlreadyExists': 'Live2D SDK 已存在，无需下载',
 
   // Toasts — About/Update
   'toast.aboutSaveFailed': '保存失败: {error}',
@@ -199,6 +204,7 @@ export default {
   // Dialogs — generic
   'dialog.confirm': '确定',
   'dialog.cancel': '取消',
+  'dialog.retry': '重试',
 
   // Settings — About
   'settings.about.title': '关于',
@@ -226,6 +232,7 @@ export default {
   'settings.connection.bridge.token': '认证令牌',
   'settings.connection.bridge.tokenPlaceholder': '必填，需与 AstrBot 适配器 auth_token 一致',
   'settings.connection.bridge.saveConfig': '保存连接配置',
+  'settings.connection.bridge.saveAndConnect': '保存并连接',
   'settings.connection.bridge.connect': '连接服务器',
   'settings.connection.bridge.connected': '已连接',
   'settings.connection.bridge.disconnect': '断开连接',
@@ -355,6 +362,7 @@ export default {
   'cubism.download.failedTitle': '下载失败',
   'cubism.download.failedMessage': 'Live2D SDK 下载失败',
   'cubism.download.failedDetail': '错误信息: {error}\n\n请检查网络连接后重试。',
+  'cubism.download.retryDetail': '错误信息: {error}\n\n第 {attempt}/{max} 次尝试失败。是否重试？',
 
   // Main process error dialogs
   'mainProcess.databaseInitFailed': '数据库初始化失败',
@@ -419,6 +427,10 @@ export default {
   'settings.advanced.behavior.retryMaxAttempts': '最大重试次数',
   'settings.advanced.behavior.retryUnlimited': '留空表示不限次数',
   'settings.advanced.behavior.handshakeTimeout': '握手超时',
+  'settings.advanced.behavior.recordingMode': '录音模式',
+  'settings.advanced.behavior.recordingModeHold': '按住说话',
+  'settings.advanced.behavior.recordingModeToggle': '点击切换',
+  'settings.advanced.behavior.recordingModeFeedback': '按住说话：按下按钮开始录音，松开结束。点击切换：点击一次开始录音，再次点击结束。',
   'settings.advanced.behavior.autoLoadLastModel': '启动时自动加载上次模型',
   'settings.advanced.behavior.silenceDetection': '录音时启用静音检测',
   'settings.advanced.behavior.silenceDetectionFeedback': '长时间未检测到声音时自动结束录音，减少空白语音片段。',
@@ -465,6 +477,7 @@ export default {
   'settings.advanced.data.exportLogs': '导出最近日志',
   'settings.advanced.data.clearCache': '清除缓存',
   'settings.advanced.data.resetSettings': '重置所有设置',
+  'settings.advanced.data.downloadCubismCore': '下载 Live2D SDK',
 
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': '未保存',

@@ -216,6 +216,7 @@ contextBridge.exposeInMainWorld('electron', {
     getWatcherConfig: () => ipcRenderer.invoke('window:getWatcherConfig'),
     updateWatcherConfig: (config: any) => ipcRenderer.invoke('window:updateWatcherConfig', config),
     resetWatcherConfig: () => ipcRenderer.invoke('window:resetWatcherConfig'),
+    downloadCubismCore: () => ipcRenderer.invoke('window:downloadCubismCore'),
     onWindowEvent: (callback: (event: any) => void) => {
       const listener = (_event: any, event: any) => callback(event)
       ipcRenderer.on('window:event', listener)

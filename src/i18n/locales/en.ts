@@ -41,6 +41,8 @@ const en: I18nMessageSchema = {
   'main.input.send': 'Send',
   'main.input.sendImage': 'Send Image',
   'main.input.holdToRecord': 'Hold to record',
+  'main.input.clickToRecord': 'Click to record',
+  'main.input.clickToStop': 'Click to stop',
   'main.input.sendingFailed': 'Send failed: {message}',
   'main.input.sent': 'Message sent',
   'main.input.imageTooLarge': 'Image size cannot exceed {max}MB',
@@ -192,6 +194,9 @@ const en: I18nMessageSchema = {
   'toast.cacheCleared': 'Cache cleared',
   'toast.settingsReset': 'Settings reset',
   'toast.settingsResetFailed': 'Reset failed: {error}',
+  'toast.cubismCoreDownloadSuccess': 'Live2D SDK downloaded successfully',
+  'toast.cubismCoreDownloadFailed': 'Live2D SDK download failed: {error}',
+  'toast.cubismCoreAlreadyExists': 'Live2D SDK already exists',
 
   // Toasts — About/Update
   'toast.aboutSaveFailed': 'Save failed: {error}',
@@ -201,6 +206,7 @@ const en: I18nMessageSchema = {
   // Dialogs — generic
   'dialog.confirm': 'OK',
   'dialog.cancel': 'Cancel',
+  'dialog.retry': 'Retry',
 
   // Settings — About
   'settings.about.title': 'About',
@@ -228,6 +234,7 @@ const en: I18nMessageSchema = {
   'settings.connection.bridge.token': 'Auth Token',
   'settings.connection.bridge.tokenPlaceholder': 'Required, must match AstrBot adapter auth_token',
   'settings.connection.bridge.saveConfig': 'Save Connection Config',
+  'settings.connection.bridge.saveAndConnect': 'Save and Connect',
   'settings.connection.bridge.connect': 'Connect to Server',
   'settings.connection.bridge.connected': 'Connected',
   'settings.connection.bridge.disconnect': 'Disconnect',
@@ -357,6 +364,7 @@ const en: I18nMessageSchema = {
   'cubism.download.failedTitle': 'Download Failed',
   'cubism.download.failedMessage': 'Live2D SDK download failed',
   'cubism.download.failedDetail': 'Error: {error}\n\nPlease check your network connection and try again.',
+  'cubism.download.retryDetail': 'Error: {error}\n\nAttempt {attempt}/{max} failed. Would you like to retry?',
 
   // Main process error dialogs
   'mainProcess.databaseInitFailed': 'Database Initialization Failed',
@@ -421,6 +429,10 @@ const en: I18nMessageSchema = {
   'settings.advanced.behavior.retryMaxAttempts': 'Max retry attempts',
   'settings.advanced.behavior.retryUnlimited': 'Leave empty for unlimited',
   'settings.advanced.behavior.handshakeTimeout': 'Handshake timeout',
+  'settings.advanced.behavior.recordingMode': 'Recording mode',
+  'settings.advanced.behavior.recordingModeHold': 'Hold to talk',
+  'settings.advanced.behavior.recordingModeToggle': 'Click to toggle',
+  'settings.advanced.behavior.recordingModeFeedback': 'Hold to talk: press and hold to record, release to stop. Click to toggle: click once to start, click again to stop.',
   'settings.advanced.behavior.autoLoadLastModel': 'Auto-load last model on launch',
   'settings.advanced.behavior.silenceDetection': 'Enable silence detection during recording',
   'settings.advanced.behavior.silenceDetectionFeedback': 'Automatically stop recording when no sound is detected for a period, reducing silent audio segments.',
@@ -467,6 +479,7 @@ const en: I18nMessageSchema = {
   'settings.advanced.data.exportLogs': 'Export Recent Logs',
   'settings.advanced.data.clearCache': 'Clear Cache',
   'settings.advanced.data.resetSettings': 'Reset All Settings',
+  'settings.advanced.data.downloadCubismCore': 'Download Live2D SDK',
 
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': 'Unsaved',

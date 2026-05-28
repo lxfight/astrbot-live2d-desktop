@@ -186,20 +186,14 @@ async function initialize() {
       logger.info('cubism_core.download.confirmed')
       const downloadSuccess = await downloadWithProgress()
       if (!downloadSuccess) {
-        console.error('[主进程] SDK 下载失败，应用退出')
-        const error = new Error('SDK 下载失败')
-        logger.error('cubism_core.download.failed', error)
-        timer.fail(error)
-        app.quit()
-        return
+        console.warn('[主进程] SDK 下载失败或用户取消，继续启动（模型功能不可用）')
+        logger.warn('cubism_core.download.failed_or_cancelled')
+      } else {
+        logger.info('cubism_core.download.success')
       }
-      logger.info('cubism_core.download.success')
     } else {
-      console.log('[主进程] 用户取消下载，应用退出')
-      logger.warn('cubism_core.download.cancelled')
-      timer.done({ quitReason: 'cubism_core_download_cancelled' })
-      app.quit()
-      return
+      console.log('[主进程] 用户跳过 SDK 下载，继续启动（模型功能不可用）')
+      logger.warn('cubism_core.download.skipped')
     }
   }
 

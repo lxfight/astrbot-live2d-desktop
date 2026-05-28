@@ -164,6 +164,7 @@ declare global {
         getWatcherConfig: () => Promise<WindowWatcherConfig>
         updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
         resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
+        downloadCubismCore: () => Promise<{ success: boolean; alreadyExists?: boolean; cancelled?: boolean }>
         onWindowEvent: (callback: (event: WindowEvent) => void) => Unsubscribe
       }
       desktopBehavior: {

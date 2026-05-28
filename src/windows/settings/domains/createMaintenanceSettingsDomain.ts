@@ -9,6 +9,7 @@ import type { WatcherSettingsDomain } from './createWatcherSettingsDomain'
 
 export interface MaintenanceSettingsDomain {
   handleClearCache: () => void
+  handleDownloadCubismCore: () => Promise<void>
   handleExportLogs: () => Promise<void>
   handleOpenLogs: () => Promise<void>
   handleResetSettings: () => void
@@ -117,8 +118,29 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
     })
   }
 
+  async function handleDownloadCubismCore() {
+    try {
+      const result = await window.electron.window.downloadCubismCore()
+      if (result.alreadyExists) {
+        message.info(t('toast.cubismCoreAlreadyExists'))
+        return
+      }
+      if (result.success) {
+        message.success(t('toast.cubismCoreDownloadSuccess'))
+        return
+      }
+      if (result.cancelled) {
+        return
+      }
+      message.error(t('toast.cubismCoreDownloadFailed', { error: '' }))
+    } catch (error: any) {
+      message.error(t('toast.cubismCoreDownloadFailed', { error: error?.message || String(error) }))
+    }
+  }
+
   return {
     handleClearCache,
+    handleDownloadCubismCore,
     handleExportLogs,
     handleOpenLogs,
     handleResetSettings,

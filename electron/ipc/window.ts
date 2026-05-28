@@ -556,3 +556,24 @@ ipcMain.handle('window:resetWatcherConfig', async () => {
   timer.done({ config })
   return { success: true, config }
 })
+
+// 手动下载 Cubism SDK
+ipcMain.handle('window:downloadCubismCore', async () => {
+  const timer = logger.timer('download_cubism_core')
+  const { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } = await import('../utils/downloadCubismCore')
+
+  if (checkCubismCoreExists()) {
+    timer.done({ alreadyExists: true })
+    return { success: true, alreadyExists: true }
+  }
+
+  const userConfirmed = await showDownloadDialog()
+  if (!userConfirmed) {
+    timer.done({ cancelled: true })
+    return { success: false, cancelled: true }
+  }
+
+  const downloadSuccess = await downloadWithProgress()
+  timer.done({ downloadSuccess })
+  return { success: downloadSuccess }
+})

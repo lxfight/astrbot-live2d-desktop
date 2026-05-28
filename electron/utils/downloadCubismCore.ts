@@ -244,31 +244,62 @@ export async function showDownloadDialog(): Promise<boolean> {
   return result.response === 0
 }
 
+const MAX_DOWNLOAD_RETRIES = 3
+
 /**
- * 显示下载进度对话框
+ * 下载 Cubism Core（带重试）
+ * 最多重试 MAX_DOWNLOAD_RETRIES 次，每次失败后询问用户是否重试。
+ * 返回 true 表示下载成功，false 表示用户取消或重试耗尽。
  */
 export async function downloadWithProgress(): Promise<boolean> {
-  try {
-    await downloadCubismCore()
+  let lastError: unknown = null
 
-    await dialog.showMessageBox({
-      type: 'info',
-      title: t('cubism.download.successTitle'),
-      message: t('cubism.download.successMessage'),
-      detail: t('cubism.download.successDetail'),
-      buttons: [t('dialog.confirm')]
-    })
+  for (let attempt = 1; attempt <= MAX_DOWNLOAD_RETRIES; attempt++) {
+    try {
+      await downloadCubismCore()
 
-    return true
-  } catch (error) {
-    await dialog.showMessageBox({
-      type: 'error',
-      title: t('cubism.download.failedTitle'),
-      message: t('cubism.download.failedMessage'),
-      detail: t('cubism.download.failedDetail', { error: error instanceof Error ? error.message : String(error) }),
-      buttons: [t('dialog.confirm')]
-    })
+      await dialog.showMessageBox({
+        type: 'info',
+        title: t('cubism.download.successTitle'),
+        message: t('cubism.download.successMessage'),
+        detail: t('cubism.download.successDetail'),
+        buttons: [t('dialog.confirm')]
+      })
 
-    return false
+      return true
+    } catch (error) {
+      lastError = error
+
+      if (attempt < MAX_DOWNLOAD_RETRIES) {
+        const retryResult = await dialog.showMessageBox({
+          type: 'error',
+          title: t('cubism.download.failedTitle'),
+          message: t('cubism.download.failedMessage'),
+          detail: t('cubism.download.retryDetail', {
+            error: error instanceof Error ? error.message : String(error),
+            attempt,
+            max: MAX_DOWNLOAD_RETRIES,
+          }),
+          buttons: [t('dialog.retry'), t('dialog.cancel')],
+          defaultId: 0,
+          cancelId: 1,
+        })
+
+        if (retryResult.response !== 0) {
+          return false
+        }
+      }
+    }
   }
+
+  // 所有重试已耗尽
+  await dialog.showMessageBox({
+    type: 'error',
+    title: t('cubism.download.failedTitle'),
+    message: t('cubism.download.failedMessage'),
+    detail: t('cubism.download.failedDetail', { error: lastError instanceof Error ? (lastError as Error).message : String(lastError) }),
+    buttons: [t('dialog.confirm')]
+  })
+
+  return false
 }

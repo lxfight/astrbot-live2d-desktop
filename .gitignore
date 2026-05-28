@@ -81,4 +81,5 @@ src/framework/
 coverage/
 *.lcov
 docs/MODEL_INFO_SYNC.md
+docs/PRD-zh-CN.md
 optimization_tasks.csv
