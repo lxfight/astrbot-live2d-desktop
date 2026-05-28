@@ -13,6 +13,24 @@ import {
   writeStructuredLogEntry,
   type LogMeta,
 } from '../utils/logger'
+import { getUserConfig, setUserConfig } from '../database/schema'
+
+const LOG_LEVEL_CONFIG_KEY = 'active_log_level'
+
+/**
+ * 从 user_config 读取持久化的日志级别并应用。
+ * 应在数据库初始化完成后调用。
+ */
+export function applyPersistedLogLevel(): void {
+  try {
+    const persisted = getUserConfig(LOG_LEVEL_CONFIG_KEY)
+    if (persisted === 'debug' || persisted === 'info') {
+      setActiveLogLevel(persisted)
+    }
+  } catch {
+    // 数据库不可用时忽略，保持当前级别
+  }
+}
 
 interface RendererLogPayload {
   level?: string
@@ -122,6 +140,11 @@ ipcMain.handle('log:openDirectory', async () => {
 
 ipcMain.handle('log:setLevel', async (_event, level: string | undefined) => {
   const normalizedLevel = setActiveLogLevel(level)
+  try {
+    setUserConfig(LOG_LEVEL_CONFIG_KEY, normalizedLevel)
+  } catch {
+    // user_config may not be available during early startup; ignore persistence failure
+  }
   return {
     success: true,
     level: normalizedLevel

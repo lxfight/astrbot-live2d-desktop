@@ -23,6 +23,7 @@ import './ipc/model'
 import './ipc/shortcut'
 import './ipc/user'
 import './ipc/log'
+import { applyPersistedLogLevel } from './ipc/log'
 import './ipc/update'
 import './ipc/connectionSettings'
 import './ipc/connectionBehaviorSettings'
@@ -171,6 +172,7 @@ async function initialize() {
   // 初始化数据库
   try {
     initDatabase()
+    applyPersistedLogLevel()
     logger.info('database.init.success')
   } catch (error) {
     console.error('[主进程] 数据库初始化失败:', error)
