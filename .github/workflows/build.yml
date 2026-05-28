@@ -2,10 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - master
-    paths:
-      - package.json
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -42,15 +40,13 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
 
           VERSION=$(node -p "require('./package.json').version")
           RELEASE_TAG="v${VERSION}"
           RELEASE_NAME="Release ${RELEASE_TAG}"
-          SHOULD_RELEASE=false
-          PREVIOUS_VERSION=""
           PREVIOUS_TAG=$(git tag --sort=-version:refname --list 'v*' | head -n 1 || true)
 
           if [[ "$VERSION" == *-* ]]; then
@@ -61,24 +57,23 @@ jobs:
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             SHOULD_RELEASE=true
-          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-            if PREVIOUS_PACKAGE_JSON="$(git show "${BEFORE_SHA}:package.json" 2>/dev/null)"; then
-              PREVIOUS_VERSION=$(printf '%s' "$PREVIOUS_PACKAGE_JSON" | node -e "let data='';process.stdin.on('data',d=>data+=d);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).version));")
+            echo "手动触发发布 ${RELEASE_TAG}"
+          elif [[ "$REF" == refs/tags/* ]]; then
+            PUSHED_TAG="${REF#refs/tags/}"
+            if [[ "$PUSHED_TAG" != "$RELEASE_TAG" ]]; then
+              echo "::error::推送的 tag ${PUSHED_TAG} 与 package.json 版本 ${VERSION} 不一致。"
+              echo "请先更新 package.json 的 version 字段为 ${PUSHED_TAG#v}，再推送 tag。"
+              exit 1
             fi
-
-            if [[ "$VERSION" != "$PREVIOUS_VERSION" ]]; then
-              SHOULD_RELEASE=true
-            fi
-          else
             SHOULD_RELEASE=true
+            echo "Tag 推送触发发布 ${RELEASE_TAG}"
+          else
+            SHOULD_RELEASE=false
+            echo "非 tag 推送且非手动触发，跳过发布。"
           fi
 
-          echo "当前版本: ${VERSION}"
-          if [[ -n "$PREVIOUS_VERSION" ]]; then
-            echo "上一版本: ${PREVIOUS_VERSION}"
-          else
-            echo "上一版本: <none>"
-          fi
+          echo "版本: ${VERSION}"
+          echo "发布 tag: ${RELEASE_TAG}"
           echo "最近已发布 tag: ${PREVIOUS_TAG:-<none>}"
           echo "是否继续发布: ${SHOULD_RELEASE}"
 
@@ -89,9 +84,9 @@ jobs:
           echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
           echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Skip release when version is unchanged
+      - name: Skip release
         if: steps.prepare.outputs.should_release != 'true'
-        run: echo "package.json 已变更，但 version 未变化，跳过发布。"
+        run: echo "当前提交无需发布。推送 v* tag 或手动触发 workflow_dispatch 以启动发布。"
 
   build_core:
     needs: prepare_release
