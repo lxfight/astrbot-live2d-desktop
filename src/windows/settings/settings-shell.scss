@@ -20,6 +20,10 @@
   border-bottom: 1px solid var(--desktop-panel-border);
 }
 
+.settings-titlebar--macos {
+  padding-left: 70px;
+}
+
 .settings-titlebar__brand {
   display: inline-flex;
   align-items: center;

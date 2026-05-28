@@ -1,5 +1,5 @@
 <template>
-  <header class="settings-titlebar window-drag-region" @dblclick="$emit('titlebar-dblclick')">
+  <header class="settings-titlebar window-drag-region" :class="{ 'settings-titlebar--macos': isMacOS }" @dblclick="$emit('titlebar-dblclick')">
     <div class="settings-titlebar__brand">
       <span class="settings-titlebar__view">{{ $t('settings.titlebar.title') }}</span>
     </div>
@@ -44,6 +44,8 @@ defineProps<{
   isWindowMaximized: boolean
   isPinned: boolean
 }>()
+
+const isMacOS = navigator.platform.toLowerCase().includes('mac')
 
 defineEmits<{
   (event: 'close'): void
