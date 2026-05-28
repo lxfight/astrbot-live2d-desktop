@@ -16,6 +16,7 @@ export interface ConnectionSettingsDomain {
   ensureReady: (force?: boolean) => Promise<void>
   handleConnect: () => Promise<void>
   handleDisconnect: () => Promise<void>
+  handleSaveAndConnect: () => Promise<void>
   handleExternalSettingsChanged: () => Promise<void>
   handleSaveConnectionSettings: () => Promise<void>
   hasUnsavedConnectionSettings: ComputedRef<boolean>
@@ -225,6 +226,43 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
     }
   }
 
+  async function handleSaveAndConnect() {
+    if (savingConnectionSettings.value) {
+      return
+    }
+
+    savingConnectionSettings.value = true
+    try {
+      const draft = collectEditableSettings()
+      const validationResult = validateBridgeEndpointDraft({
+        serverUrl: draft.serverUrl,
+        token: draft.token,
+      })
+
+      if (!validationResult.valid) {
+        message.error(validationResult.message)
+        return
+      }
+
+      const saveResult = await persistDraft()
+      if (!saveResult.success) {
+        message.error(t('toast.connectFailed', { error: saveResult.error }))
+        return
+      }
+
+      const result = await window.electron.bridgeLifecycle.connect()
+      if (result.success) {
+        message.success(t('toast.connectRequested'))
+        await connectionStore.refreshLifecycleSnapshot()
+        return
+      }
+
+      message.error(t('toast.connectFailed', { error: result.message }))
+    } finally {
+      savingConnectionSettings.value = false
+    }
+  }
+
   async function handleConnect() {
     const draft = collectEditableSettings()
     const validationResult = validateBridgeEndpointDraft({
@@ -297,6 +335,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
     ensureReady,
     handleConnect,
     handleDisconnect,
+    handleSaveAndConnect,
     handleExternalSettingsChanged,
     handleSaveConnectionSettings,
     hasUnsavedConnectionSettings,

@@ -24,6 +24,13 @@
     <div class="settings-section__actions">
       <n-button
         type="primary"
+        :loading="savingConnectionSettings"
+        :disabled="!canConnect || !token.trim()"
+        @click="handleSaveAndConnect"
+      >
+        {{ $t('settings.connection.bridge.saveAndConnect') }}
+      </n-button>
+      <n-button
         secondary
         :loading="savingConnectionSettings"
         :disabled="!hasUnsavedConnectionSettings"
@@ -31,7 +38,7 @@
       >
         {{ $t('settings.connection.bridge.saveConfig') }}
       </n-button>
-      <n-button type="primary" :disabled="!canConnect || !token.trim()" @click="handleConnect">
+      <n-button :disabled="!canConnect || !token.trim()" @click="handleConnect">
         {{ isConnected ? $t('settings.connection.bridge.connected') : $t('settings.connection.bridge.connect') }}
       </n-button>
       <n-button :disabled="!canDisconnect" @click="handleDisconnect">{{ $t('settings.connection.bridge.disconnect') }}</n-button>
@@ -71,6 +78,7 @@ const {
   connectionStatusText,
   handleConnect,
   handleDisconnect,
+  handleSaveAndConnect,
   handleSaveConnectionSettings,
   hasUnsavedConnectionSettings,
   isConnected,
