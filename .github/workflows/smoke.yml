@@ -29,12 +29,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: Setup pnpm via corepack
         run: |
@@ -42,8 +43,16 @@ jobs:
           corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
           pnpm --version
 
+      - name: Cache Cubism assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            .generated/cubism-framework
+            public/lib/live2dcubismcore.min.js
+          key: cubism-assets-${{ hashFiles('package.json') }}
+
       - name: Setup Python (for node-gyp)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -60,4 +69,4 @@ jobs:
         run: pnpm run typecheck
 
       - name: Package unpacked app
-        run: pnpm run build:dir
+        run: pnpm run build:dir:fast

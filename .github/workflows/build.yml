@@ -162,12 +162,21 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: Setup pnpm via corepack
         run: |
           corepack enable
           corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
           pnpm --version
+
+      - name: Cache Cubism assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            .generated/cubism-framework
+            public/lib/live2dcubismcore.min.js
+          key: cubism-assets-${{ hashFiles('package.json') }}
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v6
@@ -187,7 +196,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Frontend and Electron Bundles
-        run: pnpm run build:prepare
+        run: pnpm run build:vite
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
