@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { useThemeStore } from '@/stores/theme'
 import { withAlpha } from '@/utils/themePalette'
 import {
-  ChartColumn, Settings, MessageCircle,
+  ChartColumn, Settings, MessageCircle, Crosshair,
 } from 'lucide-vue-next'
 
 const MENU_RADIUS = 100
@@ -14,6 +14,7 @@ interface UseRadialMenuOptions {
   openHistory: () => Promise<void>
   openSettings: () => Promise<void>
   openInput?: () => void
+  resetPosition?: () => void
 }
 
 export function useRadialMenu(options: UseRadialMenuOptions) {
@@ -21,6 +22,7 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
   const { palette } = storeToRefs(themeStore)
   const { t } = useI18n()
   let openInput = options.openInput ?? (() => {})
+  const resetPosition = options.resetPosition
 
   const showMenu = ref(false)
   const menuStyle = ref({ left: '0px', top: '0px' })
@@ -29,11 +31,17 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
   const menuThemeColor = computed(() => withAlpha(palette.value.accent, 0.14))
   const menuThemeColorHover = computed(() => withAlpha(palette.value.accent, 0.24))
 
-  const menuItems = computed(() => [
-    { key: 'history', icon: ChartColumn, label: t('menu.history'), action: openHistory },
-    { key: 'settings', icon: Settings, label: t('menu.settings'), action: openSettings },
-    { key: 'talk', icon: MessageCircle, label: t('menu.talk'), action: openInput }
-  ])
+  const menuItems = computed(() => {
+    const items = [
+      { key: 'history', icon: ChartColumn, label: t('menu.history'), action: openHistory },
+      { key: 'settings', icon: Settings, label: t('menu.settings'), action: openSettings },
+      { key: 'talk', icon: MessageCircle, label: t('menu.talk'), action: openInput },
+    ]
+    if (resetPosition) {
+      items.push({ key: 'resetPosition', icon: Crosshair, label: t('menu.resetPosition'), action: resetPosition })
+    }
+    return items
+  })
 
   function startMenuAutoCloseTimer() {
     if (menuAutoCloseTimer !== null) {

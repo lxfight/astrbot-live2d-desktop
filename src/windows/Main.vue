@@ -591,6 +591,18 @@ const {
   themeStore,
   openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history/messages') },
   openSettings: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings() },
+  resetPosition: () => {
+    showMenu.value = false
+    clearMenuAutoCloseTimer()
+    modelPositionX = window.innerWidth / 2
+    modelPositionY = window.innerHeight / 2
+    live2dCanvasRef.value?.setModelPosition(modelPositionX, modelPositionY)
+    const currentModelPath = modelStore.currentPath
+    if (currentModelPath) {
+      modelStore.updateModelPosition(currentModelPath, modelPositionX, modelPositionY)
+    }
+    updateUIPositions()
+  },
 })
 
 const inputPanel = useInputPanel({

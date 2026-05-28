@@ -68,6 +68,7 @@ const en: I18nMessageSchema = {
   'menu.history': 'History',
   'menu.settings': 'Settings',
   'menu.talk': 'Chat',
+  'menu.resetPosition': 'Reset Position',
 
   // Settings menu
   'settings.menu.connection': 'Connection',

@@ -231,6 +231,7 @@ let dragStartY = 0
 let cursorOffsetX = 0
 let cursorOffsetY = 0
 const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
+const DRAG_VISIBLE_MIN_RATIO = 0.2 // 拖拽时模型至少保留 20% 可见
 let isFullPassThroughMode = false
 let dynamicPassThroughEnabled = true
 let supportsDynamicPassThrough = false
@@ -324,16 +325,36 @@ function handleMouseMove(event: MouseEvent) {
 
     // 如果正在拖动，更新模型位置
     if (isDragging) {
-      const newX = pointerX - cursorOffsetX
-      const newY = pointerY - cursorOffsetY
-      model.setModelPosition(newX, newY)
-      const actualPosition = model.getModelPosition()
+      const rawX = pointerX - cursorOffsetX
+      const rawY = pointerY - cursorOffsetY
 
-      // 发射模型位置变化事件
-      emit('modelPositionChanged', {
-        x: actualPosition?.x ?? newX,
-        y: actualPosition?.y ?? newY
-      })
+      const bounds = model.getModelBounds()
+      if (bounds) {
+        const marginX = bounds.width * (1 - DRAG_VISIBLE_MIN_RATIO)
+        const marginY = bounds.height * (1 - DRAG_VISIBLE_MIN_RATIO)
+        const minX = -marginX
+        const maxX = window.innerWidth + marginX
+        const minY = -marginY
+        const maxY = window.innerHeight + marginY
+        const clampedX = Math.max(minX, Math.min(maxX, rawX))
+        const clampedY = Math.max(minY, Math.min(maxY, rawY))
+        model.setModelPosition(clampedX, clampedY)
+        const actualPosition = model.getModelPosition()
+
+        // 发射模型位置变化事件
+        emit('modelPositionChanged', {
+          x: actualPosition?.x ?? clampedX,
+          y: actualPosition?.y ?? clampedY
+        })
+      } else {
+        model.setModelPosition(rawX, rawY)
+        const actualPosition = model.getModelPosition()
+
+        emit('modelPositionChanged', {
+          x: actualPosition?.x ?? rawX,
+          y: actualPosition?.y ?? rawY
+        })
+      }
 
       event.preventDefault()
     }

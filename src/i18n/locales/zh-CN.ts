@@ -66,6 +66,7 @@ export default {
   'menu.history': '历史',
   'menu.settings': '设置',
   'menu.talk': '对话',
+  'menu.resetPosition': '重置位置',
 
   // Settings menu
   'settings.menu.connection': '连接',
