@@ -168,20 +168,25 @@
           {{ $t('settings.advanced.behavior.alwaysOnTopFeedback') }}
         </template>
       </n-form-item>
-      <n-form-item :label="$t('settings.advanced.behavior.fullPassThrough')">
-        <n-switch :value="desktopFeatureSettings.fullPassThrough" @update:value="(value: boolean) => updateDesktopFeatureSetting('fullPassThrough', value)" />
+      <n-form-item :label="$t('settings.advanced.behavior.passThroughMode')">
+        <n-radio-group :value="passThroughMode" @update:value="handlePassThroughModeChange">
+          <n-space vertical>
+            <n-radio-button value="none">
+              {{ $t('settings.advanced.behavior.passThroughNone') }}
+            </n-radio-button>
+            <n-radio-button
+              value="dynamic"
+              :disabled="!platformCapabilities?.mousePassthroughForward"
+            >
+              {{ $t('settings.advanced.behavior.passThroughDynamic') }}
+            </n-radio-button>
+            <n-radio-button value="full">
+              {{ $t('settings.advanced.behavior.passThroughFull') }}
+            </n-radio-button>
+          </n-space>
+        </n-radio-group>
         <template #feedback>
-          {{ $t('settings.advanced.behavior.fullPassThroughFeedback') }}
-        </template>
-      </n-form-item>
-      <n-form-item :label="$t('settings.advanced.behavior.dynamicPassThrough')">
-        <n-switch
-          :value="desktopFeatureSettings.dynamicPassThrough"
-          :disabled="!platformCapabilities?.mousePassthroughForward || desktopFeatureSettings.fullPassThrough"
-          @update:value="(value: boolean) => updateDesktopFeatureSetting('dynamicPassThrough', value)"
-        />
-        <template #feedback>
-          {{ $t('settings.advanced.behavior.dynamicPassThroughFeedback') }}
+          {{ passThroughModeFeedback }}
         </template>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.autoDetectFullscreen')">
@@ -247,4 +252,45 @@ const {
   updateDesktopFeatureSetting,
   updateScreenshotSettings,
 } = useAdvancedSettingsDomain()
+
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+type PassThroughMode = 'none' | 'dynamic' | 'full'
+
+const passThroughMode = computed<PassThroughMode>(() => {
+  if (desktopFeatureSettings.value.fullPassThrough) return 'full'
+  if (desktopFeatureSettings.value.dynamicPassThrough) return 'dynamic'
+  return 'none'
+})
+
+const passThroughModeFeedback = computed(() => {
+  switch (passThroughMode.value) {
+    case 'dynamic':
+      return t('settings.advanced.behavior.passThroughDynamicFeedback')
+    case 'full':
+      return t('settings.advanced.behavior.passThroughFullFeedback')
+    default:
+      return t('settings.advanced.behavior.passThroughNoneFeedback')
+  }
+})
+
+function handlePassThroughModeChange(value: PassThroughMode) {
+  switch (value) {
+    case 'full':
+      updateDesktopFeatureSetting('fullPassThrough', true)
+      updateDesktopFeatureSetting('dynamicPassThrough', false)
+      break
+    case 'dynamic':
+      updateDesktopFeatureSetting('fullPassThrough', false)
+      updateDesktopFeatureSetting('dynamicPassThrough', true)
+      break
+    default:
+      updateDesktopFeatureSetting('fullPassThrough', false)
+      updateDesktopFeatureSetting('dynamicPassThrough', false)
+      break
+  }
+}
 </script>
