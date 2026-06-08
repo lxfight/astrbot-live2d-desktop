@@ -5,7 +5,7 @@ import {
   getSettingsSectionEntry,
   getSettingsSectionKey,
   type SettingsSectionRegistry,
-  type SettingsSectionRegistryEntry,
+  type SettingsSectionRegistryEntry
 } from '../settingsRegistry'
 
 interface UseSettingsSectionHostOptions {
@@ -32,7 +32,9 @@ export function useSettingsSectionHost(options: UseSettingsSectionHostOptions) {
   const activeEntry = computed(() => {
     return getSettingsSectionEntry(registry.value, activeGroup.value, activeChild.value)
   })
-  const activeSectionKey = computed(() => getSettingsSectionKey(activeGroup.value, activeChild.value))
+  const activeSectionKey = computed(() =>
+    getSettingsSectionKey(activeGroup.value, activeChild.value)
+  )
 
   const activeComponent = shallowRef<Component | null>(null)
   const loadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -92,7 +94,7 @@ export function useSettingsSectionHost(options: UseSettingsSectionHostOptions) {
     try {
       const [component] = await Promise.all([
         resolveComponent(entry),
-        entry.prepare?.(force) ?? Promise.resolve(),
+        entry.prepare?.(force) ?? Promise.resolve()
       ])
 
       if (currentToken !== activationToken) {
@@ -120,9 +122,13 @@ export function useSettingsSectionHost(options: UseSettingsSectionHostOptions) {
     void activate(activeEntry.value, true)
   }
 
-  watch(activeSectionKey, () => {
-    void activate(activeEntry.value)
-  }, { immediate: true })
+  watch(
+    activeSectionKey,
+    () => {
+      void activate(activeEntry.value)
+    },
+    { immediate: true }
+  )
 
   return {
     activeComponent,
@@ -131,6 +137,6 @@ export function useSettingsSectionHost(options: UseSettingsSectionHostOptions) {
     discardRenderKey,
     errorMessage,
     loadState,
-    retry,
+    retry
   }
 }

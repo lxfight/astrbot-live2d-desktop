@@ -9,7 +9,7 @@ describe('updaterSettings', () => {
 
   it('normalizes explicit auto update preference', () => {
     expect(normalizeUpdaterSettings({ autoUpdateEnabled: false })).toEqual({
-      autoUpdateEnabled: false,
+      autoUpdateEnabled: false
     })
   })
 })

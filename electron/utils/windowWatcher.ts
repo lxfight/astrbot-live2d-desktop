@@ -7,11 +7,11 @@ import { BUILTIN_IGNORE_RULES } from './windowWatcherConfig'
  * 窗口信息
  */
 export interface WindowInfo {
-  id: string              // 窗口唯一标识（HWND 或其他）
-  title: string           // 窗口标题
-  processName: string     // 进程名（如 chrome.exe）
-  processPath: string     // 进程路径
-  processId: number       // 进程 ID
+  id: string // 窗口唯一标识（HWND 或其他）
+  title: string // 窗口标题
+  processName: string // 进程名（如 chrome.exe）
+  processPath: string // 进程路径
+  processId: number // 进程 ID
   bounds: {
     x: number
     y: number
@@ -21,8 +21,8 @@ export interface WindowInfo {
   isFullscreen: boolean
   isMinimized: boolean
   isMaximized: boolean
-  url?: string            // 浏览器窗口的 URL
-  className?: string      // 窗口类名（Windows）
+  url?: string // 浏览器窗口的 URL
+  className?: string // 窗口类名（Windows）
 }
 
 /**
@@ -32,7 +32,7 @@ export interface WindowEvent {
   type: WindowEventType
   timestamp: number
   window: WindowInfo
-  previousWindow?: WindowInfo | null  // 上一个活跃窗口（仅 focus 事件）
+  previousWindow?: WindowInfo | null // 上一个活跃窗口（仅 focus 事件）
 }
 
 /**
@@ -63,7 +63,7 @@ export function isWindowFullscreen(
   screenWidth: number,
   screenHeight: number
 ): boolean {
-  const tolerance = 20  // 允许的误差像素
+  const tolerance = 20 // 允许的误差像素
   return (
     bounds.width >= screenWidth - tolerance &&
     bounds.height >= screenHeight - tolerance &&
@@ -74,7 +74,7 @@ export function isWindowFullscreen(
 
 /**
  * 窗口监听器管理器
- * 
+ *
  * 统一管理各平台的窗口事件监听，提供以下功能：
  * 1. 自动选择平台特定的监听器
  * 2. 事件过滤和转换
@@ -117,11 +117,11 @@ export class WindowWatcherManager {
   private static readonly APP_SWITCH_DEBOUNCE_THRESHOLD = 4
   private static readonly APP_SWITCH_SUPPRESS_MS = 15 * 1000
   private static readonly APP_EVENT_MIN_INTERVAL_MS = 4 * 1000
-  
+
   constructor() {
     // 平台监听器将在 start() 方法中初始化
   }
-  
+
   /**
    * 创建平台特定的监听器
    */
@@ -149,22 +149,22 @@ export class WindowWatcherManager {
       return null
     }
   }
-  
+
   /**
    * 加载配置模块
    */
   private async loadConfigModule(): Promise<void> {
     if (this.configModule) return
-    
+
     try {
       this.configModule = windowWatcherConfigModule
-      
+
       // 加载配置
       this.config = await this.configModule.loadConfig()
-      
+
       // 创建节流器
       this.throttler = new WindowThrottler(this.config)
-      
+
       console.log('[窗口监听] 配置加载完成')
     } catch (error) {
       console.error('[窗口监听] 加载配置模块失败:', error)
@@ -172,14 +172,29 @@ export class WindowWatcherManager {
       this.config = {
         enabled: true,
         throttle: { globalInterval: 1000, perWindowInterval: 3000, minInterval: 100 },
-        events: { focus: true, blur: false, create: true, destroy: false, fullscreen: true, windowed: false, resize: false, move: false, minimize: false, maximize: false, restore: false },
-        ignore: { processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'], titleKeywords: ['Program Manager', '锁屏', 'Lock Screen'] },
-        aiResponse: { mode: 'first-open', specificApps: [] },
+        events: {
+          focus: true,
+          blur: false,
+          create: true,
+          destroy: false,
+          fullscreen: true,
+          windowed: false,
+          resize: false,
+          move: false,
+          minimize: false,
+          maximize: false,
+          restore: false
+        },
+        ignore: {
+          processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'],
+          titleKeywords: ['Program Manager', '锁屏', 'Lock Screen']
+        },
+        aiResponse: { mode: 'first-open', specificApps: [] }
       }
       this.throttler = new WindowThrottler(this.config)
     }
   }
-  
+
   /**
    * 启动监听
    */
@@ -188,41 +203,41 @@ export class WindowWatcherManager {
       console.warn('[窗口监听] 监听器已在运行')
       return
     }
-    
+
     // 初始化平台监听器
     if (!this.platformWatcher) {
       this.platformWatcher = await this.createPlatformWatcher()
     }
-    
+
     if (!this.platformWatcher) {
       console.error('[窗口监听] 平台监听器不可用')
       return
     }
-    
+
     // 加载配置
     await this.loadConfigModule()
-    
+
     if (!this.config?.enabled) {
       console.log('[窗口监听] 监听器已禁用')
       return
     }
-    
+
     // 启动平台监听器
     this.platformWatcher.start((event: WindowEvent) => {
       this.handleWindowEvent(event)
     })
-    
+
     // 获取初始状态
     const activeWindow = this.platformWatcher.getActiveWindow()
     if (activeWindow) {
       this.currentWindow = activeWindow
       this.windowHistory.push({ window: activeWindow, timestamp: Date.now() })
     }
-    
+
     this.isRunning = true
     console.log('[窗口监听] WindowWatcherManager 已启动')
   }
-  
+
   /**
    * 停止监听
    */
@@ -247,12 +262,13 @@ export class WindowWatcherManager {
     this.isRunning = false
     console.log('[窗口监听] WindowWatcherManager 已停止')
   }
-  
+
   /**
    * 处理窗口事件
    */
   private handleWindowEvent(event: WindowEvent): void {
-    const shouldTrackFocusContext = event.type === 'focus' && !this.throttler?.shouldIgnoreEvent(event)
+    const shouldTrackFocusContext =
+      event.type === 'focus' && !this.throttler?.shouldIgnoreEvent(event)
 
     // 更新状态 (应该无条件执行，否则会导致活跃窗口识别错误)
     if (event.type === 'focus') {
@@ -267,7 +283,7 @@ export class WindowWatcherManager {
         this.currentWindow = event.window
       }
     }
-    
+
     // 转换全屏事件
     if (event.type === 'maximize' && event.window.isFullscreen) {
       event.type = 'fullscreen'
@@ -285,7 +301,7 @@ export class WindowWatcherManager {
         this.detectAppLaunch(event.window)
       }
     }
-    
+
     // 使用节流器检查是否应该触发 AI 响应（或通知监听器）
     if (this.throttler) {
       const { shouldTrigger, reason } = this.throttler.shouldTrigger(event)
@@ -294,7 +310,7 @@ export class WindowWatcherManager {
         return
       }
     }
-    
+
     // 通知所有监听器
     for (const listener of this.listeners) {
       try {
@@ -304,7 +320,7 @@ export class WindowWatcherManager {
       }
     }
   }
-  
+
   /**
    * 添加事件监听器
    */
@@ -312,42 +328,42 @@ export class WindowWatcherManager {
     this.listeners.add(callback)
     return () => this.listeners.delete(callback)
   }
-  
+
   /**
    * 移除事件监听器
    */
   offWindowEvent(callback: WindowEventCallback): void {
     this.listeners.delete(callback)
   }
-  
+
   /**
    * 获取当前活跃窗口
    */
   getCurrentWindow(): WindowInfo | null {
     return this.currentWindow
   }
-  
+
   /**
    * 获取上一个活跃窗口
    */
   getPreviousWindow(): WindowInfo | null {
     return this.previousWindow
   }
-  
+
   /**
    * 获取窗口历史记录
    */
   getWindowHistory(): Array<{ window: WindowInfo; timestamp: number }> {
     return [...this.windowHistory]
   }
-  
+
   /**
    * 获取所有已知窗口
    */
   getAllWindows(): WindowInfo[] {
     return this.platformWatcher?.getAllWindows() || []
   }
-  
+
   /**
    * 更新配置
    */
@@ -355,29 +371,29 @@ export class WindowWatcherManager {
     if (!this.configModule) {
       await this.loadConfigModule()
     }
-    
+
     // 验证并保存配置
     this.config = this.configModule.validateConfig(config)
     await this.configModule.saveConfig(this.config)
-    
+
     // 更新节流器配置
     if (this.throttler) {
       this.throttler.updateConfig(this.config)
     }
-    
+
     // 如果禁用了监听器，停止它
     if (!this.config.enabled && this.isRunning) {
       this.stop()
     }
-    
+
     // 如果启用了监听器，启动它
     if (this.config.enabled && !this.isRunning) {
       await this.start()
     }
-    
+
     console.log('[窗口监听] 配置已更新')
   }
-  
+
   /**
    * 获取当前配置
    */
@@ -387,7 +403,7 @@ export class WindowWatcherManager {
     }
     return { ...this.config }
   }
-  
+
   /**
    * 重置配置
    */
@@ -395,9 +411,9 @@ export class WindowWatcherManager {
     if (!this.configModule) {
       await this.loadConfigModule()
     }
-    
+
     this.config = await this.configModule.resetConfig()
-    
+
     // 更新节流器配置
     if (this.throttler) {
       this.throttler.updateConfig(this.config)
@@ -410,10 +426,10 @@ export class WindowWatcherManager {
     if (this.config.enabled && !this.isRunning) {
       await this.start()
     }
-    
+
     console.log('[窗口监听] 配置已重置')
   }
-  
+
   /**
    * 检查是否正在运行
    */
@@ -514,7 +530,7 @@ export class WindowWatcherManager {
     // 部分匹配关键词
     const tokens = [appKey, titleLower]
     for (const kw of BUILTIN_IGNORE_RULES.ignoreKeywords) {
-      if (tokens.some((t) => t.includes(kw.toLowerCase()))) return true
+      if (tokens.some(t => t.includes(kw.toLowerCase()))) return true
     }
 
     // 频率抑制
@@ -550,16 +566,23 @@ export class WindowWatcherManager {
     this.lastObservedAppKey = appKey
 
     const cutoff = now - WindowWatcherManager.APP_SWITCH_DEBOUNCE_WINDOW_MS
-    this.recentSwitchTimestamps = this.recentSwitchTimestamps.filter((ts) => ts >= cutoff)
+    this.recentSwitchTimestamps = this.recentSwitchTimestamps.filter(ts => ts >= cutoff)
 
     if (this.recentSwitchTimestamps.length >= WindowWatcherManager.APP_SWITCH_DEBOUNCE_THRESHOLD) {
-      this.suppressAppEventUntil = Math.max(this.suppressAppEventUntil, now + WindowWatcherManager.APP_SWITCH_SUPPRESS_MS)
+      this.suppressAppEventUntil = Math.max(
+        this.suppressAppEventUntil,
+        now + WindowWatcherManager.APP_SWITCH_SUPPRESS_MS
+      )
       this.recentSwitchTimestamps = []
       return true
     }
 
     if (now < this.suppressAppEventUntil) return true
-    if (this.lastAppEventTs > 0 && now - this.lastAppEventTs < WindowWatcherManager.APP_EVENT_MIN_INTERVAL_MS) return true
+    if (
+      this.lastAppEventTs > 0 &&
+      now - this.lastAppEventTs < WindowWatcherManager.APP_EVENT_MIN_INTERVAL_MS
+    )
+      return true
 
     return false
   }
@@ -596,7 +619,7 @@ export class WindowWatcherManager {
       }
     }
   }
-  
+
   /**
    * 构建 AI 上下文信息
    */
@@ -610,12 +633,12 @@ export class WindowWatcherManager {
       .slice(-10)
       .map(item => item.window.processName)
       .filter((name, index, arr) => arr.indexOf(name) === index)
-    
+
     return {
       currentApp: this.currentWindow?.processName || null,
       currentTitle: this.currentWindow?.title || null,
       isFullscreen: this.currentWindow?.isFullscreen || false,
-      recentApps,
+      recentApps
     }
   }
 }

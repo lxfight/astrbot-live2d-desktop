@@ -38,26 +38,28 @@ export function getSettingsSectionKey(group: SettingsGroupKey, child: SettingsCh
 export function getSettingsSectionEntry(
   registry: SettingsSectionRegistry,
   group: SettingsGroupKey,
-  child: SettingsChildKey,
+  child: SettingsChildKey
 ): SettingsSectionRegistryEntry | undefined {
   return registry[getSettingsSectionKey(group, child)]
 }
 
 export function getSettingsGroupEntries(
   registry: SettingsSectionRegistry,
-  group: SettingsGroupKey,
+  group: SettingsGroupKey
 ): SettingsSectionRegistryEntry[] {
-  return Object.values(registry).filter((entry) => entry.group === group)
+  return Object.values(registry).filter(entry => entry.group === group)
 }
 
-export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDomains): SettingsSectionRegistry {
+export function createSettingsSectionRegistry(
+  domains: SettingsSectionRegistryDomains
+): SettingsSectionRegistry {
   const {
     advancedDomain,
     aboutDomain,
     connectionDomain,
     historyDomain,
     modelDomain,
-    watcherDomain,
+    watcherDomain
   } = domains
 
   return {
@@ -68,7 +70,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsConnectionBridgeSection.vue'),
-      prepare: (force) => connectionDomain.refreshConnectionState(force),
+      prepare: force => connectionDomain.refreshConnectionState(force)
     },
     'connection/workspace': {
       key: 'connection/workspace',
@@ -77,7 +79,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsConnectionWorkspaceSection.vue'),
-      prepare: (force) => connectionDomain.refreshConnectionState(force),
+      prepare: force => connectionDomain.refreshConnectionState(force)
     },
     'model/current': {
       key: 'model/current',
@@ -86,10 +88,10 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsModelCurrentSection.vue'),
-      prepare: async (force) => {
+      prepare: async force => {
         await advancedDomain.ensureBaseReady(force)
         await modelDomain.ensureExpressionTypesReady(force)
-      },
+      }
     },
     'model/library': {
       key: 'model/library',
@@ -98,7 +100,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'list',
       loader: () => import('./sections/SettingsModelLibrarySection.vue'),
-      prepare: (force) => modelDomain.ensureLibraryReady(force),
+      prepare: force => modelDomain.ensureLibraryReady(force)
     },
     'history/messages': {
       key: 'history/messages',
@@ -107,7 +109,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'discard',
       skeletonKind: 'list',
       loader: () => import('./sections/SettingsHistoryMessagesSection.vue'),
-      prepare: (force) => historyDomain.ensureMessagesReady(force),
+      prepare: force => historyDomain.ensureMessagesReady(force)
     },
     'history/statistics': {
       key: 'history/statistics',
@@ -116,7 +118,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'discard',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsHistoryStatisticsSection.vue'),
-      prepare: (force) => historyDomain.ensureStatisticsReady(force),
+      prepare: force => historyDomain.ensureStatisticsReady(force)
     },
     'advanced/behavior': {
       key: 'advanced/behavior',
@@ -125,7 +127,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedBehaviorSection.vue'),
-      prepare: (force) => advancedDomain.ensureBehaviorReady(force),
+      prepare: force => advancedDomain.ensureBehaviorReady(force)
     },
     'advanced/shortcut': {
       key: 'advanced/shortcut',
@@ -134,7 +136,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedShortcutSection.vue'),
-      prepare: (force) => advancedDomain.ensureShortcutReady(force),
+      prepare: force => advancedDomain.ensureShortcutReady(force)
     },
     'advanced/windowWatcher': {
       key: 'advanced/windowWatcher',
@@ -143,7 +145,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedWatcherSection.vue'),
-      prepare: (force) => watcherDomain.ensureReady(force),
+      prepare: force => watcherDomain.ensureReady(force)
     },
     'advanced/data': {
       key: 'advanced/data',
@@ -151,7 +153,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       child: 'data',
       cachePolicy: 'discard',
       skeletonKind: 'dense',
-      loader: () => import('./sections/SettingsAdvancedDataSection.vue'),
+      loader: () => import('./sections/SettingsAdvancedDataSection.vue')
     },
     'about/info': {
       key: 'about/info',
@@ -160,7 +162,7 @@ export function createSettingsSectionRegistry(domains: SettingsSectionRegistryDo
       cachePolicy: 'discard',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsAboutInfoSection.vue'),
-      prepare: (force) => aboutDomain.ensureReady(force),
-    },
+      prepare: force => aboutDomain.ensureReady(force)
+    }
   }
 }

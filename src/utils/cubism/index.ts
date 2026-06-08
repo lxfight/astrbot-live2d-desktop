@@ -3,7 +3,7 @@
  */
 import type {
   CubismCompatibilityManifest as SharedCubismCompatibilityManifest,
-  CubismModelDiscoveryInfo as SharedCubismModelDiscoveryInfo,
+  CubismModelDiscoveryInfo as SharedCubismModelDiscoveryInfo
 } from '@/shared/cubismModelDiscovery'
 
 // 主要类
@@ -14,19 +14,10 @@ export { loadExpressionProfile } from './expressionProfile'
 export { buildExpressionCatalog } from './expressionCatalog'
 export type { ParsedExpressionFile } from './exp3Parser'
 export type { ExpressionProfile } from './expressionProfile'
-export type {
-  ExpressionCatalogEntry,
-  ExpressionCatalogBuildResult
-} from './expressionCatalog'
+export type { ExpressionCatalogEntry, ExpressionCatalogBuildResult } from './expressionCatalog'
 
 // 核心数据结构
-export {
-  CubismIdManager,
-  csmVector,
-  csmMap,
-  CubismMatrix44,
-  CubismTargetPoint
-} from './CubismCore'
+export { CubismIdManager, csmVector, csmMap, CubismMatrix44, CubismTargetPoint } from './CubismCore'
 
 export type { CubismIdHandle } from './CubismCore'
 
@@ -182,12 +173,20 @@ export function isCubism3Model(modelPath: string): boolean {
 }
 
 export function isCubism2Model(modelPath: string): boolean {
-  return modelPath.toLowerCase().endsWith('.model.json') &&
-         !modelPath.toLowerCase().endsWith('.model3.json')
+  return (
+    modelPath.toLowerCase().endsWith('.model.json') &&
+    !modelPath.toLowerCase().endsWith('.model3.json')
+  )
 }
 
 export function getModelName(modelPath: string): string {
-  return modelPath.split('/').filter(Boolean).pop()?.replace(/\.(model|model3)\.json$/, '') || 'unknown'
+  return (
+    modelPath
+      .split('/')
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.(model|model3)\.json$/, '') || 'unknown'
+  )
 }
 
 export function normalizeModelPath(modelPath: string): string {

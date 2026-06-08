@@ -39,8 +39,8 @@ describe('discoverCubismModelCompatibility', () => {
     writeText(path.join(modelDir, 'texture_00.png'), 'png')
     writeJson(path.join(modelDir, 'astrbot.live2d.profile.json'), {
       aliases: {
-        水印: ['watermark'],
-      },
+        水印: ['watermark']
+      }
     })
     writeText(path.join(modelDir, 'expressions', 'watermark.exp3.json'), '{"Parameters":[]}')
     writeText(path.join(modelDir, 'motions', 'IDLE.motion3.json'), '{}')
@@ -49,26 +49,26 @@ describe('discoverCubismModelCompatibility', () => {
     writeJson(path.join(modelDir, 'sample.model3.json'), {
       FileReferences: {
         Moc: 'sample.moc3',
-        Textures: ['texture_00.png'],
-      },
+        Textures: ['texture_00.png']
+      }
     })
 
     writeJson(path.join(modelDir, 'sample.vtube.json'), {
       FileReferences: {
-        IdleAnimation: 'IDLE.motion3.json',
+        IdleAnimation: 'IDLE.motion3.json'
       },
       Hotkeys: [
         {
           Name: '水印',
           Action: 'ToggleExpression',
-          File: 'watermark.exp3.json',
+          File: 'watermark.exp3.json'
         },
         {
           Name: '脸红',
           Action: 'TriggerAnimation',
-          File: 'blush.motion3.json',
-        },
-      ],
+          File: 'blush.motion3.json'
+        }
+      ]
     })
 
     const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
@@ -83,12 +83,12 @@ describe('discoverCubismModelCompatibility', () => {
         id: '水印',
         file: 'expressions/watermark.exp3.json',
         aliases: expect.arrayContaining(['水印', 'watermark']),
-        source: 'companion',
-      }),
+        source: 'companion'
+      })
     ])
     expect(manifest.motions).toEqual({
       Idle: [{ file: 'motions/IDLE.motion3.json', source: 'companion' }],
-      脸红: [{ file: 'motions/blush.motion3.json', source: 'companion' }],
+      脸红: [{ file: 'motions/blush.motion3.json', source: 'companion' }]
     })
   })
 
@@ -103,8 +103,8 @@ describe('discoverCubismModelCompatibility', () => {
     writeJson(path.join(modelDir, 'sample.model3.json'), {
       FileReferences: {
         Moc: 'sample.moc3',
-        Textures: ['texture_00.png'],
-      },
+        Textures: ['texture_00.png']
+      }
     })
 
     const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
@@ -116,12 +116,12 @@ describe('discoverCubismModelCompatibility', () => {
         id: 'Zzz',
         file: 'Zzz.exp3.json',
         aliases: ['Zzz'],
-        source: 'scan',
-      },
+        source: 'scan'
+      }
     ])
     expect(manifest.motions).toEqual({
       Idle: [{ file: 'motions/Idle_01.motion3.json', source: 'scan' }],
-      Wave: [{ file: 'motions/Wave.motion3.json', source: 'scan' }],
+      Wave: [{ file: 'motions/Wave.motion3.json', source: 'scan' }]
     })
   })
 
@@ -138,10 +138,10 @@ describe('discoverCubismModelCompatibility', () => {
         Expressions: [
           {
             Name: 'SmileName',
-            File: 'expressions/smile.exp3.json',
-          },
-        ],
-      },
+            File: 'expressions/smile.exp3.json'
+          }
+        ]
+      }
     })
 
     const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
@@ -151,8 +151,8 @@ describe('discoverCubismModelCompatibility', () => {
         id: 'SmileName',
         file: 'expressions/smile.exp3.json',
         aliases: ['SmileName', 'smile'],
-        source: 'model3',
-      },
+        source: 'model3'
+      }
     ])
   })
 
@@ -167,26 +167,26 @@ describe('discoverCubismModelCompatibility', () => {
     writeJson(path.join(modelDir, 'sample.model3.json'), {
       FileReferences: {
         Moc: 'sample.moc3',
-        Textures: ['texture_00.png'],
-      },
+        Textures: ['texture_00.png']
+      }
     })
 
     writeJson(path.join(modelDir, 'sample.vtube.json'), {
       FileReferences: {
-        IdleAnimation: 'IDLE.motion3.json',
+        IdleAnimation: 'IDLE.motion3.json'
       },
       Hotkeys: [
         {
           Name: '',
           Action: 'ToggleExpression',
-          File: '脸红.exp3.json',
+          File: '脸红.exp3.json'
         },
         {
           Name: '',
           Action: 'TriggerAnimation',
-          File: '红温.motion3.json',
-        },
-      ],
+          File: '红温.motion3.json'
+        }
+      ]
     })
 
     const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
@@ -196,12 +196,12 @@ describe('discoverCubismModelCompatibility', () => {
         id: '脸红',
         file: '脸红.exp3.json',
         aliases: ['脸红'],
-        source: 'companion',
-      },
+        source: 'companion'
+      }
     ])
     expect(manifest.motions).toEqual({
       Idle: [{ file: 'motions/IDLE.motion3.json', source: 'companion' }],
-      红温: [{ file: 'motions/红温.motion3.json', source: 'companion' }],
+      红温: [{ file: 'motions/红温.motion3.json', source: 'companion' }]
     })
   })
 })

@@ -6,13 +6,10 @@ import {
   getHistoryStatistics,
   saveHistoryMessage,
   saveHistoryPerformance,
-  updateHistoryStatistics,
+  updateHistoryStatistics
 } from '../services/historyStorageService'
 import type { PerformanceRecord, StatisticsData } from '../database/schema'
-import type {
-  HistoryMessageQueryOptions,
-  HistoryMessageRecord,
-} from '../../src/shared/history'
+import type { HistoryMessageQueryOptions, HistoryMessageRecord } from '../../src/shared/history'
 import { createScopedLogger } from '../utils/logger'
 
 const logger = createScopedLogger('ipc.history')
@@ -27,13 +24,13 @@ ipcMain.handle('history:getMessages', async (_event, options: HistoryMessageQuer
     timer.done({
       total: result.total,
       returned: result.messages.length,
-      repairedCount: result.repairedCount,
+      repairedCount: result.repairedCount
     })
     return {
       success: true,
       data: result.messages,
       total: result.total,
-      repairedCount: result.repairedCount,
+      repairedCount: result.repairedCount
     }
   } catch (error: any) {
     console.error('[IPC] 查询消息历史失败:', error)
@@ -53,12 +50,12 @@ ipcMain.handle('history:saveMessage', async (_event, record: HistoryMessageRecor
     direction: record.direction,
     contentType: Array.isArray(record.content) ? 'array' : typeof record.content,
     contentCount: Array.isArray(record.content) ? record.content.length : undefined,
-    timestamp: record.timestamp,
+    timestamp: record.timestamp
   })
   try {
     const localizedContent = await saveHistoryMessage(record)
     timer.done({
-      localizedContentCount: Array.isArray(localizedContent) ? localizedContent.length : 0,
+      localizedContentCount: Array.isArray(localizedContent) ? localizedContent.length : 0
     })
     return { success: true, localizedContent }
   } catch (error: any) {
@@ -76,7 +73,7 @@ ipcMain.handle('history:savePerformance', (_event, record: PerformanceRecord) =>
     messageId: record.messageId,
     sequenceCount: Array.isArray(record.sequence) ? record.sequence.length : 0,
     duration: record.duration,
-    interrupted: record.interrupted,
+    interrupted: record.interrupted
   })
   try {
     saveHistoryPerformance(record)
@@ -100,7 +97,7 @@ ipcMain.handle('history:updateStatistics', (_event, data: StatisticsData) => {
     textCount: data.textCount,
     imageCount: data.imageCount,
     audioCount: data.audioCount,
-    videoCount: data.videoCount,
+    videoCount: data.videoCount
   })
   try {
     updateHistoryStatistics(data)

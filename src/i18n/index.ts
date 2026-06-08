@@ -11,6 +11,6 @@ export const i18n = createI18n<[I18nMessageSchema], SupportedLocale>({
   fallbackLocale: 'zh-CN',
   messages: {
     'zh-CN': zhCN,
-    en,
-  },
+    en
+  }
 })

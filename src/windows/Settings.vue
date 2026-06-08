@@ -11,10 +11,7 @@
     />
 
     <div class="settings-workspace">
-      <SettingsPrimaryNav
-        :active-group="activeGroup"
-        @select-group="selectGroup"
-      />
+      <SettingsPrimaryNav :active-group="activeGroup" @select-group="selectGroup" />
 
       <SettingsSecondaryNav
         :active-child="activeChild"
@@ -52,31 +49,31 @@ import SettingsSectionHost from './settings/shared/SettingsSectionHost.vue'
 import SettingsTitlebar from './settings/shared/SettingsTitlebar.vue'
 import {
   connectionSettingsDomainKey,
-  createConnectionSettingsDomain,
+  createConnectionSettingsDomain
 } from './settings/domains/createConnectionSettingsDomain'
 import {
   modelSettingsDomainKey,
-  createModelSettingsDomain,
+  createModelSettingsDomain
 } from './settings/domains/createModelSettingsDomain'
 import {
   advancedSettingsDomainKey,
-  createAdvancedSettingsDomain,
+  createAdvancedSettingsDomain
 } from './settings/domains/createAdvancedSettingsDomain'
 import {
   watcherSettingsDomainKey,
-  createWatcherSettingsDomain,
+  createWatcherSettingsDomain
 } from './settings/domains/createWatcherSettingsDomain'
 import {
   aboutSettingsDomainKey,
-  createAboutSettingsDomain,
+  createAboutSettingsDomain
 } from './settings/domains/createAboutSettingsDomain'
 import {
   historySettingsDomainKey,
-  createHistorySettingsDomain,
+  createHistorySettingsDomain
 } from './settings/domains/createHistorySettingsDomain'
 import {
   maintenanceSettingsDomainKey,
-  createMaintenanceSettingsDomain,
+  createMaintenanceSettingsDomain
 } from './settings/domains/createMaintenanceSettingsDomain'
 import './settings/settings-shell.scss'
 
@@ -86,14 +83,8 @@ const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
 
-const {
-  activeChild,
-  activeGroup,
-  activeGroupChildren,
-  navigateToPage,
-  selectChild,
-  selectGroup,
-} = useSettingsNavigation()
+const { activeChild, activeGroup, activeGroupChildren, navigateToPage, selectChild, selectGroup } =
+  useSettingsNavigation()
 const {
   applyMaximizedChanged,
   handleCloseWindow,
@@ -103,7 +94,7 @@ const {
   isWindowMaximized,
   isPinned,
   handleTogglePin,
-  loadInitialState,
+  loadInitialState
 } = useSettingsWindowChrome(message)
 
 const connectionDomain = createConnectionSettingsDomain(message)
@@ -113,7 +104,7 @@ const watcherDomain = createWatcherSettingsDomain(message)
 const aboutDomain = createAboutSettingsDomain(message)
 const historyDomain = createHistorySettingsDomain({
   dialog,
-  message,
+  message
 })
 const maintenanceDomain = createMaintenanceSettingsDomain({
   aboutDomain,
@@ -121,7 +112,7 @@ const maintenanceDomain = createMaintenanceSettingsDomain({
   connectionDomain,
   dialog,
   message,
-  watcherDomain,
+  watcherDomain
 })
 
 provide(connectionSettingsDomainKey, connectionDomain)
@@ -138,7 +129,7 @@ const sectionRegistry = createSettingsSectionRegistry({
   connectionDomain,
   historyDomain,
   modelDomain,
-  watcherDomain,
+  watcherDomain
 })
 
 const navigationReady = ref(false)
@@ -150,9 +141,11 @@ onMounted(async () => {
   themeStore.startStorageSync()
 
   if (window.electron.settings?.onNavigateTo) {
-    settingsWindowDisposers.push(window.electron.settings.onNavigateTo((page: string) => {
-      navigateToPage(page)
-    }))
+    settingsWindowDisposers.push(
+      window.electron.settings.onNavigateTo((page: string) => {
+        navigateToPage(page)
+      })
+    )
   }
 
   const loadInitialStatePromise = loadInitialState()
@@ -165,33 +158,45 @@ onMounted(async () => {
   navigationReady.value = true
   await loadInitialStatePromise
 
-  settingsWindowDisposers.push(window.electron.update.onStateChanged((state: UpdateState) => {
-    aboutDomain.applyUpdateState(state)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.update.onStateChanged((state: UpdateState) => {
+      aboutDomain.applyUpdateState(state)
+    })
+  )
 
-  settingsWindowDisposers.push(window.electron.window.onMaximizedChanged((maximized: boolean) => {
-    applyMaximizedChanged(maximized)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.window.onMaximizedChanged((maximized: boolean) => {
+      applyMaximizedChanged(maximized)
+    })
+  )
 
-  settingsWindowDisposers.push(window.electron.desktopBehavior.onSnapshotChanged((snapshot: DesktopBehaviorSnapshot) => {
-    advancedDomain.applyDesktopFeatureSettingsState(snapshot.preferences)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.desktopBehavior.onSnapshotChanged((snapshot: DesktopBehaviorSnapshot) => {
+      advancedDomain.applyDesktopFeatureSettingsState(snapshot.preferences)
+    })
+  )
 
-  settingsWindowDisposers.push(window.electron.connectionSettings.onChanged(async () => {
-    await connectionDomain.handleExternalSettingsChanged()
-    await historyDomain.syncResourceConfig(true)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.connectionSettings.onChanged(async () => {
+      await connectionDomain.handleExternalSettingsChanged()
+      await historyDomain.syncResourceConfig(true)
+    })
+  )
 
-  settingsWindowDisposers.push(window.electron.connectionBehaviorSettings.onChanged((event) => {
-    if (!event?.settings) {
-      return
-    }
-    advancedDomain.applyConnectionBehaviorSettingsState(event.settings)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.connectionBehaviorSettings.onChanged(event => {
+      if (!event?.settings) {
+        return
+      }
+      advancedDomain.applyConnectionBehaviorSettingsState(event.settings)
+    })
+  )
 
-  settingsWindowDisposers.push(window.electron.bridgeLifecycle.onStateChanged(() => {
-    void historyDomain.syncResourceConfig(true)
-  }))
+  settingsWindowDisposers.push(
+    window.electron.bridgeLifecycle.onStateChanged(() => {
+      void historyDomain.syncResourceConfig(true)
+    })
+  )
 
   await nextTick()
   await window.electron.window.notifyRendererReady('settings')

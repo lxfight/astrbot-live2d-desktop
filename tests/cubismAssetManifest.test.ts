@@ -49,8 +49,8 @@ describe('validateCubismModelAssets', () => {
     const result = validateCubismModelAssets(path.join(modelDir, 'sample.model3.json'))
 
     expect(result.manifest.moc).toBe('sample.moc3')
-    expect(result.issues.filter((issue) => issue.severity === 'required')).toHaveLength(0)
-    expect(result.issues.filter((issue) => issue.severity === 'optional')).toHaveLength(0)
+    expect(result.issues.filter(issue => issue.severity === 'required')).toHaveLength(0)
+    expect(result.issues.filter(issue => issue.severity === 'optional')).toHaveLength(0)
   })
 
   test('reports required moc and texture issues', () => {
@@ -110,8 +110,8 @@ describe('validateCubismModelAssets', () => {
       expect.objectContaining({
         severity: 'required',
         kind: 'model',
-        relativePath: 'invalid.model3.json',
-      }),
+        relativePath: 'invalid.model3.json'
+      })
     ])
   })
 })

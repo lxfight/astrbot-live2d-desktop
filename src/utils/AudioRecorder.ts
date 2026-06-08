@@ -108,13 +108,13 @@ export class AudioRecorder {
       this.silenceTriggered = false
 
       // 监听数据
-      this.mediaRecorder.ondataavailable = (event) => {
+      this.mediaRecorder.ondataavailable = event => {
         if (event.data.size > 0) {
           this.audioChunks.push(event.data)
         }
       }
 
-      this.mediaRecorder.onerror = (event) => {
+      this.mediaRecorder.onerror = event => {
         console.error('[AudioRecorder] 录音器错误:', event)
       }
 
@@ -190,7 +190,7 @@ export class AudioRecorder {
     this.stopSilenceDetection()
 
     if (this.stream) {
-      this.stream.getTracks().forEach((track) => track.stop())
+      this.stream.getTracks().forEach(track => track.stop())
       this.stream = null
     }
 
@@ -205,7 +205,11 @@ export class AudioRecorder {
    * 检查浏览器是否支持录音
    */
   static isSupported(): boolean {
-    return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function' && window.MediaRecorder)
+    return !!(
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === 'function' &&
+      window.MediaRecorder
+    )
   }
 
   /**
@@ -246,9 +250,13 @@ export class AudioRecorder {
         const silenceDuration = now - this.lastSoundTimestamp
         const requiredSilenceDuration = this.options.silenceDetection?.durationMs || 1500
         const initialSilenceTimeout = this.options.silenceDetection?.initialSilenceTimeoutMs || 4000
-        const initialTimeoutReached = !this.hasDetectedVoice && now - this.startTime >= initialSilenceTimeout
+        const initialTimeoutReached =
+          !this.hasDetectedVoice && now - this.startTime >= initialSilenceTimeout
 
-        if (silenceDuration >= requiredSilenceDuration && (this.hasDetectedVoice || initialTimeoutReached)) {
+        if (
+          silenceDuration >= requiredSilenceDuration &&
+          (this.hasDetectedVoice || initialTimeoutReached)
+        ) {
           this.silenceTriggered = true
           this.stopSilenceDetection()
           this.silenceDetectedCallback?.()

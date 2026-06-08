@@ -5,7 +5,7 @@ import {
   buildThemeCssVars,
   createThemePalette,
   hexToRgb,
-  type ThemeRgb,
+  type ThemeRgb
 } from '@/utils/themePalette'
 import { rgbToHexString } from '@/utils/color'
 import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
@@ -31,36 +31,38 @@ function readPersistedTheme(): ThemePersistedState {
     return {
       currentModelPath: '',
       currentModelName: '',
-      sourceColor: DEFAULT_THEME_HEX,
+      sourceColor: DEFAULT_THEME_HEX
     }
   }
 
   try {
     return readJsonStorage(THEME_STORAGE_KEY, {
-        fallback: {
+      fallback: {
         currentModelPath: localStorage.getItem(LAST_MODEL_PATH_KEY) || '',
         currentModelName: '',
-        sourceColor: DEFAULT_THEME_HEX,
+        sourceColor: DEFAULT_THEME_HEX
       },
-      normalize: (value) => {
-        const parsed = value && typeof value === 'object'
-          ? value as Partial<ThemePersistedState>
-          : {}
+      normalize: value => {
+        const parsed =
+          value && typeof value === 'object' ? (value as Partial<ThemePersistedState>) : {}
 
         return {
-          currentModelPath: typeof parsed.currentModelPath === 'string' ? parsed.currentModelPath : '',
-          currentModelName: typeof parsed.currentModelName === 'string' ? parsed.currentModelName : '',
-          sourceColor: typeof parsed.sourceColor === 'string' ? parsed.sourceColor : DEFAULT_THEME_HEX,
+          currentModelPath:
+            typeof parsed.currentModelPath === 'string' ? parsed.currentModelPath : '',
+          currentModelName:
+            typeof parsed.currentModelName === 'string' ? parsed.currentModelName : '',
+          sourceColor:
+            typeof parsed.sourceColor === 'string' ? parsed.sourceColor : DEFAULT_THEME_HEX
         }
       },
-      version: THEME_STORAGE_VERSION,
+      version: THEME_STORAGE_VERSION
     })
   } catch (error) {
     console.warn('[ThemeStore] 读取主题配置失败，使用默认值:', error)
     return {
       currentModelPath: localStorage.getItem(LAST_MODEL_PATH_KEY) || '',
       currentModelName: '',
-      sourceColor: DEFAULT_THEME_HEX,
+      sourceColor: DEFAULT_THEME_HEX
     }
   }
 }
@@ -68,14 +70,18 @@ function readPersistedTheme(): ThemePersistedState {
 export const useThemeStore = defineStore('theme', () => {
   const persisted = readPersistedTheme()
   const currentModelPath = ref(persisted.currentModelPath)
-  const currentModelName = ref(persisted.currentModelName || getModelNameFromPath(persisted.currentModelPath))
+  const currentModelName = ref(
+    persisted.currentModelName || getModelNameFromPath(persisted.currentModelPath)
+  )
   const sourceColor = ref(persisted.sourceColor)
   const manualColorOverride = ref(false)
 
   const palette = computed(() => createThemePalette(hexToRgb(sourceColor.value)))
   const cssVars = computed(() => buildThemeCssVars(palette.value, resolvedModelName.value))
   const naiveThemeOverrides = computed(() => buildNaiveThemeOverrides(palette.value))
-  const resolvedModelName = computed(() => currentModelName.value || getModelNameFromPath(currentModelPath.value))
+  const resolvedModelName = computed(
+    () => currentModelName.value || getModelNameFromPath(currentModelPath.value)
+  )
   const sourceRgb = computed(() => hexToRgb(sourceColor.value))
 
   function persistState() {
@@ -86,7 +92,7 @@ export const useThemeStore = defineStore('theme', () => {
     const payload: ThemePersistedState = {
       currentModelPath: currentModelPath.value,
       currentModelName: currentModelName.value,
-      sourceColor: sourceColor.value,
+      sourceColor: sourceColor.value
     }
 
     writeJsonStorage(THEME_STORAGE_KEY, payload, { version: THEME_STORAGE_VERSION })
@@ -130,7 +136,11 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function onThemeStorageChange(event: StorageEvent) {
-    if (event.key !== null && event.key !== THEME_STORAGE_KEY && event.key !== LAST_MODEL_PATH_KEY) {
+    if (
+      event.key !== null &&
+      event.key !== THEME_STORAGE_KEY &&
+      event.key !== LAST_MODEL_PATH_KEY
+    ) {
       return
     }
 
@@ -172,7 +182,7 @@ export const useThemeStore = defineStore('theme', () => {
     applyModelTheme,
     setManualColor,
     resetToAutoColor,
-    manualColorOverride,
+    manualColorOverride
   }
 })
-  let storageSyncBound = false
+let storageSyncBound = false

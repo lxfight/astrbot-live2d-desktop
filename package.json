@@ -83,6 +83,10 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
+    "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,vue,js,jsx,json,css,scss,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,vue,js,jsx,json,css,scss,md}\"",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
     "rebuild": "node scripts/rebuild-native.js",
@@ -117,23 +121,49 @@
     "build:ci:linux:core": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:core",
     "build:ci:linux:pacman": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:pacman",
     "build:ci:linux:snap": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:snap",
-    "build:ci:linux:arm64": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:arm64"
+    "build:ci:linux:arm64": "pnpm run clean && pnpm run build:prepare && pnpm run pack:linux:arm64",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,vue}": [
+      "eslint --fix --max-warnings=-1",
+      "prettier --write"
+    ],
+    "*.{js,jsx,mjs,cjs}": [
+      "prettier --write"
+    ],
+    "*.{json,css,scss,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
+    "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.37",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vitest/coverage-v8": "^4.1.2",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.8.0",
     "@vue/language-core": "^3.2.6",
     "concurrently": "^8.2.2",
     "electron": "^40.8.5",
     "electron-builder": "^26.8.1",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-vue": "^10.9.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
     "node-gyp-build": "^4.8.4",
+    "prettier": "^3.8.3",
     "sass-embedded": "^1.99.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.60.1",
     "vite": "^6.4.1",
     "vite-plugin-electron": "^0.29.1",
     "vitest": "^4.1.2",

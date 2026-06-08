@@ -88,15 +88,17 @@ function normalizeSemanticPresets(value: unknown): Record<string, string[]> | un
     }
 
     const rawList = Array.isArray(rawItems) ? rawItems : [rawItems]
-    const ids = uniqueStrings(rawList.map((item) => {
-      if (typeof item === 'string') {
-        return item
-      }
-      if (item && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string') {
-        return (item as { id: string }).id
-      }
-      return null
-    }))
+    const ids = uniqueStrings(
+      rawList.map(item => {
+        if (typeof item === 'string') {
+          return item
+        }
+        if (item && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string') {
+          return (item as { id: string }).id
+        }
+        return null
+      })
+    )
 
     if (ids.length > 0) {
       normalized[normalizedKey] = ids
@@ -137,16 +139,15 @@ function normalizeExpressionProfile(payload: RawExpressionProfile): ExpressionPr
 
 export async function loadExpressionProfile(
   modelPath: string,
-  profileFile: string | null | undefined = undefined,
+  profileFile: string | null | undefined = undefined
 ): Promise<ExpressionProfile | null> {
   if (profileFile === null) {
     return null
   }
 
   const modelDir = modelPath.substring(0, modelPath.lastIndexOf('/') + 1)
-  const relativeProfilePath = typeof profileFile === 'string' && profileFile.trim()
-    ? profileFile.trim()
-    : PROFILE_FILE_NAME
+  const relativeProfilePath =
+    typeof profileFile === 'string' && profileFile.trim() ? profileFile.trim() : PROFILE_FILE_NAME
   const profilePath = `${modelDir}${relativeProfilePath}`
 
   try {
@@ -155,7 +156,7 @@ export async function loadExpressionProfile(
       return null
     }
 
-    const payload = await response.json() as ExpressionProfile
+    const payload = (await response.json()) as ExpressionProfile
     if (!payload || typeof payload !== 'object') {
       return null
     }

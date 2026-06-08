@@ -32,8 +32,12 @@ describe('Theme color manual override', () => {
     store = {}
     vi.stubGlobal('localStorage', {
       getItem: vi.fn((key: string) => store[key] ?? null),
-      setItem: vi.fn((key: string, value: string) => { store[key] = value }),
-      removeItem: vi.fn((key: string) => { delete store[key] }),
+      setItem: vi.fn((key: string, value: string) => {
+        store[key] = value
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete store[key]
+      })
     })
   })
 
@@ -47,7 +51,7 @@ describe('Theme color manual override', () => {
     persistJson(THEME_STORAGE_KEY, THEME_STORAGE_VERSION, {
       currentModelPath: '',
       currentModelName: '',
-      sourceColor: manualHex,
+      sourceColor: manualHex
     })
 
     const persisted = readPersisted(THEME_STORAGE_KEY)

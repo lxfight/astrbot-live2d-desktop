@@ -1,6 +1,25 @@
-import { createApp, computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, type Component, watch } from 'vue'
+import {
+  createApp,
+  computed,
+  defineComponent,
+  h,
+  markRaw,
+  onBeforeUnmount,
+  onMounted,
+  type Component,
+  watch
+} from 'vue'
 import { createPinia, storeToRefs } from 'pinia'
-import naive, { NConfigProvider, NDialogProvider, NMessageProvider, darkTheme, zhCN as naiveZhCN, enUS as naiveEnUS, dateZhCN, dateEnUS } from 'naive-ui'
+import naive, {
+  NConfigProvider,
+  NDialogProvider,
+  NMessageProvider,
+  darkTheme,
+  zhCN as naiveZhCN,
+  enUS as naiveEnUS,
+  dateZhCN,
+  dateEnUS
+} from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
 import { i18n } from '@/i18n'
@@ -45,48 +64,48 @@ function createWindowRoot(component: Component) {
         themeStore.stopStorageSync()
       })
 
-      watch(cssVars, (vars) => {
-        applyThemeCssVars(vars)
-      }, { immediate: true })
-
-      const naiveLocale = computed(() => localeStore.locale === 'zh-CN' ? naiveZhCN : naiveEnUS)
-      const naiveDateLocale = computed(() => localeStore.locale === 'zh-CN' ? dateZhCN : dateEnUS)
-
-      return () => h(
-        NConfigProvider,
-        {
-          theme: darkTheme,
-          themeOverrides: naiveThemeOverrides.value,
-          locale: naiveLocale.value,
-          dateLocale: naiveDateLocale.value,
+      watch(
+        cssVars,
+        vars => {
+          applyThemeCssVars(vars)
         },
-        {
-          default: () => h(
-            NMessageProvider,
-            null,
-            {
-              default: () => h(
-                NDialogProvider,
-                null,
-                {
-                  default: () => h(
-                    'div',
-                    {
-                      class: 'window-app-root',
-                      style: {
-                        width: '100%',
-                        height: '100%',
-                      },
-                    },
-                    [h(targetComponent)],
-                  ),
-                },
-              ),
-            },
-          ),
-        },
+        { immediate: true }
       )
-    },
+
+      const naiveLocale = computed(() => (localeStore.locale === 'zh-CN' ? naiveZhCN : naiveEnUS))
+      const naiveDateLocale = computed(() => (localeStore.locale === 'zh-CN' ? dateZhCN : dateEnUS))
+
+      return () =>
+        h(
+          NConfigProvider,
+          {
+            theme: darkTheme,
+            themeOverrides: naiveThemeOverrides.value,
+            locale: naiveLocale.value,
+            dateLocale: naiveDateLocale.value
+          },
+          {
+            default: () =>
+              h(NMessageProvider, null, {
+                default: () =>
+                  h(NDialogProvider, null, {
+                    default: () =>
+                      h(
+                        'div',
+                        {
+                          class: 'window-app-root',
+                          style: {
+                            width: '100%',
+                            height: '100%'
+                          }
+                        },
+                        [h(targetComponent)]
+                      )
+                  })
+              })
+          }
+        )
+    }
   })
 }
 
@@ -160,12 +179,7 @@ export interface MountWindowAppOptions {
 }
 
 export async function mountWindowApp(options: MountWindowAppOptions): Promise<void> {
-  const {
-    component,
-    windowKind,
-    beforeMount,
-    mountSelector = '#app',
-  } = options
+  const { component, windowKind, beforeMount, mountSelector = '#app' } = options
 
   setupRendererLogging()
   applyWindowKindClasses(windowKind)

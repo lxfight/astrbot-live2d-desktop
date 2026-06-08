@@ -38,32 +38,32 @@ function downloadFile(url, dest) {
 
     console.log(`[下载] ${url}`)
 
-    https.get(url, (response) => {
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        file.close()
-        fs.unlinkSync(dest)
-        return downloadFile(response.headers.location, dest)
-          .then(resolve)
-          .catch(reject)
-      }
+    https
+      .get(url, response => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          file.close()
+          fs.unlinkSync(dest)
+          return downloadFile(response.headers.location, dest).then(resolve).catch(reject)
+        }
 
-      if (response.statusCode !== 200) {
-        file.close()
-        fs.unlinkSync(dest)
-        return reject(new Error(`下载失败: ${response.statusCode}`))
-      }
+        if (response.statusCode !== 200) {
+          file.close()
+          fs.unlinkSync(dest)
+          return reject(new Error(`下载失败: ${response.statusCode}`))
+        }
 
-      response.pipe(file)
+        response.pipe(file)
 
-      file.on('finish', () => {
-        file.close()
-        resolve()
+        file.on('finish', () => {
+          file.close()
+          resolve()
+        })
       })
-    }).on('error', (err) => {
-      file.close()
-      if (fs.existsSync(dest)) fs.unlinkSync(dest)
-      reject(err)
-    })
+      .on('error', err => {
+        file.close()
+        if (fs.existsSync(dest)) fs.unlinkSync(dest)
+        reject(err)
+      })
   })
 }
 
@@ -95,11 +95,11 @@ async function downloadFrameworkFromGitHub() {
 
     execSync(`tar -xzf "${tarballPath}" -C "${extractDir}"`, {
       stdio: 'pipe',
-      timeout: 60000,
+      timeout: 60000
     })
 
     const entries = fs.readdirSync(extractDir)
-    const frameworkSrcDir = entries.find((e) => e.startsWith('CubismWebFramework-'))
+    const frameworkSrcDir = entries.find(e => e.startsWith('CubismWebFramework-'))
     if (!frameworkSrcDir) {
       throw new Error('无法在解压目录中找到 Framework 源码目录')
     }
@@ -111,15 +111,18 @@ async function downloadFrameworkFromGitHub() {
 
     console.log('[下载] 解压完成')
     return srcDir
-
   } catch (error) {
     console.error('[错误] Framework 下载/解压失败:', error.message)
 
     if (fs.existsSync(tarballPath)) {
-      try { fs.unlinkSync(tarballPath) } catch {}
+      try {
+        fs.unlinkSync(tarballPath)
+      } catch {}
     }
     if (fs.existsSync(extractDir)) {
-      try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch {}
+      try {
+        fs.rmSync(extractDir, { recursive: true, force: true })
+      } catch {}
     }
 
     return null
@@ -152,7 +155,10 @@ function copyDirectory(src, dest) {
 
     if (entry.isDirectory()) {
       copyDirectory(srcPath, destPath)
-    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.vert') || entry.name.endsWith('.frag'))) {
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith('.ts') || entry.name.endsWith('.vert') || entry.name.endsWith('.frag'))
+    ) {
       if (entry.name.endsWith('.ts')) {
         let content = fs.readFileSync(srcPath, 'utf-8')
 
@@ -321,7 +327,6 @@ async function main() {
     console.log(`[路径] ${FRAMEWORK_DIR}`)
 
     cleanupTempDir()
-
   } catch (error) {
     console.error('[错误] 复制失败:', error)
     cleanupTempDir()

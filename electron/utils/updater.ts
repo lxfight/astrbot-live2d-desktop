@@ -273,12 +273,15 @@ function handleDownloadProgress(progress: ProgressInfo): void {
 
 async function promptInstallUpdate(info: UpdateInfo): Promise<void> {
   try {
-    const focusedWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
+    const focusedWindow =
+      BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
     const installPromptMessage = t('updater.downloadComplete', { version: info.version })
     const installPromptDetail = isPortableBuild()
       ? t('updater.dialog.installPromptPortable')
       : t('updater.dialog.installPromptRegular')
-    const confirmButtonText = isPortableBuild() ? t('updater.dialog.installNowPortable') : t('updater.dialog.installNowRegular')
+    const confirmButtonText = isPortableBuild()
+      ? t('updater.dialog.installNowPortable')
+      : t('updater.dialog.installNowRegular')
     const result = await dialog.showMessageBox(focusedWindow, {
       type: 'info',
       title: t('updater.dialog.newVersionTitle'),
@@ -315,7 +318,7 @@ function setupAutoUpdaterListeners(): void {
     writeLogEntry('info', 'updater', '开始检查更新')
   })
 
-  autoUpdater.on('update-available', (info) => {
+  autoUpdater.on('update-available', info => {
     handleUpdateAvailable(info)
     writeLogEntry('info', 'updater', `发现新版本: ${info.version}`)
   })
@@ -331,11 +334,11 @@ function setupAutoUpdaterListeners(): void {
     writeLogEntry('info', 'updater', '当前已是最新版本')
   })
 
-  autoUpdater.on('download-progress', (progress) => {
+  autoUpdater.on('download-progress', progress => {
     handleDownloadProgress(progress)
   })
 
-  autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.on('update-downloaded', info => {
     setUpdateState({
       status: 'downloaded',
       message: isPortableBuild()
@@ -349,7 +352,7 @@ function setupAutoUpdaterListeners(): void {
     void promptInstallUpdate(info)
   })
 
-  autoUpdater.on('error', (error) => {
+  autoUpdater.on('error', error => {
     const message = extractErrorMessage(error)
     setUpdateState({
       status: 'error',
@@ -425,7 +428,7 @@ export function initializeAutoUpdater(): void {
   if (!isAutoUpdateCheckEnabled()) {
     setUpdateState({
       status: 'idle',
-      message: t('updater.autoCheckDisabled'),
+      message: t('updater.autoCheckDisabled')
     })
     writeLogEntry('info', 'updater', '用户已关闭自动检查更新')
     return
@@ -447,14 +450,14 @@ export function updateUpdaterSettings(patch: Partial<UpdaterSettings>): UpdaterS
     setUpdateState({
       status: 'idle',
       message: t('updater.autoCheckDisabled'),
-      progress: undefined,
+      progress: undefined
     })
   }
   if (!nextSettings.autoUpdateEnabled && updateState.status !== 'downloaded') {
     setUpdateState({
       status: 'idle',
       message: t('updater.autoCheckDisabled'),
-      progress: undefined,
+      progress: undefined
     })
   }
   return nextSettings

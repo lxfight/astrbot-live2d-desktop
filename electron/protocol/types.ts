@@ -312,7 +312,7 @@ export interface DesktopCaptureResponsePayload {
 // 桌面工具声明（握手时由客户端发送）
 export interface DesktopToolParam {
   name: string
-  type: string  // string | number | boolean | array | object
+  type: string // string | number | boolean | array | object
   description: string
   required?: boolean
 }

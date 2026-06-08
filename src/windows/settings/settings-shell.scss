@@ -6,7 +6,12 @@
   overflow: hidden;
   background:
     radial-gradient(circle at top right, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
-    linear-gradient(180deg, rgba(38, 30, 25, 0.98), var(--settings-bg-base) 38%, rgba(17, 14, 13, 1));
+    linear-gradient(
+      180deg,
+      rgba(38, 30, 25, 0.98),
+      var(--settings-bg-base) 38%,
+      rgba(17, 14, 13, 1)
+    );
 }
 
 .settings-titlebar {
@@ -56,7 +61,9 @@
   border-radius: 10px;
   background: transparent;
   color: rgba(255, 245, 236, 0.78);
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .settings-titlebar__button:hover {
@@ -186,7 +193,9 @@
 }
 
 .page-fade-enter-active {
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
 }
 
 .page-fade-leave-active {
@@ -203,11 +212,15 @@
 }
 
 .slide-fade-enter-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
 }
 
 .slide-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .slide-fade-enter-from {
@@ -221,11 +234,15 @@
 }
 
 .list-fade-enter-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
 }
 
 .list-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .list-fade-enter-from {
@@ -240,7 +257,8 @@
 
 .settings-section {
   padding: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--desktop-panel-bg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%), var(--desktop-panel-bg);
   border: 1px solid var(--desktop-panel-border);
   border-radius: var(--desktop-radius-panel);
   box-shadow: var(--desktop-shadow);

@@ -56,7 +56,7 @@ function normalizeRgb(rgb: ThemeRgb): ThemeRgb {
   return {
     r: normalizeChannel(rgb.r),
     g: normalizeChannel(rgb.g),
-    b: normalizeChannel(rgb.b),
+    b: normalizeChannel(rgb.b)
   }
 }
 
@@ -91,7 +91,7 @@ function rgbToHsl(rgb: ThemeRgb): ThemeHsl {
   return {
     h: Math.round((hue * 60 + 360) % 360),
     s: Math.round(saturation * 100),
-    l: Math.round(lightness * 100),
+    l: Math.round(lightness * 100)
   }
 }
 
@@ -131,14 +131,14 @@ function hslToRgb(hsl: ThemeHsl): ThemeRgb {
   return normalizeRgb({
     r: (r + match) * 255,
     g: (g + match) * 255,
-    b: (b + match) * 255,
+    b: (b + match) * 255
   })
 }
 
 function rgbToHex(rgb: ThemeRgb): string {
   const normalized = normalizeRgb(rgb)
   return `#${[normalized.r, normalized.g, normalized.b]
-    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .map(channel => channel.toString(16).padStart(2, '0'))
     .join('')}`
 }
 
@@ -148,9 +148,13 @@ export function hexToRgb(hex: string | null | undefined): ThemeRgb {
   }
 
   const normalized = hex.trim().replace('#', '')
-  const raw = normalized.length === 3
-    ? normalized.split('').map((char) => `${char}${char}`).join('')
-    : normalized
+  const raw =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map(char => `${char}${char}`)
+          .join('')
+      : normalized
 
   if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
     return DEFAULT_RGB
@@ -159,7 +163,7 @@ export function hexToRgb(hex: string | null | undefined): ThemeRgb {
   return {
     r: parseInt(raw.slice(0, 2), 16),
     g: parseInt(raw.slice(2, 4), 16),
-    b: parseInt(raw.slice(4, 6), 16),
+    b: parseInt(raw.slice(4, 6), 16)
   }
 }
 
@@ -173,7 +177,7 @@ function mixRgb(a: ThemeRgb, b: ThemeRgb, ratio: number): ThemeRgb {
   return normalizeRgb({
     r: a.r + (b.r - a.r) * t,
     g: a.g + (b.g - a.g) * t,
-    b: a.b + (b.b - a.b) * t,
+    b: a.b + (b.b - a.b) * t
   })
 }
 
@@ -182,7 +186,7 @@ function shiftLightness(rgb: ThemeRgb, delta: number, saturationDelta = 0): Them
   return hslToRgb({
     h: hsl.h,
     s: clamp(hsl.s + saturationDelta, 18, 88),
-    l: clamp(hsl.l + delta, 12, 88),
+    l: clamp(hsl.l + delta, 12, 88)
   })
 }
 
@@ -191,16 +195,14 @@ function rotateHue(rgb: ThemeRgb, delta: number, lightnessDelta = 0): ThemeRgb {
   return hslToRgb({
     h: hsl.h + delta,
     s: clamp(hsl.s - 4, 22, 78),
-    l: clamp(hsl.l + lightnessDelta, 20, 82),
+    l: clamp(hsl.l + lightnessDelta, 20, 82)
   })
 }
 
 function relativeLuminance(rgb: ThemeRgb): number {
   const transform = (channel: number) => {
     const normalized = channel / 255
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
 
   const r = transform(rgb.r)
@@ -216,11 +218,7 @@ function normalizeAccent(rgb: ThemeRgb): ThemeRgb {
   const adjusted = hslToRgb({
     h: hsl.h,
     s: clamp(hsl.s < 28 ? hsl.s + 14 : hsl.s, 28, 90),
-    l: clamp(
-      hsl.l < 34 ? hsl.l + 10 : (hsl.l > 72 ? hsl.l - 12 : hsl.l),
-      34,
-      72,
-    ),
+    l: clamp(hsl.l < 34 ? hsl.l + 10 : hsl.l > 72 ? hsl.l - 12 : hsl.l, 34, 72)
   })
 
   return mixRgb(source, adjusted, 0.42)
@@ -269,9 +267,9 @@ export function createThemePalette(rgb: ThemeRgb): ThemePalette {
       rgbToHex(rotateHue(accentRgb, -22, 4)),
       rgbToHex(rotateHue(accentRgb, 52, 10)),
       rgbToHex(rotateHue(accentRgb, -48, 8)),
-      rgbToHex(shiftLightness(accentRgb, -12, -6)),
+      rgbToHex(shiftLightness(accentRgb, -12, -6))
     ],
-    shadowColor: rgba(accentRgb, 0.22),
+    shadowColor: rgba(accentRgb, 0.22)
   }
 }
 
@@ -279,11 +277,17 @@ export function withAlpha(hex: string, alpha: number): string {
   return rgba(hexToRgb(hex), alpha)
 }
 
-export function buildThemeCssVars(palette: ThemePalette, modelName?: string): Record<string, string> {
-  const chartVars = palette.chartPalette.reduce<Record<string, string>>((accumulator, color, index) => {
-    accumulator[`--theme-chart-${index}`] = color
-    return accumulator
-  }, {})
+export function buildThemeCssVars(
+  palette: ThemePalette,
+  modelName?: string
+): Record<string, string> {
+  const chartVars = palette.chartPalette.reduce<Record<string, string>>(
+    (accumulator, color, index) => {
+      accumulator[`--theme-chart-${index}`] = color
+      return accumulator
+    },
+    {}
+  )
 
   return {
     '--theme-model-name': modelName || 'AstrBot Live2D',
@@ -321,7 +325,7 @@ export function buildThemeCssVars(palette: ThemePalette, modelName?: string): Re
     '--theme-chart-grid': 'rgba(255, 255, 255, 0.08)',
     '--theme-chart-text': palette.textSecondary,
     '--theme-accent-contrast': palette.accentContrast,
-    ...chartVars,
+    ...chartVars
   }
 }
 
@@ -355,7 +359,7 @@ export function buildNaiveThemeOverrides(palette: ThemePalette): GlobalThemeOver
       heightMedium: '44px',
       heightLarge: '50px',
       fontSize: '14px',
-      fontSizeMedium: '14px',
+      fontSizeMedium: '14px'
     },
     Button: {
       borderRadiusMedium: '16px',
@@ -363,14 +367,14 @@ export function buildNaiveThemeOverrides(palette: ThemePalette): GlobalThemeOver
       colorPrimaryHover: palette.accentHover,
       colorPrimaryPressed: palette.accentPressed,
       textColorPrimary: palette.accentContrast,
-      rippleColorPrimary: palette.accentSoft,
+      rippleColorPrimary: palette.accentSoft
     },
     Card: {
       borderRadius: '24px',
       color: 'rgba(26, 33, 44, 0.45)',
       borderColor: palette.borderSubtle,
       titleTextColor: palette.textPrimary,
-      textColor: palette.textSecondary,
+      textColor: palette.textSecondary
     },
     Input: {
       borderRadius: '16px',
@@ -379,56 +383,56 @@ export function buildNaiveThemeOverrides(palette: ThemePalette): GlobalThemeOver
       colorFocusError: 'rgba(248, 113, 113, 0.1)',
       borderHover: `1px solid ${palette.borderStrong}`,
       borderFocus: `1px solid ${palette.borderAccent}`,
-      boxShadowFocus: `0 0 0 3px ${palette.accentSoft}, 0 2px 10px rgba(0, 0, 0, 0.1)`,
+      boxShadowFocus: `0 0 0 3px ${palette.accentSoft}, 0 2px 10px rgba(0, 0, 0, 0.1)`
     },
     Select: {
       peers: {
         InternalSelection: {
           borderFocus: `1px solid ${palette.borderAccent}`,
-          boxShadowFocus: `0 0 0 3px ${palette.accentSoft}, 0 2px 10px rgba(0, 0, 0, 0.1)`,
-        },
-      },
+          boxShadowFocus: `0 0 0 3px ${palette.accentSoft}, 0 2px 10px rgba(0, 0, 0, 0.1)`
+        }
+      }
     },
     Tabs: {
       tabBorderRadius: '999px',
       tabTextColorActiveLine: palette.textPrimary,
-      barColor: palette.accent,
+      barColor: palette.accent
     },
     Switch: {
       railColorActive: palette.accent,
-      buttonColor: '#ffffff',
+      buttonColor: '#ffffff'
     },
     Alert: {
       borderRadius: '18px',
-      color: 'rgba(255, 255, 255, 0.05)',
+      color: 'rgba(255, 255, 255, 0.05)'
     },
     Dialog: {
       borderRadius: '24px',
-      color: 'rgba(26, 33, 44, 0.75)',
+      color: 'rgba(26, 33, 44, 0.75)'
     },
     Drawer: {
-      color: 'rgba(20, 26, 36, 0.85)',
+      color: 'rgba(20, 26, 36, 0.85)'
     },
     Tag: {
-      borderRadius: '999px',
+      borderRadius: '999px'
     },
     Statistic: {
       labelTextColor: palette.textSecondary,
-      valueTextColor: palette.textPrimary,
+      valueTextColor: palette.textPrimary
     },
     DataTable: {
       tdColor: palette.surfaceRaised,
       thColor: palette.surfaceInset,
-      borderColor: palette.borderSubtle,
+      borderColor: palette.borderSubtle
     },
     Collapse: {
       dividerColor: palette.borderSubtle,
       titleTextColor: palette.textPrimary,
-      textColor: palette.textSecondary,
+      textColor: palette.textSecondary
     },
     DatePicker: {
       panelColor: 'rgba(20, 26, 36, 0.85)',
-      panelBorderRadius: '20px',
-    },
+      panelBorderRadius: '20px'
+    }
   }
 }

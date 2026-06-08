@@ -3,5 +3,5 @@ import { mountWindowApp } from '@/bootstrap/windowApp'
 
 void mountWindowApp({
   component: SettingsWindow,
-  windowKind: 'settings',
+  windowKind: 'settings'
 })

@@ -39,23 +39,22 @@
     <p class="settings-section__desc">{{ $t('settings.model.current.expressionDesc') }}</p>
 
     <template v-if="currentModelPath">
-      <n-alert v-if="expressionTypeProfilePath" type="info" :show-icon="false" class="expression-type-alert">
-        {{ $t('settings.model.current.expressionProfilePath', { path: expressionTypeProfilePath }) }}
+      <n-alert
+        v-if="expressionTypeProfilePath"
+        type="info"
+        :show-icon="false"
+        class="expression-type-alert"
+      >
+        {{
+          $t('settings.model.current.expressionProfilePath', { path: expressionTypeProfilePath })
+        }}
       </n-alert>
 
       <div v-if="expressionTypeExpressions.length > 0" class="expression-type-groups">
-        <div
-          v-for="group in expressionTypeGroups"
-          :key="group.name"
-          class="expression-type-group"
-        >
+        <div v-for="group in expressionTypeGroups" :key="group.name" class="expression-type-group">
           <h3>{{ group.name }}</h3>
           <div class="expression-type-grid">
-            <div
-              v-for="type in group.items"
-              :key="type.key"
-              class="expression-type-row"
-            >
+            <div v-for="type in group.items" :key="type.key" class="expression-type-row">
               <div class="expression-type-row__meta">
                 <strong>{{ type.label }}</strong>
                 <code>{{ type.key }}</code>
@@ -87,13 +86,13 @@
 
     <n-form label-placement="top">
       <n-form-item :label="$t('settings.model.current.scale')">
-        <n-space align="center" style="width: 100%;">
+        <n-space align="center" style="width: 100%">
           <n-slider
             :value="currentModelScaleValue"
             :min="0.1"
             :max="5.0"
             :step="0.05"
-            style="width: 200px;"
+            style="width: 200px"
             @update:value="handleModelScaleChange"
           />
           <n-input-number
@@ -102,16 +101,21 @@
             :max="5.0"
             :step="0.05"
             size="small"
-            style="width: 110px;"
+            style="width: 110px"
             @update:value="(value: number | null) => handleModelScaleChange(value || 1.0)"
           >
             <template #suffix>x</template>
           </n-input-number>
-          <n-button size="small" @click="handleResetModelScale">{{ $t('settings.model.current.resetScale') }}</n-button>
+          <n-button size="small" @click="handleResetModelScale">{{
+            $t('settings.model.current.resetScale')
+          }}</n-button>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.model.current.themeFollowModel')">
-        <n-switch v-model:value="advancedSettings.themeFollowModel" @update:value="handleThemeFollowChange" />
+        <n-switch
+          v-model:value="advancedSettings.themeFollowModel"
+          @update:value="handleThemeFollowChange"
+        />
         <template #feedback>
           {{ $t('settings.model.current.themeFollowFeedback') }}
         </template>
@@ -131,12 +135,7 @@
             :aria-label="$t('settings.model.current.pickColor')"
             @input="handleColorPick"
           />
-          <n-button
-            v-if="manualColorOverride"
-            size="tiny"
-            secondary
-            @click="handleResetAutoColor"
-          >
+          <n-button v-if="manualColorOverride" size="tiny" secondary @click="handleResetAutoColor">
             {{ $t('settings.model.current.resetAutoColor') }}
           </n-button>
         </span>
@@ -153,7 +152,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { createLive2DExpressionTypeMeta, type Live2DExpressionTypeMeta } from '@/shared/live2dExpressionTypes'
+import {
+  createLive2DExpressionTypeMeta,
+  type Live2DExpressionTypeMeta
+} from '@/shared/live2dExpressionTypes'
 import { useThemeStore } from '@/stores/theme'
 import { useAdvancedSettingsDomain } from '../domains/createAdvancedSettingsDomain'
 import { useModelSettingsDomain } from '../domains/createModelSettingsDomain'
@@ -177,7 +179,7 @@ const {
   handleResetModelScale,
   handleSaveExpressionTypes,
   sourceColor,
-  themeSwatchStyle,
+  themeSwatchStyle
 } = useModelSettingsDomain()
 
 const themeStore = useThemeStore()
@@ -197,7 +199,7 @@ function handleResetAutoColor() {
 const expressionTypeGroups = computed(() => {
   const groups: Array<{ name: string; items: Live2DExpressionTypeMeta[] }> = []
   for (const item of createLive2DExpressionTypeMeta(t)) {
-    let group = groups.find((candidate) => candidate.name === item.group)
+    let group = groups.find(candidate => candidate.name === item.group)
     if (!group) {
       group = { name: item.group, items: [] }
       groups.push(group)
@@ -207,18 +209,23 @@ const expressionTypeGroups = computed(() => {
   return groups
 })
 
-const expressionOptions = computed(() => expressionTypeExpressions.value.map((entry) => ({
-  label: entry.aliases.length > 1
-    ? `${entry.id}（${entry.aliases.slice(1, 3).join('、')}）`
-    : entry.id,
-  value: entry.id,
-})))
+const expressionOptions = computed(() =>
+  expressionTypeExpressions.value.map(entry => ({
+    label:
+      entry.aliases.length > 1
+        ? `${entry.id}（${entry.aliases.slice(1, 3).join('、')}）`
+        : entry.id,
+    value: entry.id
+  }))
+)
 
 const syncStatusLabel = computed(() => {
   if (!advancedSettings.value.themeFollowModel) {
     return t('settings.model.current.syncDisabled')
   }
-  return currentModelPath.value ? t('settings.model.current.followingModel') : t('settings.model.current.waitingForModel')
+  return currentModelPath.value
+    ? t('settings.model.current.followingModel')
+    : t('settings.model.current.waitingForModel')
 })
 </script>
 

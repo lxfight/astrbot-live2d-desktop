@@ -2,11 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
 
-const htmlFiles = [
-  'main.html',
-  'settings.html',
-  'welcome.html',
-] as const
+const htmlFiles = ['main.html', 'settings.html', 'welcome.html'] as const
 
 function readHtml(fileName: string): string {
   return fs.readFileSync(path.join(process.cwd(), fileName), 'utf8')
@@ -20,7 +16,10 @@ function readCspDirectives(fileName: string): Map<string, string[]> {
   }
 
   const directives = new Map<string, string[]>()
-  for (const directive of match[1].split(';').map((item) => item.trim()).filter(Boolean)) {
+  for (const directive of match[1]
+    .split(';')
+    .map(item => item.trim())
+    .filter(Boolean)) {
     const [name, ...sources] = directive.split(/\s+/)
     directives.set(name, sources)
   }

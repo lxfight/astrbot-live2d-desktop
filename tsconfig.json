@@ -23,7 +23,14 @@
       "@cubism-framework/*": ["./.generated/cubism-framework/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "electron/**/*.ts", ".generated/cubism-framework/src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "electron/**/*.ts",
+    ".generated/cubism-framework/src/**/*.ts"
+  ],
   "exclude": ["src/framework/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

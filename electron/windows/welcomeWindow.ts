@@ -33,9 +33,12 @@ export function createWelcomeWindow(): BrowserWindow {
 
   void loadRendererEntry(welcomeWindow, 'welcome')
 
-  welcomeWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    console.error('[欢迎窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)
-  })
+  welcomeWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL) => {
+      console.error('[欢迎窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)
+    }
+  )
 
   welcomeWindow.on('closed', () => {
     welcomeWindow = null

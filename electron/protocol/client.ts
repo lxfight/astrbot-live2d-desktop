@@ -18,7 +18,7 @@ import type {
   STTTranscribePayload,
   STTResultPayload,
   DesktopCaptureRequestPayload,
-  DesktopToolCallPayload,
+  DesktopToolCallPayload
 } from './types'
 import { OP as OPS, ERROR_CODE } from './types'
 import { prepareMessageContentForTransport } from './messageContent'
@@ -28,7 +28,7 @@ import {
   getActiveWindow,
   captureScreenshot,
   getDesktopTools,
-  handleToolCall,
+  handleToolCall
 } from '../ipc/desktop'
 
 const logger = createScopedLogger('bridge.protocol')
@@ -51,7 +51,10 @@ export interface BridgeClientError extends Error {
   code: BridgeLifecycleErrorCode
 }
 
-function createBridgeClientError(code: BridgeLifecycleErrorCode, message: string): BridgeClientError {
+function createBridgeClientError(
+  code: BridgeLifecycleErrorCode,
+  message: string
+): BridgeClientError {
   const error = new Error(message) as BridgeClientError
   error.name = 'BridgeClientError'
   error.code = code
@@ -65,7 +68,7 @@ function createOpenCloseError(info: BridgeClientDisconnectInfo): BridgeClientErr
 
   return createBridgeClientError(
     'WS_UNEXPECTED_CLOSE',
-    `连接在握手阶段断开: ${info.reason || info.code || 'unknown'}`,
+    `连接在握手阶段断开: ${info.reason || info.code || 'unknown'}`
   )
 }
 
@@ -81,19 +84,24 @@ export class L2DBridgeClient extends EventEmitter {
   private heartbeatTimer: NodeJS.Timeout | null = null
   private handshakeTimer: NodeJS.Timeout | null = null
   private ready = false
-  private pendingOpen:
-    | {
-        resolve: () => void
-        reject: (error: BridgeClientError) => void
-      }
-    | null = null
+  private pendingOpen: {
+    resolve: () => void
+    reject: (error: BridgeClientError) => void
+  } | null = null
   private pendingDisconnectError: { code: BridgeLifecycleErrorCode; message: string } | null = null
-  private serverConfig: { resourceBaseUrl?: string; resourcePath?: string; maxInlineBytes?: number } = {}
-  private pendingRequests: Map<string, {
-    resolve: (payload: any) => void
-    reject: (error: Error) => void
-    timer: NodeJS.Timeout
-  }> = new Map()
+  private serverConfig: {
+    resourceBaseUrl?: string
+    resourcePath?: string
+    maxInlineBytes?: number
+  } = {}
+  private pendingRequests: Map<
+    string,
+    {
+      resolve: (payload: any) => void
+      reject: (error: Error) => void
+      timer: NodeJS.Timeout
+    }
+  > = new Map()
 
   /**
    * 建立单次连接并等待握手完成
@@ -118,14 +126,14 @@ export class L2DBridgeClient extends EventEmitter {
     logger.info('open.start', {
       url: normalizedUrl,
       hasToken: Boolean(normalizedToken),
-      handshakeTimeoutMs: options.handshakeTimeoutMs,
+      handshakeTimeoutMs: options.handshakeTimeoutMs
     })
 
     return await new Promise<BridgeSessionState>((resolve, reject) => {
       try {
         this.pendingOpen = {
           resolve: () => resolve(this.getSession()),
-          reject,
+          reject
         }
 
         this.ws = new WebSocket(normalizedUrl)
@@ -160,15 +168,15 @@ export class L2DBridgeClient extends EventEmitter {
           }
         })
 
-        this.ws.on('error', (error) => {
+        this.ws.on('error', error => {
           console.error('[L2D] WebSocket 错误:', error)
           logger.error('socket.error', error, { url: this.url })
           if (this.pendingOpen) {
             this.rejectPendingOpen(
               createBridgeClientError(
                 'WS_CONNECT_FAILED',
-                error instanceof Error ? error.message : String(error),
-              ),
+                error instanceof Error ? error.message : String(error)
+              )
             )
           }
         })
@@ -177,8 +185,8 @@ export class L2DBridgeClient extends EventEmitter {
         this.rejectPendingOpen(
           createBridgeClientError(
             'WS_CONNECT_FAILED',
-            error instanceof Error ? error.message : String(error),
-          ),
+            error instanceof Error ? error.message : String(error)
+          )
         )
       }
     })
@@ -192,7 +200,7 @@ export class L2DBridgeClient extends EventEmitter {
       ready: this.ready,
       hasSocket: Boolean(this.ws),
       pendingRequests: this.pendingRequests.size,
-      sessionId: this.sessionId,
+      sessionId: this.sessionId
     })
     this.stopHandshakeTimeout()
     this.stopHeartbeat()
@@ -228,7 +236,7 @@ export class L2DBridgeClient extends EventEmitter {
       code,
       reason,
       errorCode: this.pendingDisconnectError?.code || null,
-      errorMessage: this.pendingDisconnectError?.message || null,
+      errorMessage: this.pendingDisconnectError?.message || null
     }
 
     logger.warn('socket.close', {
@@ -239,7 +247,7 @@ export class L2DBridgeClient extends EventEmitter {
       errorCode: disconnectInfo.errorCode,
       errorMessage: disconnectInfo.errorMessage,
       sessionId: this.sessionId,
-      pendingRequests: this.pendingRequests.size,
+      pendingRequests: this.pendingRequests.size
     })
 
     this.pendingDisconnectError = null
@@ -265,7 +273,7 @@ export class L2DBridgeClient extends EventEmitter {
     if (this.pendingRequests.size > 0) {
       logger.warn('pending_requests.clear', {
         count: this.pendingRequests.size,
-        reason: error.message,
+        reason: error.message
       })
     }
     for (const [, pending] of this.pendingRequests) {
@@ -281,7 +289,10 @@ export class L2DBridgeClient extends EventEmitter {
     this.handshakeTimer = setTimeout(() => {
       logger.warn('handshake.timeout', { timeoutMs, url: this.url })
       this.rejectPendingOpen(
-        createBridgeClientError('HANDSHAKE_TIMEOUT', '连接已建立但握手未完成，请检查服务端状态与认证配置'),
+        createBridgeClientError(
+          'HANDSHAKE_TIMEOUT',
+          '连接已建立但握手未完成，请检查服务端状态与认证配置'
+        )
       )
       if (this.ws) {
         this.ws.close(1008, '握手超时')
@@ -343,20 +354,20 @@ export class L2DBridgeClient extends EventEmitter {
       version: PROTOCOL_VERSION,
       clientId: userId,
       token: this.token,
-      tools: getDesktopTools(),
+      tools: getDesktopTools()
     }
 
     logger.info('handshake.send', {
       userId,
       protocolVersion: PROTOCOL_VERSION,
       toolCount: payload.tools?.length ?? 0,
-      hasToken: Boolean(this.token),
+      hasToken: Boolean(this.token)
     })
     this.send({
       op: OPS.SYS_HANDSHAKE,
       id: uuidv4(),
       ts: Date.now(),
-      payload,
+      payload
     })
   }
 
@@ -371,7 +382,7 @@ export class L2DBridgeClient extends EventEmitter {
         id: packet.id,
         hasError: Boolean(packet.error),
         payload: safePayload,
-        error: packet.error,
+        error: packet.error
       })
       console.log('[L2D] 收到数据包:', packet.op, JSON.stringify(safePayload, null, 2))
     }
@@ -384,7 +395,7 @@ export class L2DBridgeClient extends EventEmitter {
         logger.warn('request.failed', {
           id: packet.id,
           op: packet.op,
-          error: packet.error,
+          error: packet.error
         })
         pending.reject(new Error(packet.error.message))
       } else {
@@ -467,7 +478,7 @@ export class L2DBridgeClient extends EventEmitter {
     console.error('[L2D] 收到系统错误:', packet.error)
     logger.error('system_error.received', undefined, {
       id: packet.id,
-      error: packet.error,
+      error: packet.error
     })
   }
 
@@ -482,7 +493,7 @@ export class L2DBridgeClient extends EventEmitter {
     console.log('[L2D] 握手成功:', {
       sessionId: this.sessionId,
       userId: this.userId,
-      capabilities: payload.capabilities,
+      capabilities: payload.capabilities
     })
     logger.info('handshake.success', {
       sessionId: this.sessionId,
@@ -490,13 +501,13 @@ export class L2DBridgeClient extends EventEmitter {
       capabilities: payload.capabilities,
       resourceBaseUrl: payload.config?.resourceBaseUrl,
       resourcePath: payload.config?.resourcePath,
-      maxInlineBytes: payload.config?.maxInlineBytes,
+      maxInlineBytes: payload.config?.maxInlineBytes
     })
 
     this.serverConfig = {
       resourceBaseUrl: payload.config?.resourceBaseUrl,
       resourcePath: payload.config?.resourcePath,
-      maxInlineBytes: payload.config?.maxInlineBytes,
+      maxInlineBytes: payload.config?.maxInlineBytes
     }
 
     this.ready = true
@@ -515,7 +526,7 @@ export class L2DBridgeClient extends EventEmitter {
       this.send({
         op: OPS.SYS_PING,
         id: uuidv4(),
-        ts: Date.now(),
+        ts: Date.now()
       })
     }, 30000)
   }
@@ -537,7 +548,7 @@ export class L2DBridgeClient extends EventEmitter {
   async sendMessage(payload: InputMessagePayload): Promise<MessageContent[]> {
     const timer = logger.timer('send_message', {
       contentCount: Array.isArray(payload.content) ? payload.content.length : 0,
-      sessionId: this.sessionId,
+      sessionId: this.sessionId
     })
     try {
       const preparedContent = await this.prepareMessageContent(payload.content)
@@ -547,12 +558,12 @@ export class L2DBridgeClient extends EventEmitter {
         ts: Date.now(),
         payload: {
           ...payload,
-          content: preparedContent,
-        },
+          content: preparedContent
+        }
       })
 
       timer.done({
-        preparedContentCount: preparedContent.length,
+        preparedContentCount: preparedContent.length
       })
       return preparedContent
     } catch (error) {
@@ -570,7 +581,7 @@ export class L2DBridgeClient extends EventEmitter {
       op: OPS.INPUT_TOUCH,
       id: uuidv4(),
       ts: Date.now(),
-      payload: { x, y, action },
+      payload: { x, y, action }
     })
   }
 
@@ -581,13 +592,13 @@ export class L2DBridgeClient extends EventEmitter {
     logger.debug('send_state', {
       op,
       sessionId: this.sessionId,
-      payload: this.sanitizeForLog(payload),
+      payload: this.sanitizeForLog(payload)
     })
     this.send({
       op,
       id: uuidv4(),
       ts: Date.now(),
-      payload,
+      payload
     })
   }
 
@@ -597,13 +608,13 @@ export class L2DBridgeClient extends EventEmitter {
   sendSTTTranscribe(payload: STTTranscribePayload): void {
     logger.debug('send_stt_transcribe', {
       sessionId: this.sessionId,
-      payload: this.sanitizeForLog(payload),
+      payload: this.sanitizeForLog(payload)
     })
     this.send({
       op: OPS.STT_TRANSCRIBE,
       id: uuidv4(),
       ts: Date.now(),
-      payload,
+      payload
     })
   }
 
@@ -616,7 +627,7 @@ export class L2DBridgeClient extends EventEmitter {
     }
 
     const summary: Record<string, unknown> = {
-      type: element.type,
+      type: element.type
     }
     const summarizeText = (value: string): string => {
       const MAX_STRING_LEN = 200
@@ -647,13 +658,13 @@ export class L2DBridgeClient extends EventEmitter {
     if (Array.isArray(element.combo)) {
       summary.combo = element.combo.map((item: any) => ({
         id: item?.id,
-        weight: item?.weight,
+        weight: item?.weight
       }))
     }
     if (Array.isArray(element.semantic)) {
       summary.semantic = element.semantic.map((item: any) => ({
         tag: item?.tag,
-        weight: item?.weight,
+        weight: item?.weight
       }))
     }
 
@@ -671,7 +682,7 @@ export class L2DBridgeClient extends EventEmitter {
       sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
       sequencePreview: Array.isArray(payload.sequence)
         ? payload.sequence.map((element: any) => this.summarizePerformElementForLog(element))
-        : [],
+        : []
     }
   }
 
@@ -707,13 +718,11 @@ export class L2DBridgeClient extends EventEmitter {
 
       seen.add(obj)
       if (Array.isArray(obj)) {
-        const preview = obj
-          .slice(0, MAX_PREVIEW_ITEMS)
-          .map(item => sanitize(item, seen, depth + 1))
+        const preview = obj.slice(0, MAX_PREVIEW_ITEMS).map(item => sanitize(item, seen, depth + 1))
         const result = {
           __type: 'array',
           length: obj.length,
-          preview,
+          preview
         }
         seen.delete(obj)
         return result
@@ -743,7 +752,7 @@ export class L2DBridgeClient extends EventEmitter {
       logger.warn('packet.out.skipped', {
         op: packet.op,
         id: packet.id,
-        readyState: this.ws?.readyState,
+        readyState: this.ws?.readyState
       })
       return
     }
@@ -755,7 +764,7 @@ export class L2DBridgeClient extends EventEmitter {
           id: packet.id,
           hasError: Boolean(packet.error),
           payload: this.sanitizeForLog(packet.payload),
-          error: packet.error,
+          error: packet.error
         })
       }
       this.ws.send(JSON.stringify(packet))
@@ -779,7 +788,7 @@ export class L2DBridgeClient extends EventEmitter {
     return {
       sessionId: this.sessionId,
       userId: this.userId,
-      config: { ...this.serverConfig },
+      config: { ...this.serverConfig }
     }
   }
 
@@ -795,7 +804,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.DESKTOP_WINDOW_LIST,
         id: packet.id,
         ts: Date.now(),
-        payload: result,
+        payload: result
       })
     } catch (error) {
       console.error('[L2D] 获取窗口列表失败:', error)
@@ -804,7 +813,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.SYS_ERROR,
         id: packet.id,
         ts: Date.now(),
-        error: { code: 5000, message: `获取窗口列表失败: ${error}` },
+        error: { code: 5000, message: `获取窗口列表失败: ${error}` }
       })
     }
   }
@@ -821,7 +830,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.DESKTOP_WINDOW_ACTIVE,
         id: packet.id,
         ts: Date.now(),
-        payload: result,
+        payload: result
       })
     } catch (error) {
       console.error('[L2D] 获取活跃窗口失败:', error)
@@ -830,7 +839,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.SYS_ERROR,
         id: packet.id,
         ts: Date.now(),
-        error: { code: 5000, message: `获取活跃窗口失败: ${error}` },
+        error: { code: 5000, message: `获取活跃窗口失败: ${error}` }
       })
     }
   }
@@ -841,7 +850,7 @@ export class L2DBridgeClient extends EventEmitter {
   private async handleDesktopCaptureScreenshot(packet: BasePacket): Promise<void> {
     const timer = logger.timer('desktop_capture_screenshot', {
       requestId: packet.id,
-      payload: this.sanitizeForLog(packet.payload),
+      payload: this.sanitizeForLog(packet.payload)
     })
     try {
       const req = (packet.payload || {}) as DesktopCaptureRequestPayload
@@ -849,19 +858,19 @@ export class L2DBridgeClient extends EventEmitter {
         ? (buf: Buffer, mime: string) => this.uploadResource(buf, mime)
         : undefined
       const result = await captureScreenshot(req, uploadFn, {
-        maxInlineBytes: this.serverConfig.maxInlineBytes,
+        maxInlineBytes: this.serverConfig.maxInlineBytes
       })
       timer.done({
         width: result.width,
         height: result.height,
         sourceTitle: result.window?.title,
-        imageMode: result.image.startsWith('data:') ? 'inline' : 'url',
+        imageMode: result.image.startsWith('data:') ? 'inline' : 'url'
       })
       this.send({
         op: OPS.DESKTOP_CAPTURE_SCREENSHOT,
         id: packet.id,
         ts: Date.now(),
-        payload: result,
+        payload: result
       })
     } catch (error) {
       console.error('[L2D] 截图失败:', error)
@@ -870,7 +879,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.SYS_ERROR,
         id: packet.id,
         ts: Date.now(),
-        error: { code: 5000, message: `截图失败: ${error}` },
+        error: { code: 5000, message: `截图失败: ${error}` }
       })
     }
   }
@@ -883,7 +892,7 @@ export class L2DBridgeClient extends EventEmitter {
     const timer = logger.timer('desktop_tool_call', {
       requestId: packet.id,
       tool,
-      args: this.sanitizeForLog(args),
+      args: this.sanitizeForLog(args)
     })
     try {
       const uploadFn = this.serverConfig.resourceBaseUrl
@@ -891,16 +900,16 @@ export class L2DBridgeClient extends EventEmitter {
         : undefined
       const result = await handleToolCall(tool, args || {}, {
         uploadFn,
-        maxInlineBytes: this.serverConfig.maxInlineBytes,
+        maxInlineBytes: this.serverConfig.maxInlineBytes
       })
       timer.done({
-        result: this.sanitizeForLog(result),
+        result: this.sanitizeForLog(result)
       })
       this.send({
         op: OPS.DESKTOP_TOOL_CALL,
         id: packet.id,
         ts: Date.now(),
-        payload: { tool, result },
+        payload: { tool, result }
       })
     } catch (error: any) {
       console.error(`[L2D] 工具 ${tool} 调用失败:`, error)
@@ -909,7 +918,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.DESKTOP_TOOL_CALL,
         id: packet.id,
         ts: Date.now(),
-        payload: { tool, error: error?.message || String(error) },
+        payload: { tool, error: error?.message || String(error) }
       })
     }
   }
@@ -922,7 +931,7 @@ export class L2DBridgeClient extends EventEmitter {
       const timerLogger = logger.timer('request_wait', {
         id: packet.id,
         op: packet.op,
-        timeoutMs,
+        timeoutMs
       })
       const timer = setTimeout(() => {
         this.pendingRequests.delete(packet.id)
@@ -930,15 +939,15 @@ export class L2DBridgeClient extends EventEmitter {
         reject(new Error('请求超时'))
       }, timeoutMs)
       this.pendingRequests.set(packet.id, {
-        resolve: (payload) => {
+        resolve: payload => {
           timerLogger.done()
           resolve(payload)
         },
-        reject: (error) => {
+        reject: error => {
           timerLogger.fail(error)
           reject(error)
         },
-        timer,
+        timer
       })
       this.send(packet)
     })
@@ -948,14 +957,14 @@ export class L2DBridgeClient extends EventEmitter {
     const timer = logger.timer('message_content.prepare', {
       contentCount: content.length,
       hasResourceUpload: Boolean(this.serverConfig.resourceBaseUrl),
-      maxInlineBytes: this.serverConfig.maxInlineBytes,
+      maxInlineBytes: this.serverConfig.maxInlineBytes
     })
     try {
       const prepared = await prepareMessageContentForTransport(content, {
         maxInlineBytes: this.serverConfig.maxInlineBytes,
         uploadInlineResource: this.serverConfig.resourceBaseUrl
           ? (buffer, mime) => this.uploadResource(buffer, mime)
-          : undefined,
+          : undefined
       })
       timer.done({ preparedContentCount: prepared.length })
       return prepared
@@ -976,7 +985,7 @@ export class L2DBridgeClient extends EventEmitter {
     const timer = logger.timer('resource.upload', {
       bytes: buf.length,
       mime,
-      resourceBaseUrl: this.serverConfig.resourceBaseUrl,
+      resourceBaseUrl: this.serverConfig.resourceBaseUrl
     })
     try {
       const sha256 = createHash('sha256').update(buf).digest('hex')
@@ -984,7 +993,7 @@ export class L2DBridgeClient extends EventEmitter {
         op: OPS.RESOURCE_PREPARE,
         id: uuidv4(),
         ts: Date.now(),
-        payload: { kind: 'image', mime, size: buf.length, sha256 },
+        payload: { kind: 'image', mime, size: buf.length, sha256 }
       }
       const result = await this.sendAndWait(packet)
       const uploadUrl = result?.upload?.url
@@ -1015,7 +1024,11 @@ export class L2DBridgeClient extends EventEmitter {
     }
   }
 
-  private httpPut(url: string, body: Buffer, headers: Record<string, string> = {}): Promise<number> {
+  private httpPut(
+    url: string,
+    body: Buffer,
+    headers: Record<string, string> = {}
+  ): Promise<number> {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url)
       const isHttps = parsed.protocol === 'https:'
@@ -1026,9 +1039,9 @@ export class L2DBridgeClient extends EventEmitter {
         port: parsed.port || (isHttps ? 443 : 80),
         path: parsed.pathname + parsed.search,
         method: 'PUT',
-        headers: { ...headers, 'Content-Length': body.length.toString() },
+        headers: { ...headers, 'Content-Length': body.length.toString() }
       }
-      const req = requestClient.request(options, (res) => {
+      const req = requestClient.request(options, res => {
         res.resume()
         resolve(res.statusCode || 500)
       })

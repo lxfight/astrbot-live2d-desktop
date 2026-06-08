@@ -12,7 +12,9 @@ describe('CubismModel expression runtime', () => {
     const restored: string[] = []
 
     model.activeExpressionRuntime = {
-      members: [{ id: 'Smile', weight: 1, order: 0, parsed: { parameters: [] }, conflictGroups: [] }],
+      members: [
+        { id: 'Smile', weight: 1, order: 0, parsed: { parameters: [] }, conflictGroups: [] }
+      ],
       previous: null,
       previousLegacyExpressionName: 'IdleSmile',
       holdUntil: Date.now() - 1,
@@ -20,7 +22,7 @@ describe('CubismModel expression runtime', () => {
       fadeInMs: 0,
       fadeOutMs: 0,
       fadeOutStartedAt: null,
-      resetPolicy: 'previous',
+      resetPolicy: 'previous'
     }
     model.playLegacyExpressionByName = (expressionName: string) => {
       restored.push(expressionName)
@@ -37,13 +39,15 @@ describe('CubismModel expression runtime', () => {
     const model = Object.create(CubismModel.prototype) as any
     const played: string[] = []
 
-    model.expressionFiles = [{
-      name: 'Smile',
-      file: 'Smile.exp3.json',
-      expression: {},
-      aliases: ['Smile'],
-      parseWarnings: ['表情文件未解析出可执行参数，已回退到原生表情运行时'],
-    }]
+    model.expressionFiles = [
+      {
+        name: 'Smile',
+        file: 'Smile.exp3.json',
+        expression: {},
+        aliases: ['Smile'],
+        parseWarnings: ['表情文件未解析出可执行参数，已回退到原生表情运行时']
+      }
+    ]
     model.expressionCatalogMap = new Map()
     model.semanticPresets = {}
     model.playLegacyExpressionByName = (expressionName: string) => {
@@ -60,13 +64,15 @@ describe('CubismModel expression runtime', () => {
     const model = Object.create(CubismModel.prototype) as any
     const played: string[] = []
 
-    model.expressionFiles = [{
-      name: 'Smile',
-      file: 'Smile.exp3.json',
-      expression: {},
-      aliases: ['happy_face', '开心'],
-      parseWarnings: [],
-    }]
+    model.expressionFiles = [
+      {
+        name: 'Smile',
+        file: 'Smile.exp3.json',
+        expression: {},
+        aliases: ['happy_face', '开心'],
+        parseWarnings: []
+      }
+    ]
     model.expressionCatalogMap = new Map()
     model.semanticPresets = {}
     model.playLegacyExpressionByName = (expressionName: string) => {
@@ -90,13 +96,15 @@ describe('CubismModel expression runtime', () => {
 
     now.mockReturnValue(1000)
     model.beginCustomExpressionRuntime(
-      [{
-        id: 'Smile',
-        weight: 0.8,
-        order: 0,
-        parsed: { parameters: [], fadeInMs: 1000, fadeOutMs: 1000 },
-        conflictGroups: [],
-      }],
+      [
+        {
+          id: 'Smile',
+          weight: 0.8,
+          order: 0,
+          parsed: { parameters: [], fadeInMs: 1000, fadeOutMs: 1000 },
+          conflictGroups: []
+        }
+      ],
       { fade: 400 }
     )
 
@@ -125,13 +133,15 @@ describe('CubismModel expression runtime', () => {
 
     now.mockReturnValue(1000)
     model.beginCustomExpressionRuntime(
-      [{
-        id: 'Smile',
-        weight: 1,
-        order: 0,
-        parsed: { parameters: [], fadeInMs: 0, fadeOutMs: 400 },
-        conflictGroups: [],
-      }],
+      [
+        {
+          id: 'Smile',
+          weight: 1,
+          order: 0,
+          parsed: { parameters: [], fadeInMs: 0, fadeOutMs: 400 },
+          conflictGroups: []
+        }
+      ],
       { holdMs: 100, resetPolicy: 'previous' }
     )
     model.activeExpressionRuntime.previousLegacyExpressionName = 'IdleSmile'
@@ -157,24 +167,24 @@ describe('CubismModel expression runtime', () => {
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.8)
 
     model.semanticPresets = {
-      happy: ['SmileA', 'SmileB'],
+      happy: ['SmileA', 'SmileB']
     }
     model.expressionFiles = [
       { name: 'SmileA', aliases: ['SmileA'], parsed: { parameters: [] } },
-      { name: 'SmileB', aliases: ['SmileB'], parsed: { parameters: [] } },
+      { name: 'SmileB', aliases: ['SmileB'], parsed: { parameters: [] } }
     ]
     model.expressionCatalogMap = new Map()
 
     const members = model.resolveExpressionMembers({
-      semantic: [{ tag: 'happy', weight: 0.7 }],
+      semantic: [{ tag: 'happy', weight: 0.7 }]
     })
 
     expect(randomSpy).toHaveBeenCalled()
     expect(members).toEqual([
       expect.objectContaining({
         id: 'SmileB',
-        weight: 0.8,
-      }),
+        weight: 0.8
+      })
     ])
   })
 })

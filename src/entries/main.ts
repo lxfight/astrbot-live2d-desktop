@@ -4,5 +4,5 @@ import { ensureCubismCoreLoaded, mountWindowApp } from '@/bootstrap/windowApp'
 void mountWindowApp({
   component: MainWindow,
   windowKind: 'main',
-  beforeMount: ensureCubismCoreLoaded,
+  beforeMount: ensureCubismCoreLoaded
 })

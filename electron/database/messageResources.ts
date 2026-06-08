@@ -59,7 +59,7 @@ const FALLBACK_FILE_NAMES: Record<string, string> = {
   audio: 'audio.bin',
   tts: 'audio.bin',
   video: 'video.bin',
-  file: 'file.bin',
+  file: 'file.bin'
 }
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -79,7 +79,7 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
   'video/ogg': '.ogv',
   'application/pdf': '.pdf',
   'application/json': '.json',
-  'text/plain': '.txt',
+  'text/plain': '.txt'
 }
 
 function cloneResourceElement(item: unknown): ResourceElement {
@@ -139,18 +139,18 @@ function normalizeResourceRid(rid: string): string {
     .trim()
     .replace(/\\+/g, '/')
     .split('/')
-    .map((segment) => segment.trim())
+    .map(segment => segment.trim())
     .filter(Boolean)
 
   if (normalizedRid.length === 0) {
     throw new Error(t('error.resourceIdEmpty'))
   }
 
-  if (normalizedRid.some((segment) => segment === '.' || segment === '..')) {
+  if (normalizedRid.some(segment => segment === '.' || segment === '..')) {
     throw new Error(t('error.resourceIdIllegalPath'))
   }
 
-  return normalizedRid.map((segment) => encodeURIComponent(segment)).join('/')
+  return normalizedRid.map(segment => encodeURIComponent(segment)).join('/')
 }
 
 function normalizeResourceBaseUrl(resourceBaseUrl?: string): string {
@@ -238,10 +238,18 @@ function buildResourceSha256(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex')
 }
 
-function finalizeLocalizedElement(element: ResourceElement, resourceId: number, fileName: string): ResourceElement {
+function finalizeLocalizedElement(
+  element: ResourceElement,
+  resourceId: number,
+  fileName: string
+): ResourceElement {
   const localizedElement = { ...element }
   localizedElement.url = buildHistoryResourceUrl(resourceId, fileName)
-  localizedElement.name = buildFallbackFileName(normalizeMediaType(element.type) || 'file', normalizeMime(element.mime, 'file'), fileName)
+  localizedElement.name = buildFallbackFileName(
+    normalizeMediaType(element.type) || 'file',
+    normalizeMime(element.mime, 'file'),
+    fileName
+  )
   delete localizedElement.inline
   delete localizedElement.rid
   delete localizedElement.bytes
@@ -249,7 +257,10 @@ function finalizeLocalizedElement(element: ResourceElement, resourceId: number, 
   return localizedElement
 }
 
-function resolveResourceSourceUrl(element: ResourceElement, resourceContext?: HistoryResourceContext): { sourceUrl: string | null; sourceKind: 'url' | 'rid' | null } {
+function resolveResourceSourceUrl(
+  element: ResourceElement,
+  resourceContext?: HistoryResourceContext
+): { sourceUrl: string | null; sourceKind: 'url' | 'rid' | null } {
   const rawUrl = typeof element.url === 'string' ? element.url.trim() : ''
   if (isRemoteResourceUrl(rawUrl)) {
     return { sourceUrl: rawUrl, sourceKind: 'url' }
@@ -259,14 +270,16 @@ function resolveResourceSourceUrl(element: ResourceElement, resourceContext?: Hi
   if (rawRid) {
     return {
       sourceUrl: resolveRidSourceUrl(rawRid, resourceContext),
-      sourceKind: 'rid',
+      sourceKind: 'rid'
     }
   }
 
   return { sourceUrl: null, sourceKind: null }
 }
 
-async function fetchRemoteResource(sourceUrl: string): Promise<{ buffer: Buffer; mime: string; fileName: string | null }> {
+async function fetchRemoteResource(
+  sourceUrl: string
+): Promise<{ buffer: Buffer; mime: string; fileName: string | null }> {
   const response = await net.fetch(sourceUrl)
   if (!response.ok) {
     throw new Error(t('error.resourceRequestFailed', { status: response.status }))
@@ -275,16 +288,22 @@ async function fetchRemoteResource(sourceUrl: string): Promise<{ buffer: Buffer;
   const buffer = Buffer.from(await response.arrayBuffer())
   return {
     buffer,
-    mime: response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || 'application/octet-stream',
-    fileName: parseContentDispositionFileName(response.headers.get('content-disposition')) || inferFileNameFromUrl(sourceUrl),
+    mime:
+      response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ||
+      'application/octet-stream',
+    fileName:
+      parseContentDispositionFileName(response.headers.get('content-disposition')) ||
+      inferFileNameFromUrl(sourceUrl)
   }
 }
 
-function getPreparedInlineResource(element: ResourceElement): { buffer: Buffer; mime: string; fileName: string; sourceKind: 'bytes' | 'inline' } | null {
+function getPreparedInlineResource(
+  element: ResourceElement
+): { buffer: Buffer; mime: string; fileName: string; sourceKind: 'bytes' | 'inline' } | null {
   const bytesResource = decodeBinaryPayload({
     type: 'file',
     bytes: element.bytes as any,
-    mime: typeof element.mime === 'string' ? element.mime : undefined,
+    mime: typeof element.mime === 'string' ? element.mime : undefined
   } as any)
 
   if (bytesResource) {
@@ -294,13 +313,16 @@ function getPreparedInlineResource(element: ResourceElement): { buffer: Buffer; 
       buffer: bytesResource.buffer,
       mime,
       fileName: buildFallbackFileName(mediaType, mime, element.name),
-      sourceKind: 'bytes',
+      sourceKind: 'bytes'
     }
   }
 
-  const inlineCandidate = typeof element.inline === 'string'
-    ? element.inline
-    : (isDataUrl(element.url) ? String(element.url) : '')
+  const inlineCandidate =
+    typeof element.inline === 'string'
+      ? element.inline
+      : isDataUrl(element.url)
+        ? String(element.url)
+        : ''
   const inlineResource = decodeInlineDataUrl(inlineCandidate)
   if (!inlineResource) {
     return null
@@ -312,20 +334,27 @@ function getPreparedInlineResource(element: ResourceElement): { buffer: Buffer; 
     buffer: inlineResource.buffer,
     mime,
     fileName: buildFallbackFileName(mediaType, mime, element.name),
-    sourceKind: 'inline',
+    sourceKind: 'inline'
   }
 }
 
 function getMessageResourceRowById(resourceId: number): MessageResourceRow | null {
   const db = getDatabase()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT id, mime, file_name, size_bytes, data
     FROM message_resources
     WHERE id = ?
-  `).get(resourceId) as MessageResourceRow | null
+  `
+    )
+    .get(resourceId) as MessageResourceRow | null
 }
 
-function replaceMessageResources(messageId: string, resources: PreparedStoredResource[]): Map<number, number> {
+function replaceMessageResources(
+  messageId: string,
+  resources: PreparedStoredResource[]
+): Map<number, number> {
   const db = getDatabase()
   const insertedIds = new Map<number, number>()
   const insertStatement = db.prepare(`
@@ -350,7 +379,7 @@ function replaceMessageResources(messageId: string, resources: PreparedStoredRes
         resource.sourceKind,
         resource.sourceUrl,
         resource.sourceRid,
-        resource.data,
+        resource.data
       )
       insertedIds.set(resource.contentIndex, Number(result.lastInsertRowid))
     }
@@ -366,7 +395,7 @@ function buildPreparedRemoteResource(
   mediaType: string,
   sourceKind: 'url' | 'rid',
   sourceUrl: string,
-  fetchedResource: { buffer: Buffer; mime: string; fileName: string | null },
+  fetchedResource: { buffer: Buffer; mime: string; fileName: string | null }
 ): PreparedStoredResource {
   const mime = normalizeMime(fetchedResource.mime || element.mime, mediaType)
   const fileName = buildFallbackFileName(mediaType, mime, element.name || fetchedResource.fileName)
@@ -381,14 +410,14 @@ function buildPreparedRemoteResource(
     sourceKind,
     sourceUrl: sourceKind === 'url' ? sourceUrl : null,
     sourceRid: sourceKind === 'rid' && typeof element.rid === 'string' ? element.rid.trim() : null,
-    data: fetchedResource.buffer,
+    data: fetchedResource.buffer
   }
 }
 
 function buildPreparedInlineStoredResource(
   contentIndex: number,
   mediaType: string,
-  inlineResource: { buffer: Buffer; mime: string; fileName: string; sourceKind: 'bytes' | 'inline' },
+  inlineResource: { buffer: Buffer; mime: string; fileName: string; sourceKind: 'bytes' | 'inline' }
 ): PreparedStoredResource {
   return {
     contentIndex,
@@ -400,7 +429,7 @@ function buildPreparedInlineStoredResource(
     sourceKind: inlineResource.sourceKind,
     sourceUrl: null,
     sourceRid: null,
-    data: inlineResource.buffer,
+    data: inlineResource.buffer
   }
 }
 
@@ -444,10 +473,10 @@ export function getMessageResourceById(resourceId: number): MessageResourceRow |
 export async function localizeMessageContent(
   messageId: string,
   content: unknown,
-  options: LocalizeMessageContentOptions = {},
+  options: LocalizeMessageContentOptions = {}
 ): Promise<LocalizeMessageContentResult> {
   const items = Array.isArray(content) ? content : [content]
-  const localizedItems = items.map((item) => cloneResourceElement(item))
+  const localizedItems = items.map(item => cloneResourceElement(item))
   const pendingResources: PreparedStoredResource[] = []
   let changed = false
   let containsExistingLocalResource = false
@@ -472,13 +501,20 @@ export async function localizeMessageContent(
       continue
     }
 
-    const { sourceUrl, sourceKind } = resolveResourceSourceUrl(localizedItem, options.resourceContext)
+    const { sourceUrl, sourceKind } = resolveResourceSourceUrl(
+      localizedItem,
+      options.resourceContext
+    )
     if (!sourceUrl || !sourceKind) {
-      if (options.strict && (
-        typeof localizedItem.rid === 'string'
-        || typeof localizedItem.url === 'string'
-      )) {
-        throw new Error(t('error.resourceNotResolvable', { name: String(localizedItem.name || localizedItem.type || index) }))
+      if (
+        options.strict &&
+        (typeof localizedItem.rid === 'string' || typeof localizedItem.url === 'string')
+      ) {
+        throw new Error(
+          t('error.resourceNotResolvable', {
+            name: String(localizedItem.name || localizedItem.type || index)
+          })
+        )
       }
       repairFailed = true
       continue
@@ -486,7 +522,16 @@ export async function localizeMessageContent(
 
     try {
       const fetchedResource = await fetchRemoteResource(sourceUrl)
-      pendingResources.push(buildPreparedRemoteResource(localizedItem, index, mediaType, sourceKind, sourceUrl, fetchedResource))
+      pendingResources.push(
+        buildPreparedRemoteResource(
+          localizedItem,
+          index,
+          mediaType,
+          sourceKind,
+          sourceUrl,
+          fetchedResource
+        )
+      )
       changed = true
     } catch (error) {
       if (options.strict) {
@@ -514,7 +559,11 @@ export async function localizeMessageContent(
       if (!resourceId) {
         continue
       }
-      localizedItems[resource.contentIndex] = finalizeLocalizedElement(localizedItems[resource.contentIndex], resourceId, resource.fileName)
+      localizedItems[resource.contentIndex] = finalizeLocalizedElement(
+        localizedItems[resource.contentIndex],
+        resourceId,
+        resource.fileName
+      )
     }
     return { content: localizedItems, changed: changed || pendingResources.length === 0 }
   }
@@ -529,7 +578,11 @@ export async function localizeMessageContent(
     if (!resourceId) {
       continue
     }
-    localizedItems[resource.contentIndex] = finalizeLocalizedElement(localizedItems[resource.contentIndex], resourceId, resource.fileName)
+    localizedItems[resource.contentIndex] = finalizeLocalizedElement(
+      localizedItems[resource.contentIndex],
+      resourceId,
+      resource.fileName
+    )
   }
 
   return { content: localizedItems, changed: true }

@@ -6,14 +6,18 @@ export interface MessageKeywordSearchCondition {
 }
 
 function normalizeKeyword(value: unknown): string {
-  return String(value || '').trim().replace(/\s+/g, ' ')
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
 }
 
 function escapeFtsPhrase(value: string): string {
   return value.replace(/"/g, '""')
 }
 
-export function buildMessageKeywordSearchCondition(keyword: unknown): MessageKeywordSearchCondition {
+export function buildMessageKeywordSearchCondition(
+  keyword: unknown
+): MessageKeywordSearchCondition {
   const normalizedKeyword = normalizeKeyword(keyword)
   if (!normalizedKeyword) {
     return { clause: '', params: [] }

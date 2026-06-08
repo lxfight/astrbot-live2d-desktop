@@ -11,7 +11,9 @@ const LOG_FILE_PREFIX = 'astrbot-live2d'
 const LOG_DIRECTORY_NAME = 'logs'
 const LOG_RETENTION_DAYS = 14
 const LOG_RETENTION_MS = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
-const LOG_FILE_NAME_PATTERN = new RegExp(`^${LOG_FILE_PREFIX}-(\\d{4}-\\d{2}-\\d{2})(?:\\.(\\d+))?\\.log$`)
+const LOG_FILE_NAME_PATTERN = new RegExp(
+  `^${LOG_FILE_PREFIX}-(\\d{4}-\\d{2}-\\d{2})(?:\\.(\\d+))?\\.log$`
+)
 const MAX_LOG_FILE_BYTES = 20 * 1024 * 1024
 const MAX_LOG_STRING_LENGTH = 2000
 const MAX_LOG_META_DEPTH = 5
@@ -122,9 +124,9 @@ function closeLogStream(): void {
 function ensureLogStream(date: Date, incomingBytes: number): fs.WriteStream {
   const dateKey = formatDateKey(date)
   if (
-    logStream
-    && currentDateKey === dateKey
-    && currentLogFileBytes + incomingBytes <= MAX_LOG_FILE_BYTES
+    logStream &&
+    currentDateKey === dateKey &&
+    currentLogFileBytes + incomingBytes <= MAX_LOG_FILE_BYTES
   ) {
     return logStream
   }
@@ -156,8 +158,10 @@ function ensureLogStream(date: Date, incomingBytes: number): fs.WriteStream {
   currentLogFilePath = filePath
   currentLogFileBytes = fileSize
 
-  logStream.on('error', (error) => {
-    writeInternalError(`[logger] stream error: ${error instanceof Error ? error.message : String(error)}`)
+  logStream.on('error', error => {
+    writeInternalError(
+      `[logger] stream error: ${error instanceof Error ? error.message : String(error)}`
+    )
   })
 
   return logStream
@@ -179,14 +183,15 @@ function truncateString(value: string, maxLength = MAX_LOG_STRING_LENGTH): strin
 
 function sanitizeErrorForLog(error: unknown): LogMeta {
   if (error instanceof Error) {
-    const code = typeof (error as NodeJS.ErrnoException).code === 'string'
-      ? (error as NodeJS.ErrnoException).code
-      : undefined
+    const code =
+      typeof (error as NodeJS.ErrnoException).code === 'string'
+        ? (error as NodeJS.ErrnoException).code
+        : undefined
     return {
       name: error.name,
       message: truncateString(error.message),
       stack: error.stack ? truncateString(error.stack, 6000) : undefined,
-      code,
+      code
     }
   }
 
@@ -197,26 +202,30 @@ function sanitizeErrorForLog(error: unknown): LogMeta {
         name: typeof raw.name === 'string' ? raw.name : 'UnknownError',
         message: typeof raw.message === 'string' ? truncateString(raw.message) : String(error),
         stack: typeof raw.stack === 'string' ? truncateString(raw.stack, 6000) : undefined,
-        code: typeof raw.code === 'string' || typeof raw.code === 'number' ? raw.code : undefined,
+        code: typeof raw.code === 'string' || typeof raw.code === 'number' ? raw.code : undefined
       }
     }
   }
 
   return {
-    message: truncateString(String(error)),
+    message: truncateString(String(error))
   }
 }
 
-export function sanitizeLogValue(value: unknown, seen: WeakSet<object> = new WeakSet<object>(), depth = 0): unknown {
+export function sanitizeLogValue(
+  value: unknown,
+  seen: WeakSet<object> = new WeakSet<object>(),
+  depth = 0
+): unknown {
   if (typeof value === 'string') {
     return truncateString(value)
   }
 
   if (
-    typeof value === 'number'
-    || typeof value === 'boolean'
-    || value === null
-    || value === undefined
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value === null ||
+    value === undefined
   ) {
     return value
   }
@@ -244,7 +253,7 @@ export function sanitizeLogValue(value: unknown, seen: WeakSet<object> = new Wea
   if (Buffer.isBuffer(value)) {
     return {
       __type: 'buffer',
-      length: value.length,
+      length: value.length
     }
   }
 
@@ -265,12 +274,12 @@ export function sanitizeLogValue(value: unknown, seen: WeakSet<object> = new Wea
   if (Array.isArray(value)) {
     const preview = value
       .slice(0, MAX_LOG_ARRAY_PREVIEW)
-      .map((item) => sanitizeLogValue(item, seen, depth + 1))
+      .map(item => sanitizeLogValue(item, seen, depth + 1))
     seen.delete(value)
     return {
       __type: 'array',
       length: value.length,
-      preview,
+      preview
     }
   }
 
@@ -303,7 +312,9 @@ function formatStructuredMeta(meta?: LogMeta): string {
 }
 
 function normalizeLogScope(scope: string): string {
-  const normalized = String(scope || 'main').trim().replace(/\s+/g, ':')
+  const normalized = String(scope || 'main')
+    .trim()
+    .replace(/\s+/g, ':')
   return normalized ? normalized.slice(0, 120) : 'main'
 }
 
@@ -341,15 +352,18 @@ function stringifyArg(arg: unknown): string {
 function toLogLine(level: LogLevel, source: string, args: unknown[], timestamp: Date): string {
   const time = timestamp.toISOString()
   const pid = process.pid
-  const content = args.map((item) => stringifyArg(item)).join(' ')
+  const content = args.map(item => stringifyArg(item)).join(' ')
   return `[${time}] [${source}] [${level.toUpperCase()}] [pid:${pid}] ${content}`
 }
 
-function patchConsoleMethod(method: 'debug' | 'log' | 'info' | 'warn' | 'error', level: LogLevel): void {
+function patchConsoleMethod(
+  method: 'debug' | 'log' | 'info' | 'warn' | 'error',
+  level: LogLevel
+): void {
   const rawMethod = originalConsole[method]
   ;(console as any)[method] = (...args: unknown[]) => {
     writeLogEntry(level, 'main', ...args)
-    rawMethod(...args as any[])
+    rawMethod(...(args as any[]))
   }
 }
 
@@ -409,7 +423,9 @@ function cleanupExpiredLogs(now: Date = new Date()): void {
   try {
     entries = fs.readdirSync(logDirectory, { withFileTypes: true })
   } catch (error) {
-    writeInternalError(`[logger] failed to read log directory for cleanup: ${error instanceof Error ? error.message : String(error)}`)
+    writeInternalError(
+      `[logger] failed to read log directory for cleanup: ${error instanceof Error ? error.message : String(error)}`
+    )
     return
   }
 
@@ -446,12 +462,16 @@ function cleanupExpiredLogs(now: Date = new Date()): void {
       fs.unlinkSync(filePath)
       removedCount += 1
     } catch (error) {
-      writeInternalError(`[logger] failed to delete expired log file (${fileName}): ${error instanceof Error ? error.message : String(error)}`)
+      writeInternalError(
+        `[logger] failed to delete expired log file (${fileName}): ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 
   if (removedCount > 0) {
-    writeInternalError(`[logger] cleaned up ${removedCount} expired log file(s), retention=${LOG_RETENTION_DAYS}d`)
+    writeInternalError(
+      `[logger] cleaned up ${removedCount} expired log file(s), retention=${LOG_RETENTION_DAYS}d`
+    )
   }
 }
 
@@ -479,11 +499,18 @@ export function writeLogEntry(level: LogLevel, source: string, ...args: unknown[
     stream.write(`${line}\n`)
     currentLogFileBytes += lineBytes
   } catch (error) {
-    writeInternalError(`[logger] write failed: ${error instanceof Error ? error.message : String(error)}`)
+    writeInternalError(
+      `[logger] write failed: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }
 
-export function writeStructuredLogEntry(level: LogLevel, scope: string, event: string, meta?: LogMeta): void {
+export function writeStructuredLogEntry(
+  level: LogLevel,
+  scope: string,
+  event: string,
+  meta?: LogMeta
+): void {
   writeLogEntry(
     level,
     normalizeLogScope(scope),
@@ -506,7 +533,7 @@ export function logWarn(scope: string, event: string, meta?: LogMeta): void {
 export function logError(scope: string, event: string, error?: unknown, meta?: LogMeta): void {
   writeStructuredLogEntry('error', scope, event, {
     ...meta,
-    error: error === undefined ? undefined : sanitizeErrorForLog(error),
+    error: error === undefined ? undefined : sanitizeErrorForLog(error)
   })
 }
 
@@ -519,16 +546,16 @@ export function createLogTimer(scope: string, event: string, meta?: LogMeta) {
       logDebug(scope, `${event}.success`, {
         ...meta,
         ...extraMeta,
-        durationMs: Date.now() - startedAt,
+        durationMs: Date.now() - startedAt
       })
     },
     fail(error: unknown, extraMeta?: LogMeta): void {
       logError(scope, `${event}.failed`, error, {
         ...meta,
         ...extraMeta,
-        durationMs: Date.now() - startedAt,
+        durationMs: Date.now() - startedAt
       })
-    },
+    }
   }
 }
 
@@ -538,7 +565,7 @@ export function createScopedLogger(scope: string) {
     info: (event: string, meta?: LogMeta) => logInfo(scope, event, meta),
     warn: (event: string, meta?: LogMeta) => logWarn(scope, event, meta),
     error: (event: string, error?: unknown, meta?: LogMeta) => logError(scope, event, error, meta),
-    timer: (event: string, meta?: LogMeta) => createLogTimer(scope, event, meta),
+    timer: (event: string, meta?: LogMeta) => createLogTimer(scope, event, meta)
   }
 }
 
@@ -570,11 +597,11 @@ export function installMainProcessErrorHandlers(): void {
 
   processErrorHookInstalled = true
 
-  process.on('uncaughtException', (error) => {
+  process.on('uncaughtException', error => {
     writeLogEntry('error', 'main', '捕获未处理异常:', error)
   })
 
-  process.on('unhandledRejection', (reason) => {
+  process.on('unhandledRejection', reason => {
     writeLogEntry('error', 'main', '捕获未处理 Promise 拒绝:', reason)
   })
 }

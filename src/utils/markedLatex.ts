@@ -6,14 +6,43 @@ import 'katex/dist/katex.min.css'
 let configured = false
 
 const MARKDOWN_ALLOWED_TAGS = [
-  'a', 'b', 'blockquote', 'br', 'code', 'del', 'div', 'em', 'hr', 'i', 'li', 'ol', 'p', 'pre', 'span', 'strong', 'ul',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  'math', 'semantics', 'mrow', 'mi', 'mn', 'mo', 'mspace', 'msup', 'msub', 'annotation', 'annotation-xml',
+  'a',
+  'b',
+  'blockquote',
+  'br',
+  'code',
+  'del',
+  'div',
+  'em',
+  'hr',
+  'i',
+  'li',
+  'ol',
+  'p',
+  'pre',
+  'span',
+  'strong',
+  'ul',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+  'math',
+  'semantics',
+  'mrow',
+  'mi',
+  'mn',
+  'mo',
+  'mspace',
+  'msup',
+  'msub',
+  'annotation',
+  'annotation-xml'
 ]
 
-const MARKDOWN_ALLOWED_ATTR = [
-  'href', 'target', 'rel', 'class', 'aria-hidden', 'xmlns', 'encoding',
-]
+const MARKDOWN_ALLOWED_ATTR = ['href', 'target', 'rel', 'class', 'aria-hidden', 'xmlns', 'encoding']
 
 export function configureMarked(): void {
   if (configured) return
@@ -21,7 +50,7 @@ export function configureMarked(): void {
 
   marked.setOptions({
     breaks: true,
-    gfm: true,
+    gfm: true
   })
 
   marked.use({
@@ -29,7 +58,9 @@ export function configureMarked(): void {
       {
         name: 'latex-inline',
         level: 'inline',
-        start(src: string) { return src.indexOf('$') },
+        start(src: string) {
+          return src.indexOf('$')
+        },
         tokenizer(src: string) {
           const match = src.match(/^\$([^\$]+)\$/)
           if (match) {
@@ -42,12 +73,14 @@ export function configureMarked(): void {
           } catch {
             return token.raw
           }
-        },
+        }
       },
       {
         name: 'latex-block',
         level: 'block',
-        start(src: string) { return src.indexOf('$$') },
+        start(src: string) {
+          return src.indexOf('$$')
+        },
         tokenizer(src: string) {
           const match = src.match(/^\$\$([^\$]+)\$\$/)
           if (match) {
@@ -60,9 +93,9 @@ export function configureMarked(): void {
           } catch {
             return token.raw
           }
-        },
-      },
-    ],
+        }
+      }
+    ]
   })
 }
 
@@ -73,7 +106,7 @@ export function renderBubbleMarkdown(text: string): string {
     return DOMPurify.sanitize(renderedHtml, {
       ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
       ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
-      ALLOW_DATA_ATTR: false,
+      ALLOW_DATA_ATTR: false
     })
   } catch (error) {
     console.error('[Markdown] 渲染失败:', error)

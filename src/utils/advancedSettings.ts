@@ -68,27 +68,30 @@ export function clampMaxRecordingSeconds(value: unknown): number {
 }
 
 export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
-  const raw = value && typeof value === 'object'
-    ? (value as Record<string, unknown>)
-    : {}
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 
   return {
     recordingMode: normalizeRecordingMode(raw.recordingMode),
-    recordingShortcut: typeof raw.recordingShortcut === 'string'
-      ? raw.recordingShortcut
-      : DEFAULT_ADVANCED_SETTINGS.recordingShortcut,
-    autoLoadLastModel: typeof raw.autoLoadLastModel === 'boolean'
-      ? raw.autoLoadLastModel
-      : DEFAULT_ADVANCED_SETTINGS.autoLoadLastModel,
-    themeFollowModel: typeof raw.themeFollowModel === 'boolean'
-      ? raw.themeFollowModel
-      : DEFAULT_ADVANCED_SETTINGS.themeFollowModel,
-    silenceDetectionEnabled: typeof raw.silenceDetectionEnabled === 'boolean'
-      ? raw.silenceDetectionEnabled
-      : DEFAULT_ADVANCED_SETTINGS.silenceDetectionEnabled,
-    showBaseEventNotifications: typeof raw.showBaseEventNotifications === 'boolean'
-      ? raw.showBaseEventNotifications
-      : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
+    recordingShortcut:
+      typeof raw.recordingShortcut === 'string'
+        ? raw.recordingShortcut
+        : DEFAULT_ADVANCED_SETTINGS.recordingShortcut,
+    autoLoadLastModel:
+      typeof raw.autoLoadLastModel === 'boolean'
+        ? raw.autoLoadLastModel
+        : DEFAULT_ADVANCED_SETTINGS.autoLoadLastModel,
+    themeFollowModel:
+      typeof raw.themeFollowModel === 'boolean'
+        ? raw.themeFollowModel
+        : DEFAULT_ADVANCED_SETTINGS.themeFollowModel,
+    silenceDetectionEnabled:
+      typeof raw.silenceDetectionEnabled === 'boolean'
+        ? raw.silenceDetectionEnabled
+        : DEFAULT_ADVANCED_SETTINGS.silenceDetectionEnabled,
+    showBaseEventNotifications:
+      typeof raw.showBaseEventNotifications === 'boolean'
+        ? raw.showBaseEventNotifications
+        : DEFAULT_ADVANCED_SETTINGS.showBaseEventNotifications,
     maxRecordingSeconds: clampMaxRecordingSeconds(raw.maxRecordingSeconds),
     bubbleStackMax: clampBubbleStackMax(raw.bubbleStackMax),
     bubbleFollowUpWindowMs: clampBubbleFollowUpWindowMs(raw.bubbleFollowUpWindowMs),
@@ -104,7 +107,10 @@ export function clampBubbleStackMax(value: unknown): number {
     return DEFAULT_ADVANCED_SETTINGS.bubbleStackMax
   }
 
-  return Math.max(MIN_BUBBLE_STACK_LIMIT, Math.min(MAX_BUBBLE_STACK_LIMIT, Math.round(numericValue)))
+  return Math.max(
+    MIN_BUBBLE_STACK_LIMIT,
+    Math.min(MAX_BUBBLE_STACK_LIMIT, Math.round(numericValue))
+  )
 }
 
 export function clampBubbleFollowUpWindowMs(value: unknown): number {
@@ -113,7 +119,10 @@ export function clampBubbleFollowUpWindowMs(value: unknown): number {
     return DEFAULT_ADVANCED_SETTINGS.bubbleFollowUpWindowMs
   }
 
-  return Math.max(MIN_FOLLOW_UP_WINDOW_MS, Math.min(MAX_FOLLOW_UP_WINDOW_MS, Math.round(numericValue)))
+  return Math.max(
+    MIN_FOLLOW_UP_WINDOW_MS,
+    Math.min(MAX_FOLLOW_UP_WINDOW_MS, Math.round(numericValue))
+  )
 }
 
 export function clampImageInlineThresholdKb(value: unknown): number {
@@ -122,7 +131,10 @@ export function clampImageInlineThresholdKb(value: unknown): number {
     return DEFAULT_ADVANCED_SETTINGS.imageInlineThresholdKb
   }
 
-  return Math.max(MIN_IMAGE_INLINE_THRESHOLD_KB, Math.min(MAX_IMAGE_INLINE_THRESHOLD_KB, Math.round(numericValue)))
+  return Math.max(
+    MIN_IMAGE_INLINE_THRESHOLD_KB,
+    Math.min(MAX_IMAGE_INLINE_THRESHOLD_KB, Math.round(numericValue))
+  )
 }
 
 export function clampImageMaxSizeMb(value: unknown): number {
@@ -140,9 +152,9 @@ export function loadAdvancedSettings(): AdvancedSettings {
       fallback: { ...DEFAULT_ADVANCED_SETTINGS },
       normalize: normalizeAdvancedSettings,
       version: ADVANCED_SETTINGS_VERSION,
-      onError: (error) => {
+      onError: error => {
         console.error('[高级设置] 解析失败，使用默认配置:', error)
-      },
+      }
     })
   } catch (error) {
     console.error('[高级设置] 解析失败，使用默认配置:', error)

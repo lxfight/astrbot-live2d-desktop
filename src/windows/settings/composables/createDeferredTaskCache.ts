@@ -24,11 +24,10 @@ export function createDeferredTaskCache() {
       return existingTask
     }
 
-    const task = Promise.resolve(loader())
-      .catch((error) => {
-        tasks.delete(key)
-        throw error
-      })
+    const task = Promise.resolve(loader()).catch(error => {
+      tasks.delete(key)
+      throw error
+    })
 
     tasks.set(key, task)
     return task
@@ -36,6 +35,6 @@ export function createDeferredTaskCache() {
 
   return {
     invalidate,
-    runTask,
+    runTask
   }
 }

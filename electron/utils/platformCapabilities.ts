@@ -15,7 +15,9 @@ export interface PlatformCapabilities {
 function resolveLinuxSessionType(): LinuxSessionType {
   if (process.platform !== 'linux') return 'n/a'
 
-  const sessionType = String(process.env.XDG_SESSION_TYPE || '').trim().toLowerCase()
+  const sessionType = String(process.env.XDG_SESSION_TYPE || '')
+    .trim()
+    .toLowerCase()
   if (sessionType === 'x11' || sessionType === 'wayland') {
     return sessionType
   }
@@ -34,20 +36,20 @@ function resolveGameModeCapability(
       return {
         supported: false,
         mode: 'disabled',
-        reason: 'Windows ARM64 暂不支持稳定的原生全屏窗口检测',
+        reason: 'Windows ARM64 暂不支持稳定的原生全屏窗口检测'
       }
     }
 
     return {
       supported: true,
-      mode: 'native-window-manager',
+      mode: 'native-window-manager'
     }
   }
 
   if (platform === 'darwin') {
     return {
       supported: true,
-      mode: 'active-window-heuristic',
+      mode: 'active-window-heuristic'
     }
   }
 
@@ -56,20 +58,20 @@ function resolveGameModeCapability(
       return {
         supported: false,
         mode: 'disabled',
-        reason: 'Wayland 会话下无法稳定获取活跃窗口边界',
+        reason: 'Wayland 会话下无法稳定获取活跃窗口边界'
       }
     }
 
     return {
       supported: true,
-      mode: 'active-window-heuristic',
+      mode: 'active-window-heuristic'
     }
   }
 
   return {
     supported: false,
     mode: 'disabled',
-    reason: '当前平台未实现自动检测全屏应用',
+    reason: '当前平台未实现自动检测全屏应用'
   }
 }
 
@@ -81,7 +83,7 @@ const capabilities: PlatformCapabilities = {
   linuxSessionType,
   mousePassthroughForward: platform !== 'linux',
   alwaysOnTopLevel: platform === 'darwin' ? 'screen-saver' : 'default',
-  gameMode: resolveGameModeCapability(platform, linuxSessionType),
+  gameMode: resolveGameModeCapability(platform, linuxSessionType)
 }
 
 export function getPlatformCapabilities(): PlatformCapabilities {

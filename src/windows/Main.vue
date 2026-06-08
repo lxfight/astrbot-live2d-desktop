@@ -35,10 +35,7 @@
     />
 
     <!-- 媒体播放器 -->
-    <MediaPlayer
-      ref="mediaPlayerRef"
-      @audio-end="handleAudioEnd"
-    />
+    <MediaPlayer ref="mediaPlayerRef" @audio-end="handleAudioEnd" />
 
     <!-- 圆形交互菜单 -->
     <Transition name="radial-menu">
@@ -60,7 +57,7 @@
           :style="{
             ...getMenuItemStyle(index, menuItems.length),
             '--theme-color': menuThemeColor,
-            '--theme-color-hover': menuThemeColorHover,
+            '--theme-color-hover': menuThemeColorHover
           }"
           @click="item.action"
         >
@@ -77,14 +74,14 @@
       <div
         v-for="(entry, i) in bubbleStack"
         :key="entry.id"
-        :ref="(el) => setBubbleEl(entry.id, el as HTMLElement | null)"
+        :ref="el => setBubbleEl(entry.id, el as HTMLElement | null)"
         class="bubble"
         :class="bubbleTierClass(bubbleStack.length - 1 - i)"
         :style="{
           left: entry.styleLeft,
           top: entry.styleTop,
           '--bubble-offset-x': entry.offsetX + 'px',
-          maxHeight: entry.styleMaxHeight || undefined,
+          maxHeight: entry.styleMaxHeight || undefined
         }"
         @click.stop
         @mouseenter="handleBubbleMouseEnter(entry)"
@@ -92,7 +89,7 @@
       >
         <div
           class="bubble-content"
-          :ref="(el) => setBubbleContentEl(entry.id, el as HTMLElement | null)"
+          :ref="el => setBubbleContentEl(entry.id, el as HTMLElement | null)"
         >
           <div
             v-for="item in entry.items"
@@ -136,7 +133,9 @@
       <div v-if="isRecording" class="recording-toast" :style="recordingToastStyle" @click.stop>
         <div class="recording-toast-content">
           <span class="recording-dot"></span>
-          <span class="recording-text">{{ $t('main.recording.indicator', { duration: recordingDuration }) }}</span>
+          <span class="recording-text">{{
+            $t('main.recording.indicator', { duration: recordingDuration })
+          }}</span>
           <span class="recording-hint">{{ recordingHintText }}</span>
         </div>
       </div>
@@ -168,21 +167,21 @@
           <button class="icon-btn" @click="handleSelectImage" :title="$t('main.input.sendImage')">
             <ImageIcon :size="20" />
           </button>
-          
-            <input
-              v-model="inputText"
-              class="transparent-input"
-              :placeholder="$t('main.input.placeholder')"
-              @keydown.enter.exact="handleSendMessage"
-              @paste="handlePasteEvent"
-              :ref="(el) => inputPanel.inputRef.value = el as HTMLInputElement | null"
-            />
-          
+
+          <input
+            v-model="inputText"
+            class="transparent-input"
+            :placeholder="$t('main.input.placeholder')"
+            @keydown.enter.exact="handleSendMessage"
+            @paste="handlePasteEvent"
+            :ref="el => (inputPanel.inputRef.value = el as HTMLInputElement | null)"
+          />
+
           <div class="action-buttons">
             <button
               v-if="recordingMode === 'hold'"
               class="icon-btn record-btn"
-              :class="{ 'recording': isRecording }"
+              :class="{ recording: isRecording }"
               @mousedown="startRecording"
               @mouseup="stopRecording"
               @mouseleave="cancelRecordingIfActive"
@@ -193,14 +192,18 @@
             <button
               v-else
               class="icon-btn record-btn"
-              :class="{ 'recording': isRecording }"
+              :class="{ recording: isRecording }"
               @click="toggleRecording"
               :title="isRecording ? $t('main.input.clickToStop') : $t('main.input.clickToRecord')"
             >
               <component :is="isRecording ? Disc : Mic" :size="20" />
             </button>
-            
-            <button class="icon-btn send-btn" @click="handleSendMessage" :title="$t('main.input.send')">
+
+            <button
+              class="icon-btn send-btn"
+              @click="handleSendMessage"
+              :title="$t('main.input.send')"
+            >
               <SendHorizontal :size="20" />
             </button>
           </div>
@@ -219,9 +222,18 @@ import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
 import {
-  Drama, FolderOpen,
-  Image as ImageIcon, Disc, Mic, X,
-  CheckCircle, AlertCircle, Loader2, Info, AlertTriangle, SendHorizontal
+  Drama,
+  FolderOpen,
+  Image as ImageIcon,
+  Disc,
+  Mic,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Info,
+  AlertTriangle,
+  SendHorizontal
 } from 'lucide-vue-next'
 import Live2DCanvas from '@/components/Live2D/Canvas.vue'
 import MediaPlayer from '@/components/MediaPlayer.vue'
@@ -232,10 +244,7 @@ import {
   loadAdvancedSettings,
   type AdvancedSettings
 } from '@/utils/advancedSettings'
-import {
-  resolvePerformMediaSource,
-  splitPerformSequenceForBubble,
-} from '@/utils/bubbleContent'
+import { resolvePerformMediaSource, splitPerformSequenceForBubble } from '@/utils/bubbleContent'
 import { extractHistoryRawText } from '@/utils/historyContent'
 import { configureMarked, renderBubbleMarkdown } from '@/utils/markedLatex'
 import { extractModelThemeColor } from '@/utils/modelTheme'
@@ -252,13 +261,8 @@ const modelStore = useModelStore()
 const themeStore = useThemeStore()
 const { t } = useI18n()
 const { sourceRgb } = storeToRefs(themeStore)
-const {
-  desiredState,
-  lastError,
-  lifecycleStatus,
-  nextRetryAt,
-  reconnectAttempt,
-} = storeToRefs(connectionStore)
+const { desiredState, lastError, lifecycleStatus, nextRetryAt, reconnectAttempt } =
+  storeToRefs(connectionStore)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas> | null>(null)
 const mediaPlayerRef = ref<InstanceType<typeof MediaPlayer>>()
@@ -293,7 +297,7 @@ function summarizeLogString(value: string, maxLength = 160): string {
 
 function summarizePerformElementForLog(element: PerformElement): Record<string, unknown> {
   const summary: Record<string, unknown> = {
-    type: element.type,
+    type: element.type
   }
 
   if (typeof element.position === 'string' && element.position) {
@@ -339,15 +343,15 @@ function summarizePerformElementForLog(element: PerformElement): Record<string, 
     summary.id = element.id
   }
   if (Array.isArray(element.combo) && element.combo.length > 0) {
-    summary.combo = element.combo.map((item) => ({
+    summary.combo = element.combo.map(item => ({
       id: item.id,
-      weight: item.weight,
+      weight: item.weight
     }))
   }
   if (Array.isArray(element.semantic) && element.semantic.length > 0) {
-    summary.semantic = element.semantic.map((item) => ({
+    summary.semantic = element.semantic.map(item => ({
       tag: item.tag,
-      weight: item.weight,
+      weight: item.weight
     }))
   }
   if (typeof element.fade === 'number') {
@@ -369,16 +373,16 @@ function summarizePerformPayloadForLog(payload: PerformSequence): Record<string,
     interruptible: payload.interruptible ?? true,
     sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
     sequencePreview: Array.isArray(payload.sequence)
-      ? payload.sequence.map((element) => summarizePerformElementForLog(element))
-      : [],
+      ? payload.sequence.map(element => summarizePerformElementForLog(element))
+      : []
   }
 }
 
-function collectExpressionUsageKeys(element: PerformElement & { expressionId?: string | number }): string[] {
+function collectExpressionUsageKeys(
+  element: PerformElement & { expressionId?: string | number }
+): string[] {
   if (Array.isArray(element.combo) && element.combo.length > 0) {
-    return element.combo
-      .map((item) => String(item.id || '').trim())
-      .filter((value) => Boolean(value))
+    return element.combo.map(item => String(item.id || '').trim()).filter(value => Boolean(value))
   }
 
   const explicitExpressionId = element.expressionId ?? element.id
@@ -394,7 +398,9 @@ function collectExpressionUsageKeys(element: PerformElement & { expressionId?: s
   const seen = new Set<string>()
   const keys: string[] = []
   for (const item of element.semantic) {
-    const normalizedTag = String(item.tag || '').trim().toLowerCase()
+    const normalizedTag = String(item.tag || '')
+      .trim()
+      .toLowerCase()
     if (!normalizedTag) {
       continue
     }
@@ -417,14 +423,14 @@ function settleAudioWaiter(waiter: AudioWaiter) {
 }
 
 function waitForNextAudioEnd(timeoutMs = AUDIO_END_TIMEOUT_MS): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const waiter: AudioWaiter = {
       resolve,
-      timeoutId: null,
+      timeoutId: null
     }
 
     waiter.timeoutId = window.setTimeout(() => {
-      audioWaiters = audioWaiters.filter((item) => item !== waiter)
+      audioWaiters = audioWaiters.filter(item => item !== waiter)
       settleAudioWaiter(waiter)
     }, timeoutMs)
 
@@ -455,7 +461,7 @@ const mainWindowStyle = computed(() => ({
   '--model-b': themeRgb.value.b,
   '--model-color': `rgb(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b})`,
   '--model-color-soft': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.15)`,
-  '--model-color-glow': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.35)`,
+  '--model-color-glow': `rgba(${themeRgb.value.r}, ${themeRgb.value.g}, ${themeRgb.value.b}, 0.35)`
 }))
 
 let modelPositionX = window.innerWidth / 2
@@ -514,17 +520,18 @@ function showPlatformCompatibilityHint(capabilities: PlatformCapabilities): void
   let hint: { text: string; type: ModelStatusType; duration: number } | null = null
 
   if (capabilities.platform === 'linux') {
-    hint = capabilities.linuxSessionType === 'wayland'
-      ? {
-          text: t('main.platform.waylandWarning'),
-          type: 'warning',
-          duration: 5200,
-        }
-      : {
-          text: t('main.platform.linuxWarning'),
-          type: 'info',
-          duration: 4800,
-        }
+    hint =
+      capabilities.linuxSessionType === 'wayland'
+        ? {
+            text: t('main.platform.waylandWarning'),
+            type: 'warning',
+            duration: 5200
+          }
+        : {
+            text: t('main.platform.linuxWarning'),
+            type: 'info',
+            duration: 4800
+          }
   }
 
   if (!hint) {
@@ -562,12 +569,26 @@ const {
   clearAllBubbles,
   cleanup: cleanupBubbleStack,
   checkFollowUp,
-  generateMessageId,
+  generateMessageId
 } = useBubbleStack({
   live2dCanvasRef,
   advancedSettings,
-  modelPositionX: { get value() { return modelPositionX }, set value(v: number) { modelPositionX = v } },
-  modelPositionY: { get value() { return modelPositionY }, set value(v: number) { modelPositionY = v } },
+  modelPositionX: {
+    get value() {
+      return modelPositionX
+    },
+    set value(v: number) {
+      modelPositionX = v
+    }
+  },
+  modelPositionY: {
+    get value() {
+      return modelPositionY
+    },
+    set value(v: number) {
+      modelPositionY = v
+    }
+  }
 })
 
 // useInputPanel：需要 openInput 在 Main.vue 定义，先声明后传参
@@ -586,11 +607,19 @@ const {
   handleMenuMouseEnter,
   handleMenuMouseLeave,
   getMenuItemStyle,
-  setOpenInput,
+  setOpenInput
 } = useRadialMenu({
   themeStore,
-  openHistory: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings('history/messages') },
-  openSettings: async () => { showMenu.value = false; clearMenuAutoCloseTimer(); await window.electron.window.openSettings() },
+  openHistory: async () => {
+    showMenu.value = false
+    clearMenuAutoCloseTimer()
+    await window.electron.window.openSettings('history/messages')
+  },
+  openSettings: async () => {
+    showMenu.value = false
+    clearMenuAutoCloseTimer()
+    await window.electron.window.openSettings()
+  },
   resetPosition: () => {
     showMenu.value = false
     clearMenuAutoCloseTimer()
@@ -602,7 +631,7 @@ const {
       modelStore.setModelPosition(modelPositionX, modelPositionY)
     }
     updateUIPositions()
-  },
+  }
 })
 
 const inputPanel = useInputPanel({
@@ -612,7 +641,7 @@ const inputPanel = useInputPanel({
   showModelStatus,
   showBaseEventStatus,
   updateUIPositions: () => updateUIPositions(),
-  generateMessageId,
+  generateMessageId
 })
 
 const {
@@ -625,7 +654,7 @@ const {
   clearImage,
   closeInputPanel,
   openInput: _openInput,
-  handleSendMessage,
+  handleSendMessage
 } = inputPanel
 
 const {
@@ -637,7 +666,7 @@ const {
   stopRecording,
   toggleRecording,
   cancelRecordingIfActive,
-  cleanup: cleanupRecording,
+  cleanup: cleanupRecording
 } = useRecording({
   connectionStore,
   currentUserName,
@@ -646,7 +675,7 @@ const {
   showBaseEventStatus,
   updateUIPositions: () => updateUIPositions(),
   generateMessageId,
-  syncRecordingState: syncRecordingShortcutState,
+  syncRecordingState: syncRecordingShortcutState
 })
 
 function openInput() {
@@ -665,21 +694,25 @@ function handleModelRightClick(position: { x: number; y: number }) {
 }
 
 // 主窗口可见性由主进程统一协调：只有模型加载成功后才显示透明桌面窗口
-watch(hasModel, async (value) => {
-  try {
-    await window.electron.desktopBehavior.setModelReady(value)
-  } catch (error) {
-    console.warn('[主窗口] 同步桌面交互状态失败:', error)
-  }
+watch(
+  hasModel,
+  async value => {
+    try {
+      await window.electron.desktopBehavior.setModelReady(value)
+    } catch (error) {
+      console.warn('[主窗口] 同步桌面交互状态失败:', error)
+    }
 
-  if (value) {
-    hasOpenedModelLibraryWindow = false
-  }
-}, { immediate: true })
+    if (value) {
+      hasOpenedModelLibraryWindow = false
+    }
+  },
+  { immediate: true }
+)
 
 watch(
-  () => modelStore.currentModel ? modelStore.getModelScale(modelStore.currentModel) : 1.0,
-  (newScale) => {
+  () => (modelStore.currentModel ? modelStore.getModelScale(modelStore.currentModel) : 1.0),
+  newScale => {
     if (live2dCanvasRef.value && modelStore.currentModel) {
       live2dCanvasRef.value.setModelScale(newScale)
     }
@@ -719,7 +752,7 @@ async function extractAndApplyModelTheme(modelPath: string) {
 
     themeStore.applyModelTheme({
       modelPath,
-      rgb: extractedColor,
+      rgb: extractedColor
     })
     console.log('[主窗口] 提取主题色:', rgbToHexString(extractedColor))
     return
@@ -741,7 +774,7 @@ performQueue.onMotion((group, index, priority) => {
   live2dCanvasRef.value?.playMotion(group, index, priority)
 })
 
-performQueue.onExpression((element) => {
+performQueue.onExpression(element => {
   const expressionRequest: CubismExpressionRequest = {
     id: element.id,
     combo: element.combo,
@@ -749,7 +782,7 @@ performQueue.onExpression((element) => {
     fade: element.fade,
     holdMs: element.holdMs,
     resetPolicy: element.resetPolicy,
-    motionType: element.motionType,
+    motionType: element.motionType
   }
   live2dCanvasRef.value?.setExpression(expressionRequest)
 })
@@ -773,22 +806,30 @@ performQueue.onAudio((source, volume) => {
 })
 
 performQueue.onImage((url, _duration) => {
-  const resolvedSrc = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')
-    ? url
-    : resolvePerformMediaSource({ rid: url }, {
-        resourceBaseUrl: connectionStore.resourceBaseUrl,
-        resourcePath: connectionStore.resourcePath,
-        resourceToken: connectionStore.resourceToken,
-      })
+  const resolvedSrc =
+    url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')
+      ? url
+      : resolvePerformMediaSource(
+          { rid: url },
+          {
+            resourceBaseUrl: connectionStore.resourceBaseUrl,
+            resourcePath: connectionStore.resourcePath,
+            resourceToken: connectionStore.resourceToken
+          }
+        )
 
   if (!resolvedSrc) {
     return
   }
 
-  latestBubbleEntryId = pushBubble([{ type: 'image', src: resolvedSrc, alt: t('main.imageAlt') }], 'center', false)
+  latestBubbleEntryId = pushBubble(
+    [{ type: 'image', src: resolvedSrc, alt: t('main.imageAlt') }],
+    'center',
+    false
+  )
 })
 
-performQueue.onVideo((url) => {
+performQueue.onVideo(url => {
   mediaPlayerRef.value?.playVideo(url)
 })
 
@@ -806,10 +847,7 @@ function applyModelPositionState(savedPosition: { x: number; y: number } | null)
   updateUIPositions()
 }
 
-async function loadModelWithState(
-  modelPath: string,
-  options: { showWarnings?: boolean } = {}
-) {
+async function loadModelWithState(modelPath: string, options: { showWarnings?: boolean } = {}) {
   const shouldShowWarnings = options.showWarnings !== false
   const savedPosition = modelStore.getModelPosition(modelPath)
   const savedScale = modelStore.getModelScale(modelPath)
@@ -823,7 +861,11 @@ async function loadModelWithState(
   if (descriptor.warnings.length > 0) {
     console.warn('[主窗口] 模型兼容发现告警:', descriptor.warnings)
     if (shouldShowWarnings) {
-      showModelStatus(t('main.model.compatibilityWarning', { warnings: descriptor.warnings.join('; ') }), 'warning', 5200)
+      showModelStatus(
+        t('main.model.compatibilityWarning', { warnings: descriptor.warnings.join('; ') }),
+        'warning',
+        5200
+      )
     }
   }
 
@@ -831,7 +873,7 @@ async function loadModelWithState(
     descriptor.modelPath,
     savedPosition || undefined,
     savedScale,
-    descriptor.compatibilityManifest,
+    descriptor.compatibilityManifest
   )
   hasModel.value = true
   modelStore.setCurrentModel(descriptor.modelPath)
@@ -879,11 +921,18 @@ async function handleImportModel() {
     }
 
     if (importResult.modelFiles && importResult.modelFiles.length > 1 && importResult.chosenFile) {
-      showBaseEventStatus(t('main.model.multiFileDetected', { file: importResult.chosenFile }), 'info')
+      showBaseEventStatus(
+        t('main.model.multiFileDetected', { file: importResult.chosenFile }),
+        'info'
+      )
     }
 
     if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
-      showModelStatus(t('main.model.compatibilityWarning', { warnings: importResult.warnings.join('; ') }), 'warning', 5200)
+      showModelStatus(
+        t('main.model.compatibilityWarning', { warnings: importResult.warnings.join('; ') }),
+        'warning',
+        5200
+      )
     }
 
     await loadModelWithState(importResult.modelPath!, { showWarnings: false })
@@ -899,8 +948,9 @@ async function handleImportModel() {
 async function handleModelLoaded() {
   console.log('[主窗口] Live2D 模型加载完成')
   hasModel.value = true
-  const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
-  
+  const activeModelPath =
+    loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
+
   // 确保位置同步
   const currentPos = live2dCanvasRef.value?.getModelPosition()
   if (currentPos) {
@@ -908,7 +958,7 @@ async function handleModelLoaded() {
     modelPositionY = currentPos.y
     updateUIPositions()
   }
-  
+
   showBaseEventStatus(t('main.status.modelLoaded'), 'success')
   if (activeModelPath) {
     themeStore.setCurrentModel(activeModelPath)
@@ -936,7 +986,10 @@ async function handleModelInfoChanged(modelInfo: StateModelPayload) {
   await syncModelInfoToBridge(modelInfo, '模型信息变化')
 }
 
-async function syncModelInfoToBridge(modelInfo: StateModelPayload | null | undefined, reason: string) {
+async function syncModelInfoToBridge(
+  modelInfo: StateModelPayload | null | undefined,
+  reason: string
+) {
   if (!connectionStore.isConnected || !modelInfo?.name) {
     return
   }
@@ -1040,13 +1093,17 @@ async function applyLogLevelFromAdvancedSettings() {
 
 function initializeAdvancedSettingsForSession() {
   advancedSettings.value = loadAdvancedSettings()
-  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(
+    advancedSettings.value.maxRecordingSeconds
+  )
   void applyLogLevelFromAdvancedSettings()
 }
 
 function refreshAdvancedSettings() {
   advancedSettings.value = loadAdvancedSettings()
-  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(advancedSettings.value.maxRecordingSeconds)
+  advancedSettings.value.maxRecordingSeconds = clampMaxRecordingSeconds(
+    advancedSettings.value.maxRecordingSeconds
+  )
   void applyLogLevelFromAdvancedSettings()
 }
 
@@ -1060,7 +1117,8 @@ function handleStorageChange(event: StorageEvent) {
 
   // themeFollowModel 从 false 变为 true 时，立即重新提取主题色
   if (!wasThemeFollowModel && advancedSettings.value.themeFollowModel) {
-    const activeModelPath = loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
+    const activeModelPath =
+      loadingModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
     if (activeModelPath) {
       void extractAndApplyModelTheme(activeModelPath)
     }
@@ -1094,10 +1152,10 @@ watch(lifecycleStatus, (status, previousStatus) => {
   }
 
   if (
-    status === 'idle'
-    && previousStatus
-    && previousStatus !== 'idle'
-    && desiredState.value === 'disconnected'
+    status === 'idle' &&
+    previousStatus &&
+    previousStatus !== 'idle' &&
+    desiredState.value === 'disconnected'
   ) {
     showBaseEventStatus(t('main.status.disconnected'), 'warning')
   }
@@ -1154,178 +1212,197 @@ onMounted(async () => {
 
   await syncRecordingShortcutState(false)
 
-  mainWindowDisposers.push(window.electron.shortcut.onRecordingStart(() => {
-    console.log('[主窗口] 全局快捷键：开始录音')
-    void startRecording({ source: 'shortcut' })
-  }))
+  mainWindowDisposers.push(
+    window.electron.shortcut.onRecordingStart(() => {
+      console.log('[主窗口] 全局快捷键：开始录音')
+      void startRecording({ source: 'shortcut' })
+    })
+  )
 
-  mainWindowDisposers.push(window.electron.shortcut.onRecordingStop(() => {
-    console.log('[主窗口] 全局快捷键：停止录音')
-    void stopRecording({ reason: 'shortcut' })
-  }))
+  mainWindowDisposers.push(
+    window.electron.shortcut.onRecordingStop(() => {
+      console.log('[主窗口] 全局快捷键：停止录音')
+      void stopRecording({ reason: 'shortcut' })
+    })
+  )
 
   // 监听从设置页面加载模型的指令（只显示一次提示）
-  mainWindowDisposers.push(window.electron.model.onLoad(async (modelPath: string) => {
-    if (modelLoadInFlight) {
-      console.log('[主窗口] 模型正在加载中，忽略重复请求')
-      return
-    }
-
-    console.log('[主窗口] 收到模型加载指令:', modelPath)
-    modelLoadInFlight = true
-
-    try {
-      await loadModelWithState(modelPath)
-
-      // 不在这里显示提示，由 handleModelLoaded 统一处理
-    } catch (error: any) {
-      loadingModelPath.value = ''
-      hasModel.value = false
-      showModelStatus(t('main.status.modelLoadFailed', { message: error.message }), 'error')
-      openModelLibraryWindowOnce()
-    } finally {
-      modelLoadInFlight = false
-    }
-  }))
-
-  mainWindowDisposers.push(window.electron.bridge.onPerformShow((payload: PerformSequence) => {
-    console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
-
-    const { isFollowUp } = checkFollowUp()
-
-    // interrupt=true 且不是追加时才中断旧表演
-    const shouldInterrupt = payload.interrupt !== false && !isFollowUp
-
-    if (shouldInterrupt) {
-      interruptPerformance()
-    }
-
-    // 使用表演队列执行
-    if (payload.sequence) {
-      const { bubbleItems, position, remainingSequence } = splitPerformSequenceForBubble(
-        payload.sequence,
-        {
-          resourceBaseUrl: connectionStore.resourceBaseUrl,
-          resourcePath: connectionStore.resourcePath,
-          resourceToken: connectionStore.resourceToken,
-        }
-      )
-
-      if (bubbleItems.length > 0) {
-        latestBubbleEntryId = pushBubble(bubbleItems, position, shouldInterrupt)
+  mainWindowDisposers.push(
+    window.electron.model.onLoad(async (modelPath: string) => {
+      if (modelLoadInFlight) {
+        console.log('[主窗口] 模型正在加载中，忽略重复请求')
+        return
       }
 
-      if (remainingSequence.length > 0) {
-        performQueue.enqueue({
-          sequence: remainingSequence as PerformElement[],
-          interruptible: payload.interruptible !== false
-        })
-      }
+      console.log('[主窗口] 收到模型加载指令:', modelPath)
+      modelLoadInFlight = true
 
-      // 保存表演记录和更新统计
       try {
-        const timestamp = Date.now()
-        const date = new Date(timestamp)
-        const dateStr = date.toISOString().split('T')[0]
-        const hour = date.getHours()
-        const performanceId = generateMessageId('perf')
-        const rawText = extractHistoryRawText(payload.sequence) || t('main.performSequence')
+        await loadModelWithState(modelPath)
 
-        // 先保存一条incoming消息记录（服务器发来的表演）
-        window.electron.history.saveMessage({
-          messageId: performanceId,
-          sessionId: connectionStore.sessionId || 'default',
-          userId: 'server',
-          userName: t('main.serverUser'),
-          messageType: 'friend',
-          direction: 'incoming',
-          content: payload.sequence,
-          rawText,
-          timestamp: timestamp,
-          resourceContext: {
+        // 不在这里显示提示，由 handleModelLoaded 统一处理
+      } catch (error: any) {
+        loadingModelPath.value = ''
+        hasModel.value = false
+        showModelStatus(t('main.status.modelLoadFailed', { message: error.message }), 'error')
+        openModelLibraryWindowOnce()
+      } finally {
+        modelLoadInFlight = false
+      }
+    })
+  )
+
+  mainWindowDisposers.push(
+    window.electron.bridge.onPerformShow((payload: PerformSequence) => {
+      console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
+
+      const { isFollowUp } = checkFollowUp()
+
+      // interrupt=true 且不是追加时才中断旧表演
+      const shouldInterrupt = payload.interrupt !== false && !isFollowUp
+
+      if (shouldInterrupt) {
+        interruptPerformance()
+      }
+
+      // 使用表演队列执行
+      if (payload.sequence) {
+        const { bubbleItems, position, remainingSequence } = splitPerformSequenceForBubble(
+          payload.sequence,
+          {
             resourceBaseUrl: connectionStore.resourceBaseUrl,
             resourcePath: connectionStore.resourcePath,
-            resourceToken: connectionStore.resourceToken,
+            resourceToken: connectionStore.resourceToken
           }
-        }).then((saveResult: { success?: boolean; localizedContent?: PerformElement[]; error?: string }) => {
-          if (!saveResult?.success) {
-            throw new Error(saveResult?.error || t('error.saveOfflineHistoryFailed'))
-          }
+        )
 
-          // 保存表演记录（关联到消息）
-          return window.electron.history.savePerformance({
-            messageId: performanceId,
-            sessionId: connectionStore.sessionId || 'default',
-            sequence: saveResult.localizedContent || payload.sequence,
-            timestamp: timestamp
+        if (bubbleItems.length > 0) {
+          latestBubbleEntryId = pushBubble(bubbleItems, position, shouldInterrupt)
+        }
+
+        if (remainingSequence.length > 0) {
+          performQueue.enqueue({
+            sequence: remainingSequence as PerformElement[],
+            interruptible: payload.interruptible !== false
           })
-        }).catch((error: any) => {
-          console.error('[主窗口] 保存表演记录失败:', error)
-        })
+        }
 
-        // 统计各类元素数量
-        let textCount = 0
-        let imageCount = 0
-        let audioCount = 0
-        let videoCount = 0
-        const motionUsage: Record<string, number> = {}
-        const expressionUsage: Record<string, number> = {}
+        // 保存表演记录和更新统计
+        try {
+          const timestamp = Date.now()
+          const date = new Date(timestamp)
+          const dateStr = date.toISOString().split('T')[0]
+          const hour = date.getHours()
+          const performanceId = generateMessageId('perf')
+          const rawText = extractHistoryRawText(payload.sequence) || t('main.performSequence')
 
-        payload.sequence.forEach((element: PerformElement & { expressionId?: string }) => {
-          switch (element.type) {
-            case 'text':
-              textCount++
-              break
-            case 'image':
-              imageCount++
-              break
-            case 'tts':
-            case 'audio':
-              audioCount++
-              break
-            case 'video':
-              videoCount++
-              break
-            case 'motion':
-            {
-              const motionKey = `${element.group}_${element.index}`
-              motionUsage[motionKey] = (motionUsage[motionKey] || 0) + 1
-              break
-            }
-            case 'expression':
-            {
-              for (const exprKey of collectExpressionUsageKeys(element)) {
-                expressionUsage[exprKey] = (expressionUsage[exprKey] || 0) + 1
+          // 先保存一条incoming消息记录（服务器发来的表演）
+          window.electron.history
+            .saveMessage({
+              messageId: performanceId,
+              sessionId: connectionStore.sessionId || 'default',
+              userId: 'server',
+              userName: t('main.serverUser'),
+              messageType: 'friend',
+              direction: 'incoming',
+              content: payload.sequence,
+              rawText,
+              timestamp: timestamp,
+              resourceContext: {
+                resourceBaseUrl: connectionStore.resourceBaseUrl,
+                resourcePath: connectionStore.resourcePath,
+                resourceToken: connectionStore.resourceToken
               }
-              break
+            })
+            .then(
+              (saveResult: {
+                success?: boolean
+                localizedContent?: PerformElement[]
+                error?: string
+              }) => {
+                if (!saveResult?.success) {
+                  throw new Error(saveResult?.error || t('error.saveOfflineHistoryFailed'))
+                }
+
+                // 保存表演记录（关联到消息）
+                return window.electron.history.savePerformance({
+                  messageId: performanceId,
+                  sessionId: connectionStore.sessionId || 'default',
+                  sequence: saveResult.localizedContent || payload.sequence,
+                  timestamp: timestamp
+                })
+              }
+            )
+            .catch((error: any) => {
+              console.error('[主窗口] 保存表演记录失败:', error)
+            })
+
+          // 统计各类元素数量
+          let textCount = 0
+          let imageCount = 0
+          let audioCount = 0
+          let videoCount = 0
+          const motionUsage: Record<string, number> = {}
+          const expressionUsage: Record<string, number> = {}
+
+          payload.sequence.forEach((element: PerformElement & { expressionId?: string }) => {
+            switch (element.type) {
+              case 'text':
+                textCount++
+                break
+              case 'image':
+                imageCount++
+                break
+              case 'tts':
+              case 'audio':
+                audioCount++
+                break
+              case 'video':
+                videoCount++
+                break
+              case 'motion': {
+                const motionKey = `${element.group}_${element.index}`
+                motionUsage[motionKey] = (motionUsage[motionKey] || 0) + 1
+                break
+              }
+              case 'expression': {
+                for (const exprKey of collectExpressionUsageKeys(element)) {
+                  expressionUsage[exprKey] = (expressionUsage[exprKey] || 0) + 1
+                }
+                break
+              }
             }
-          }
-        })
+          })
 
-        // 更新统计数据
-        window.electron.history.updateStatistics({
-          date: dateStr,
-          hour: hour,
-          messageCount: 1,
-          textCount: textCount,
-          imageCount: imageCount,
-          audioCount: audioCount,
-          videoCount: videoCount,
-          motionUsage,
-          expressionUsage
-        }).catch((error: any) => {
-          console.error('[主窗口] 更新统计数据失败:', error)
-        })
-      } catch (error) {
-        console.error('[主窗口] 处理表演记录失败:', error)
+          // 更新统计数据
+          window.electron.history
+            .updateStatistics({
+              date: dateStr,
+              hour: hour,
+              messageCount: 1,
+              textCount: textCount,
+              imageCount: imageCount,
+              audioCount: audioCount,
+              videoCount: videoCount,
+              motionUsage,
+              expressionUsage
+            })
+            .catch((error: any) => {
+              console.error('[主窗口] 更新统计数据失败:', error)
+            })
+        } catch (error) {
+          console.error('[主窗口] 处理表演记录失败:', error)
+        }
       }
-    }
-  }))
+    })
+  )
 
-  mainWindowDisposers.push(window.electron.bridge.onPerformInterrupt(() => {
-    console.log('收到中断指令')
-    interruptPerformance()
-  }))
+  mainWindowDisposers.push(
+    window.electron.bridge.onPerformInterrupt(() => {
+      console.log('收到中断指令')
+      interruptPerformance()
+    })
+  )
 
   const lastModelPath = modelStore.getLastModel()
   if (advancedSettings.value.autoLoadLastModel && lastModelPath) {
@@ -1349,7 +1426,10 @@ onMounted(async () => {
 
   // 自动注册全局快捷键
   if (advancedSettings.value.recordingShortcut) {
-    const electronFormat = advancedSettings.value.recordingShortcut.replace('Ctrl', 'CommandOrControl')
+    const electronFormat = advancedSettings.value.recordingShortcut.replace(
+      'Ctrl',
+      'CommandOrControl'
+    )
     console.log('[Main] Register shortcut:', electronFormat)
     const result = await window.electron.shortcut.register(electronFormat)
     if (result.success) {
@@ -1358,7 +1438,6 @@ onMounted(async () => {
       console.warn('[Main] Shortcut register failed:', result.error)
     }
   }
-
 })
 
 onBeforeUnmount(() => {
@@ -1415,13 +1494,18 @@ onBeforeUnmount(() => {
     background: var(--surface-bg);
     border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    box-shadow:
+      var(--shadow-xl),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
     max-width: 520px;
 
     &::before {
       content: '';
       position: absolute;
-      top: 0; left: 10%; right: 10%; height: 1px;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
     }
 
@@ -1446,11 +1530,13 @@ onBeforeUnmount(() => {
   }
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity var(--duration-norm) var(--ease-out);
 }
 
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
@@ -1482,10 +1568,11 @@ onBeforeUnmount(() => {
     border-radius: 50%;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
-      linear-gradient(135deg, var(--theme-color, transparent), transparent 72%),
-      var(--surface-bg);
+      linear-gradient(135deg, var(--theme-color, transparent), transparent 72%), var(--surface-bg);
     border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.22);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--shadow-sm);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1493,10 +1580,11 @@ onBeforeUnmount(() => {
     pointer-events: auto;
 
     transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
-    transition: transform var(--duration-slow) var(--ease-bounce) var(--delay),
-                background var(--duration-fast),
-                box-shadow var(--duration-fast),
-                border-color var(--duration-fast);
+    transition:
+      transform var(--duration-slow) var(--ease-bounce) var(--delay),
+      background var(--duration-fast),
+      box-shadow var(--duration-fast),
+      border-color var(--duration-fast);
 
     .menu-icon {
       color: var(--color-text-primary);
@@ -1599,7 +1687,9 @@ onBeforeUnmount(() => {
   width: max-content;
   max-width: min(560px, calc(100vw - 32px));
   max-height: var(--bubble-max-height);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   z-index: 100;
   overflow: hidden;
   display: flex;
@@ -1607,7 +1697,11 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   pointer-events: auto;
   transform: translateX(calc(-50% + var(--bubble-offset-x, 0px)));
-  transition: top 0.35s var(--ease-out), opacity 0.35s var(--ease-out), transform 0.35s var(--ease-out), max-height 0.35s ease-out;
+  transition:
+    top 0.35s var(--ease-out),
+    opacity 0.35s var(--ease-out),
+    transform 0.35s var(--ease-out),
+    max-height 0.35s ease-out;
 }
 
 .bubble-tier-1 {
@@ -1634,17 +1728,30 @@ onBeforeUnmount(() => {
   min-height: 0;
 
   /* Markdown 样式 */
-  :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
     margin: 12px 0 8px 0;
     font-weight: 600;
     line-height: 1.4;
     overflow-wrap: break-word;
   }
 
-  :deep(h1) { font-size: 1.6em; }
-  :deep(h2) { font-size: 1.4em; }
-  :deep(h3) { font-size: 1.2em; }
-  :deep(h4) { font-size: 1.1em; }
+  :deep(h1) {
+    font-size: 1.6em;
+  }
+  :deep(h2) {
+    font-size: 1.4em;
+  }
+  :deep(h3) {
+    font-size: 1.2em;
+  }
+  :deep(h4) {
+    font-size: 1.1em;
+  }
 
   :deep(p) {
     margin: 6px 0;
@@ -1652,7 +1759,8 @@ onBeforeUnmount(() => {
     word-break: normal;
   }
 
-  :deep(ul), :deep(ol) {
+  :deep(ul),
+  :deep(ol) {
     margin: 6px 0;
     padding-left: 20px;
   }
@@ -1711,7 +1819,8 @@ onBeforeUnmount(() => {
     font-size: 0.9em;
   }
 
-  :deep(th), :deep(td) {
+  :deep(th),
+  :deep(td) {
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 6px 10px;
     text-align: left;
@@ -1833,14 +1942,19 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: blur(36px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-full);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all var(--duration-norm) var(--ease-out);
 }
 
 .glass-input-bar:focus-within {
   background: rgba(26, 26, 30, 0.75);
   border-color: rgba(var(--color-accent-rgb), 0.4);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(var(--color-accent-rgb), 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(var(--color-accent-rgb), 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
 }
 
@@ -1957,9 +2071,15 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(255, 77, 79, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 77, 79, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
 }
 
 .recording-toast {
@@ -2008,7 +2128,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes recording-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -2017,8 +2138,6 @@ onBeforeUnmount(() => {
     transform: scale(1.2);
   }
 }
-
-
 
 .bubble-enter-active {
   transition: transform 0.35s ease-out;
@@ -2029,7 +2148,9 @@ onBeforeUnmount(() => {
 }
 
 .bubble-leave-active {
-  transition: opacity 0.28s ease-in, transform 0.28s ease-in;
+  transition:
+    opacity 0.28s ease-in,
+    transform 0.28s ease-in;
   position: absolute;
 }
 
@@ -2042,20 +2163,28 @@ onBeforeUnmount(() => {
   transition: top 0.3s ease-out;
 }
 
-.input-enter-active, .input-leave-active {
-  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
+.input-enter-active,
+.input-leave-active {
+  transition:
+    opacity var(--duration-norm) var(--ease-out),
+    transform var(--duration-norm) var(--ease-out);
 }
 
-.input-enter-from, .input-leave-to {
+.input-enter-from,
+.input-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(20px);
 }
 
-.recording-toast-enter-active, .recording-toast-leave-active {
-  transition: opacity var(--duration-norm) var(--ease-out), transform var(--duration-norm) var(--ease-out);
+.recording-toast-enter-active,
+.recording-toast-leave-active {
+  transition:
+    opacity var(--duration-norm) var(--ease-out),
+    transform var(--duration-norm) var(--ease-out);
 }
 
-.recording-toast-enter-from, .recording-toast-leave-to {
+.recording-toast-enter-from,
+.recording-toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-20px);
 }
@@ -2081,11 +2210,22 @@ onBeforeUnmount(() => {
   letter-spacing: 0.2px;
   white-space: nowrap;
 
-  &.success { background: rgba(52, 211, 153, 0.75); }
-  &.error   { background: rgba(248, 113, 113, 0.75); }
-  &.warning { background: rgba(251, 191, 36, 0.75); }
-  &.loading { background: rgba(96, 165, 250, 0.75); }
-  &.info    { background: rgba(20, 20, 24, 0.7); color: var(--color-text-primary); }
+  &.success {
+    background: rgba(52, 211, 153, 0.75);
+  }
+  &.error {
+    background: rgba(248, 113, 113, 0.75);
+  }
+  &.warning {
+    background: rgba(251, 191, 36, 0.75);
+  }
+  &.loading {
+    background: rgba(96, 165, 250, 0.75);
+  }
+  &.info {
+    background: rgba(20, 20, 24, 0.7);
+    color: var(--color-text-primary);
+  }
 
   .status-icon {
     display: flex;
@@ -2098,15 +2238,21 @@ onBeforeUnmount(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.status-toast-enter-active, .status-toast-leave-active {
+.status-toast-enter-active,
+.status-toast-leave-active {
   transition: all var(--duration-norm) var(--ease-out);
 }
 
-.status-toast-enter-from, .status-toast-leave-to {
+.status-toast-enter-from,
+.status-toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(10px);
 }

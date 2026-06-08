@@ -6,7 +6,11 @@
           <X :size="24" />
         </button>
         <div class="media-container" @click.stop>
-          <img v-if="type === 'image'" :src="src" :alt="$t('settings.history.mediaViewer.imageAlt')" />
+          <img
+            v-if="type === 'image'"
+            :src="src"
+            :alt="$t('settings.history.mediaViewer.imageAlt')"
+          />
           <video v-else-if="type === 'video'" :src="src" controls autoplay playsinline></video>
         </div>
         <div class="hint-text">{{ $t('settings.history.mediaViewer.closeHint') }}</div>
@@ -41,7 +45,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 watch(
   () => props.visible,
-  (newVal) => {
+  newVal => {
     if (newVal) {
       document.body.style.overflow = 'hidden'
       window.addEventListener('keydown', handleKeyDown)

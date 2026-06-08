@@ -10,7 +10,7 @@ import {
   normalizeAdvancedSettings,
   normalizeRecordingMode,
   loadAdvancedSettings,
-  saveAdvancedSettings,
+  saveAdvancedSettings
 } from '../src/utils/advancedSettings'
 
 describe('advancedSettings', () => {
@@ -77,7 +77,9 @@ describe('advancedSettings', () => {
   })
 
   it('falls back to defaults for invalid persisted values', () => {
-    expect(normalizeAdvancedSettings({ recordingShortcut: 123, logLevel: 'trace' })).toEqual(DEFAULT_ADVANCED_SETTINGS)
+    expect(normalizeAdvancedSettings({ recordingShortcut: 123, logLevel: 'trace' })).toEqual(
+      DEFAULT_ADVANCED_SETTINGS
+    )
   })
 
   it('uses defaults for newly added model behavior settings when missing', () => {
@@ -85,7 +87,7 @@ describe('advancedSettings', () => {
       recordingShortcut: 'Alt+R',
       showBaseEventNotifications: true,
       maxRecordingSeconds: 20,
-      logLevel: 'info',
+      logLevel: 'info'
     })
 
     expect(normalized.autoLoadLastModel).toBe(true)
@@ -105,9 +107,15 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
     store = {}
     vi.stubGlobal('localStorage', {
       getItem: vi.fn((key: string) => store[key] ?? null),
-      setItem: vi.fn((key: string, value: string) => { store[key] = value }),
-      removeItem: vi.fn((key: string) => { delete store[key] }),
-      clear: vi.fn(() => { store = {} }),
+      setItem: vi.fn((key: string, value: string) => {
+        store[key] = value
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete store[key]
+      }),
+      clear: vi.fn(() => {
+        store = {}
+      })
     })
   })
 
@@ -127,8 +135,8 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
         recordingShortcut: 'Ctrl+Q',
         autoConnect: false,
         logLevel: 'debug',
-        maxRecordingSeconds: 25,
-      },
+        maxRecordingSeconds: 25
+      }
     })
 
     const settings = loadAdvancedSettings()
@@ -154,15 +162,12 @@ describe('loadAdvancedSettings / saveAdvancedSettings', () => {
     const saved = saveAdvancedSettings({
       recordingShortcut: 'Ctrl+W',
       maxRecordingSeconds: 999,
-      logLevel: 'debug',
+      logLevel: 'debug'
     })
 
     expect(saved.recordingShortcut).toBe('Ctrl+W')
     expect(saved.maxRecordingSeconds).toBe(60) // clamped
-    expect(localStorage.setItem).toHaveBeenCalledWith(
-      ADVANCED_SETTINGS_KEY,
-      expect.any(String)
-    )
+    expect(localStorage.setItem).toHaveBeenCalledWith(ADVANCED_SETTINGS_KEY, expect.any(String))
 
     const stored = JSON.parse(store[ADVANCED_SETTINGS_KEY])
     expect(stored.version).toBe(1)

@@ -20,7 +20,8 @@ export interface AboutSettingsDomain {
   updaterSettings: Ref<{ autoUpdateEnabled: boolean }>
 }
 
-export const aboutSettingsDomainKey: InjectionKey<AboutSettingsDomain> = Symbol('about-settings-domain')
+export const aboutSettingsDomainKey: InjectionKey<AboutSettingsDomain> =
+  Symbol('about-settings-domain')
 
 export function useAboutSettingsDomain() {
   const domain = inject(aboutSettingsDomainKey)
@@ -39,14 +40,17 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
   const checkingUpdate = ref(false)
   const updateState = ref<UpdateState | null>(null)
   const updaterSettings = ref({
-    autoUpdateEnabled: Boolean(DEFAULT_UPDATER_SETTINGS.autoUpdateEnabled),
+    autoUpdateEnabled: Boolean(DEFAULT_UPDATER_SETTINGS.autoUpdateEnabled)
   })
 
   const taskCache = createDeferredTaskCache()
 
   const updateStatusLabel = computed(() => {
     if (!updateState.value) return t('settings.about.updateStatusUnknown')
-    if (updateState.value.status === 'downloading' && typeof updateState.value.progress === 'number') {
+    if (
+      updateState.value.status === 'downloading' &&
+      typeof updateState.value.progress === 'number'
+    ) {
       return `${updateState.value.message}（${Math.round(updateState.value.progress)}%）`
     }
     return updateState.value.message
@@ -68,7 +72,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
   async function loadUpdaterSettings() {
     const settings = await window.electron.update.getSettings()
     updaterSettings.value = {
-      autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
+      autoUpdateEnabled: Boolean(settings.autoUpdateEnabled)
     }
   }
 
@@ -76,7 +80,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
     await Promise.all([
       taskCache.runTask('about:version', loadAppVersion, force),
       taskCache.runTask('about:update-state', loadUpdateState, force),
-      taskCache.runTask('about:updater-settings', loadUpdaterSettings, force),
+      taskCache.runTask('about:updater-settings', loadUpdaterSettings, force)
     ])
   }
 
@@ -90,10 +94,10 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
 
     try {
       const nextSettings = await window.electron.update.updateSettings({
-        autoUpdateEnabled: value,
+        autoUpdateEnabled: value
       })
       updaterSettings.value = {
-        autoUpdateEnabled: Boolean(nextSettings.autoUpdateEnabled),
+        autoUpdateEnabled: Boolean(nextSettings.autoUpdateEnabled)
       }
     } catch (error: any) {
       updaterSettings.value = previousSettings
@@ -137,7 +141,7 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
   async function resetAll() {
     const nextSettings = await window.electron.update.updateSettings(DEFAULT_UPDATER_SETTINGS)
     updaterSettings.value = {
-      autoUpdateEnabled: Boolean(nextSettings.autoUpdateEnabled),
+      autoUpdateEnabled: Boolean(nextSettings.autoUpdateEnabled)
     }
     taskCache.invalidate(['about:updater-settings'])
   }
@@ -155,6 +159,6 @@ export function createAboutSettingsDomain(message: MessageApi): AboutSettingsDom
     updateAutoUpdateSetting,
     updateState,
     updateStatusLabel,
-    updaterSettings,
+    updaterSettings
   }
 }

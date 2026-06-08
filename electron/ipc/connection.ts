@@ -13,7 +13,11 @@ function toErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
     return error
   }
-  if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
     return (error as { message: string }).message
   }
   return String(error)
@@ -25,14 +29,14 @@ ipcMain.handle('bridge:getSession', async () => {
   logger.debug('bridge_get_session', {
     hasController: Boolean(controller),
     hasSession: Boolean(session),
-    sessionId: session?.sessionId,
+    sessionId: session?.sessionId
   })
   return session
 })
 
 ipcMain.handle('bridge:sendMessage', async (_event, payload: InputMessagePayload) => {
   const timer = logger.timer('bridge_send_message', {
-    contentCount: Array.isArray(payload?.content) ? payload.content.length : 0,
+    contentCount: Array.isArray(payload?.content) ? payload.content.length : 0
   })
   try {
     const controller = getBridgeConnectionController()

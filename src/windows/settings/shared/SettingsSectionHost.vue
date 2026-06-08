@@ -48,11 +48,11 @@ const {
   discardRenderKey,
   errorMessage,
   loadState,
-  retry,
+  retry
 } = useSettingsSectionHost({
   activeChild: toRef(props, 'activeChild'),
   activeGroup: toRef(props, 'activeGroup'),
-  registry: toRef(props, 'registry'),
+  registry: toRef(props, 'registry')
 })
 
 const shouldKeepAlive = computed(() => activeEntry.value?.cachePolicy === 'keep-alive')

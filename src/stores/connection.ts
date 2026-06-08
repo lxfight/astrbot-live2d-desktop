@@ -4,13 +4,13 @@ import type { InputMessagePayload, MessageContent } from '@/types/protocol'
 import { LOCAL_STORAGE_METADATA } from '@/shared/metadata'
 import {
   buildDefaultBridgeLifecycleSnapshot,
-  type BridgeLifecycleSnapshot,
+  type BridgeLifecycleSnapshot
 } from '@/shared/bridgeLifecycle'
 import {
   buildDefaultConnectionSettingsEditable,
   normalizeConnectionSettingsEditable,
   type ConnectionSettingsEditable,
-  type ConnectionSettingsPersistedV3,
+  type ConnectionSettingsPersistedV3
 } from '@/shared/connectionSettings'
 import { deriveHttpBaseUrlFromWsUrl } from '@/utils/urlNormalize'
 import { ADVANCED_SETTINGS_KEY } from '@/utils/advancedSettings'
@@ -42,7 +42,7 @@ function buildDefaultPersistedSettings(): ConnectionSettingsPersistedV3 {
   return {
     ...defaults,
     revision: 0,
-    updatedAt: Date.now(),
+    updatedAt: Date.now()
   }
 }
 
@@ -115,20 +115,22 @@ export const useConnectionStore = defineStore('connection', () => {
     const baselineDefaults = buildDefaultConnectionSettingsEditable()
     const rendererDefaults = buildRendererPreferredDefaults()
     const baseEditable = normalizeConnectionSettingsEditable(settings)
-    const editable = settings.revision === 0
-      ? normalizeConnectionSettingsEditable({
-          ...baseEditable,
-          serverUrl: baseEditable.serverUrl === baselineDefaults.serverUrl
-            ? rendererDefaults.serverUrl
-            : baseEditable.serverUrl,
-          token: baseEditable.token || rendererDefaults.token,
-        })
-      : baseEditable
+    const editable =
+      settings.revision === 0
+        ? normalizeConnectionSettingsEditable({
+            ...baseEditable,
+            serverUrl:
+              baseEditable.serverUrl === baselineDefaults.serverUrl
+                ? rendererDefaults.serverUrl
+                : baseEditable.serverUrl,
+            token: baseEditable.token || rendererDefaults.token
+          })
+        : baseEditable
 
     persistedSettings.value = {
       ...editable,
       revision: settings.revision,
-      updatedAt: settings.updatedAt,
+      updatedAt: settings.updatedAt
     }
   }
 
@@ -163,7 +165,11 @@ export const useConnectionStore = defineStore('connection', () => {
         return
       }
 
-      console.warn('[ConnectionStore] 迁移旧连接配置失败:', migrateResult.code, migrateResult.message)
+      console.warn(
+        '[ConnectionStore] 迁移旧连接配置失败:',
+        migrateResult.code,
+        migrateResult.message
+      )
     } catch (error) {
       console.warn('[ConnectionStore] 迁移旧连接配置异常:', error)
     }
@@ -176,9 +182,14 @@ export const useConnectionStore = defineStore('connection', () => {
 
     try {
       const legacyRaw = localStorage.getItem(ADVANCED_SETTINGS_KEY) || ''
-      const migrateResult = await window.electron.connectionBehaviorSettings.migrateLegacy(legacyRaw)
+      const migrateResult =
+        await window.electron.connectionBehaviorSettings.migrateLegacy(legacyRaw)
       if (!migrateResult.success) {
-        console.warn('[ConnectionStore] 迁移旧连接行为配置失败:', migrateResult.code, migrateResult.message)
+        console.warn(
+          '[ConnectionStore] 迁移旧连接行为配置失败:',
+          migrateResult.code,
+          migrateResult.message
+        )
       }
     } catch (error) {
       console.warn('[ConnectionStore] 迁移旧连接行为配置异常:', error)
@@ -205,22 +216,22 @@ export const useConnectionStore = defineStore('connection', () => {
 
   function startSync() {
     if (
-      syncBound
-      || typeof window === 'undefined'
-      || !window.electron?.connectionSettings
-      || !window.electron?.bridgeLifecycle
+      syncBound ||
+      typeof window === 'undefined' ||
+      !window.electron?.connectionSettings ||
+      !window.electron?.bridgeLifecycle
     ) {
       return
     }
 
-    settingsDisposer = window.electron.connectionSettings.onChanged((event) => {
+    settingsDisposer = window.electron.connectionSettings.onChanged(event => {
       if (!event?.settings) {
         return
       }
       applyPersistedSettings(event.settings)
     })
 
-    lifecycleDisposer = window.electron.bridgeLifecycle.onStateChanged((snapshot) => {
+    lifecycleDisposer = window.electron.bridgeLifecycle.onStateChanged(snapshot => {
       applyLifecycleSnapshot(snapshot)
     })
 
@@ -252,10 +263,7 @@ export const useConnectionStore = defineStore('connection', () => {
       startSync()
       await migrateLegacyConnectionSettingsIfNeeded()
       await migrateLegacyBehaviorSettingsIfNeeded()
-      await Promise.all([
-        reloadPersistedSettings(),
-        refreshLifecycleSnapshot(),
-      ])
+      await Promise.all([reloadPersistedSettings(), refreshLifecycleSnapshot()])
       initialized = true
     })().finally(() => {
       initializePromise = null
@@ -300,6 +308,6 @@ export const useConnectionStore = defineStore('connection', () => {
     startSync,
     stopSync,
     token,
-    userId,
+    userId
   }
 })

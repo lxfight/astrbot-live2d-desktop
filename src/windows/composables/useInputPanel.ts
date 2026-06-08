@@ -27,7 +27,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
     showModelStatus,
     showBaseEventStatus,
     updateUIPositions,
-    generateMessageId,
+    generateMessageId
   } = options
 
   const { t } = useI18n()
@@ -79,12 +79,15 @@ export function useInputPanel(options: UseInputPanelOptions) {
 
       const file = files[0]
       if (file.size > getImageMaxSizeBytes()) {
-        showModelStatus(t('main.input.imageTooLarge', { max: advancedSettings.value.imageMaxSizeMb }), 'warning')
+        showModelStatus(
+          t('main.input.imageTooLarge', { max: advancedSettings.value.imageMaxSizeMb }),
+          'warning'
+        )
         return
       }
 
       const reader = new FileReader()
-      reader.onload = (e) => {
+      reader.onload = e => {
         applySelectedImage(file, e.target?.result as string)
       }
       reader.readAsDataURL(file)
@@ -105,7 +108,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
         if (!file) continue
 
         const reader = new FileReader()
-        reader.onload = (e) => {
+        reader.onload = e => {
           applySelectedImage(file, e.target?.result as string)
         }
         reader.readAsDataURL(file)
@@ -142,7 +145,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
     }
 
     try {
-        const content: MessageContent[] = []
+      const content: MessageContent[] = []
 
       if (rawTextToStore) {
         content.push({ type: 'text', text: rawTextToStore })
@@ -160,7 +163,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
             type: 'image',
             bytes: new Uint8Array(await file.arrayBuffer()),
             mime: file.type || 'image/png',
-            name: file.name,
+            name: file.name
           })
         }
       }
@@ -191,7 +194,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
             resourceContext: {
               resourceBaseUrl: connectionStore.resourceBaseUrl,
               resourcePath: connectionStore.resourcePath,
-              resourceToken: connectionStore.resourceToken,
+              resourceToken: connectionStore.resourceToken
             }
           })
         } catch (error) {
@@ -218,6 +221,6 @@ export function useInputPanel(options: UseInputPanelOptions) {
     closeInputPanel,
     openInput,
     handleSendMessage,
-    fileToBase64,
+    fileToBase64
   }
 }

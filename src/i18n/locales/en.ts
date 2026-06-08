@@ -52,11 +52,14 @@ const en: I18nMessageSchema = {
   // Main window — model
   'main.model.folderFailed': 'Failed to select folder: {message}',
   'main.model.multiFileDetected': 'Multiple model files detected, auto-selected: {file}',
-  'main.model.compatibilityWarning': 'Model has compatibility or fallback resource warnings: {warnings}',
+  'main.model.compatibilityWarning':
+    'Model has compatibility or fallback resource warnings: {warnings}',
 
   // Main window — platform
-  'main.platform.waylandWarning': 'Linux Wayland session detected: smart passthrough and fullscreen app detection are unavailable.',
-  'main.platform.linuxWarning': 'Linux session detected: smart passthrough is unavailable, auto-update requires manual download.',
+  'main.platform.waylandWarning':
+    'Linux Wayland session detected: smart passthrough and fullscreen app detection are unavailable.',
+  'main.platform.linuxWarning':
+    'Linux session detected: smart passthrough is unavailable, auto-update requires manual download.',
 
   // Main window — misc
   'main.defaultUserName': 'Desktop User',
@@ -140,9 +143,11 @@ const en: I18nMessageSchema = {
 
   // Bridge validation
   'validation.urlRequired': 'Server address is required',
-  'validation.urlInvalid': 'Invalid server address format, please enter a complete WebSocket address',
+  'validation.urlInvalid':
+    'Invalid server address format, please enter a complete WebSocket address',
   'validation.urlProtocol': 'Server address must use ws or wss protocol',
-  'validation.tokenRequired': 'Auth token is required, please fill in the settings before connecting',
+  'validation.tokenRequired':
+    'Auth token is required, please fill in the settings before connecting',
 
   // Toasts — Connection
   'toast.connectionSaved': 'Connection configuration saved',
@@ -151,7 +156,8 @@ const en: I18nMessageSchema = {
   'toast.connectFailed': 'Connection failed: {error}',
   'toast.disconnected': 'Disconnected',
   'toast.disconnectFailed': 'Disconnect failed: {error}',
-  'toast.connectionConfigStale': 'Connection config was updated by another window, synced automatically',
+  'toast.connectionConfigStale':
+    'Connection config was updated by another window, synced automatically',
 
   // Toasts — Model
   'toast.modelImported': 'Model imported successfully',
@@ -224,7 +230,8 @@ const en: I18nMessageSchema = {
   'settings.about.adapterPlugin': 'Platform Adapter Plugin',
   'settings.about.enabled': 'Enabled',
   'settings.about.disabled': 'Disabled',
-  'settings.about.autoCheckDesc': 'When enabled, the app will automatically check for updates on startup. When disabled, updates will not be checked at startup but can still be checked manually.',
+  'settings.about.autoCheckDesc':
+    'When enabled, the app will automatically check for updates on startup. When disabled, updates will not be checked at startup but can still be checked manually.',
   'settings.about.checkUpdate': 'Check for Updates',
   'settings.about.restartAndInstall': 'Restart and Install',
   'settings.about.poweredBy': 'Powered by Live2D',
@@ -243,7 +250,8 @@ const en: I18nMessageSchema = {
   'settings.connection.bridge.disconnect': 'Disconnect',
   'settings.connection.bridge.resourceService': 'Resource Service',
   'settings.connection.bridge.resourceServerUrl': 'Resource Server URL',
-  'settings.connection.bridge.resourceServerUrlPlaceholder': 'Auto-follows connection address when empty',
+  'settings.connection.bridge.resourceServerUrlPlaceholder':
+    'Auto-follows connection address when empty',
   'settings.connection.bridge.resourcePath': 'Resource Path',
   'settings.connection.bridge.resourcePathPlaceholder': 'Defaults to handshake path or /resources',
   'settings.connection.bridge.resourceToken': 'Resource Access Token',
@@ -274,7 +282,8 @@ const en: I18nMessageSchema = {
 
   // Settings — Connection misc
   'settings.connection.initFailed': 'Connection configuration initialization failed',
-  'settings.connection.settingsStaleWarning': 'Connection configuration has been updated by another window. Please save or discard current changes before syncing.',
+  'settings.connection.settingsStaleWarning':
+    'Connection configuration has been updated by another window. Please save or discard current changes before syncing.',
   'settings.connection.resetFailed': 'Connection configuration reset failed: {error}',
 
   // Settings — Model
@@ -283,7 +292,8 @@ const en: I18nMessageSchema = {
   'settings.model.currentModel': 'Current model',
   'settings.model.noModelLoaded': 'No model loaded',
   'settings.model.notLoadedWarn': 'No model currently loaded',
-  'settings.model.expressionReloadFailed': 'Expression types saved, but model reload failed: {error}',
+  'settings.model.expressionReloadFailed':
+    'Expression types saved, but model reload failed: {error}',
 
   // Settings — Advanced / Platform
   'settings.advanced.platform.unknown': 'Unknown',
@@ -291,22 +301,28 @@ const en: I18nMessageSchema = {
   'settings.advanced.platform.gameModeNative': 'Available (native window manager)',
   'settings.advanced.platform.gameModeHeuristic': 'Available (active window heuristic)',
   'settings.advanced.platform.passThroughSupported': 'Supported',
-  'settings.advanced.platform.passThroughUnsupported': 'Unsupported (current platform cannot forward mouse events stably)',
-  'settings.advanced.platform.waylandNotice': 'Wayland session: smart passthrough and auto-detect fullscreen are unavailable. Use an X11 environment for a better experience.',
-  'settings.advanced.platform.linuxNotice': 'Linux session: smart passthrough is unavailable, auto-update requires manual download from Releases.',
-  'settings.advanced.platform.win32GameModeDisabled': 'Auto-detection of fullscreen applications is disabled on this Windows platform: {reason}',
+  'settings.advanced.platform.passThroughUnsupported':
+    'Unsupported (current platform cannot forward mouse events stably)',
+  'settings.advanced.platform.waylandNotice':
+    'Wayland session: smart passthrough and auto-detect fullscreen are unavailable. Use an X11 environment for a better experience.',
+  'settings.advanced.platform.linuxNotice':
+    'Linux session: smart passthrough is unavailable, auto-update requires manual download from Releases.',
+  'settings.advanced.platform.win32GameModeDisabled':
+    'Auto-detection of fullscreen applications is disabled on this Windows platform: {reason}',
 
   // Settings — History
   'settings.history.direction.outgoing': 'Sent',
   'settings.history.direction.incoming': 'Received',
   'settings.history.clearTitle': 'Clear History',
-  'settings.history.clearContent': 'Are you sure you want to clear all history? This action cannot be undone!',
+  'settings.history.clearContent':
+    'Are you sure you want to clear all history? This action cannot be undone!',
 
   // Settings — Maintenance
   'settings.maintenance.clearCacheTitle': 'Clear Cache',
   'settings.maintenance.clearCacheContent': 'Are you sure you want to clear all cached data?',
   'settings.maintenance.resetSettingsTitle': 'Reset Settings',
-  'settings.maintenance.resetSettingsContent': 'Are you sure you want to reset all settings? This action cannot be undone!',
+  'settings.maintenance.resetSettingsContent':
+    'Are you sure you want to reset all settings? This action cannot be undone!',
 
   // Tray
   'tray.showMain': 'Show Main Window',
@@ -363,25 +379,31 @@ const en: I18nMessageSchema = {
   'updater.portable.exeNotFound': 'Current portable executable path not found',
   'updater.portable.downloadNotFound': 'Downloaded portable update file not found',
   'updater.portable.exeNotExist': 'Current portable executable does not exist, cannot replace',
-  'updater.portable.pathAbnormal': 'Downloaded update file path is abnormal, cannot perform portable replacement',
+  'updater.portable.pathAbnormal':
+    'Downloaded update file path is abnormal, cannot perform portable replacement',
 
   // Cubism download dialogs
   'cubism.download.title': 'Live2D SDK Download',
   'cubism.download.message': 'First launch requires downloading Live2D Cubism SDK',
-  'cubism.download.detail': 'The app needs to download Live2D Cubism Core to run properly.\n\nBaseline: {baseline}\nSource: {url}\n\nClick "OK" to start download (~200KB).',
+  'cubism.download.detail':
+    'The app needs to download Live2D Cubism Core to run properly.\n\nBaseline: {baseline}\nSource: {url}\n\nClick "OK" to start download (~200KB).',
   'cubism.download.successTitle': 'Download Complete',
   'cubism.download.successMessage': 'Live2D SDK download successful',
   'cubism.download.successDetail': 'The app will continue to launch.',
   'cubism.download.failedTitle': 'Download Failed',
   'cubism.download.failedMessage': 'Live2D SDK download failed',
-  'cubism.download.failedDetail': 'Error: {error}\n\nPlease check your network connection and try again.',
-  'cubism.download.retryDetail': 'Error: {error}\n\nAttempt {attempt}/{max} failed. Would you like to retry?',
+  'cubism.download.failedDetail':
+    'Error: {error}\n\nPlease check your network connection and try again.',
+  'cubism.download.retryDetail':
+    'Error: {error}\n\nAttempt {attempt}/{max} failed. Would you like to retry?',
 
   // Main process error dialogs
   'mainProcess.databaseInitFailed': 'Database Initialization Failed',
-  'mainProcess.databaseInitFailedDetail': 'Failed to create or open database file. The app will exit.\n\nError details: {error}',
+  'mainProcess.databaseInitFailedDetail':
+    'Failed to create or open database file. The app will exit.\n\nError details: {error}',
   'mainProcess.initFailed': 'Initialization Failed',
-  'mainProcess.initFailedDetail': 'An error occurred during app initialization. The app will exit.\n\n{error}',
+  'mainProcess.initFailedDetail':
+    'An error occurred during app initialization. The app will exit.\n\n{error}',
 
   // Settings — Advanced shortcut
   'settings.advanced.shortcut.recordingShortcut': 'Global Recording Shortcut',
@@ -401,20 +423,24 @@ const en: I18nMessageSchema = {
   'settings.connection.workspace.sourceColor': 'Theme Color',
 
   // Settings — Model current
-  'settings.model.current.description': 'View the currently loaded Live2D model information and confirm whether the theme color comes from the model palette.',
+  'settings.model.current.description':
+    'View the currently loaded Live2D model information and confirm whether the theme color comes from the model palette.',
   'settings.model.current.notLoaded': 'No model loaded',
   'settings.model.current.expressions': 'Expression Types',
   'settings.model.current.saveExpression': 'Save Assignment',
-  'settings.model.current.expressionDesc': 'Assign exp3 expressions from the current model to fixed expression types. Multiple expressions can be assigned per type and one will be selected randomly during execution.',
+  'settings.model.current.expressionDesc':
+    'Assign exp3 expressions from the current model to fixed expression types. Multiple expressions can be assigned per type and one will be selected randomly during execution.',
   'settings.model.current.expressionProfilePath': 'Configuration saved with model: {path}',
   'settings.model.current.unassigned': 'Unassigned',
   'settings.model.current.noExpressions': 'Current model has no assignable exp3 expressions',
   'settings.model.current.preferences': 'Model Preferences',
-  'settings.model.current.preferencesDesc': 'Configure theme color following strategy. Changes take effect immediately.',
+  'settings.model.current.preferencesDesc':
+    'Configure theme color following strategy. Changes take effect immediately.',
   'settings.model.current.scale': 'Current Model Scale',
   'settings.model.current.resetScale': 'Reset',
   'settings.model.current.themeFollowModel': 'Theme follows current model',
-  'settings.model.current.themeFollowFeedback': 'When enabled, the interface theme will follow the current model color scheme; when disabled, manual or existing theme settings will be preserved.',
+  'settings.model.current.themeFollowFeedback':
+    'When enabled, the interface theme will follow the current model color scheme; when disabled, manual or existing theme settings will be preserved.',
   'settings.model.current.currentThemeColor': 'Current Theme Color',
   'settings.model.current.pickColor': 'Pick color',
   'settings.model.current.resetAutoColor': 'Restore auto extraction',
@@ -425,7 +451,8 @@ const en: I18nMessageSchema = {
 
   // Settings — Model library
   'settings.model.library.importModel': 'Import Model',
-  'settings.model.library.description': 'Manage local Live2D model files. {count} model(s) in total.',
+  'settings.model.library.description':
+    'Manage local Live2D model files. {count} model(s) in total.',
   'settings.model.library.current': 'Current',
   'settings.model.library.reload': 'Reload',
   'settings.model.library.load': 'Load',
@@ -433,7 +460,8 @@ const en: I18nMessageSchema = {
   'settings.model.library.empty': 'No models yet, please import one first',
 
   // Settings — Advanced behavior
-  'settings.advanced.behavior.description': 'Configure app startup behavior, notification strategy, and log level. Changes take effect immediately.',
+  'settings.advanced.behavior.description':
+    'Configure app startup behavior, notification strategy, and log level. Changes take effect immediately.',
   'settings.advanced.behavior.autoConnect': 'Auto-connect on launch',
   'settings.advanced.behavior.resumeOnWake': 'Auto-resume connection after system wake',
   'settings.advanced.behavior.retryEnabled': 'Enable auto-retry',
@@ -445,10 +473,12 @@ const en: I18nMessageSchema = {
   'settings.advanced.behavior.recordingMode': 'Recording mode',
   'settings.advanced.behavior.recordingModeHold': 'Hold to talk',
   'settings.advanced.behavior.recordingModeToggle': 'Click to toggle',
-  'settings.advanced.behavior.recordingModeFeedback': 'Hold to talk: press and hold to record, release to stop. Click to toggle: click once to start, click again to stop.',
+  'settings.advanced.behavior.recordingModeFeedback':
+    'Hold to talk: press and hold to record, release to stop. Click to toggle: click once to start, click again to stop.',
   'settings.advanced.behavior.autoLoadLastModel': 'Auto-load last model on launch',
   'settings.advanced.behavior.silenceDetection': 'Enable silence detection during recording',
-  'settings.advanced.behavior.silenceDetectionFeedback': 'Automatically stop recording when no sound is detected for a period, reducing silent audio segments.',
+  'settings.advanced.behavior.silenceDetectionFeedback':
+    'Automatically stop recording when no sound is detected for a period, reducing silent audio segments.',
   'settings.advanced.behavior.baseEventNotifications': 'Basic event notification toasts',
   'settings.advanced.behavior.logLevel': 'Log level',
   'settings.advanced.behavior.bubbleStackMax': 'Max bubble count',
@@ -461,20 +491,27 @@ const en: I18nMessageSchema = {
   'settings.advanced.behavior.screenshotQuality': 'Screenshot quality',
   'settings.advanced.behavior.screenshotMaxWidth': 'Screenshot max width',
   'settings.advanced.behavior.desktopInteraction': 'Desktop Interaction',
-  'settings.advanced.behavior.desktopInteractionDesc': 'Control desktop window always-on-top, mouse passthrough, and fullscreen app detection behavior. Changes are saved and take effect immediately.',
+  'settings.advanced.behavior.desktopInteractionDesc':
+    'Control desktop window always-on-top, mouse passthrough, and fullscreen app detection behavior. Changes are saved and take effect immediately.',
   'settings.advanced.behavior.alwaysOnTop': 'Always on top',
-  'settings.advanced.behavior.alwaysOnTopFeedback': 'Keep the desktop character window above normal applications, suitable for scenarios requiring continuous character display.',
+  'settings.advanced.behavior.alwaysOnTopFeedback':
+    'Keep the desktop character window above normal applications, suitable for scenarios requiring continuous character display.',
   'settings.advanced.behavior.passThroughMode': 'Mouse pass-through',
   'settings.advanced.behavior.passThroughNone': 'No pass-through',
   'settings.advanced.behavior.passThroughDynamic': 'Smart pass-through',
   'settings.advanced.behavior.passThroughFull': 'Full pass-through',
-  'settings.advanced.behavior.passThroughNoneFeedback': 'Mouse events respond normally in the model area without passing through to underlying apps.',
-  'settings.advanced.behavior.passThroughDynamicFeedback': 'Clickable only when hovering over the model or interactive controls; other areas pass through.',
-  'settings.advanced.behavior.passThroughFullFeedback': 'The main window ignores all mouse events, only operable via shortcuts and tray menu.',
+  'settings.advanced.behavior.passThroughNoneFeedback':
+    'Mouse events respond normally in the model area without passing through to underlying apps.',
+  'settings.advanced.behavior.passThroughDynamicFeedback':
+    'Clickable only when hovering over the model or interactive controls; other areas pass through.',
+  'settings.advanced.behavior.passThroughFullFeedback':
+    'The main window ignores all mouse events, only operable via shortcuts and tray menu.',
   'settings.advanced.behavior.autoDetectFullscreen': 'Auto-detect fullscreen apps',
-  'settings.advanced.behavior.autoDetectFullscreenFeedback': 'When a game or other fullscreen application is detected, automatically adjust window behavior with desktop mode; this option is disabled when unsupported by the current platform.',
+  'settings.advanced.behavior.autoDetectFullscreenFeedback':
+    'When a game or other fullscreen application is detected, automatically adjust window behavior with desktop mode; this option is disabled when unsupported by the current platform.',
   'settings.advanced.behavior.platformCapabilities': 'Platform Capabilities',
-  'settings.advanced.behavior.platformCapabilitiesDesc': 'Features supported by the current system platform.',
+  'settings.advanced.behavior.platformCapabilitiesDesc':
+    'Features supported by the current system platform.',
   'settings.advanced.behavior.currentPlatform': 'Current platform',
   'settings.advanced.behavior.gameModeLabel': 'Auto-detect fullscreen apps',
   'settings.advanced.behavior.passThroughLabel': 'Smart passthrough support',
@@ -500,23 +537,30 @@ const en: I18nMessageSchema = {
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': 'Unsaved',
   'settings.advanced.watcher.synced': 'Synced',
-  'settings.advanced.watcher.description': 'Draft-based editing. All changes are only written to the backend after clicking "Save Changes", avoiding continuous IPC triggers during input.',
+  'settings.advanced.watcher.description':
+    'Draft-based editing. All changes are only written to the backend after clicking "Save Changes", avoiding continuous IPC triggers during input.',
   'settings.advanced.watcher.discardChanges': 'Discard Changes',
   'settings.advanced.watcher.saveChanges': 'Save Changes',
   'settings.advanced.watcher.resetDefault': 'Reset to Default',
   'settings.advanced.watcher.basicSwitches': 'Basic Switches',
-  'settings.advanced.watcher.basicSwitchesDesc': 'Monitor window changes to let AI proactively perceive your actions. Changes here remain as local drafts until saved.',
+  'settings.advanced.watcher.basicSwitchesDesc':
+    'Monitor window changes to let AI proactively perceive your actions. Changes here remain as local drafts until saved.',
   'settings.advanced.watcher.enableWatcher': 'Enable window watcher',
   'settings.advanced.watcher.enableAppLaunch': 'Enable app launch detection',
-  'settings.advanced.watcher.appLaunchFeedback': 'When disabled, new app launches will no longer trigger proactive desktop events, but other watcher configurations are preserved.',
+  'settings.advanced.watcher.appLaunchFeedback':
+    'When disabled, new app launches will no longer trigger proactive desktop events, but other watcher configurations are preserved.',
   'settings.advanced.watcher.monitorFrequency': 'Monitoring Frequency',
-  'settings.advanced.watcher.monitorFrequencyDesc': 'Adjust event trigger rate limiting to prevent AI from responding too frequently.',
+  'settings.advanced.watcher.monitorFrequencyDesc':
+    'Adjust event trigger rate limiting to prevent AI from responding too frequently.',
   'settings.advanced.watcher.globalInterval': 'Global rate limit (ms)',
-  'settings.advanced.watcher.globalIntervalFeedback': 'Minimum interval between any two events. Default: 1000ms (1 second).',
+  'settings.advanced.watcher.globalIntervalFeedback':
+    'Minimum interval between any two events. Default: 1000ms (1 second).',
   'settings.advanced.watcher.perWindowInterval': 'Per-window rate limit (ms)',
-  'settings.advanced.watcher.perWindowIntervalFeedback': 'Minimum interval between two events from the same window. Default: 3000ms (3 seconds).',
+  'settings.advanced.watcher.perWindowIntervalFeedback':
+    'Minimum interval between two events from the same window. Default: 3000ms (3 seconds).',
   'settings.advanced.watcher.minInterval': 'Minimum interval (ms)',
-  'settings.advanced.watcher.minIntervalFeedback': 'Prevents excessively frequent triggers. Default: 100ms.',
+  'settings.advanced.watcher.minIntervalFeedback':
+    'Prevents excessively frequent triggers. Default: 100ms.',
   'settings.advanced.watcher.globalIntervalPlaceholder': 'Default 1000ms',
   'settings.advanced.watcher.perWindowIntervalPlaceholder': 'Default 3000ms',
   'settings.advanced.watcher.minIntervalPlaceholder': 'Default 100ms',
@@ -540,15 +584,22 @@ const en: I18nMessageSchema = {
   'settings.advanced.watcher.aiModeSpecificApps': 'Respond only for specific apps',
   'settings.advanced.watcher.specificAppsList': 'Specific app list (one process name per line)',
   'settings.advanced.watcher.ignoreRules': 'Ignore Rules',
-  'settings.advanced.watcher.ignoreRulesDesc': 'Configure additional processes and windows to ignore. System-critical processes are already built-in; rules added here merge with built-in rules.',
+  'settings.advanced.watcher.ignoreRulesDesc':
+    'Configure additional processes and windows to ignore. System-critical processes are already built-in; rules added here merge with built-in rules.',
   'settings.advanced.watcher.builtinRules': 'Built-in ignore rules (always active)',
-  'settings.advanced.watcher.builtinRulesContent': 'Processes: dwm.exe, csrss.exe, explorer.exe, SearchUI.exe and other system processes\nTitles: Program Manager, Lock Screen, Task Switching and other system windows',
+  'settings.advanced.watcher.builtinRulesContent':
+    'Processes: dwm.exe, csrss.exe, explorer.exe, SearchUI.exe and other system processes\nTitles: Program Manager, Lock Screen, Task Switching and other system windows',
   'settings.advanced.watcher.ignoreProcessNames': 'Additional ignored process names (one per line)',
-  'settings.advanced.watcher.ignoreProcessNamesPlaceholder': 'Enter additional process names to ignore...',
-  'settings.advanced.watcher.ignoreProcessNamesFeedback': 'These process names merge with built-in rules to filter out processes that should not trigger AI responses.',
-  'settings.advanced.watcher.ignoreTitleKeywords': 'Additional ignored window title keywords (one per line)',
-  'settings.advanced.watcher.ignoreTitleKeywordsPlaceholder': 'Enter additional title keywords to ignore...',
-  'settings.advanced.watcher.ignoreTitleKeywordsFeedback': 'Windows with titles containing these keywords will be ignored.',
+  'settings.advanced.watcher.ignoreProcessNamesPlaceholder':
+    'Enter additional process names to ignore...',
+  'settings.advanced.watcher.ignoreProcessNamesFeedback':
+    'These process names merge with built-in rules to filter out processes that should not trigger AI responses.',
+  'settings.advanced.watcher.ignoreTitleKeywords':
+    'Additional ignored window title keywords (one per line)',
+  'settings.advanced.watcher.ignoreTitleKeywordsPlaceholder':
+    'Enter additional title keywords to ignore...',
+  'settings.advanced.watcher.ignoreTitleKeywordsFeedback':
+    'Windows with titles containing these keywords will be ignored.',
 
   // Settings — History messages
   'settings.history.messages.searchPlaceholder': 'Search messages...',
@@ -579,7 +630,8 @@ const en: I18nMessageSchema = {
   'error.resourceIdIllegalPath': 'Resource identifier contains illegal path segments',
   'error.resourceRequestFailed': 'Resource request failed ({status})',
   'error.resourceNotResolvable': 'Message resource cannot be resolved to downloadable URL: {name}',
-  'error.resourceMixedWrite': 'Message contains both localized and unlocalized resources, rejecting mixed write',
+  'error.resourceMixedWrite':
+    'Message contains both localized and unlocalized resources, rejecting mixed write',
   'error.databaseNotInitialized': 'Database not initialized',
   'error.notConnectedToServer': 'Not connected to server',
   'error.connectionSuperseded': 'Connection request superseded by a newer lifecycle operation',
@@ -590,7 +642,8 @@ const en: I18nMessageSchema = {
   'error.modelNameEmpty': 'Model name cannot be empty',
   'error.modelNameIllegal': 'Model name is invalid',
   'error.selectValidModelFolder': 'Please select a valid model folder',
-  'error.cubism2ModelUnsupported': 'Detected .model.json (Cubism 2) model. Cubism 2 has been deprecated, please use a .model3.json model instead.',
+  'error.cubism2ModelUnsupported':
+    'Detected .model.json (Cubism 2) model. Cubism 2 has been deprecated, please use a .model3.json model instead.',
   'error.model3NotFound': 'No .model3.json model file found in this folder',
   'error.modelResourceIncomplete': 'Model resources incomplete',
   'error.desktopSourceUnavailable': 'Unable to get desktop capture source',
@@ -598,8 +651,10 @@ const en: I18nMessageSchema = {
   'error.unknownTool': 'Unknown tool: {name}',
   'error.localHistoryResourceMissing': 'Local history resource does not exist',
   'error.onlyHttpMailtoProtocol': 'Only http/https/mailto protocol links are supported',
-  'error.onlyResourceProtocol': 'Only http/https/data/history-resource protocol resources are supported',
-  'error.onlyResourceProtocolSave': 'Only http/https/data/history-resource protocol resources can be saved',
+  'error.onlyResourceProtocol':
+    'Only http/https/data/history-resource protocol resources are supported',
+  'error.onlyResourceProtocolSave':
+    'Only http/https/data/history-resource protocol resources can be saved',
   'error.windowNotFound': 'Current window not found',
   'error.settingsWindowMismatch': 'Settings window state mismatch',
   'error.cannotGetWindowInstance': 'Cannot get window instance',
@@ -607,7 +662,8 @@ const en: I18nMessageSchema = {
   'error.targetNotDirectory': 'Parent of target path is not a directory: {dir}',
   'error.redirectLimitExceeded': 'Redirect limit exceeded',
   'error.downloadFailed': 'Download failed: {status}',
-  'error.attachmentTooLarge': 'Attachment size exceeds inline limit ({limit} bytes) and server does not support resource upload',
+  'error.attachmentTooLarge':
+    'Attachment size exceeds inline limit ({limit} bytes) and server does not support resource upload',
   'error.resourceUploadFailed': 'Resource upload failed, cannot send large attachment',
   'error.sdkDownloadFailed': 'SDK download failed',
   'error.cubism3Only': 'This version only supports Cubism 3/4 .model3.json models.',
@@ -618,11 +674,15 @@ const en: I18nMessageSchema = {
   'error.recordingAlreadyStopped': 'Recording already stopped',
   'error.saveOfflineHistoryFailed': 'Failed to save offline history messages',
   'error.wakeWordEmpty': 'Wake word is empty, stopped listening',
-  'error.missingPorcupineAccessKey': 'Missing Porcupine AccessKey, please set VITE_PORCUPINE_ACCESS_KEY in configuration',
+  'error.missingPorcupineAccessKey':
+    'Missing Porcupine AccessKey, please set VITE_PORCUPINE_ACCESS_KEY in configuration',
   'error.wakeWordResourceMissing': 'Wake word resources missing: {files}',
-  'error.porcupineModuleLoadFailed': 'Failed to load local Porcupine module ({path}). Please confirm the file exists and is accessible offline. Original error: {message}',
-  'error.porcupineCreateNotFound': 'Porcupine.create interface not found, please check local Porcupine SDK file',
-  'error.porcupineNoBuiltinKeyword': 'Current Porcupine module does not support built-in keywords, please use local .ppn file instead',
+  'error.porcupineModuleLoadFailed':
+    'Failed to load local Porcupine module ({path}). Please confirm the file exists and is accessible offline. Original error: {message}',
+  'error.porcupineCreateNotFound':
+    'Porcupine.create interface not found, please check local Porcupine SDK file',
+  'error.porcupineNoBuiltinKeyword':
+    'Current Porcupine module does not support built-in keywords, please use local .ppn file instead',
   'error.builtinKeywordNotFound': 'Built-in keyword not found: {name}',
   'error.porcupineInitFailed': 'Porcupine initialization failed: {error}',
   'error.porcupineInstanceUnavailable': 'Porcupine instance unavailable, missing process() method',
@@ -631,7 +691,8 @@ const en: I18nMessageSchema = {
   'error.createTextureFailed': 'Failed to create texture',
   'error.loadTextureFailed': 'Failed to load texture: {path}',
   'error.loadFileFailed': 'Failed to load file: {path} ({status})',
-  'error.expressionFallbackWarning': 'Expression file had no executable parameters, fell back to native expression runtime',
+  'error.expressionFallbackWarning':
+    'Expression file had no executable parameters, fell back to native expression runtime',
   'error.desktopBehaviorIllegalParam': 'desktopBehavior:requestReveal parameter is invalid',
   'error.domainNotInjected': '{name} not injected',
   'error.textureLoadAllFailed': 'Texture loading failed: {textures}',
@@ -642,7 +703,7 @@ const en: I18nMessageSchema = {
 
   // Settings — History media viewer
   'settings.history.mediaViewer.imageAlt': 'History message image enlarged preview',
-  'settings.history.mediaViewer.closeHint': 'Press ESC or click empty area to close',
+  'settings.history.mediaViewer.closeHint': 'Press ESC or click empty area to close'
 }
 
 export default en

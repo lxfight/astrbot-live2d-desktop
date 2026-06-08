@@ -35,7 +35,8 @@ export interface HistorySettingsDomain {
   totalPages: Ref<number>
 }
 
-export const historySettingsDomainKey: InjectionKey<HistorySettingsDomain> = Symbol('history-settings-domain')
+export const historySettingsDomainKey: InjectionKey<HistorySettingsDomain> =
+  Symbol('history-settings-domain')
 
 export function useHistorySettingsDomain() {
   const domain = inject(historySettingsDomainKey)
@@ -55,10 +56,7 @@ interface CreateHistorySettingsDomainOptions {
 }
 
 function createDefaultDateRange(): [number, number] {
-  return [
-    Date.now() - 7 * 24 * 60 * 60 * 1000,
-    Date.now(),
-  ]
+  return [Date.now() - 7 * 24 * 60 * 60 * 1000, Date.now()]
 }
 
 function normalizeError(error: unknown, fallback: string): Error {
@@ -74,7 +72,7 @@ function normalizeError(error: unknown, fallback: string): Error {
 }
 
 export function createHistorySettingsDomain(
-  options: CreateHistorySettingsDomainOptions,
+  options: CreateHistorySettingsDomainOptions
 ): HistorySettingsDomain {
   const { dialog, message } = options
   const { t } = useI18n()
@@ -97,31 +95,35 @@ export function createHistorySettingsDomain(
 
   const directionOptions = [
     { label: t('settings.history.direction.outgoing'), value: 'outgoing' },
-    { label: t('settings.history.direction.incoming'), value: 'incoming' },
+    { label: t('settings.history.direction.incoming'), value: 'incoming' }
   ] as const
 
   async function syncResourceConfig(force = false) {
-    await taskCache.runTask('history:resource-config', async () => {
-      await connectionStore.ensureInitialized()
+    await taskCache.runTask(
+      'history:resource-config',
+      async () => {
+        await connectionStore.ensureInitialized()
 
-      if (force) {
-        await Promise.all([
-          connectionStore.reloadPersistedSettings(),
-          connectionStore.refreshLifecycleSnapshot(),
-        ])
-      }
+        if (force) {
+          await Promise.all([
+            connectionStore.reloadPersistedSettings(),
+            connectionStore.refreshLifecycleSnapshot()
+          ])
+        }
 
-      historyResourceBaseUrl.value = connectionStore.resourceBaseUrl
-      historyResourcePath.value = connectionStore.resourcePath
-      historyResourceToken.value = connectionStore.resourceToken
-    }, force)
+        historyResourceBaseUrl.value = connectionStore.resourceBaseUrl
+        historyResourcePath.value = connectionStore.resourcePath
+        historyResourceToken.value = connectionStore.resourceToken
+      },
+      force
+    )
   }
 
   async function loadMessages() {
     try {
       const requestOptions: Record<string, unknown> = {
         limit: pageSize.value,
-        offset: (currentPage.value - 1) * pageSize.value,
+        offset: (currentPage.value - 1) * pageSize.value
       }
 
       const normalizedKeyword = keyword.value.trim()
@@ -137,7 +139,7 @@ export function createHistorySettingsDomain(
       requestOptions.resourceContext = {
         resourceBaseUrl: historyResourceBaseUrl.value,
         resourcePath: historyResourcePath.value,
-        resourceToken: historyResourceToken.value,
+        resourceToken: historyResourceToken.value
       }
 
       const result = await window.electron.history.getMessages(requestOptions)
@@ -178,7 +180,7 @@ export function createHistorySettingsDomain(
   async function ensureMessagesReady(force = false) {
     await Promise.all([
       syncResourceConfig(force),
-      taskCache.runTask('history:messages', loadMessages, force),
+      taskCache.runTask('history:messages', loadMessages, force)
     ])
   }
 
@@ -199,7 +201,7 @@ export function createHistorySettingsDomain(
   }
 
   const debouncedRefreshMessages = useDebounceFn(() => {
-    void refreshMessages().catch((error) => {
+    void refreshMessages().catch(error => {
       message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }, 250)
@@ -211,14 +213,14 @@ export function createHistorySettingsDomain(
 
   function handleDirectionFilterChange() {
     currentPage.value = 1
-    void refreshMessages().catch((error) => {
+    void refreshMessages().catch(error => {
       message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
 
   function handlePageChange(page: number) {
     currentPage.value = page
-    void refreshMessages().catch((error) => {
+    void refreshMessages().catch(error => {
       message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
@@ -226,14 +228,14 @@ export function createHistorySettingsDomain(
   function handlePageSizeChange(size: number) {
     pageSize.value = size
     currentPage.value = 1
-    void refreshMessages().catch((error) => {
+    void refreshMessages().catch(error => {
       message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
     })
   }
 
   function handleDateRangeChange(value: [number, number] | null) {
     dateRange.value = value
-    void refreshStatistics().catch((error) => {
+    void refreshStatistics().catch(error => {
       message.error(normalizeError(error, t('toast.historyStatsFailed')).message)
     })
   }
@@ -271,7 +273,9 @@ export function createHistorySettingsDomain(
         throw new Error(result.error || t('toast.fileOpenFailed', { error: '' }))
       }
     } catch (error) {
-      message.error(t('toast.fileOpenFailed', { error: normalizeError(error, '打开文件失败').message }))
+      message.error(
+        t('toast.fileOpenFailed', { error: normalizeError(error, '打开文件失败').message })
+      )
     }
   }
 
@@ -294,16 +298,15 @@ export function createHistorySettingsDomain(
 
       message.success(t('toast.fileSaved'))
     } catch (error) {
-      message.error(t('toast.fileDownloadFailed', { error: normalizeError(error, '下载文件失败').message }))
+      message.error(
+        t('toast.fileDownloadFailed', { error: normalizeError(error, '下载文件失败').message })
+      )
     }
   }
 
   async function handleRefreshMessages() {
     try {
-      await Promise.all([
-        refreshMessages({ syncResource: true }),
-        refreshStatistics(),
-      ])
+      await Promise.all([refreshMessages({ syncResource: true }), refreshStatistics()])
       message.success(t('toast.historyRefreshed'))
     } catch (error) {
       message.error(normalizeError(error, t('toast.historyLoadedFailed')).message)
@@ -324,15 +327,16 @@ export function createHistorySettingsDomain(
           }
 
           currentPage.value = 1
-          await Promise.all([
-            refreshMessages(),
-            refreshStatistics(),
-          ])
+          await Promise.all([refreshMessages(), refreshStatistics()])
           message.success(t('toast.historyCleared'))
         } catch (error) {
-          message.error(t('toast.historyClearFailed', { error: normalizeError(error, '清空历史记录失败').message }))
+          message.error(
+            t('toast.historyClearFailed', {
+              error: normalizeError(error, '清空历史记录失败').message
+            })
+          )
         }
-      },
+      }
     })
   }
 
@@ -362,6 +366,6 @@ export function createHistorySettingsDomain(
     statisticsData,
     syncResourceConfig,
     totalMessages,
-    totalPages,
+    totalPages
   }
 }

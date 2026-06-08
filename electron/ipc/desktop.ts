@@ -5,9 +5,7 @@
 
 import { BrowserWindow, desktopCapturer, screen } from 'electron'
 import { loadScreenshotSettings } from '../utils/screenshotSettings'
-import {
-  safeGetActiveWindow as safeLoadActiveWindow,
-} from '../utils/activeWinLoader'
+import { safeGetActiveWindow as safeLoadActiveWindow } from '../utils/activeWinLoader'
 import { createScopedLogger } from '../utils/logger'
 import { t } from '../../src/i18n/mainProcess'
 import type {
@@ -16,7 +14,7 @@ import type {
   DesktopCaptureResponsePayload,
   DesktopWindowListPayload,
   DesktopWindowActivePayload,
-  DesktopToolDeclaration,
+  DesktopToolDeclaration
 } from '../protocol/types'
 
 const logger = createScopedLogger('desktop.capture')
@@ -26,7 +24,9 @@ async function safeGetActiveWin(): Promise<any | null> {
 }
 
 function normalizeToken(value: unknown): string {
-  return String(value || '').trim().toLowerCase()
+  return String(value || '')
+    .trim()
+    .toLowerCase()
 }
 
 function isOwnWindow(win: any): boolean {
@@ -72,26 +72,24 @@ const CAPTURE_BYPASS_KEYWORDS = [
   'screenclippinghost',
   'clipping',
   '截图',
-  '截屏',
+  '截屏'
 ]
 
 function shouldBypassActiveWindowCapture(activeWin: any): boolean {
   const tokens = [
     normalizeToken(activeWin?.owner?.name),
     normalizeToken(activeWin?.owner?.path),
-    normalizeToken(activeWin?.title),
+    normalizeToken(activeWin?.title)
   ].filter(Boolean)
   if (!tokens.length) return false
-  return CAPTURE_BYPASS_KEYWORDS.some((kw) =>
-    tokens.some((token) => token.includes(kw))
-  )
+  return CAPTURE_BYPASS_KEYWORDS.some(kw => tokens.some(token => token.includes(kw)))
 }
 
 function getDisplayFromActiveWindow(win: any): Electron.Display {
   if (win?.bounds) {
     const center = {
       x: Math.round(win.bounds.x + win.bounds.width / 2),
-      y: Math.round(win.bounds.y + win.bounds.height / 2),
+      y: Math.round(win.bounds.y + win.bounds.height / 2)
     }
     return screen.getDisplayNearestPoint(center)
   }
@@ -104,8 +102,8 @@ function pickDesktopSource(
 ): Electron.DesktopCapturerSource {
   const displayId = String(display.id)
   return (
-    sources.find((s) => s.display_id === displayId) ||
-    sources.find((s) => !s.display_id || s.display_id === '0') ||
+    sources.find(s => s.display_id === displayId) ||
+    sources.find(s => !s.display_id || s.display_id === '0') ||
     sources[0]
   )
 }
@@ -121,13 +119,13 @@ function pickWindowSource(
 
   return (
     (target === 'window' && reqWindowId
-      ? sources.find((s) => s.id === reqWindowId || s.id.includes(reqWindowId))
+      ? sources.find(s => s.id === reqWindowId || s.id.includes(reqWindowId))
       : undefined) ||
     (target === 'active' && activeId
-      ? sources.find((s) => s.id === activeId || s.id.includes(activeId))
+      ? sources.find(s => s.id === activeId || s.id.includes(activeId))
       : undefined) ||
     (target === 'active' && activeTitle
-      ? sources.find((s) => s.name === activeTitle || s.name.includes(activeTitle))
+      ? sources.find(s => s.name === activeTitle || s.name.includes(activeTitle))
       : undefined) ||
     sources[0]
   )
@@ -149,7 +147,7 @@ function toWindowInfo(win: any): DesktopWindowInfo {
     id: String(win.id ?? ''),
     title: win.title ?? '',
     processName: win.owner?.name ?? '',
-    isActive: true,
+    isActive: true
   }
 }
 
@@ -161,7 +159,7 @@ export async function getWindowList(): Promise<DesktopWindowListPayload> {
   if (!win || isOwnWindow(win)) {
     timer.done({
       count: 0,
-      ignoredOwnWindow: Boolean(win && isOwnWindow(win)),
+      ignoredOwnWindow: Boolean(win && isOwnWindow(win))
     })
     return { windows: [] }
   }
@@ -169,7 +167,7 @@ export async function getWindowList(): Promise<DesktopWindowListPayload> {
   timer.done({
     count: payload.windows.length,
     title: payload.windows[0]?.title,
-    processName: payload.windows[0]?.processName,
+    processName: payload.windows[0]?.processName
   })
   return payload
 }
@@ -180,7 +178,7 @@ export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
   if (!win || isOwnWindow(win)) {
     timer.done({
       hasWindow: false,
-      ignoredOwnWindow: Boolean(win && isOwnWindow(win)),
+      ignoredOwnWindow: Boolean(win && isOwnWindow(win))
     })
     return { window: null }
   }
@@ -188,7 +186,7 @@ export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
   timer.done({
     hasWindow: true,
     title: windowInfo.title,
-    processName: windowInfo.processName,
+    processName: windowInfo.processName
   })
   return { window: windowInfo }
 }
@@ -208,7 +206,7 @@ export async function captureScreenshot(
     requestedQuality: req.quality,
     requestedMaxWidth: req.maxWidth,
     hasUploadFn: Boolean(uploadFn),
-    maxInlineBytes: options.maxInlineBytes,
+    maxInlineBytes: options.maxInlineBytes
   })
   const screenshotSettings = loadScreenshotSettings()
   const target = req.target || screenshotSettings.defaultTarget
@@ -223,11 +221,11 @@ export async function captureScreenshot(
     logger.debug('desktop_source.select.start', {
       displayId: targetDisplay.id,
       displayBounds: targetDisplay.bounds,
-      displaySize: targetDisplay.size,
+      displaySize: targetDisplay.size
     })
     const desktopSources = await desktopCapturer.getSources({
       types: ['screen'],
-      thumbnailSize: targetDisplay.size,
+      thumbnailSize: targetDisplay.size
     })
     const desktopSource = pickDesktopSource(desktopSources, targetDisplay)
     if (!desktopSource) {
@@ -237,7 +235,7 @@ export async function captureScreenshot(
       displayId: targetDisplay.id,
       sourceId: desktopSource.id,
       sourceName: desktopSource.name,
-      sourceCount: desktopSources.length,
+      sourceCount: desktopSources.length
     })
     return desktopSource
   }
@@ -248,7 +246,8 @@ export async function captureScreenshot(
   if (target === 'desktop') {
     src = await getDesktopSource()
   } else {
-    const shouldFallbackToDesktop = target === 'active' && shouldBypassActiveWindowCapture(activeWin)
+    const shouldFallbackToDesktop =
+      target === 'active' && shouldBypassActiveWindowCapture(activeWin)
 
     if (shouldFallbackToDesktop) {
       fallbackReason = 'active_window_bypassed'
@@ -256,7 +255,7 @@ export async function captureScreenshot(
     } else {
       const windowSources = await desktopCapturer.getSources({
         types: ['window'],
-        thumbnailSize: thumbSize,
+        thumbnailSize: thumbSize
       })
       src = pickWindowSource(windowSources, target, req.windowId, activeWin)
       logger.debug('window_source.select', {
@@ -266,11 +265,12 @@ export async function captureScreenshot(
         activeWindowTitle: activeWin?.title,
         sourceId: src?.id,
         sourceName: src?.name,
-        sourceCount: windowSources.length,
+        sourceCount: windowSources.length
       })
 
       const candidateSize = src?.thumbnail?.getSize?.()
-      const invalidWindowSource = !candidateSize || candidateSize.width <= 16 || candidateSize.height <= 16
+      const invalidWindowSource =
+        !candidateSize || candidateSize.width <= 16 || candidateSize.height <= 16
       if (invalidWindowSource) {
         fallbackReason = 'invalid_window_source'
         src = await getDesktopSource()
@@ -297,7 +297,7 @@ export async function captureScreenshot(
       width: size.width,
       height: size.height,
       bytes: jpegBuf.length,
-      fallbackReason,
+      fallbackReason
     })
     throw new Error(t('error.screenshotSourceUnavailable'))
   }
@@ -319,8 +319,8 @@ export async function captureScreenshot(
     window: {
       id: src.id,
       title: src.name,
-      processName: activeWin?.owner?.name,
-    },
+      processName: activeWin?.owner?.name
+    }
   }
   timer.done({
     target,
@@ -331,7 +331,7 @@ export async function captureScreenshot(
     bytes: jpegBuf.length,
     inlineThreshold,
     imageMode,
-    fallbackReason,
+    fallbackReason
   })
   return result
 }
@@ -345,21 +345,31 @@ export function getDesktopTools(): DesktopToolDeclaration[] {
   return [
     {
       name: 'get_active_window',
-      description: '获取用户当前正在使用的活跃窗口信息（标题、进程名）。当需要了解用户正在做什么时调用。',
-      parameters: [],
+      description:
+        '获取用户当前正在使用的活跃窗口信息（标题、进程名）。当需要了解用户正在做什么时调用。',
+      parameters: []
     },
     {
       name: 'capture_screenshot',
-      description: '截取用户桌面或特定窗口的屏幕截图。截图将作为图片附加到上下文供你分析。当需要查看用户屏幕内容、帮助用户解决问题、或对用户正在看的内容进行评论时调用。',
+      description:
+        '截取用户桌面或特定窗口的屏幕截图。截图将作为图片附加到上下文供你分析。当需要查看用户屏幕内容、帮助用户解决问题、或对用户正在看的内容进行评论时调用。',
       parameters: [
-        { name: 'target', type: 'string', description: '截图目标。"desktop"（全屏）、"active"（当前活跃窗口，默认）', required: false },
-      ],
-    },
+        {
+          name: 'target',
+          type: 'string',
+          description: '截图目标。"desktop"（全屏）、"active"（当前活跃窗口，默认）',
+          required: false
+        }
+      ]
+    }
   ]
 }
 
 // 工具名 → 处理函数映射
-const toolHandlers: Record<string, (args: Record<string, any>, ctx: ToolCallContext) => Promise<any>> = {
+const toolHandlers: Record<
+  string,
+  (args: Record<string, any>, ctx: ToolCallContext) => Promise<any>
+> = {
   get_active_window: async () => {
     return await getActiveWindow()
   },
@@ -368,10 +378,10 @@ const toolHandlers: Record<string, (args: Record<string, any>, ctx: ToolCallCont
     const req: DesktopCaptureRequestPayload = {
       target: args.target || screenshotSettings.defaultTarget,
       quality: screenshotSettings.quality,
-      maxWidth: screenshotSettings.maxWidth,
+      maxWidth: screenshotSettings.maxWidth
     }
     return await captureScreenshot(req, ctx.uploadFn, { maxInlineBytes: ctx.maxInlineBytes })
-  },
+  }
 }
 
 /**
@@ -386,7 +396,7 @@ export async function handleToolCall(
     toolName,
     args,
     hasUploadFn: Boolean(ctx.uploadFn),
-    maxInlineBytes: ctx.maxInlineBytes,
+    maxInlineBytes: ctx.maxInlineBytes
   })
   const handler = toolHandlers[toolName]
   if (!handler) {

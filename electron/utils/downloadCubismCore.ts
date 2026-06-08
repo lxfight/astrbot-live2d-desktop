@@ -65,9 +65,9 @@ protocol.registerSchemesAsPrivileged([
       secure: true,
       supportFetchAPI: true,
       corsEnabled: true,
-      stream: true,
-    },
-  },
+      stream: true
+    }
+  }
 ])
 
 let cubismProtocolRegistered = false
@@ -160,7 +160,11 @@ const MAX_REDIRECTS = 5
 /**
  * 下载文件
  */
-function downloadFile(url: string, dest: string, maxRedirects: number = MAX_REDIRECTS): Promise<void> {
+function downloadFile(
+  url: string,
+  dest: string,
+  maxRedirects: number = MAX_REDIRECTS
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const protocolClient = url.startsWith('https') ? https : http
 
@@ -173,49 +177,51 @@ function downloadFile(url: string, dest: string, maxRedirects: number = MAX_REDI
 
     const file = fs.createWriteStream(dest)
 
-    protocolClient.get(url, (response) => {
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        file.close()
-        if (fs.existsSync(dest)) {
-          fs.unlinkSync(dest)
+    protocolClient
+      .get(url, response => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          file.close()
+          if (fs.existsSync(dest)) {
+            fs.unlinkSync(dest)
+          }
+          if (maxRedirects <= 0) {
+            return reject(new Error(t('error.redirectLimitExceeded')))
+          }
+          const redirectUrl = new URL(response.headers.location || '', url).toString()
+          return downloadFile(redirectUrl, dest, maxRedirects - 1)
+            .then(resolve)
+            .catch(reject)
         }
-        if (maxRedirects <= 0) {
-          return reject(new Error(t('error.redirectLimitExceeded')))
+
+        if (response.statusCode !== 200) {
+          file.close()
+          if (fs.existsSync(dest)) {
+            fs.unlinkSync(dest)
+          }
+          return reject(new Error(t('error.downloadFailed', { status: response.statusCode ?? 0 })))
         }
-        const redirectUrl = new URL(response.headers.location || '', url).toString()
-        return downloadFile(redirectUrl, dest, maxRedirects - 1)
-          .then(resolve)
-          .catch(reject)
-      }
 
-      if (response.statusCode !== 200) {
-        file.close()
-        if (fs.existsSync(dest)) {
-          fs.unlinkSync(dest)
-        }
-        return reject(new Error(t('error.downloadFailed', { status: response.statusCode ?? 0 })))
-      }
+        response.pipe(file)
 
-      response.pipe(file)
+        file.on('finish', () => {
+          file.close()
+          resolve()
+        })
 
-      file.on('finish', () => {
-        file.close()
-        resolve()
+        file.on('error', err => {
+          file.close()
+          if (fs.existsSync(dest)) {
+            fs.unlinkSync(dest)
+          }
+          reject(err)
+        })
       })
-
-      file.on('error', (err) => {
-        file.close()
+      .on('error', err => {
         if (fs.existsSync(dest)) {
           fs.unlinkSync(dest)
         }
         reject(err)
       })
-    }).on('error', (err) => {
-      if (fs.existsSync(dest)) {
-        fs.unlinkSync(dest)
-      }
-      reject(err)
-    })
   })
 }
 
@@ -232,11 +238,14 @@ export async function downloadCubismCore(): Promise<void> {
  */
 export async function showDownloadDialog(): Promise<boolean> {
   const result = await dialog.showMessageBox({
-     type: 'info',
-     title: t('cubism.download.title'),
-     message: t('cubism.download.message'),
-     detail: t('cubism.download.detail', { baseline: getCubismRuntimeConfig().sdkBaseline, url: getCubismCoreDownloadUrl() }),
-     buttons: [t('dialog.confirm'), t('dialog.cancel')],
+    type: 'info',
+    title: t('cubism.download.title'),
+    message: t('cubism.download.message'),
+    detail: t('cubism.download.detail', {
+      baseline: getCubismRuntimeConfig().sdkBaseline,
+      url: getCubismCoreDownloadUrl()
+    }),
+    buttons: [t('dialog.confirm'), t('dialog.cancel')],
     defaultId: 0,
     cancelId: 1
   })
@@ -278,11 +287,11 @@ export async function downloadWithProgress(): Promise<boolean> {
           detail: t('cubism.download.retryDetail', {
             error: error instanceof Error ? error.message : String(error),
             attempt,
-            max: MAX_DOWNLOAD_RETRIES,
+            max: MAX_DOWNLOAD_RETRIES
           }),
           buttons: [t('dialog.retry'), t('dialog.cancel')],
           defaultId: 0,
-          cancelId: 1,
+          cancelId: 1
         })
 
         if (retryResult.response !== 0) {
@@ -297,7 +306,9 @@ export async function downloadWithProgress(): Promise<boolean> {
     type: 'error',
     title: t('cubism.download.failedTitle'),
     message: t('cubism.download.failedMessage'),
-    detail: t('cubism.download.failedDetail', { error: lastError instanceof Error ? (lastError as Error).message : String(lastError) }),
+    detail: t('cubism.download.failedDetail', {
+      error: lastError instanceof Error ? (lastError as Error).message : String(lastError)
+    }),
     buttons: [t('dialog.confirm')]
   })
 

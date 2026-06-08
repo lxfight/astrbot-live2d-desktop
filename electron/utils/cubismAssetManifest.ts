@@ -7,15 +7,7 @@ export type CubismAssetSeverity = 'required' | 'optional'
 
 export type CubismAssetIssue = {
   severity: CubismAssetSeverity
-  kind:
-    | 'model'
-    | 'moc'
-    | 'texture'
-    | 'motion'
-    | 'expression'
-    | 'physics'
-    | 'pose'
-    | 'userData'
+  kind: 'model' | 'moc' | 'texture' | 'motion' | 'expression' | 'physics' | 'pose' | 'userData'
   relativePath: string
 }
 
@@ -112,7 +104,7 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
   const refs = parsed.FileReferences ?? {}
   const compatibilityManifest = discoverCubismModelCompatibility(modelAbsolutePath)
   const standardExpressionRefs = (refs.Expressions ?? [])
-    .map((entry) => entry?.File)
+    .map(entry => entry?.File)
     .filter((value): value is string => Boolean(value))
     .map(normalizeRelativePath)
   const standardMotionRefs: string[] = []
@@ -129,7 +121,7 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
     moc: normalizeRelativePath(refs.Moc ?? ''),
     textures: (refs.Textures ?? []).map(normalizeRelativePath),
     motions: [],
-    expressions: compatibilityManifest.expressions.map((entry) => normalizeRelativePath(entry.file)),
+    expressions: compatibilityManifest.expressions.map(entry => normalizeRelativePath(entry.file)),
     physics: refs.Physics ? normalizeRelativePath(refs.Physics) : undefined,
     pose: refs.Pose ? normalizeRelativePath(refs.Pose) : undefined,
     userData: refs.UserData ? normalizeRelativePath(refs.UserData) : undefined
@@ -187,10 +179,10 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
     manifest,
     issues,
     discoveryWarnings: [...compatibilityManifest.discovery.warnings],
-    compatibilityManifest,
+    compatibilityManifest
   }
 }
 
 export function formatCubismAssetIssues(issues: CubismAssetIssue[]): string[] {
-  return issues.map((issue) => `${issue.severity}:${issue.kind}:${issue.relativePath}`)
+  return issues.map(issue => `${issue.severity}:${issue.kind}:${issue.relativePath}`)
 }

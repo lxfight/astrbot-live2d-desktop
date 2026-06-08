@@ -31,7 +31,7 @@ export function applyWindowKindClasses(kind: WindowKind): void {
     `${WINDOW_KIND_CLASS_PREFIX}settings`,
     `${WINDOW_KIND_CLASS_PREFIX}history`,
     `${WINDOW_KIND_CLASS_PREFIX}welcome`,
-    `${WINDOW_KIND_CLASS_PREFIX}unknown`,
+    `${WINDOW_KIND_CLASS_PREFIX}unknown`
   ]
 
   document.documentElement.classList.remove(...classNames)

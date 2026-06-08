@@ -26,10 +26,10 @@ function getCoordinator() {
   if (!snapshotBroadcastRegistered) {
     snapshotBroadcastRegistered = true
     logger.info('snapshot_broadcast.register')
-    coordinator.onSnapshotChanged((snapshot) => {
+    coordinator.onSnapshotChanged(snapshot => {
       logger.debug('snapshot_broadcast.send', {
         windowCount: BrowserWindow.getAllWindows().length,
-        snapshot,
+        snapshot
       })
       for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed()) {
@@ -61,11 +61,14 @@ ipcMain.handle('desktopBehavior:getSnapshot', async () => {
   return snapshot
 })
 
-ipcMain.handle('desktopBehavior:setMousePassthrough', async (_event, ignoreMouseEvents: boolean) => {
-  const enabled = getCoordinator().setMousePassthrough(Boolean(ignoreMouseEvents))
-  logger.info('set_mouse_passthrough', { requested: Boolean(ignoreMouseEvents), enabled })
-  return enabled
-})
+ipcMain.handle(
+  'desktopBehavior:setMousePassthrough',
+  async (_event, ignoreMouseEvents: boolean) => {
+    const enabled = getCoordinator().setMousePassthrough(Boolean(ignoreMouseEvents))
+    logger.info('set_mouse_passthrough', { requested: Boolean(ignoreMouseEvents), enabled })
+    return enabled
+  }
+)
 
 ipcMain.handle('desktopBehavior:setModelReady', async (_event, ready: boolean) => {
   const snapshot = getCoordinator().setModelReady(Boolean(ready))

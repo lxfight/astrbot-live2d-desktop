@@ -21,12 +21,16 @@ ipcMain.handle('bridgeLifecycle:connect', async () => {
       success: false,
       code: 'CLIENT_UNAVAILABLE' as const,
       message: '连接控制器未初始化',
-      snapshot: buildDefaultBridgeLifecycleSnapshot(),
+      snapshot: buildDefaultBridgeLifecycleSnapshot()
     }
   }
 
   const result = await controller.connect()
-  timer.done({ success: result.success, code: result.success ? undefined : result.code, snapshot: result.snapshot })
+  timer.done({
+    success: result.success,
+    code: result.success ? undefined : result.code,
+    snapshot: result.snapshot
+  })
   return result
 })
 
@@ -39,11 +43,15 @@ ipcMain.handle('bridgeLifecycle:disconnect', async () => {
       success: false,
       code: 'CLIENT_UNAVAILABLE' as const,
       message: '连接控制器未初始化',
-      snapshot: buildDefaultBridgeLifecycleSnapshot(),
+      snapshot: buildDefaultBridgeLifecycleSnapshot()
     }
   }
 
   const result = await controller.disconnect()
-  timer.done({ success: result.success, code: result.success ? undefined : result.code, snapshot: result.snapshot })
+  timer.done({
+    success: result.success,
+    code: result.success ? undefined : result.code,
+    snapshot: result.snapshot
+  })
   return result
 })

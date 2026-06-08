@@ -41,24 +41,28 @@ function captureOriginalUserDataPath(): string {
   return originalUserDataPathCache
 }
 
-export function resolveAppDataPathContext(options: ResolveAppDataPathContextOptions): AppDataPathContext {
+export function resolveAppDataPathContext(
+  options: ResolveAppDataPathContextOptions
+): AppDataPathContext {
   const originalUserDataPath = path.resolve(options.originalUserDataPath)
   const portableExecutableDir = normalizeOptionalPath(options.portableExecutableDir)
   const portableBaseDir = options.isPackaged
-    ? (portableExecutableDir || (options.hasPortableMarker ? path.dirname(path.resolve(options.exePath)) : null))
+    ? portableExecutableDir ||
+      (options.hasPortableMarker ? path.dirname(path.resolve(options.exePath)) : null)
     : null
   const mode: AppStorageMode = !options.isPackaged
     ? 'development'
-    : (portableBaseDir ? 'portable' : 'installed')
+    : portableBaseDir
+      ? 'portable'
+      : 'installed'
 
   return {
     mode,
     isPortable: mode === 'portable',
     portableBaseDir,
     originalUserDataPath,
-    resolvedUserDataPath: mode === 'portable'
-      ? path.join(portableBaseDir as string, 'data')
-      : originalUserDataPath,
+    resolvedUserDataPath:
+      mode === 'portable' ? path.join(portableBaseDir as string, 'data') : originalUserDataPath
   }
 }
 
@@ -74,7 +78,7 @@ export function getAppDataPathContext(): AppDataPathContext {
     originalUserDataPath: captureOriginalUserDataPath(),
     exePath,
     portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
-    hasPortableMarker: fs.existsSync(path.join(exeDir, 'portable.txt')),
+    hasPortableMarker: fs.existsSync(path.join(exeDir, 'portable.txt'))
   })
 
   return cachedContext

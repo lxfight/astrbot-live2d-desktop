@@ -73,13 +73,9 @@ function resolveSpeechRecognitionConstructor(): SpeechRecognitionConstructor | n
     return null
   }
 
-  const ctor =
-    (window as any).SpeechRecognition ??
-    (window as any).webkitSpeechRecognition
+  const ctor = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
 
-  return typeof ctor === 'function'
-    ? (ctor as SpeechRecognitionConstructor)
-    : null
+  return typeof ctor === 'function' ? (ctor as SpeechRecognitionConstructor) : null
 }
 
 export class WakeWordListener {
@@ -186,14 +182,14 @@ export class WakeWordListener {
       this.emitStatus('listening')
     }
 
-    recognition.onresult = (event) => {
+    recognition.onresult = event => {
       if (!this.running || !this.isTokenActive(token)) {
         return
       }
       this.handleRecognitionResult(event)
     }
 
-    recognition.onerror = (event) => {
+    recognition.onerror = event => {
       if (!this.isTokenActive(token)) {
         return
       }
@@ -274,7 +270,7 @@ export class WakeWordListener {
       this.lastDetectionAt = now
       this.onWakeWord?.({
         keyword: matchedKeyword.label,
-        transcript,
+        transcript
       })
       return
     }
@@ -305,7 +301,11 @@ export class WakeWordListener {
       return
     }
 
-    if (errorCode === 'not-allowed' || errorCode === 'service-not-allowed' || errorCode === 'audio-capture') {
+    if (
+      errorCode === 'not-allowed' ||
+      errorCode === 'service-not-allowed' ||
+      errorCode === 'audio-capture'
+    ) {
       this.handleFatalStartError(message)
       return
     }
@@ -345,7 +345,7 @@ export class WakeWordListener {
     return {
       shouldStop,
       shouldNotify,
-      retryDelayMs: this.restartDelayMs,
+      retryDelayMs: this.restartDelayMs
     }
   }
 
@@ -370,7 +370,10 @@ export class WakeWordListener {
         }
 
         const compactCandidate = candidate.replace(/\s+/g, '')
-        if (normalizedTranscript.includes(candidate) || compactTranscript.includes(compactCandidate)) {
+        if (
+          normalizedTranscript.includes(candidate) ||
+          compactTranscript.includes(compactCandidate)
+        ) {
           return keyword
         }
       }
@@ -410,7 +413,7 @@ export class WakeWordListener {
       dedupeSet.add(displayLabel)
       preparedKeywords.push({
         label: displayLabel,
-        normalizedCandidates,
+        normalizedCandidates
       })
     }
 
@@ -462,9 +465,8 @@ export class WakeWordListener {
       return preferredLanguage
     }
 
-    const browserLanguage = typeof navigator !== 'undefined'
-      ? (navigator.language ?? '').trim()
-      : ''
+    const browserLanguage =
+      typeof navigator !== 'undefined' ? (navigator.language ?? '').trim() : ''
 
     return browserLanguage || 'zh-CN'
   }

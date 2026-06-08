@@ -133,7 +133,7 @@ describe('CubismModel', () => {
 
     internals.gl = {
       deleteTexture,
-      getExtension,
+      getExtension
     } as unknown as WebGLRenderingContext
     internals.textures = [texture]
 
@@ -351,14 +351,20 @@ describe('Utility Functions', () => {
   })
 
   test('getTexturePath should build correct path', () => {
-    expect(getTexturePath('/models/Haru/Haru.model3.json', 'texture.png')).toBe('/models/Haru/texture.png')
+    expect(getTexturePath('/models/Haru/Haru.model3.json', 'texture.png')).toBe(
+      '/models/Haru/texture.png'
+    )
   })
 
   test('getMotionPath should build correct path', () => {
-    expect(getMotionPath('/models/Haru/Haru.model3.json', 'motion.motion3.json')).toBe('/models/Haru/motion.motion3.json')
+    expect(getMotionPath('/models/Haru/Haru.model3.json', 'motion.motion3.json')).toBe(
+      '/models/Haru/motion.motion3.json'
+    )
   })
 
   test('getExpressionPath should build correct path', () => {
-    expect(getExpressionPath('/models/Haru/Haru.model3.json', 'smile.exp3.json')).toBe('/models/Haru/smile.exp3.json')
+    expect(getExpressionPath('/models/Haru/Haru.model3.json', 'smile.exp3.json')).toBe(
+      '/models/Haru/smile.exp3.json'
+    )
   })
 })

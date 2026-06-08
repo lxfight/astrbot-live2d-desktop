@@ -1,12 +1,12 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import type {
   ConnectionSettingsChangedEvent,
-  ConnectionSettingsSavePayload,
+  ConnectionSettingsSavePayload
 } from '../../src/shared/connectionSettings'
 import {
   loadConnectionSettings,
   migrateLegacyConnectionSettings,
-  saveConnectionSettings,
+  saveConnectionSettings
 } from '../services/connectionSettingsService'
 import { getBridgeConnectionController } from '../main'
 import { createScopedLogger } from '../utils/logger'
@@ -23,12 +23,12 @@ function getSourceWindowId(event: Electron.IpcMainInvokeEvent): number | undefin
 
 function broadcastSettingsChanged(
   settings: ConnectionSettingsChangedEvent['settings'],
-  sourceWindowId?: number,
+  sourceWindowId?: number
 ): void {
   const payload: ConnectionSettingsChangedEvent = {
     settings,
     revision: settings.revision,
-    sourceWindowId,
+    sourceWindowId
   }
 
   for (const window of BrowserWindow.getAllWindows()) {
@@ -41,7 +41,7 @@ function broadcastSettingsChanged(
     windowCount: BrowserWindow.getAllWindows().length,
     revision: settings.revision,
     serverUrl: settings.serverUrl,
-    hasToken: Boolean(settings.token.trim()),
+    hasToken: Boolean(settings.token.trim())
   })
 }
 
@@ -50,7 +50,7 @@ ipcMain.handle('connectionSettings:load', async () => {
   logger.debug('load', {
     success: result.success,
     revision: result.success ? result.data.revision : undefined,
-    code: result.success ? undefined : result.code,
+    code: result.success ? undefined : result.code
   })
   return result
 })
@@ -65,7 +65,7 @@ ipcMain.handle('connectionSettings:save', async (event, payload: ConnectionSetti
   timer.done({
     success: result.success,
     revision: result.success ? result.data.revision : undefined,
-    code: result.success ? undefined : result.code,
+    code: result.success ? undefined : result.code
   })
   return result
 })
@@ -73,7 +73,7 @@ ipcMain.handle('connectionSettings:save', async (event, payload: ConnectionSetti
 ipcMain.handle('connectionSettings:migrateLegacy', async (event, rawLegacyJson: string) => {
   const timer = logger.timer('migrate_legacy', {
     sourceWindowId: getSourceWindowId(event),
-    rawLength: rawLegacyJson.length,
+    rawLength: rawLegacyJson.length
   })
   const result = migrateLegacyConnectionSettings(rawLegacyJson)
   if (result.success) {
@@ -83,7 +83,7 @@ ipcMain.handle('connectionSettings:migrateLegacy', async (event, rawLegacyJson: 
   timer.done({
     success: result.success,
     revision: result.success ? result.data.revision : undefined,
-    code: result.success ? undefined : result.code,
+    code: result.success ? undefined : result.code
   })
   return result
 })

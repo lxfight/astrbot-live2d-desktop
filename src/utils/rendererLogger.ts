@@ -59,13 +59,16 @@ export function setupRendererLogging(): void {
     originalError(...args)
   }
 
-  window.addEventListener('error', (event) => {
+  window.addEventListener('error', event => {
     const reason = event.error || event.message || 'unknown error'
     forwardRendererLog('error', ['[renderer] 捕获未处理错误:', formatErrorReason(reason)])
   })
 
-  window.addEventListener('unhandledrejection', (event) => {
-    forwardRendererLog('error', ['[renderer] 捕获未处理 Promise 拒绝:', formatErrorReason(event.reason)])
+  window.addEventListener('unhandledrejection', event => {
+    forwardRendererLog('error', [
+      '[renderer] 捕获未处理 Promise 拒绝:',
+      formatErrorReason(event.reason)
+    ])
   })
 
   console.info('[日志] 渲染进程日志已启用')

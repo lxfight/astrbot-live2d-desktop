@@ -6,7 +6,7 @@ type SupportedLocale = 'zh-CN' | 'en'
 
 const messages: Record<SupportedLocale, I18nMessageSchema> = {
   'zh-CN': zhCN,
-  en,
+  en
 }
 
 let currentLocale: SupportedLocale = 'zh-CN'

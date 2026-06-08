@@ -1,7 +1,4 @@
-import type {
-  HistoryMessageQueryOptions,
-  HistoryMessageRecord,
-} from '../../src/shared/history'
+import type { HistoryMessageQueryOptions, HistoryMessageRecord } from '../../src/shared/history'
 import {
   clearHistory,
   deleteHistoryMessageByMessageId,
@@ -15,7 +12,7 @@ import {
   updatePerformanceSequenceByMessageId,
   updateStatistics,
   type PerformanceRecord,
-  type StatisticsData,
+  type StatisticsData
 } from '../database/schema'
 import { localizeMessageContent } from '../database/messageResources'
 
@@ -34,14 +31,14 @@ function tryParseMessageContent(rawContent: unknown): unknown {
 export async function saveHistoryMessage(record: HistoryMessageRecord): Promise<any[]> {
   saveMessage({
     ...record,
-    content: record.content,
+    content: record.content
   })
 
   try {
     const localized = await localizeMessageContent(record.messageId, record.content, {
       forceReplaceResources: true,
       resourceContext: record.resourceContext,
-      strict: true,
+      strict: true
     })
 
     updateMessageContent(record.messageId, localized.content)
@@ -64,7 +61,7 @@ export async function getHistoryMessages(options: HistoryMessageQueryOptions): P
     endDate: options.endDate,
     messageType: options.messageType,
     direction: options.direction,
-    keyword: options.keyword,
+    keyword: options.keyword
   }
 
   const messages = getMessages(queryOptions)
@@ -80,7 +77,7 @@ export async function getHistoryMessages(options: HistoryMessageQueryOptions): P
       const parsedContent = tryParseMessageContent(message.content)
       const localized = await localizeMessageContent(messageId, parsedContent, {
         resourceContext: options.resourceContext,
-        strict: false,
+        strict: false
       })
 
       if (!localized.changed) {
@@ -97,7 +94,7 @@ export async function getHistoryMessages(options: HistoryMessageQueryOptions): P
   return {
     messages,
     total: getMessagesCount(queryOptions),
-    repairedCount,
+    repairedCount
   }
 }
 

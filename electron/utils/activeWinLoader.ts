@@ -32,7 +32,7 @@ function findBindingPath(): string | null {
     // 打包后（ASAR 解包目录）
     path.join(unpackedBase, 'node_modules', 'active-win', 'lib', 'binding', dir, fileName),
     // 开发模式（项目根目录下）
-    path.join(appPath, 'node_modules', 'active-win', 'lib', 'binding', dir, fileName),
+    path.join(appPath, 'node_modules', 'active-win', 'lib', 'binding', dir, fileName)
   ]
 
   for (const p of candidates) {

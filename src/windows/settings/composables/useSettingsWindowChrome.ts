@@ -61,6 +61,6 @@ export function useSettingsWindowChrome(message: MessageApi) {
     handleTitleBarDoubleClick,
     handleToggleWindowMaximize,
     handleTogglePin,
-    loadInitialState,
+    loadInitialState
   }
 }

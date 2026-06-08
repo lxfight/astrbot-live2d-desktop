@@ -28,7 +28,10 @@
         <section v-if="stage === 'intro'" key="intro" class="welcome-scene welcome-scene--intro">
           <div class="mascot-container" aria-hidden="true">
             <div class="mascot-blob window-no-drag">
-              <div class="mascot-eyes" :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }">
+              <div
+                class="mascot-eyes"
+                :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }"
+              >
                 <div class="eye-socket left" :style="eyeMovementStyle">
                   <div class="eye">
                     <div class="pupil"></div>
@@ -54,7 +57,10 @@
           <div class="organic-content window-no-drag">
             <div class="form-mascot-container" aria-hidden="true">
               <div class="mascot-blob mascot-blob--large">
-                <div class="mascot-eyes mascot-eyes--large" :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }">
+                <div
+                  class="mascot-eyes mascot-eyes--large"
+                  :class="{ 'is-winking': isWinking, 'is-blinking': isBlinkingSync }"
+                >
                   <div class="eye-socket left" :style="eyeMovementStyle">
                     <div class="eye">
                       <div class="pupil"></div>
@@ -167,7 +173,7 @@ const autoLookAround = () => {
   const strength = 12
   lookX.value = (Math.random() - 0.5) * 2 * strength
   lookY.value = (Math.random() - 0.5) * 2 * strength
-  
+
   const rand = Math.random()
   if (rand > 0.8) triggerWink()
   else if (rand > 0.4) triggerBlink()
@@ -179,7 +185,7 @@ function sparkleStyle(i: number) {
   const y = Math.cos(i * 78.233 + 7.891) * 43758.5453
   const left = (x - Math.floor(x)) * 100
   const top = (y - Math.floor(y)) * 100
-  
+
   const size = 3 + (i % 12)
   const delay = (i * 0.44) % 6
   const duration = 4 + (i % 6)
@@ -198,7 +204,7 @@ const welcomeThemeStyle = computed(() => ({
   '--welcome-accent': palette.value.accent,
   '--welcome-accent-soft': palette.value.accentSoft,
   '--welcome-accent-rgb': palette.value.accentRgb || '116, 165, 255',
-  '--welcome-chart-1': palette.value.chartPalette[1],
+  '--welcome-chart-1': palette.value.chartPalette[1]
 }))
 
 watch(userName, () => {
@@ -235,7 +241,7 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    await new Promise((resolve) => setTimeout(resolve, 800))
+    await new Promise(resolve => setTimeout(resolve, 800))
     await window.electron.user.setUserName(name)
   } catch (error) {
     console.error('[Welcome] 设置用户名称失败:', error)
@@ -283,9 +289,18 @@ function handleClose() {
 }
 
 @keyframes twinkle {
-  0% { transform: scale(0) rotate(0deg); opacity: 0; }
-  50% { transform: scale(1) rotate(90deg); opacity: 0.8; }
-  100% { transform: scale(0) rotate(180deg); opacity: 0; }
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1) rotate(90deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
 }
 
 /* Slime Background Blob - Replaces the circular glow */
@@ -309,17 +324,29 @@ function handleClose() {
   border: 2px solid rgba(255, 255, 255, 0.08);
   border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
   backdrop-filter: blur(40px);
-  box-shadow: 
+  box-shadow:
     0 0 80px rgba(var(--welcome-accent-rgb), 0.1),
     inset 0 0 40px rgba(255, 255, 255, 0.05);
   animation: blob-float-bg 20s infinite alternate linear;
 }
 
 @keyframes blob-float-bg {
-  0% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(0deg) scale(1); }
-  33% { border-radius: 60% 40% 30% 70% / 50% 40% 50% 60%; transform: rotate(5deg) scale(1.05); }
-  66% { border-radius: 30% 70% 60% 40% / 60% 50% 40% 50%; transform: rotate(-5deg) scale(0.95); }
-  100% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(0deg) scale(1); }
+  0% {
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    transform: rotate(0deg) scale(1);
+  }
+  33% {
+    border-radius: 60% 40% 30% 70% / 50% 40% 50% 60%;
+    transform: rotate(5deg) scale(1.05);
+  }
+  66% {
+    border-radius: 30% 70% 60% 40% / 60% 50% 40% 50%;
+    transform: rotate(-5deg) scale(0.95);
+  }
+  100% {
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    transform: rotate(0deg) scale(1);
+  }
 }
 
 .welcome-close {
@@ -394,7 +421,9 @@ function handleClose() {
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(12px);
-  animation: blob-bounce 3.5s ease-in-out infinite alternate, blob-morph 7s linear infinite;
+  animation:
+    blob-bounce 3.5s ease-in-out infinite alternate,
+    blob-morph 7s linear infinite;
   box-shadow: 0 10px 40px rgba(var(--welcome-accent-rgb), 0.2);
   position: relative;
   overflow: hidden;
@@ -408,7 +437,7 @@ function handleClose() {
 .mascot-eyes {
   display: flex;
   gap: 20px;
-  
+
   .eye-socket {
     position: relative;
     transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -420,8 +449,10 @@ function handleClose() {
     background: #111;
     border-radius: 50%;
     position: relative;
-    transition: transform 0.1s ease-out, background 0.3s ease;
-    
+    transition:
+      transform 0.1s ease-out,
+      background 0.3s ease;
+
     .pupil {
       position: absolute;
       top: 4px;
@@ -444,14 +475,14 @@ function handleClose() {
     .eye-socket.left .eye {
       transform: scaleY(1);
     }
-    
+
     .eye-socket.right .eye {
       background: transparent !important;
       width: 20px;
       height: 20px;
       border-radius: 0;
       transform: scaleY(1);
-      
+
       &::before {
         content: '';
         position: absolute;
@@ -463,8 +494,10 @@ function handleClose() {
         border-bottom: 3.5px solid #111;
         transform: translate(-30%, -30%) rotate(135deg);
       }
-      
-      .pupil { display: none; }
+
+      .pupil {
+        display: none;
+      }
     }
   }
 
@@ -492,13 +525,23 @@ function handleClose() {
 }
 
 @keyframes blob-bounce {
-  0% { transform: translateY(-4px); }
-  100% { transform: translateY(14px); }
+  0% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(14px);
+  }
 }
 
 @keyframes shadow-pulse {
-  0% { transform: scale(1); opacity: 0.2; }
-  100% { transform: scale(0.6); opacity: 0.05; }
+  0% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.6);
+    opacity: 0.05;
+  }
 }
 
 .welcome-greeting {
@@ -521,16 +564,16 @@ function handleClose() {
 /* Form Styling */
 .welcome-form-header {
   margin-bottom: 36px;
-  h2 { 
-    font-size: 28px; 
-    font-weight: 800; 
-    margin-bottom: 12px; 
+  h2 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 12px;
     color: #fff;
     text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
   }
-  p { 
-    color: rgba(255, 255, 255, 0.95); 
-    font-size: 15px; 
+  p {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 15px;
     font-weight: 500;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
   }
@@ -558,11 +601,13 @@ function handleClose() {
     color: rgba(255, 255, 255, 0.25);
   }
 
-  &:focus { 
-    outline: none; 
+  &:focus {
+    outline: none;
     background: rgba(0, 0, 0, 0.4);
     border-color: rgba(var(--welcome-accent-rgb), 0.6);
-    box-shadow: 0 0 15px rgba(var(--welcome-accent-rgb), 0.2), inset 0 2px 10px rgba(0, 0, 0, 0.3);
+    box-shadow:
+      0 0 15px rgba(var(--welcome-accent-rgb), 0.2),
+      inset 0 2px 10px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -607,41 +652,68 @@ function handleClose() {
     transform: translateY(-2px);
   }
 
-  &:disabled { 
-    opacity: 0.2; 
+  &:disabled {
+    opacity: 0.2;
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.3);
     box-shadow: none;
-    cursor: not-allowed; 
+    cursor: not-allowed;
   }
 }
 
-.welcome-error { 
-  color: #ff9999; 
-  font-size: 14px; 
+.welcome-error {
+  color: #ff9999;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 20px; 
+  margin-bottom: 20px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
-.welcome-hint { 
-  color: rgba(255, 255, 255, 0.5); 
-  font-size: 13px; 
+.welcome-hint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 1);
 }
 
 /* Transitions */
-.welcome-scene-enter-active { transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.welcome-scene-leave-active { transition: all 0.5s ease-in; }
-.welcome-scene-enter-from { opacity: 0; transform: scale(0.9) translateY(40px); filter: blur(20px); }
-.welcome-scene-leave-to { opacity: 0; transform: scale(1.1) translateY(-40px); filter: blur(20px); }
+.welcome-scene-enter-active {
+  transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.welcome-scene-leave-active {
+  transition: all 0.5s ease-in;
+}
+.welcome-scene-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(40px);
+  filter: blur(20px);
+}
+.welcome-scene-leave-to {
+  opacity: 0;
+  transform: scale(1.1) translateY(-40px);
+  filter: blur(20px);
+}
 
-@keyframes fade-in-scale { 
-  from { opacity: 0; transform: scale(0.8) translateY(50px); filter: blur(20px); } 
-  to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); } 
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(50px);
+    filter: blur(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
 }
 @keyframes blob-morph {
-  0%, 100% { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
-  33% { border-radius: 55% 45% 60% 40% / 45% 55% 40% 60%; }
-  66% { border-radius: 40% 60% 55% 45% / 60% 40% 45% 55%; }
+  0%,
+  100% {
+    border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+  }
+  33% {
+    border-radius: 55% 45% 60% 40% / 45% 55% 40% 60%;
+  }
+  66% {
+    border-radius: 40% 60% 55% 45% / 60% 40% 45% 55%;
+  }
 }
 </style>

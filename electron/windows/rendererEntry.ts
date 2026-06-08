@@ -9,7 +9,10 @@ export function isRendererDevMode(): boolean {
   return process.env.NODE_ENV === 'development' || !app.isPackaged
 }
 
-export function loadRendererEntry(window: BrowserWindow, entryName: RendererEntryName): Promise<void> {
+export function loadRendererEntry(
+  window: BrowserWindow,
+  entryName: RendererEntryName
+): Promise<void> {
   if (isRendererDevMode()) {
     return window.loadURL(new URL(`${entryName}.html`, RENDERER_DEV_SERVER_URL).toString())
   }

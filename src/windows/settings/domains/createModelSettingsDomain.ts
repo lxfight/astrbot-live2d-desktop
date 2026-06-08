@@ -8,7 +8,7 @@ import {
   cloneExpressionTypePresets,
   createEmptyExpressionTypePresets,
   type Live2DExpressionTypeEntry,
-  type Live2DExpressionTypePresetMap,
+  type Live2DExpressionTypePresetMap
 } from '@/shared/live2dExpressionTypes'
 
 export interface ModelSettingsDomain {
@@ -41,7 +41,8 @@ export interface ModelSettingsDomain {
   themeSwatchStyle: ComputedRef<Record<string, string>>
 }
 
-export const modelSettingsDomainKey: InjectionKey<ModelSettingsDomain> = Symbol('model-settings-domain')
+export const modelSettingsDomainKey: InjectionKey<ModelSettingsDomain> =
+  Symbol('model-settings-domain')
 
 export function useModelSettingsDomain() {
   const domain = inject(modelSettingsDomainKey)
@@ -58,7 +59,12 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   const { t } = useI18n()
   const modelStore = useModelStore()
   const themeStore = useThemeStore()
-  const { currentModelPath: themeCurrentModelPath, palette, resolvedModelName, sourceColor } = storeToRefs(themeStore)
+  const {
+    currentModelPath: themeCurrentModelPath,
+    palette,
+    resolvedModelName,
+    sourceColor
+  } = storeToRefs(themeStore)
 
   const modelList = ref<Array<{ name: string; path: string }>>([])
   const libraryStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -66,34 +72,38 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   const expressionTypeSaving = ref(false)
   const expressionTypeProfilePath = ref('')
   const expressionTypeExpressions = ref<Live2DExpressionTypeEntry[]>([])
-  const expressionTypePresets = ref<Live2DExpressionTypePresetMap>(createEmptyExpressionTypePresets())
+  const expressionTypePresets = ref<Live2DExpressionTypePresetMap>(
+    createEmptyExpressionTypePresets()
+  )
 
   const themeSwatchStyle = computed(() => ({
     background: `linear-gradient(135deg, ${palette.value.accent}, ${palette.value.chartPalette[1]})`,
-    boxShadow: `0 12px 24px ${palette.value.shadowColor}`,
+    boxShadow: `0 12px 24px ${palette.value.shadowColor}`
   }))
 
   const inactiveModelSwatchStyle = computed(() => ({
-    background: 'linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.18), rgba(255, 255, 255, 0.04))',
-    boxShadow: 'none',
+    background:
+      'linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.18), rgba(255, 255, 255, 0.04))',
+    boxShadow: 'none'
   }))
 
-  const currentModelPath = computed(() => (
-    themeCurrentModelPath.value
-    || modelStore.currentModel
-    || modelStore.getLastModel()
-    || ''
-  ))
-  const currentModelDisplay = computed(() => (
+  const currentModelPath = computed(
+    () => themeCurrentModelPath.value || modelStore.currentModel || modelStore.getLastModel() || ''
+  )
+  const currentModelDisplay = computed(() =>
     currentModelPath.value
-      ? resolvedModelName.value || currentModelPath.value.split(/[/\\]/).filter(Boolean).pop() || t('settings.model.currentModel')
+      ? resolvedModelName.value ||
+        currentModelPath.value.split(/[/\\]/).filter(Boolean).pop() ||
+        t('settings.model.currentModel')
       : t('settings.model.noModelLoaded')
-  ))
+  )
   const currentModelInitial = computed(() => currentModelDisplay.value.slice(0, 1).toUpperCase())
-  const currentModelStatusLabel = computed(() => currentModelPath.value ? t('settings.model.status.inUse') : t('settings.model.status.notLoaded'))
-  const currentModelStatusClass = computed(() => (
+  const currentModelStatusLabel = computed(() =>
+    currentModelPath.value ? t('settings.model.status.inUse') : t('settings.model.status.notLoaded')
+  )
+  const currentModelStatusClass = computed(() =>
     currentModelPath.value ? 'status-pill--accent' : 'status-pill--warning'
-  ))
+  )
   const currentModelScaleValue = computed(() => {
     if (!currentModelPath.value) {
       return 1.0
@@ -172,7 +182,7 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
   function handleExpressionTypeChange(type: keyof Live2DExpressionTypePresetMap, value: string[]) {
     expressionTypePresets.value = {
       ...expressionTypePresets.value,
-      [type]: value,
+      [type]: value
     }
   }
 
@@ -191,12 +201,9 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
       const plainPresets = cloneExpressionTypePresets(expressionTypePresets.value)
       window.electron.log.info('[设置] 开始保存表情类型配置', {
         modelPath,
-        assignedTypeCount: Object.values(plainPresets).filter((items) => items.length > 0).length,
+        assignedTypeCount: Object.values(plainPresets).filter(items => items.length > 0).length
       })
-      const result = await window.electron.model.saveExpressionTypes(
-        modelPath,
-        plainPresets,
-      )
+      const result = await window.electron.model.saveExpressionTypes(modelPath, plainPresets)
       if (!result.success) {
         message.error(t('toast.expressionSaveFailed', { error: result.error }))
         return
@@ -258,7 +265,9 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     }
 
     if (Array.isArray(importResult.warnings) && importResult.warnings.length > 0) {
-      message.warning(t('main.model.compatibilityWarning', { warnings: importResult.warnings.join('；') }))
+      message.warning(
+        t('main.model.compatibilityWarning', { warnings: importResult.warnings.join('；') })
+      )
     }
 
     message.success(t('toast.modelImported'))
@@ -308,6 +317,6 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     modelList,
     resolvedModelName,
     sourceColor,
-    themeSwatchStyle,
+    themeSwatchStyle
   }
 }

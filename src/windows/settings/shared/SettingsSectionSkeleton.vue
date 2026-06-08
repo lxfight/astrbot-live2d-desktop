@@ -35,9 +35,12 @@
 <script setup lang="ts">
 import type { SettingsSectionSkeletonKind } from '../settingsRegistry'
 
-withDefaults(defineProps<{
-  kind?: SettingsSectionSkeletonKind
-}>(), {
-  kind: 'form',
-})
+withDefaults(
+  defineProps<{
+    kind?: SettingsSectionSkeletonKind
+  }>(),
+  {
+    kind: 'form'
+  }
+)
 </script>

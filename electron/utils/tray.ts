@@ -83,23 +83,23 @@ function updateTrayMenu(): void {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: t('tray.showMain'),
-      click: () => revealMainOrOpenModelLibrary('manual'),
+      click: () => revealMainOrOpenModelLibrary('manual')
     },
     {
       label: t('tray.settings'),
-      click: () => showSettingsWindow(),
+      click: () => showSettingsWindow()
     },
     {
       label: t('tray.history'),
-      click: () => showSettingsWindow('history/messages'),
+      click: () => showSettingsWindow('history/messages')
     },
     { type: 'separator' },
     {
       label: t('tray.quit'),
       click: () => {
         app.quit()
-      },
-    },
+      }
+    }
   ])
 
   tray.setContextMenu(contextMenu)

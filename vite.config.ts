@@ -70,15 +70,56 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'main.html'),
         settings: resolve(__dirname, 'settings.html'),
-        welcome: resolve(__dirname, 'welcome.html'),
+        welcome: resolve(__dirname, 'welcome.html')
       },
       output: {
-        manualChunks: {
-          'naive-ui': ['naive-ui'],
-          'echarts': ['echarts'],
-          'vendor': ['vue', 'pinia']
-        }
+        manualChunks(id) {
+          // Cubism Framework - 独立分块
+          if (id.includes('.generated/cubism-framework')) {
+            return 'cubism-framework'
+          }
+
+          // Naive UI - 独立分块
+          if (id.includes('node_modules/naive-ui')) {
+            return 'naive-ui'
+          }
+
+          // ECharts - 独立分块
+          if (id.includes('node_modules/echarts')) {
+            return 'echarts'
+          }
+
+          // Vue 核心库
+          if (
+            id.includes('node_modules/vue') ||
+            id.includes('node_modules/@vue') ||
+            id.includes('node_modules/pinia')
+          ) {
+            return 'vue-vendor'
+          }
+
+          // 工具库
+          if (
+            id.includes('node_modules/axios') ||
+            id.includes('node_modules/date-fns') ||
+            id.includes('node_modules/uuid')
+          ) {
+            return 'utils'
+          }
+
+          // 其他 node_modules - 通用 vendor
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
+        },
+        // 优化资源文件名
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
-    }
+    },
+    // 优化构建性能
+    target: 'esnext',
+    reportCompressedSize: false // 禁用 gzip 大小报告，加快构建
   }
 })

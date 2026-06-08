@@ -10,7 +10,7 @@ import {
   type ConnectionSettingsMigrateLegacyResult,
   type ConnectionSettingsPersistedV3,
   type ConnectionSettingsSavePayload,
-  type ConnectionSettingsSaveResult,
+  type ConnectionSettingsSaveResult
 } from '../../src/shared/connectionSettings'
 
 const STORAGE_KEY = USER_CONFIG_KEYS.connectionSettingsV3
@@ -133,7 +133,7 @@ function buildDefaultPersistedSettings(): ConnectionSettingsPersistedV3 {
   return {
     ...defaults,
     revision: 0,
-    updatedAt: Date.now(),
+    updatedAt: Date.now()
   }
 }
 
@@ -143,7 +143,7 @@ function toEditable(settings: ConnectionSettingsPersistedV3): ConnectionSettings
     token: settings.token,
     customResourceBaseUrl: settings.customResourceBaseUrl,
     customResourcePath: settings.customResourcePath,
-    customResourceToken: settings.customResourceToken,
+    customResourceToken: settings.customResourceToken
   }
 }
 
@@ -155,7 +155,7 @@ function toStoredSettings(settings: ConnectionSettingsPersistedV3): StoredConnec
     customResourcePath: settings.customResourcePath,
     customResourceToken: encodeSecretValue(settings.customResourceToken),
     revision: settings.revision,
-    updatedAt: settings.updatedAt,
+    updatedAt: settings.updatedAt
   }
 }
 
@@ -171,14 +171,17 @@ function toPersistedSettings(value: {
   const editable = normalizeConnectionSettingsEditable({
     serverUrl: typeof value.serverUrl === 'string' ? value.serverUrl : undefined,
     token: typeof value.token === 'string' ? value.token : undefined,
-    customResourceBaseUrl: typeof value.customResourceBaseUrl === 'string' ? value.customResourceBaseUrl : undefined,
-    customResourcePath: typeof value.customResourcePath === 'string' ? value.customResourcePath : undefined,
-    customResourceToken: typeof value.customResourceToken === 'string' ? value.customResourceToken : undefined,
+    customResourceBaseUrl:
+      typeof value.customResourceBaseUrl === 'string' ? value.customResourceBaseUrl : undefined,
+    customResourcePath:
+      typeof value.customResourcePath === 'string' ? value.customResourcePath : undefined,
+    customResourceToken:
+      typeof value.customResourceToken === 'string' ? value.customResourceToken : undefined
   })
   return {
     ...editable,
     revision: normalizeRevision(value.revision, 0),
-    updatedAt: normalizeUpdatedAt(value.updatedAt),
+    updatedAt: normalizeUpdatedAt(value.updatedAt)
   }
 }
 
@@ -188,9 +191,10 @@ function parseStoredSettings(raw: unknown): ConnectionSettingsPersistedV3 | null
   }
 
   const envelope = raw as Partial<StoredConnectionSettingsEnvelope>
-  const data = envelope.version === CONNECTION_SETTINGS_SCHEMA_VERSION && isObject(envelope.data)
-    ? envelope.data as Record<string, unknown>
-    : raw
+  const data =
+    envelope.version === CONNECTION_SETTINGS_SCHEMA_VERSION && isObject(envelope.data)
+      ? (envelope.data as Record<string, unknown>)
+      : raw
 
   if (!isObject(data)) {
     return null
@@ -203,7 +207,7 @@ function parseStoredSettings(raw: unknown): ConnectionSettingsPersistedV3 | null
     customResourcePath: data.customResourcePath,
     customResourceToken: decodeSecretValue(data.customResourceToken),
     revision: data.revision,
-    updatedAt: data.updatedAt,
+    updatedAt: data.updatedAt
   })
 }
 
@@ -225,7 +229,7 @@ function readPersistedSettings(): ConnectionSettingsPersistedV3 | null {
 function writePersistedSettings(settings: ConnectionSettingsPersistedV3): void {
   const envelope: StoredConnectionSettingsEnvelope = {
     version: CONNECTION_SETTINGS_SCHEMA_VERSION,
-    data: toStoredSettings(settings),
+    data: toStoredSettings(settings)
   }
 
   setUserConfig(STORAGE_KEY, JSON.stringify(envelope))
@@ -240,7 +244,11 @@ function validateSavePayload(payload: ConnectionSettingsSavePayload): string | n
     return 'data 字段必须是对象'
   }
 
-  if (typeof payload.expectedRevision !== 'number' || !Number.isFinite(payload.expectedRevision) || payload.expectedRevision < 0) {
+  if (
+    typeof payload.expectedRevision !== 'number' ||
+    !Number.isFinite(payload.expectedRevision) ||
+    payload.expectedRevision < 0
+  ) {
     return 'expectedRevision 必须是非负整数'
   }
 
@@ -294,13 +302,22 @@ function normalizeLegacyEditable(value: LegacyConnectionSettings): ConnectionSet
   return normalizeConnectionSettingsEditable({
     serverUrl: typeof value.serverUrl === 'string' ? value.serverUrl : undefined,
     token: normalizeLegacyToken(value.encryptedToken, value.token),
-    customResourceBaseUrl: typeof value.customResourceBaseUrl === 'string'
-      ? value.customResourceBaseUrl
-      : (typeof value.resourceOverrideBaseUrl === 'string' ? value.resourceOverrideBaseUrl : ''),
-    customResourcePath: typeof value.customResourcePath === 'string'
-      ? value.customResourcePath
-      : (typeof value.resourceOverridePath === 'string' ? value.resourceOverridePath : ''),
-    customResourceToken: normalizeLegacyToken(value.encryptedResourceToken, value.customResourceToken ?? value.resourceToken),
+    customResourceBaseUrl:
+      typeof value.customResourceBaseUrl === 'string'
+        ? value.customResourceBaseUrl
+        : typeof value.resourceOverrideBaseUrl === 'string'
+          ? value.resourceOverrideBaseUrl
+          : '',
+    customResourcePath:
+      typeof value.customResourcePath === 'string'
+        ? value.customResourcePath
+        : typeof value.resourceOverridePath === 'string'
+          ? value.resourceOverridePath
+          : '',
+    customResourceToken: normalizeLegacyToken(
+      value.encryptedResourceToken,
+      value.customResourceToken ?? value.resourceToken
+    )
   })
 }
 
@@ -309,24 +326,26 @@ export function loadConnectionSettings(): ConnectionSettingsLoadResult {
     const persisted = readPersistedSettings() ?? buildDefaultPersistedSettings()
     return {
       success: true,
-      data: persisted,
+      data: persisted
     }
   } catch (error) {
     return {
       success: false,
       code: 'PERSIST_FAILED',
-      message: `读取连接配置失败: ${toErrorMessage(error)}`,
+      message: `读取连接配置失败: ${toErrorMessage(error)}`
     }
   }
 }
 
-export function saveConnectionSettings(payload: ConnectionSettingsSavePayload): ConnectionSettingsSaveResult {
+export function saveConnectionSettings(
+  payload: ConnectionSettingsSavePayload
+): ConnectionSettingsSaveResult {
   const payloadError = validateSavePayload(payload)
   if (payloadError) {
     return {
       success: false,
       code: 'INVALID_PAYLOAD',
-      message: payloadError,
+      message: payloadError
     }
   }
 
@@ -338,7 +357,7 @@ export function saveConnectionSettings(payload: ConnectionSettingsSavePayload): 
       return {
         success: false,
         code: 'CONFLICT_REVISION',
-        message: `配置已更新到 revision=${current.revision}，请刷新后重试`,
+        message: `配置已更新到 revision=${current.revision}，请刷新后重试`
       }
     }
 
@@ -346,30 +365,32 @@ export function saveConnectionSettings(payload: ConnectionSettingsSavePayload): 
     const next: ConnectionSettingsPersistedV3 = {
       ...normalizedEditable,
       revision: current.revision + 1,
-      updatedAt: Date.now(),
+      updatedAt: Date.now()
     }
 
     writePersistedSettings(next)
 
     return {
       success: true,
-      data: next,
+      data: next
     }
   } catch (error) {
     return {
       success: false,
       code: 'PERSIST_FAILED',
-      message: `保存连接配置失败: ${toErrorMessage(error)}`,
+      message: `保存连接配置失败: ${toErrorMessage(error)}`
     }
   }
 }
 
-export function migrateLegacyConnectionSettings(rawLegacyJson: string): ConnectionSettingsMigrateLegacyResult {
+export function migrateLegacyConnectionSettings(
+  rawLegacyJson: string
+): ConnectionSettingsMigrateLegacyResult {
   if (typeof rawLegacyJson !== 'string' || !rawLegacyJson.trim()) {
     return {
       success: false,
       code: 'INVALID_PAYLOAD',
-      message: '缺少旧版连接配置内容',
+      message: '缺少旧版连接配置内容'
     }
   }
 
@@ -378,7 +399,7 @@ export function migrateLegacyConnectionSettings(rawLegacyJson: string): Connecti
     if (existing) {
       return {
         success: true,
-        data: existing,
+        data: existing
       }
     }
 
@@ -388,7 +409,7 @@ export function migrateLegacyConnectionSettings(rawLegacyJson: string): Connecti
       return {
         success: false,
         code: 'MIGRATION_FAILED',
-        message: '旧版连接配置格式无效',
+        message: '旧版连接配置格式无效'
       }
     }
 
@@ -396,20 +417,20 @@ export function migrateLegacyConnectionSettings(rawLegacyJson: string): Connecti
     const migrated: ConnectionSettingsPersistedV3 = {
       ...normalizedEditable,
       revision: 1,
-      updatedAt: Date.now(),
+      updatedAt: Date.now()
     }
 
     writePersistedSettings(migrated)
 
     return {
       success: true,
-      data: migrated,
+      data: migrated
     }
   } catch (error) {
     return {
       success: false,
       code: 'MIGRATION_FAILED',
-      message: `迁移旧版连接配置失败: ${toErrorMessage(error)}`,
+      message: `迁移旧版连接配置失败: ${toErrorMessage(error)}`
     }
   }
 }
@@ -419,6 +440,6 @@ export function buildDefaultConnectionSettingsSnapshot(): ConnectionSettingsPers
   return {
     ...toEditable(defaults),
     revision: defaults.revision,
-    updatedAt: defaults.updatedAt,
+    updatedAt: defaults.updatedAt
   }
 }

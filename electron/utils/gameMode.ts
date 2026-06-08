@@ -14,21 +14,9 @@ let windowManager: any = null
 let hasLoggedUnsupportedReason = false
 let visibilityHandler: ((hidden: boolean) => void) | null = null
 
-const MESSENGER_OVERLAY_TITLES = new Set([
-  'qq',
-  '腾讯qq',
-  'wechat',
-  'weixin',
-  '微信',
-  'tim',
-])
+const MESSENGER_OVERLAY_TITLES = new Set(['qq', '腾讯qq', 'wechat', 'weixin', '微信', 'tim'])
 
-const MESSENGER_PROCESS_KEYWORDS = [
-  'qq.exe',
-  'wechat.exe',
-  'weixin.exe',
-  'tim.exe',
-]
+const MESSENGER_PROCESS_KEYWORDS = ['qq.exe', 'wechat.exe', 'weixin.exe', 'tim.exe']
 
 const IGNORE_FULLSCREEN_TITLES = [
   '截图工具覆盖',
@@ -44,11 +32,13 @@ const IGNORE_FULLSCREEN_TITLES = [
   'Lock Screen',
   'LockApp',
   'ScreenClippingHost',
-  'screen clipping',
+  'screen clipping'
 ]
 
 function normalizeToken(value: unknown): string {
-  return String(value || '').trim().toLowerCase()
+  return String(value || '')
+    .trim()
+    .toLowerCase()
 }
 
 function isLikelyMessengerScreenshotOverlay(
@@ -66,15 +56,14 @@ function isLikelyMessengerScreenshotOverlay(
   const normalizedPath = normalizeToken(processPath)
   if (
     normalizedPath &&
-    !MESSENGER_PROCESS_KEYWORDS.some((keyword) => normalizedPath.includes(keyword))
+    !MESSENGER_PROCESS_KEYWORDS.some(keyword => normalizedPath.includes(keyword))
   ) {
     return false
   }
 
   const nearOrigin = Math.abs(bounds.x) <= 2 && Math.abs(bounds.y) <= 2
   const nearScreenSize =
-    Math.abs(bounds.width - screenWidth) <= 2 &&
-    Math.abs(bounds.height - screenHeight) <= 2
+    Math.abs(bounds.width - screenWidth) <= 2 && Math.abs(bounds.height - screenHeight) <= 2
 
   return nearOrigin && nearScreenSize
 }
@@ -83,7 +72,7 @@ function isLikelyMessengerScreenshotOverlay(
 
 function shouldIgnoreTransientFullscreen(title: string): boolean {
   const lowerTitle = normalizeToken(title)
-  return IGNORE_FULLSCREEN_TITLES.some((item) => {
+  return IGNORE_FULLSCREEN_TITLES.some(item => {
     const normalizedItem = normalizeToken(item)
     return lowerTitle === normalizedItem || lowerTitle.includes(normalizedItem)
   })
@@ -164,7 +153,7 @@ function hasFullscreenAppByWindowManager(): boolean {
       console.log('[自动检测全屏] 忽略聊天软件截图覆盖层:', {
         title,
         processPath,
-        bounds,
+        bounds
       })
       return false
     }
@@ -202,14 +191,13 @@ async function hasFullscreenAppByActiveWindow(): Promise<boolean> {
     const bounds = activeWindow.bounds as { x: number; y: number; width: number; height: number }
     const center = {
       x: Math.round(bounds.x + bounds.width / 2),
-      y: Math.round(bounds.y + bounds.height / 2),
+      y: Math.round(bounds.y + bounds.height / 2)
     }
     const display = screen.getDisplayNearestPoint(center)
     const displayBounds = display.bounds
 
     const closeToDisplayOrigin =
-      Math.abs(bounds.x - displayBounds.x) <= 16 &&
-      Math.abs(bounds.y - displayBounds.y) <= 16
+      Math.abs(bounds.x - displayBounds.x) <= 16 && Math.abs(bounds.y - displayBounds.y) <= 16
     const closeToDisplaySize =
       Math.abs(bounds.width - displayBounds.width) <= 32 &&
       Math.abs(bounds.height - displayBounds.height) <= 32

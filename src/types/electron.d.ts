@@ -1,10 +1,10 @@
 // TypeScript 类型声明
 // 从 windowWatcher.ts 导入窗口相关类型
-import type { 
-  WindowEventType as _WindowEventType, 
-  WindowInfo as _WindowInfo, 
-  WindowEvent as _WindowEvent, 
-  WindowWatcherConfig as _WindowWatcherConfig 
+import type {
+  WindowEventType as _WindowEventType,
+  WindowInfo as _WindowInfo,
+  WindowEvent as _WindowEvent,
+  WindowWatcherConfig as _WindowWatcherConfig
 } from '../../electron/utils/windowWatcher'
 import type { DesktopFeatureSettings as _DesktopFeatureSettings } from '../utils/desktopFeatureSettings'
 import type { UpdaterSettings as _UpdaterSettings } from '../utils/updaterSettings'
@@ -13,12 +13,12 @@ import type {
   DesktopBehaviorEffectiveState as _DesktopBehaviorEffectiveState,
   DesktopBehaviorRuntimeState as _DesktopBehaviorRuntimeState,
   DesktopBehaviorSnapshot as _DesktopBehaviorSnapshot,
-  DesktopRevealReason as _DesktopRevealReason,
+  DesktopRevealReason as _DesktopRevealReason
 } from '../../electron/desktopBehavior/types'
 import type {
   BridgeLifecycleCommandResult as _BridgeLifecycleCommandResult,
   BridgeLifecycleSnapshot as _BridgeLifecycleSnapshot,
-  BridgeSessionState as _BridgeSessionState,
+  BridgeSessionState as _BridgeSessionState
 } from '../shared/bridgeLifecycle'
 import type {
   ConnectionBehaviorSettingsChangedEvent as _ConnectionBehaviorSettingsChangedEvent,
@@ -26,29 +26,29 @@ import type {
   ConnectionBehaviorSettingsMigrateLegacyResult as _ConnectionBehaviorSettingsMigrateLegacyResult,
   ConnectionBehaviorSettingsSavePayload as _ConnectionBehaviorSettingsSavePayload,
   ConnectionBehaviorSettingsSaveResult as _ConnectionBehaviorSettingsSaveResult,
-  ConnectionBehaviorSettingsPersistedV1 as _ConnectionBehaviorSettingsPersistedV1,
+  ConnectionBehaviorSettingsPersistedV1 as _ConnectionBehaviorSettingsPersistedV1
 } from '../shared/connectionBehaviorSettings'
 import type {
   ConnectionSettingsChangedEvent as _ConnectionSettingsChangedEvent,
   ConnectionSettingsLoadResult as _ConnectionSettingsLoadResult,
   ConnectionSettingsMigrateLegacyResult as _ConnectionSettingsMigrateLegacyResult,
   ConnectionSettingsSavePayload as _ConnectionSettingsSavePayload,
-  ConnectionSettingsSaveResult as _ConnectionSettingsSaveResult,
+  ConnectionSettingsSaveResult as _ConnectionSettingsSaveResult
 } from '../shared/connectionSettings'
 import type {
   HistoryGetMessagesResult as _HistoryGetMessagesResult,
   HistoryMessageQueryOptions as _HistoryMessageQueryOptions,
   HistoryMessageRecord as _HistoryMessageRecord,
-  HistorySaveMessageResult as _HistorySaveMessageResult,
+  HistorySaveMessageResult as _HistorySaveMessageResult
 } from '../shared/history'
 import type {
   CubismCompatibilityManifest as _CubismCompatibilityManifest,
-  CubismModelLoadDescriptor as _CubismModelLoadDescriptor,
+  CubismModelLoadDescriptor as _CubismModelLoadDescriptor
 } from '../shared/cubismModelDiscovery'
 import type {
   Live2DExpressionTypePresetMap as _Live2DExpressionTypePresetMap,
   Live2DExpressionTypesLoadResult as _Live2DExpressionTypesLoadResult,
-  Live2DExpressionTypesSaveResult as _Live2DExpressionTypesSaveResult,
+  Live2DExpressionTypesSaveResult as _Live2DExpressionTypesSaveResult
 } from '../shared/live2dExpressionTypes'
 
 declare global {
@@ -72,7 +72,8 @@ declare global {
   type ConnectionBehaviorSettingsLoadResult = _ConnectionBehaviorSettingsLoadResult
   type ConnectionBehaviorSettingsSavePayload = _ConnectionBehaviorSettingsSavePayload
   type ConnectionBehaviorSettingsSaveResult = _ConnectionBehaviorSettingsSaveResult
-  type ConnectionBehaviorSettingsMigrateLegacyResult = _ConnectionBehaviorSettingsMigrateLegacyResult
+  type ConnectionBehaviorSettingsMigrateLegacyResult =
+    _ConnectionBehaviorSettingsMigrateLegacyResult
   type ConnectionBehaviorSettingsPersistedV1 = _ConnectionBehaviorSettingsPersistedV1
   type ConnectionSettingsChangedEvent = _ConnectionSettingsChangedEvent
   type ConnectionSettingsLoadResult = _ConnectionSettingsLoadResult
@@ -90,7 +91,15 @@ declare global {
   type Live2DExpressionTypesSaveResult = _Live2DExpressionTypesSaveResult
 
   interface UpdateState {
-    status: 'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'
+    status:
+      | 'disabled'
+      | 'idle'
+      | 'checking'
+      | 'available'
+      | 'not-available'
+      | 'downloading'
+      | 'downloaded'
+      | 'error'
     message: string
     currentVersion: string
     latestVersion?: string
@@ -120,8 +129,14 @@ declare global {
     electron: {
       bridge: {
         getSession: () => Promise<BridgeSessionState | null>
-        sendMessage: (payload: any) => Promise<{ success: boolean; error?: string; content?: any[] }>
-        sendTouch: (x: number, y: number, action: string) => Promise<{ success: boolean; error?: string }>
+        sendMessage: (
+          payload: any
+        ) => Promise<{ success: boolean; error?: string; content?: any[] }>
+        sendTouch: (
+          x: number,
+          y: number,
+          action: string
+        ) => Promise<{ success: boolean; error?: string }>
         sendState: (op: string, payload: any) => Promise<{ success: boolean; error?: string }>
         onPerformShow: (callback: (payload: any) => void) => Unsubscribe
         onPerformInterrupt: (callback: () => void) => Unsubscribe
@@ -136,20 +151,32 @@ declare global {
         openSettings: (page?: string) => Promise<{ success: boolean }>
         closeSettings: () => Promise<{ success: boolean }>
         minimizeCurrent: () => Promise<{ success: boolean; error?: string }>
-        toggleMaximizeCurrent: () => Promise<{ success: boolean; maximized?: boolean; error?: string }>
+        toggleMaximizeCurrent: () => Promise<{
+          success: boolean
+          maximized?: boolean
+          error?: string
+        }>
         isMaximizedCurrent: () => Promise<boolean>
         closeCurrent: () => Promise<{ success: boolean; error?: string }>
         notifyRendererReady: (windowKind: string) => Promise<{ success: boolean; error?: string }>
         closeWelcome: () => Promise<{ success: boolean }>
         getScreenshotSettings: () => Promise<ScreenshotSettings>
-        updateScreenshotSettings: (settings: Partial<ScreenshotSettings>) => Promise<ScreenshotSettings>
+        updateScreenshotSettings: (
+          settings: Partial<ScreenshotSettings>
+        ) => Promise<ScreenshotSettings>
         onMaximizedChanged: (callback: (maximized: boolean) => void) => Unsubscribe
         openExternal: (url: string) => Promise<{ success: boolean }>
-        openResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
-        saveResource: (source: string, suggestedName?: string) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
+        openResource: (
+          source: string,
+          suggestedName?: string
+        ) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
+        saveResource: (
+          source: string,
+          suggestedName?: string
+        ) => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>
         getAppVersion: () => Promise<string>
         getPlatformCapabilities: () => Promise<PlatformCapabilities>
-        
+
         // 窗口事件监听
         startWatching: () => Promise<{ success: boolean; error?: string }>
         getActiveWindow: () => Promise<WindowInfo | null>
@@ -164,13 +191,19 @@ declare global {
         getWatcherConfig: () => Promise<WindowWatcherConfig>
         updateWatcherConfig: (config: Partial<WindowWatcherConfig>) => Promise<{ success: boolean }>
         resetWatcherConfig: () => Promise<{ success: boolean; config: WindowWatcherConfig }>
-        downloadCubismCore: () => Promise<{ success: boolean; alreadyExists?: boolean; cancelled?: boolean }>
+        downloadCubismCore: () => Promise<{
+          success: boolean
+          alreadyExists?: boolean
+          cancelled?: boolean
+        }>
         toggleSettingsPin: () => Promise<{ success: boolean; pinned: boolean }>
         onWindowEvent: (callback: (event: WindowEvent) => void) => Unsubscribe
       }
       desktopBehavior: {
         getPreferences: () => Promise<DesktopFeatureSettings>
-        updatePreferences: (config: Partial<DesktopFeatureSettings>) => Promise<DesktopFeatureSettings>
+        updatePreferences: (
+          config: Partial<DesktopFeatureSettings>
+        ) => Promise<DesktopFeatureSettings>
         getSnapshot: () => Promise<DesktopBehaviorSnapshot>
         setMousePassthrough: (ignoreMouseEvents: boolean) => Promise<boolean>
         setModelReady: (ready: boolean) => Promise<DesktopBehaviorSnapshot>
@@ -194,44 +227,73 @@ declare global {
       }
       connectionBehaviorSettings: {
         load: () => Promise<ConnectionBehaviorSettingsLoadResult>
-        save: (payload: ConnectionBehaviorSettingsSavePayload) => Promise<ConnectionBehaviorSettingsSaveResult>
-        migrateLegacy: (rawLegacyJson: string) => Promise<ConnectionBehaviorSettingsMigrateLegacyResult>
-        onChanged: (callback: (event: ConnectionBehaviorSettingsChangedEvent) => void) => Unsubscribe
+        save: (
+          payload: ConnectionBehaviorSettingsSavePayload
+        ) => Promise<ConnectionBehaviorSettingsSaveResult>
+        migrateLegacy: (
+          rawLegacyJson: string
+        ) => Promise<ConnectionBehaviorSettingsMigrateLegacyResult>
+        onChanged: (
+          callback: (event: ConnectionBehaviorSettingsChangedEvent) => void
+        ) => Unsubscribe
       }
       history: {
         getMessages: (options: HistoryMessageQueryOptions) => Promise<HistoryGetMessagesResult>
         saveMessage: (record: HistoryMessageRecord) => Promise<HistorySaveMessageResult>
         savePerformance: (record: any) => Promise<{ success: boolean; error?: string }>
         updateStatistics: (data: any) => Promise<{ success: boolean; error?: string }>
-        getStatistics: (startDate: string, endDate: string) => Promise<{ success: boolean; data?: any[]; error?: string }>
-        getAverageResponseTime: (startDate: number, endDate: number) => Promise<{ success: boolean; data?: number; error?: string }>
+        getStatistics: (
+          startDate: string,
+          endDate: string
+        ) => Promise<{ success: boolean; data?: any[]; error?: string }>
+        getAverageResponseTime: (
+          startDate: number,
+          endDate: number
+        ) => Promise<{ success: boolean; data?: number; error?: string }>
         clearHistory: () => Promise<{ success: boolean; error?: string }>
       }
       model: {
-        selectFolder: () => Promise<{ success: boolean; folderPath?: string; canceled?: boolean; error?: string }>
-        import: (sourceDir: string, modelName: string) => Promise<{
-          success: boolean;
-          modelPath?: string;
-          chosenFile?: string;
-          modelFiles?: string[];
-          warnings?: string[];
-          manifest?: {
-            modelFile: string;
-            moc: string;
-            textures: string[];
-            motions: string[];
-            expressions: string[];
-            physics?: string;
-            pose?: string;
-            userData?: string;
-          };
+        selectFolder: () => Promise<{
+          success: boolean
+          folderPath?: string
+          canceled?: boolean
           error?: string
         }>
-        getList: () => Promise<{ success: boolean; models?: Array<{ name: string; path: string }>; error?: string }>
+        import: (
+          sourceDir: string,
+          modelName: string
+        ) => Promise<{
+          success: boolean
+          modelPath?: string
+          chosenFile?: string
+          modelFiles?: string[]
+          warnings?: string[]
+          manifest?: {
+            modelFile: string
+            moc: string
+            textures: string[]
+            motions: string[]
+            expressions: string[]
+            physics?: string
+            pose?: string
+            userData?: string
+          }
+          error?: string
+        }>
+        getList: () => Promise<{
+          success: boolean
+          models?: Array<{ name: string; path: string }>
+          error?: string
+        }>
         delete: (modelName: string) => Promise<{ success: boolean; error?: string }>
-        prepareLoad: (modelPath: string) => Promise<{ success: boolean; descriptor?: CubismModelLoadDescriptor; error?: string }>
+        prepareLoad: (
+          modelPath: string
+        ) => Promise<{ success: boolean; descriptor?: CubismModelLoadDescriptor; error?: string }>
         getExpressionTypes: (modelPath: string) => Promise<Live2DExpressionTypesLoadResult>
-        saveExpressionTypes: (modelPath: string, presets: Live2DExpressionTypePresetMap) => Promise<Live2DExpressionTypesSaveResult>
+        saveExpressionTypes: (
+          modelPath: string,
+          presets: Live2DExpressionTypePresetMap
+        ) => Promise<Live2DExpressionTypesSaveResult>
         load: (modelPath: string) => Promise<{ success: boolean; error?: string }>
         onLoad: (callback: (modelPath: string) => void) => Unsubscribe
       }
@@ -239,7 +301,9 @@ declare global {
         register: (accelerator: string) => Promise<{ success: boolean; error?: string }>
         unregister: () => Promise<{ success: boolean; error?: string }>
         isRegistered: (accelerator: string) => Promise<boolean>
-        setRecordingState: (recording: boolean) => Promise<{ success: boolean; isRecording: boolean }>
+        setRecordingState: (
+          recording: boolean
+        ) => Promise<{ success: boolean; isRecording: boolean }>
         onRecordingStart: (callback: () => void) => Unsubscribe
         onRecordingStop: (callback: () => void) => Unsubscribe
       }
@@ -250,9 +314,17 @@ declare global {
         error: (...args: any[]) => void
         getDirectory: () => Promise<string>
         openDirectory: () => Promise<{ success: boolean; path: string; error?: string }>
-        setLevel: (level: 'info' | 'debug') => Promise<{ success: boolean; level: 'info' | 'debug' }>
-        getConfig: () => Promise<{ level: 'info' | 'debug'; retentionDays: number; maxFileBytes: number }>
-        exportBundle: (days?: number) => Promise<{ success: boolean; path: string; count: number; error?: string }>
+        setLevel: (
+          level: 'info' | 'debug'
+        ) => Promise<{ success: boolean; level: 'info' | 'debug' }>
+        getConfig: () => Promise<{
+          level: 'info' | 'debug'
+          retentionDays: number
+          maxFileBytes: number
+        }>
+        exportBundle: (
+          days?: number
+        ) => Promise<{ success: boolean; path: string; count: number; error?: string }>
       }
       update: {
         check: () => Promise<UpdateCheckResult>

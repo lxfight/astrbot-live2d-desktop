@@ -124,7 +124,8 @@ export class WakeWordListener {
     }
 
     const hasAudioContext =
-      typeof window.AudioContext === 'function' || typeof (window as any).webkitAudioContext === 'function'
+      typeof window.AudioContext === 'function' ||
+      typeof (window as any).webkitAudioContext === 'function'
     const hasGetUserMedia =
       !!navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
 
@@ -204,15 +205,17 @@ export class WakeWordListener {
     const missingAssets = await this.findMissingAssets([
       modelPath,
       ...this.preparedKeywords
-        .filter((keyword) => keyword.mode === 'custom')
-        .map((keyword) => keyword.publicPath),
+        .filter(keyword => keyword.mode === 'custom')
+        .map(keyword => keyword.publicPath)
     ])
     if (!this.isTokenActive(token)) {
       return
     }
     if (missingAssets.length > 0) {
       const fileList = missingAssets.join(', ')
-      this.handleFatalStartError(i18n.global.t('error.wakeWordResourceMissing', { files: fileList }))
+      this.handleFatalStartError(
+        i18n.global.t('error.wakeWordResourceMissing', { files: fileList })
+      )
       return
     }
 
@@ -242,7 +245,7 @@ export class WakeWordListener {
     const builtInKeywords = moduleLike.BuiltInKeyword ?? null
     let keywordConfigs: PorcupineCreateKeywordConfig[]
     try {
-      keywordConfigs = this.preparedKeywords.map((keyword) =>
+      keywordConfigs = this.preparedKeywords.map(keyword =>
         this.toKeywordConfig(keyword, builtInKeywords)
       )
     } catch (error) {
@@ -255,12 +258,16 @@ export class WakeWordListener {
         accessKey,
         keyword: keywordConfigs,
         model: { publicPath: modelPath },
-        processErrorCallback: (error) => {
-          this.handleRuntimeError(i18n.global.t('error.porcupineRuntimeError', { error: this.stringifyError(error) }))
-        },
+        processErrorCallback: error => {
+          this.handleRuntimeError(
+            i18n.global.t('error.porcupineRuntimeError', { error: this.stringifyError(error) })
+          )
+        }
       })
     } catch (error) {
-      this.handleFatalStartError(i18n.global.t('error.porcupineInitFailed', { error: this.stringifyError(error) }))
+      this.handleFatalStartError(
+        i18n.global.t('error.porcupineInitFailed', { error: this.stringifyError(error) })
+      )
       return
     }
 
@@ -275,12 +282,17 @@ export class WakeWordListener {
     }
 
     this.frameLength = this.resolvePositiveNumber(this.porcupine.frameLength, DEFAULT_FRAME_LENGTH)
-    this.targetSampleRate = this.resolvePositiveNumber(this.porcupine.sampleRate, DEFAULT_SAMPLE_RATE)
+    this.targetSampleRate = this.resolvePositiveNumber(
+      this.porcupine.sampleRate,
+      DEFAULT_SAMPLE_RATE
+    )
 
     try {
       await this.startAudioPipeline(options.audioStream ?? null)
     } catch (error) {
-      this.handleRuntimeError(i18n.global.t('error.wakeWordAudioPipelineFailed', { error: this.stringifyError(error) }))
+      this.handleRuntimeError(
+        i18n.global.t('error.wakeWordAudioPipelineFailed', { error: this.stringifyError(error) })
+      )
       return
     }
 
@@ -341,7 +353,7 @@ export class WakeWordListener {
           original: trimmed,
           normalized,
           label: trimmed,
-          builtinName,
+          builtinName
         })
         this.keywordLabelLookup.set(normalized, trimmed)
         continue
@@ -353,7 +365,7 @@ export class WakeWordListener {
         original: trimmed,
         normalized,
         label: trimmed,
-        publicPath,
+        publicPath
       })
 
       this.keywordLabelLookup.set(normalized, trimmed)
@@ -406,7 +418,7 @@ export class WakeWordListener {
       moduleLike.PorcupineWorker?.create,
       moduleLike.Porcupine?.create,
       moduleLike.default?.PorcupineWorker?.create,
-      moduleLike.default?.Porcupine?.create,
+      moduleLike.default?.Porcupine?.create
     ]
 
     for (const candidate of candidates) {
@@ -426,7 +438,7 @@ export class WakeWordListener {
       return {
         publicPath: keyword.publicPath,
         label: keyword.label,
-        sensitivity: DEFAULT_SENSITIVITY,
+        sensitivity: DEFAULT_SENSITIVITY
       }
     }
 
@@ -442,7 +454,7 @@ export class WakeWordListener {
     return {
       builtin: builtInValue,
       label: keyword.label,
-      sensitivity: DEFAULT_SENSITIVITY,
+      sensitivity: DEFAULT_SENSITIVITY
     }
   }
 
@@ -506,8 +518,8 @@ export class WakeWordListener {
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
-        },
+          autoGainControl: true
+        }
       })
       this.ownsAudioStream = true
     }
@@ -583,10 +595,7 @@ export class WakeWordListener {
     const output = new Int16Array(outputLength)
     let sourceOffset = 0
     for (let i = 0; i < outputLength; i += 1) {
-      const nextSourceOffset = Math.min(
-        merged.length,
-        Math.round((i + 1) * sampleRateRatio)
-      )
+      const nextSourceOffset = Math.min(merged.length, Math.round((i + 1) * sampleRateRatio))
 
       let sum = 0
       let count = 0
@@ -647,11 +656,13 @@ export class WakeWordListener {
 
         this.onWakeWord?.({
           keyword: detectedKeyword,
-          transcript: detectedKeyword,
+          transcript: detectedKeyword
         })
       }
     } catch (error) {
-      this.handleRuntimeError(i18n.global.t('error.wakeWordProcessFailed', { error: this.stringifyError(error) }))
+      this.handleRuntimeError(
+        i18n.global.t('error.wakeWordProcessFailed', { error: this.stringifyError(error) })
+      )
     } finally {
       this.processingFrames = false
       if (this.running && this.queuedSamples.length >= this.frameLength && !this.processingFrames) {
@@ -663,7 +674,7 @@ export class WakeWordListener {
 
   private resolveDetectedKeyword(result: PorcupineProcessResult): string | null {
     if (typeof result === 'boolean') {
-      return result ? this.preparedKeywords[0]?.original ?? null : null
+      return result ? (this.preparedKeywords[0]?.original ?? null) : null
     }
 
     if (typeof result === 'number') {
@@ -799,7 +810,7 @@ export class WakeWordListener {
     this.processingFrames = false
 
     if (this.audioStream && this.ownsAudioStream) {
-      this.audioStream.getTracks().forEach((track) => track.stop())
+      this.audioStream.getTracks().forEach(track => track.stop())
     }
     this.audioStream = null
     this.ownsAudioStream = false

@@ -72,7 +72,7 @@ export function decodeBinaryPayload(item: MessageContent): PreparedInlineResourc
 
   return {
     mime: item.mime || 'application/octet-stream',
-    buffer,
+    buffer
   }
 }
 
@@ -119,7 +119,7 @@ export async function prepareMessageContentForTransport(
         ...item,
         inline: item.inline || encodeInlineDataUrl(preparedResource.buffer, preparedResource.mime),
         bytes: undefined,
-        mime: undefined,
+        mime: undefined
       })
       continue
     }
@@ -128,7 +128,10 @@ export async function prepareMessageContentForTransport(
       throw new Error(t('error.attachmentTooLarge', { limit: inlineLimit }))
     }
 
-    const uploadedUrl = await options.uploadInlineResource(preparedResource.buffer, preparedResource.mime)
+    const uploadedUrl = await options.uploadInlineResource(
+      preparedResource.buffer,
+      preparedResource.mime
+    )
     if (!uploadedUrl) {
       throw new Error(t('error.resourceUploadFailed'))
     }
@@ -139,7 +142,7 @@ export async function prepareMessageContentForTransport(
       inline: undefined,
       rid: undefined,
       bytes: undefined,
-      mime: undefined,
+      mime: undefined
     })
   }
 

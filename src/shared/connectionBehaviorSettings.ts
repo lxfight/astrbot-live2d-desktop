@@ -73,7 +73,7 @@ export function buildDefaultConnectionBehaviorSettings(): ConnectionBehaviorSett
     retryBaseDelayMs: 1000,
     retryMaxDelayMs: 30000,
     retryMaxAttempts: null,
-    handshakeTimeoutMs: 8000,
+    handshakeTimeoutMs: 8000
   }
 }
 
@@ -111,7 +111,7 @@ function normalizeHandshakeTimeout(value: unknown, fallback: number): number {
 }
 
 export function normalizeConnectionBehaviorSettings(
-  value: Partial<ConnectionBehaviorSettingsPersistedV1> | null | undefined,
+  value: Partial<ConnectionBehaviorSettingsPersistedV1> | null | undefined
 ): ConnectionBehaviorSettingsPersistedV1 {
   const defaults = buildDefaultConnectionBehaviorSettings()
   const source = value || {}
@@ -119,19 +119,25 @@ export function normalizeConnectionBehaviorSettings(
   const retryBaseDelayMs = normalizeRetryDelay(source.retryBaseDelayMs, defaults.retryBaseDelayMs)
   const retryMaxDelayMs = Math.max(
     retryBaseDelayMs,
-    normalizeRetryDelay(source.retryMaxDelayMs, defaults.retryMaxDelayMs),
+    normalizeRetryDelay(source.retryMaxDelayMs, defaults.retryMaxDelayMs)
   )
 
   return {
-    autoConnectOnAppLaunch: normalizeBoolean(source.autoConnectOnAppLaunch, defaults.autoConnectOnAppLaunch),
+    autoConnectOnAppLaunch: normalizeBoolean(
+      source.autoConnectOnAppLaunch,
+      defaults.autoConnectOnAppLaunch
+    ),
     resumeDesiredConnectionOnWake: normalizeBoolean(
       source.resumeDesiredConnectionOnWake,
-      defaults.resumeDesiredConnectionOnWake,
+      defaults.resumeDesiredConnectionOnWake
     ),
     retryEnabled: normalizeBoolean(source.retryEnabled, defaults.retryEnabled),
     retryBaseDelayMs,
     retryMaxDelayMs,
     retryMaxAttempts: normalizeRetryAttempts(source.retryMaxAttempts, defaults.retryMaxAttempts),
-    handshakeTimeoutMs: normalizeHandshakeTimeout(source.handshakeTimeoutMs, defaults.handshakeTimeoutMs),
+    handshakeTimeoutMs: normalizeHandshakeTimeout(
+      source.handshakeTimeoutMs,
+      defaults.handshakeTimeoutMs
+    )
   }
 }

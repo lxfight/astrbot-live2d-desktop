@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildHistoryRenderableItems,
   resolveHistoryMediaSource,
-  resolveHistoryImageSource,
+  resolveHistoryImageSource
 } from '../src/utils/historyContent'
 
 describe('historyContent', () => {
@@ -20,14 +20,14 @@ describe('historyContent', () => {
     const items = buildHistoryRenderableItems(
       [
         { type: 'text', text: 'hello' },
-        { type: 'image', inline: 'data:image/png;base64,abcd' },
+        { type: 'image', inline: 'data:image/png;base64,abcd' }
       ],
       { resourceBaseUrl: 'http://127.0.0.1:9091' }
     )
 
     expect(items).toEqual([
       { type: 'text', text: 'hello' },
-      { type: 'image', src: 'data:image/png;base64,abcd', alt: '历史消息图片' },
+      { type: 'image', src: 'data:image/png;base64,abcd', alt: '历史消息图片' }
     ])
   })
 
@@ -59,12 +59,12 @@ describe('historyContent', () => {
         { type: 'image', rid: 'img_002' },
         { type: 'audio', rid: 'audio_002', name: 'voice.wav' },
         { type: 'video', inline: 'data:video/mp4;base64,efgh', name: 'clip.mp4' },
-        { type: 'file', rid: 'file_002', name: 'report.pdf' },
+        { type: 'file', rid: 'file_002', name: 'report.pdf' }
       ],
       {
         includeTtsText: true,
         resourceBaseUrl: 'http://127.0.0.1:8090',
-        resourcePath: '/custom-media',
+        resourcePath: '/custom-media'
       }
     )
 
@@ -74,24 +74,24 @@ describe('historyContent', () => {
       {
         type: 'image',
         src: 'http://127.0.0.1:8090/custom-media/img_002',
-        alt: '历史消息图片',
+        alt: '历史消息图片'
       },
       {
         type: 'audio',
         src: 'http://127.0.0.1:8090/custom-media/audio_002',
-        label: 'voice.wav',
+        label: 'voice.wav'
       },
       {
         type: 'video',
         src: 'data:video/mp4;base64,efgh',
-        label: 'clip.mp4',
+        label: 'clip.mp4'
       },
       {
         type: 'file',
         src: 'http://127.0.0.1:8090/custom-media/file_002',
         label: 'report.pdf',
-        name: 'report.pdf',
-      },
+        name: 'report.pdf'
+      }
     ])
   })
 })

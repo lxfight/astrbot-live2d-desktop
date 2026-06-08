@@ -10,19 +10,24 @@ export interface BridgeFailure {
 }
 
 function isBridgeClientError(error: unknown): error is BridgeClientError {
-  return Boolean(error) && typeof error === 'object' && typeof (error as BridgeClientError).code === 'string'
+  return (
+    Boolean(error) &&
+    typeof error === 'object' &&
+    typeof (error as BridgeClientError).code === 'string'
+  )
 }
 
 export function classifyConnectError(error: unknown): BridgeFailure {
   if (isBridgeClientError(error)) {
-    const retryable = error.code !== 'INVALID_URL'
-      && error.code !== 'TOKEN_REQUIRED'
-      && error.code !== 'AUTH_FAILED'
-      && error.code !== 'VERSION_MISMATCH'
+    const retryable =
+      error.code !== 'INVALID_URL' &&
+      error.code !== 'TOKEN_REQUIRED' &&
+      error.code !== 'AUTH_FAILED' &&
+      error.code !== 'VERSION_MISMATCH'
     return {
       code: error.code,
       message: error.message,
-      retryable,
+      retryable
     }
   }
 
@@ -30,14 +35,14 @@ export function classifyConnectError(error: unknown): BridgeFailure {
     return {
       code: 'WS_CONNECT_FAILED',
       message: error.message,
-      retryable: true,
+      retryable: true
     }
   }
 
   return {
     code: 'UNKNOWN',
     message: String(error),
-    retryable: true,
+    retryable: true
   }
 }
 
@@ -51,6 +56,6 @@ export function classifyDisconnect(info: BridgeClientDisconnectInfo): BridgeFail
     message,
     retryable,
     closeCode: info.code,
-    closeReason: info.reason,
+    closeReason: info.reason
   }
 }

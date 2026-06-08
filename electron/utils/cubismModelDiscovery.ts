@@ -7,7 +7,7 @@ import type {
   CubismCompatibilityMotionEntry,
   CubismModelDiscoveryInfo,
   CubismModelDiscoverySource,
-  CubismModelLoadDescriptor,
+  CubismModelLoadDescriptor
 } from '../../src/shared/cubismModelDiscovery'
 
 type Model3Json = {
@@ -181,13 +181,13 @@ function scanModelDirectory(modelDir: string): ScanIndex {
     expressionFiles,
     motionByBasename,
     expressionByBasename,
-    companionFiles,
+    companionFiles
   }
 }
 
 function chooseBestBasenameMatch(
   candidates: string[],
-  kind: 'motion' | 'expression',
+  kind: 'motion' | 'expression'
 ): { match: string | null; ambiguous: boolean } {
   if (candidates.length === 0) {
     return { match: null, ambiguous: false }
@@ -200,12 +200,22 @@ function chooseBestBasenameMatch(
   const sorted = [...candidates].sort((left, right) => {
     const leftDepth = left.split('/').length
     const rightDepth = right.split('/').length
-    const leftPreferred = kind === 'motion'
-      ? (left.toLowerCase().includes('/motions/') ? 1 : 0)
-      : (left.split('/').length === 1 ? 1 : 0)
-    const rightPreferred = kind === 'motion'
-      ? (right.toLowerCase().includes('/motions/') ? 1 : 0)
-      : (right.split('/').length === 1 ? 1 : 0)
+    const leftPreferred =
+      kind === 'motion'
+        ? left.toLowerCase().includes('/motions/')
+          ? 1
+          : 0
+        : left.split('/').length === 1
+          ? 1
+          : 0
+    const rightPreferred =
+      kind === 'motion'
+        ? right.toLowerCase().includes('/motions/')
+          ? 1
+          : 0
+        : right.split('/').length === 1
+          ? 1
+          : 0
 
     if (leftPreferred !== rightPreferred) {
       return rightPreferred - leftPreferred
@@ -218,7 +228,7 @@ function chooseBestBasenameMatch(
 
   return {
     match: sorted[0],
-    ambiguous: true,
+    ambiguous: true
   }
 }
 
@@ -227,7 +237,7 @@ function resolveCandidatePath(
   rawFile: string,
   kind: 'motion' | 'expression',
   scanIndex: ScanIndex,
-  warnings: string[],
+  warnings: string[]
 ): string | null {
   const trimmed = String(rawFile || '').trim()
   if (!trimmed) {
@@ -239,15 +249,14 @@ function resolveCandidatePath(
     return declaredMatch
   }
 
-  const basenameMatches = kind === 'motion'
-    ? scanIndex.motionByBasename.get(path.basename(trimmed).toLowerCase()) ?? []
-    : scanIndex.expressionByBasename.get(path.basename(trimmed).toLowerCase()) ?? []
+  const basenameMatches =
+    kind === 'motion'
+      ? (scanIndex.motionByBasename.get(path.basename(trimmed).toLowerCase()) ?? [])
+      : (scanIndex.expressionByBasename.get(path.basename(trimmed).toLowerCase()) ?? [])
   const resolved = chooseBestBasenameMatch(basenameMatches, kind)
 
   if (resolved.ambiguous && resolved.match) {
-    warnings.push(
-      `兼容清单中的 ${kind} 引用 ${trimmed} 存在多个候选，已选择 ${resolved.match}`
-    )
+    warnings.push(`兼容清单中的 ${kind} 引用 ${trimmed} 存在多个候选，已选择 ${resolved.match}`)
   }
 
   return resolved.match
@@ -259,14 +268,14 @@ function ensureExpressionEntry(
   source: CubismModelDiscoverySource,
   priority: number,
   preferredId: string,
-  aliases: string[],
+  aliases: string[]
 ): void {
   const key = file.toLowerCase()
   const normalizedId = preferredId.trim() || stripKnownExtension(path.basename(file))
   const normalizedAliases = uniqueStrings([
     normalizedId,
     stripKnownExtension(path.basename(file)),
-    ...aliases,
+    ...aliases
   ])
 
   const existing = entries.get(key)
@@ -276,12 +285,12 @@ function ensureExpressionEntry(
       file,
       aliases: new Set(normalizedAliases),
       source,
-      priority,
+      priority
     })
     return
   }
 
-  normalizedAliases.forEach((alias) => existing.aliases.add(alias))
+  normalizedAliases.forEach(alias => existing.aliases.add(alias))
   if (priority < existing.priority) {
     existing.id = normalizedId
     existing.source = source
@@ -294,7 +303,7 @@ function ensureMotionEntry(
   file: string,
   source: CubismModelDiscoverySource,
   priority: number,
-  group: string,
+  group: string
 ): void {
   const key = file.toLowerCase()
   const normalizedGroup = group.trim() || stripKnownExtension(path.basename(file))
@@ -304,7 +313,7 @@ function ensureMotionEntry(
       group: normalizedGroup,
       file,
       source,
-      priority,
+      priority
     })
     return
   }
@@ -328,10 +337,10 @@ function inferFallbackMotionGroup(relativePath: string): string {
   const baseName = stripKnownExtension(path.basename(relativePath))
   const normalizedBase = baseName.toLowerCase()
   if (
-    normalizedBase.includes('idle')
-    || normalizedBase.includes('default')
-    || normalizedBase.includes('standby')
-    || baseName.includes('待机')
+    normalizedBase.includes('idle') ||
+    normalizedBase.includes('default') ||
+    normalizedBase.includes('standby') ||
+    baseName.includes('待机')
   ) {
     return 'Idle'
   }
@@ -343,7 +352,7 @@ function appendStandardDeclarations(
   modelJson: Model3Json,
   expressionEntries: Map<string, ExpressionBuilderEntry>,
   motionEntries: Map<string, MotionBuilderEntry>,
-  warnings: string[],
+  warnings: string[]
 ): { expressionCount: number; motionGroupCount: number } {
   const refs = modelJson.FileReferences ?? {}
   let expressionCount = 0
@@ -367,7 +376,7 @@ function appendStandardDeclarations(
       'model3',
       0,
       rawName || baseName,
-      uniqueStrings([rawName, baseName]),
+      uniqueStrings([rawName, baseName])
     )
   }
 
@@ -383,13 +392,7 @@ function appendStandardDeclarations(
         continue
       }
       groupHasMotion = true
-      ensureMotionEntry(
-        motionEntries,
-        resolved,
-        'model3',
-        0,
-        groupName,
-      )
+      ensureMotionEntry(motionEntries, resolved, 'model3', 0, groupName)
     }
     if (groupHasMotion) {
       motionGroupCount += 1
@@ -398,7 +401,7 @@ function appendStandardDeclarations(
 
   return {
     expressionCount,
-    motionGroupCount,
+    motionGroupCount
   }
 }
 
@@ -408,7 +411,7 @@ function appendVTubeStudioDeclarations(
   scanIndex: ScanIndex,
   expressionEntries: Map<string, ExpressionBuilderEntry>,
   motionEntries: Map<string, MotionBuilderEntry>,
-  warnings: string[],
+  warnings: string[]
 ): void {
   const absolutePath = path.join(modelDir, companionRelativePath)
   let parsed: VTubeStudioJson
@@ -461,7 +464,7 @@ function appendVTubeStudioDeclarations(
         'companion',
         1,
         rawName || baseName,
-        uniqueStrings([rawName, baseName]),
+        uniqueStrings([rawName, baseName])
       )
       continue
     }
@@ -481,7 +484,7 @@ function appendVTubeStudioDeclarations(
 function appendScanFallbackDeclarations(
   scanIndex: ScanIndex,
   expressionEntries: Map<string, ExpressionBuilderEntry>,
-  motionEntries: Map<string, MotionBuilderEntry>,
+  motionEntries: Map<string, MotionBuilderEntry>
 ): void {
   for (const expressionFile of scanIndex.expressionFiles) {
     ensureExpressionEntry(
@@ -490,18 +493,12 @@ function appendScanFallbackDeclarations(
       'scan',
       2,
       stripKnownExtension(path.basename(expressionFile)),
-      [],
+      []
     )
   }
 
   for (const motionFile of scanIndex.motionFiles) {
-    ensureMotionEntry(
-      motionEntries,
-      motionFile,
-      'scan',
-      2,
-      inferFallbackMotionGroup(motionFile),
-    )
+    ensureMotionEntry(motionEntries, motionFile, 'scan', 2, inferFallbackMotionGroup(motionFile))
   }
 }
 
@@ -512,18 +509,19 @@ function buildDiscoveryInfo(
   standardDeclaredExpressions: number,
   standardDeclaredMotionGroups: number,
   scanIndex: ScanIndex,
-  warnings: string[],
+  warnings: string[]
 ): CubismModelDiscoveryInfo {
   const sourceSet = new Set<CubismModelDiscoverySource>()
-  expressions.forEach((entry) => sourceSet.add(entry.source))
-  Object.values(motions).forEach((items) => items.forEach((entry) => sourceSet.add(entry.source)))
+  expressions.forEach(entry => sourceSet.add(entry.source))
+  Object.values(motions).forEach(items => items.forEach(entry => sourceSet.add(entry.source)))
 
   const sources = [...sourceSet.values()]
-  const usesCompatibilitySource = sources.some((source) => source !== 'model3')
+  const usesCompatibilitySource = sources.some(source => source !== 'model3')
 
   let mode: CubismModelDiscoveryInfo['mode'] = 'standard'
   if (usesCompatibilitySource) {
-    const usesStandardDeclarations = standardDeclaredExpressions > 0 || standardDeclaredMotionGroups > 0
+    const usesStandardDeclarations =
+      standardDeclaredExpressions > 0 || standardDeclaredMotionGroups > 0
     mode = usesStandardDeclarations ? 'hybrid' : 'compatibility'
   }
 
@@ -537,16 +535,16 @@ function buildDiscoveryInfo(
     discoveredMotionGroups: Object.keys(motions).length,
     scannedExpressionCount: scanIndex.expressionFiles.length,
     scannedMotionCount: scanIndex.motionFiles.length,
-    warnings: [...warnings],
+    warnings: [...warnings]
   }
 }
 
 function ensureUniqueExpressionIds(
-  expressions: CubismCompatibilityExpressionEntry[],
+  expressions: CubismCompatibilityExpressionEntry[]
 ): CubismCompatibilityExpressionEntry[] {
   const usedIds = new Map<string, number>()
 
-  return expressions.map((entry) => {
+  return expressions.map(entry => {
     const baseId = entry.id.trim() || stripKnownExtension(path.basename(entry.file))
     const key = baseId.toLowerCase()
     const currentCount = usedIds.get(key) ?? 0
@@ -560,12 +558,14 @@ function ensureUniqueExpressionIds(
     return {
       ...entry,
       id: dedupedId,
-      aliases: uniqueStrings([baseId, ...entry.aliases]),
+      aliases: uniqueStrings([baseId, ...entry.aliases])
     }
   })
 }
 
-export function discoverCubismModelCompatibility(modelJsonPath: string): CubismCompatibilityManifest {
+export function discoverCubismModelCompatibility(
+  modelJsonPath: string
+): CubismCompatibilityManifest {
   const modelAbsolutePath = path.resolve(modelJsonPath)
   const modelDir = path.dirname(modelAbsolutePath)
   const modelFile = normalizeRelativePath(path.basename(modelAbsolutePath))
@@ -587,7 +587,7 @@ export function discoverCubismModelCompatibility(modelJsonPath: string): CubismC
     modelJson,
     expressionEntries,
     motionEntries,
-    warnings,
+    warnings
   )
 
   for (const companionFile of scanIndex.companionFiles) {
@@ -597,7 +597,7 @@ export function discoverCubismModelCompatibility(modelJsonPath: string): CubismC
       scanIndex,
       expressionEntries,
       motionEntries,
-      warnings,
+      warnings
     )
   }
 
@@ -605,24 +605,26 @@ export function discoverCubismModelCompatibility(modelJsonPath: string): CubismC
 
   const expressions = ensureUniqueExpressionIds(
     [...expressionEntries.values()]
-    .sort((left, right) => left.id.localeCompare(right.id) || left.file.localeCompare(right.file))
-    .map<CubismCompatibilityExpressionEntry>((entry) => ({
-      id: entry.id,
-      file: entry.file,
-      aliases: uniqueStrings([...entry.aliases.values()]),
-      source: entry.source,
-    }))
+      .sort((left, right) => left.id.localeCompare(right.id) || left.file.localeCompare(right.file))
+      .map<CubismCompatibilityExpressionEntry>(entry => ({
+        id: entry.id,
+        file: entry.file,
+        aliases: uniqueStrings([...entry.aliases.values()]),
+        source: entry.source
+      }))
   )
 
   const motions = [...motionEntries.values()]
-    .sort((left, right) => left.group.localeCompare(right.group) || left.file.localeCompare(right.file))
+    .sort(
+      (left, right) => left.group.localeCompare(right.group) || left.file.localeCompare(right.file)
+    )
     .reduce<Record<string, CubismCompatibilityMotionEntry[]>>((groups, entry) => {
       if (!groups[entry.group]) {
         groups[entry.group] = []
       }
       groups[entry.group].push({
         file: entry.file,
-        source: entry.source,
+        source: entry.source
       })
       return groups
     }, {})
@@ -642,12 +644,15 @@ export function discoverCubismModelCompatibility(modelJsonPath: string): CubismC
       standardSummary.expressionCount,
       standardSummary.motionGroupCount,
       scanIndex,
-      warnings,
-    ),
+      warnings
+    )
   }
 }
 
-export function createCubismModelLoadDescriptor(modelPath: string, modelJsonPath: string): CubismModelLoadDescriptor {
+export function createCubismModelLoadDescriptor(
+  modelPath: string,
+  modelJsonPath: string
+): CubismModelLoadDescriptor {
   const compatibilityManifest = discoverCubismModelCompatibility(modelJsonPath)
   return {
     modelPath,
@@ -658,12 +663,14 @@ export function createCubismModelLoadDescriptor(modelPath: string, modelJsonPath
       moc: '',
       textures: [],
       motions: compatibilityManifest.motions
-        ? Object.values(compatibilityManifest.motions).flat().map((item) => normalizeRelativePath(item.file))
+        ? Object.values(compatibilityManifest.motions)
+            .flat()
+            .map(item => normalizeRelativePath(item.file))
         : [],
-      expressions: compatibilityManifest.expressions.map((item) => normalizeRelativePath(item.file)),
+      expressions: compatibilityManifest.expressions.map(item => normalizeRelativePath(item.file)),
       physics: undefined,
       pose: undefined,
-      userData: undefined,
-    },
+      userData: undefined
+    }
   }
 }

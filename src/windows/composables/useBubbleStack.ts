@@ -1,8 +1,5 @@
 import { ref, nextTick, type Ref } from 'vue'
-import {
-  computeBubbleAutoHideDelay,
-  type BubbleRenderableItem,
-} from '@/utils/bubbleContent'
+import { computeBubbleAutoHideDelay, type BubbleRenderableItem } from '@/utils/bubbleContent'
 import type { AdvancedSettings } from '@/utils/advancedSettings'
 import { sleep } from '@/utils/async'
 import { generateMessageId } from '@/utils/id'
@@ -51,7 +48,7 @@ const STATUS_MODEL_GAP = 30
 const BUBBLE_GAP = 10
 const DEFAULT_BUBBLE_STACK_MAX = 3
 const DEFAULT_FOLLOW_UP_WINDOW_MS = 4000
-const TIER_VH_FACTORS = [0.18, 0.26, 0.20]
+const TIER_VH_FACTORS = [0.18, 0.26, 0.2]
 
 interface UseBubbleStackOptions {
   live2dCanvasRef: Ref<Live2DCanvasApi | null>
@@ -118,7 +115,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
         statusTop,
         recordingTop,
         inputTop: Math.min(modelBounds.bottomCenterY + 22, window.innerHeight - 76),
-        bubbleBottom: statusTop,
+        bubbleBottom: statusTop
       }
     }
 
@@ -127,7 +124,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
       statusTop: Math.max(18, modelPositionY.value - 280),
       recordingTop: Math.max(18, modelPositionY.value - 330),
       inputTop: Math.min(modelPositionY.value + 150, window.innerHeight - 76),
-      bubbleBottom: Math.max(18, modelPositionY.value - 280),
+      bubbleBottom: Math.max(18, modelPositionY.value - 280)
     }
   }
 
@@ -151,7 +148,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
       return {
         entry,
         naturalHeight: naturalH,
-        width: el?.offsetWidth ?? 300,
+        width: el?.offsetWidth ?? 300
       }
     })
 
@@ -262,7 +259,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     entry.typingVer++
     for (const item of entry.items) {
       if (item.type === 'text') {
-        (item as BubbleTextItem).renderedText = (item as BubbleTextItem).fullText
+        ;(item as BubbleTextItem).renderedText = (item as BubbleTextItem).fullText
       }
     }
     entry.typingDone = true
@@ -272,9 +269,14 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
 
   function computeEntryAutoHideDelay(entry: BubbleEntry): number {
     return computeBubbleAutoHideDelay(
-      entry.items.map((item) => {
-        if (item.type === 'text') return { type: 'text' as const, text: (item as BubbleTextItem).fullText }
-        return { type: 'image' as const, src: (item as BubbleImageItem).src, alt: (item as BubbleImageItem).alt }
+      entry.items.map(item => {
+        if (item.type === 'text')
+          return { type: 'text' as const, text: (item as BubbleTextItem).fullText }
+        return {
+          type: 'image' as const,
+          src: (item as BubbleImageItem).src,
+          alt: (item as BubbleImageItem).alt
+        }
       })
     )
   }
@@ -289,7 +291,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
   }
 
   function holdBubble(id: string) {
-    const entry = bubbleStack.value.find((item) => item.id === id)
+    const entry = bubbleStack.value.find(item => item.id === id)
     if (!entry) return
     entry.pinned = true
     if (entry.hideTimerId !== null) {
@@ -299,7 +301,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
   }
 
   function releaseBubble(id: string) {
-    const entry = bubbleStack.value.find((item) => item.id === id)
+    const entry = bubbleStack.value.find(item => item.id === id)
     if (!entry) return
     entry.pinned = false
     if (entry.typingDone) {
@@ -308,7 +310,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
   }
 
   function removeEntry(id: string) {
-    const idx = bubbleStack.value.findIndex((e) => e.id === id)
+    const idx = bubbleStack.value.findIndex(e => e.id === id)
     if (idx === -1) return
     const entry = bubbleStack.value[idx]
     if (entry.hideTimerId !== null) clearTimeout(entry.hideTimerId)
@@ -348,27 +350,31 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
   // ─── 构造气泡项 ────────────────────────────────────────────
 
   function createBubbleItems(items: BubbleRenderableItem[]): BubbleItem[] {
-    return items.map((item) => {
+    return items.map(item => {
       if (item.type === 'text') {
         return {
           id: generateMessageId('bubble_text'),
           type: 'text' as const,
           fullText: item.text,
-          renderedText: '',
+          renderedText: ''
         }
       }
       return {
         id: generateMessageId('bubble_image'),
         type: 'image' as const,
         src: item.src,
-        alt: item.alt,
+        alt: item.alt
       }
     })
   }
 
   // ─── 主入口：推入新气泡 ────────────────────────────────────
 
-  function pushBubble(bubbleItems: BubbleRenderableItem[], _position: string, interrupt: boolean): string | null {
+  function pushBubble(
+    bubbleItems: BubbleRenderableItem[],
+    _position: string,
+    interrupt: boolean
+  ): string | null {
     if (!bubbleItems.length) return null
 
     if (interrupt) {
@@ -394,7 +400,7 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
       pinned: false,
       styleLeft: '0px',
       styleTop: '0px',
-      styleMaxHeight: '',
+      styleMaxHeight: ''
     }
 
     bubbleStack.value.push(entry)
@@ -411,7 +417,8 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
 
   function checkFollowUp(): { isFollowUp: boolean; timestamp: number } {
     const now = Date.now()
-    const isFollowUp = bubbleStack.value.length > 0 && (now - lastPerformReceiveTime) < getBubbleFollowUpWindowMs()
+    const isFollowUp =
+      bubbleStack.value.length > 0 && now - lastPerformReceiveTime < getBubbleFollowUpWindowMs()
     lastPerformReceiveTime = now
     return { isFollowUp, timestamp: now }
   }
@@ -438,6 +445,6 @@ export function useBubbleStack(options: UseBubbleStackOptions) {
     cleanup,
     checkFollowUp,
     getBubbleFollowUpWindowMs,
-    generateMessageId,
+    generateMessageId
   }
 }

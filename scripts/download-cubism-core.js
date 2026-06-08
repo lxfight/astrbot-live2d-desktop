@@ -85,34 +85,34 @@ function downloadFile(url, dest) {
 
     console.log(`[下载] ${url}`)
 
-    protocol.get(url, (response) => {
-      // 处理重定向
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        file.close()
-        fs.unlinkSync(dest)
-        return downloadFile(response.headers.location, dest)
-          .then(resolve)
-          .catch(reject)
-      }
+    protocol
+      .get(url, response => {
+        // 处理重定向
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          file.close()
+          fs.unlinkSync(dest)
+          return downloadFile(response.headers.location, dest).then(resolve).catch(reject)
+        }
 
-      if (response.statusCode !== 200) {
-        file.close()
-        fs.unlinkSync(dest)
-        return reject(new Error(`下载失败: ${response.statusCode}`))
-      }
+        if (response.statusCode !== 200) {
+          file.close()
+          fs.unlinkSync(dest)
+          return reject(new Error(`下载失败: ${response.statusCode}`))
+        }
 
-      response.pipe(file)
+        response.pipe(file)
 
-      file.on('finish', () => {
-        file.close()
-        console.log(`[完成] ${path.basename(dest)}`)
-        resolve()
+        file.on('finish', () => {
+          file.close()
+          console.log(`[完成] ${path.basename(dest)}`)
+          resolve()
+        })
       })
-    }).on('error', (err) => {
-      file.close()
-      fs.unlinkSync(dest)
-      reject(err)
-    })
+      .on('error', err => {
+        file.close()
+        fs.unlinkSync(dest)
+        reject(err)
+      })
   })
 }
 
@@ -175,16 +175,23 @@ async function main() {
     }
   }
 
-  fs.writeFileSync(CORE_METADATA_PATH, JSON.stringify({
-    sdkBaseline: cubismConfig.sdkBaseline,
-    frameworkTag: cubismConfig.frameworkTag,
-    frameworkCommit: cubismConfig.frameworkCommit,
-    samplesTag: cubismConfig.samplesTag,
-    samplesCommit: cubismConfig.samplesCommit,
-    downloadUrl: cubismConfig.core.downloadUrl,
-    runtimeSource: cubismConfig.core.runtimeSource,
-    generatedAt: new Date().toISOString()
-  }, null, 2))
+  fs.writeFileSync(
+    CORE_METADATA_PATH,
+    JSON.stringify(
+      {
+        sdkBaseline: cubismConfig.sdkBaseline,
+        frameworkTag: cubismConfig.frameworkTag,
+        frameworkCommit: cubismConfig.frameworkCommit,
+        samplesTag: cubismConfig.samplesTag,
+        samplesCommit: cubismConfig.samplesCommit,
+        downloadUrl: cubismConfig.core.downloadUrl,
+        runtimeSource: cubismConfig.core.runtimeSource,
+        generatedAt: new Date().toISOString()
+      },
+      null,
+      2
+    )
+  )
 
   console.log(`[写入] ${path.basename(CORE_METADATA_PATH)}`)
 

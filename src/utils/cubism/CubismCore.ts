@@ -1,6 +1,6 @@
 /**
  * Cubism SDK 核心数据结构
- * 
+ *
  * 这些类是 Live2D Cubism SDK 的基础数据结构
  */
 
@@ -367,10 +367,22 @@ export class CubismMatrix44 {
    */
   loadIdentity(): void {
     const a = this._tr
-    a[0] = 1; a[1] = 0; a[2] = 0; a[3] = 0
-    a[4] = 0; a[5] = 1; a[6] = 0; a[7] = 0
-    a[8] = 0; a[9] = 0; a[10] = 1; a[11] = 0
-    a[12] = 0; a[13] = 0; a[14] = 0; a[15] = 1
+    a[0] = 1
+    a[1] = 0
+    a[2] = 0
+    a[3] = 0
+    a[4] = 0
+    a[5] = 1
+    a[6] = 0
+    a[7] = 0
+    a[8] = 0
+    a[9] = 0
+    a[10] = 1
+    a[11] = 0
+    a[12] = 0
+    a[13] = 0
+    a[14] = 0
+    a[15] = 1
   }
 
   /**
@@ -454,7 +466,10 @@ export class CubismMatrix44 {
     const cos = Math.cos(angle)
     const a = this._tr
 
-    const a0 = a[0]; const a1 = a[1]; const a4 = a[4]; const a5 = a[5]
+    const a0 = a[0]
+    const a1 = a[1]
+    const a4 = a[4]
+    const a5 = a[5]
     a[0] = a0 * cos + a4 * sin
     a[1] = a1 * cos + a5 * sin
     a[4] = a0 * -sin + a4 * cos
@@ -527,8 +542,12 @@ export class CubismMatrix44 {
     const a = this._tr
     console.log(`[${a[0].toFixed(3)}, ${a[1].toFixed(3)}, ${a[2].toFixed(3)}, ${a[3].toFixed(3)}]`)
     console.log(`[${a[4].toFixed(3)}, ${a[5].toFixed(3)}, ${a[6].toFixed(3)}, ${a[7].toFixed(3)}]`)
-    console.log(`[${a[8].toFixed(3)}, ${a[9].toFixed(3)}, ${a[10].toFixed(3)}, ${a[11].toFixed(3)}]`)
-    console.log(`[${a[12].toFixed(3)}, ${a[13].toFixed(3)}, ${a[14].toFixed(3)}, ${a[15].toFixed(3)}]`)
+    console.log(
+      `[${a[8].toFixed(3)}, ${a[9].toFixed(3)}, ${a[10].toFixed(3)}, ${a[11].toFixed(3)}]`
+    )
+    console.log(
+      `[${a[12].toFixed(3)}, ${a[13].toFixed(3)}, ${a[14].toFixed(3)}, ${a[15].toFixed(3)}]`
+    )
   }
 }
 
@@ -644,15 +663,23 @@ export function isCubism3Model(modelPath: string): boolean {
  * 检查字符串是否为 Cubism 2 模型
  */
 export function isCubism2Model(modelPath: string): boolean {
-  return modelPath.toLowerCase().endsWith('.model.json') && 
-         !modelPath.toLowerCase().endsWith('.model3.json')
+  return (
+    modelPath.toLowerCase().endsWith('.model.json') &&
+    !modelPath.toLowerCase().endsWith('.model3.json')
+  )
 }
 
 /**
  * 获取模型名称
  */
 export function getModelName(modelPath: string): string {
-  return modelPath.split('/').filter(Boolean).pop()?.replace(/\.(model|model3)\.json$/, '') || 'unknown'
+  return (
+    modelPath
+      .split('/')
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.(model|model3)\.json$/, '') || 'unknown'
+  )
 }
 
 /**

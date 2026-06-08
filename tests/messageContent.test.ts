@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { decodeBinaryPayload, decodeInlineDataUrl, prepareMessageContentForTransport } from '../electron/protocol/messageContent'
+import {
+  decodeBinaryPayload,
+  decodeInlineDataUrl,
+  prepareMessageContentForTransport
+} from '../electron/protocol/messageContent'
 
 describe('messageContent', () => {
   it('decodes valid inline data URLs', () => {
@@ -12,7 +16,9 @@ describe('messageContent', () => {
   it('keeps small inline payloads unchanged', async () => {
     const content = [{ type: 'image', inline: 'data:text/plain;base64,aGVsbG8=' }]
 
-    await expect(prepareMessageContentForTransport(content, { maxInlineBytes: 2048 })).resolves.toEqual(content)
+    await expect(
+      prepareMessageContentForTransport(content, { maxInlineBytes: 2048 })
+    ).resolves.toEqual(content)
   })
 
   it('decodes binary payloads from ipc transport', () => {
@@ -33,7 +39,13 @@ describe('messageContent', () => {
     )
 
     expect(prepared).toEqual([
-      { type: 'audio', inline: 'data:text/plain;base64,aGk=', name: 'tiny.txt', bytes: undefined, mime: undefined }
+      {
+        type: 'audio',
+        inline: 'data:text/plain;base64,aGk=',
+        name: 'tiny.txt',
+        bytes: undefined,
+        mime: undefined
+      }
     ])
   })
 
@@ -48,7 +60,13 @@ describe('messageContent', () => {
 
     expect(uploadInlineResource).toHaveBeenCalledTimes(1)
     expect(prepared).toEqual([
-      { type: 'image', url: 'https://cdn.example.com/file.bin', name: 'demo.bin', inline: undefined, rid: undefined }
+      {
+        type: 'image',
+        url: 'https://cdn.example.com/file.bin',
+        name: 'demo.bin',
+        inline: undefined,
+        rid: undefined
+      }
     ])
   })
 
@@ -112,10 +130,10 @@ describe('messageContent', () => {
     const uploadInlineResource = vi.fn().mockResolvedValue(null)
 
     await expect(
-      prepareMessageContentForTransport(
-        [{ type: 'image', inline, name: 'big.bin' }],
-        { maxInlineBytes: 1024, uploadInlineResource }
-      )
+      prepareMessageContentForTransport([{ type: 'image', inline, name: 'big.bin' }], {
+        maxInlineBytes: 1024,
+        uploadInlineResource
+      })
     ).rejects.toThrow('资源上传失败')
   })
 

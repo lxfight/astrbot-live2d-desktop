@@ -12,7 +12,7 @@ import {
   LIVE2D_EXPRESSION_TYPES,
   createEmptyExpressionTypePresets,
   isLive2DExpressionType,
-  type Live2DExpressionTypePresetMap,
+  type Live2DExpressionTypePresetMap
 } from '../../src/shared/live2dExpressionTypes'
 
 const logger = createScopedLogger('ipc.model')
@@ -69,7 +69,10 @@ function findModelJsonFiles(rootDir: string): string[] {
 }
 
 function findCubism2ModelJsonFiles(rootDir: string): string[] {
-  return findModelFiles(rootDir, lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json'))
+  return findModelFiles(
+    rootDir,
+    lower => lower.endsWith('.model.json') && !lower.endsWith('.model3.json')
+  )
 }
 
 function resolveModelAbsolutePath(modelPath: string): string {
@@ -103,7 +106,7 @@ async function readExpressionProfile(profilePath: string): Promise<ExpressionPro
     const text = await fs.promises.readFile(profilePath, 'utf8')
     const payload = JSON.parse(text)
     return payload && typeof payload === 'object' && !Array.isArray(payload)
-      ? payload as ExpressionProfilePayload
+      ? (payload as ExpressionProfilePayload)
       : {}
   } catch (error: any) {
     if (error?.code === 'ENOENT') {
@@ -142,7 +145,7 @@ function normalizeStringArray(value: unknown): string[] {
 
 function normalizeProfileSemanticPresets(
   value: unknown,
-  validExpressionIds: Set<string>,
+  validExpressionIds: Set<string>
 ): Live2DExpressionTypePresetMap {
   const presets = createEmptyExpressionTypePresets()
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -155,8 +158,7 @@ function normalizeProfileSemanticPresets(
       continue
     }
 
-    presets[presetKey] = normalizeStringArray(rawItems)
-      .filter((item) => validExpressionIds.has(item))
+    presets[presetKey] = normalizeStringArray(rawItems).filter(item => validExpressionIds.has(item))
   }
 
   return presets
@@ -164,7 +166,7 @@ function normalizeProfileSemanticPresets(
 
 function normalizeRequestedExpressionPresets(
   value: unknown,
-  validExpressionIds: Set<string>,
+  validExpressionIds: Set<string>
 ): Live2DExpressionTypePresetMap {
   const presets = createEmptyExpressionTypePresets()
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -177,8 +179,7 @@ function normalizeRequestedExpressionPresets(
       continue
     }
 
-    presets[presetKey] = normalizeStringArray(rawItems)
-      .filter((item) => validExpressionIds.has(item))
+    presets[presetKey] = normalizeStringArray(rawItems).filter(item => validExpressionIds.has(item))
   }
 
   return presets
@@ -201,7 +202,9 @@ function buildPresetAliasTags(presets: Live2DExpressionTypePresetMap): Record<st
   return tags
 }
 
-function normalizeModelName(rawName: unknown): { success: true; value: string } | { success: false; error: string } {
+function normalizeModelName(
+  rawName: unknown
+): { success: true; value: string } | { success: false; error: string } {
   if (typeof rawName !== 'string' || !rawName.trim()) {
     return { success: false, error: t('error.modelNameEmpty') }
   }
@@ -216,15 +219,14 @@ function normalizeModelName(rawName: unknown): { success: true; value: string } 
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     setTimeout(resolve, ms)
   })
 }
 
 function isRetryableDeleteError(error: unknown): boolean {
-  const code = typeof (error as { code?: unknown })?.code === 'string'
-    ? (error as { code: string }).code
-    : ''
+  const code =
+    typeof (error as { code?: unknown })?.code === 'string' ? (error as { code: string }).code : ''
   return code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
 }
 
@@ -237,7 +239,7 @@ async function removeDirectoryWithRetry(targetDir: string): Promise<void> {
         recursive: true,
         force: true,
         maxRetries: 8,
-        retryDelay: 120,
+        retryDelay: 120
       })
 
       if (!fs.existsSync(targetDir)) {
@@ -350,7 +352,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
         timer.done({
           success: false,
           reason: 'cubism2_model_detected',
-          cubism2ModelCount: cubism2Files.length,
+          cubism2ModelCount: cubism2Files.length
         })
         return { success: false, error: t('error.cubism2ModelUnsupported') }
       }
@@ -361,11 +363,11 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
     logger.debug('import.model_file_selected', {
       sourceDir,
       modelFileCount: modelFiles.length,
-      chosenModelFile,
+      chosenModelFile
     })
     const validationResult = validateCubismModelAssets(chosenModelFile)
-    const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
-    const optionalIssues = validationResult.issues.filter((issue) => issue.severity === 'optional')
+    const requiredIssues = validationResult.issues.filter(issue => issue.severity === 'required')
+    const optionalIssues = validationResult.issues.filter(issue => issue.severity === 'optional')
 
     if (requiredIssues.length > 0) {
       timer.done({
@@ -373,7 +375,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
         reason: 'required_assets_missing',
         chosenModelFile,
         requiredIssues: formatCubismAssetIssues(requiredIssues),
-        optionalIssueCount: optionalIssues.length,
+        optionalIssueCount: optionalIssues.length
       })
       return {
         success: false,
@@ -406,10 +408,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       modelPath,
       chosenFile: relChosen,
       modelFiles: modelFiles.map(f => toPosixPath(path.relative(sourceDir, f))),
-      warnings: [
-        ...formatCubismAssetIssues(optionalIssues),
-        ...validationResult.discoveryWarnings,
-      ],
+      warnings: [...formatCubismAssetIssues(optionalIssues), ...validationResult.discoveryWarnings],
       manifest: validationResult.manifest
     }
     timer.done({
@@ -420,7 +419,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       chosenFile: relChosen,
       modelFileCount: modelFiles.length,
       optionalIssueCount: optionalIssues.length,
-      discoveryWarningCount: validationResult.discoveryWarnings.length,
+      discoveryWarningCount: validationResult.discoveryWarnings.length
     })
     return response
   } catch (error: any) {
@@ -512,26 +511,30 @@ ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
       throw new Error(validationResult.fatalError)
     }
 
-    const requiredIssues = validationResult.issues.filter((issue) => issue.severity === 'required')
+    const requiredIssues = validationResult.issues.filter(issue => issue.severity === 'required')
     if (requiredIssues.length > 0) {
-      throw new Error(`${t('error.modelResourceIncomplete')}：${formatCubismAssetIssues(requiredIssues).join(', ')}`)
+      throw new Error(
+        `${t('error.modelResourceIncomplete')}：${formatCubismAssetIssues(requiredIssues).join(', ')}`
+      )
     }
 
     const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
     descriptor.warnings = [
-      ...formatCubismAssetIssues(validationResult.issues.filter((issue) => issue.severity === 'optional')),
-      ...descriptor.warnings,
+      ...formatCubismAssetIssues(
+        validationResult.issues.filter(issue => issue.severity === 'optional')
+      ),
+      ...descriptor.warnings
     ]
     descriptor.manifest = validationResult.manifest
     timer.done({
       modelPath,
       discoveryMode: descriptor.compatibilityManifest.discovery.mode,
       sourceCount: descriptor.compatibilityManifest.discovery.sources.length,
-      warningCount: descriptor.warnings.length,
+      warningCount: descriptor.warnings.length
     })
     return {
       success: true,
-      descriptor,
+      descriptor
     }
   } catch (error: any) {
     timer.fail(error)
@@ -547,13 +550,13 @@ ipcMain.handle('model:getExpressionTypes', async (_event, modelPath: string) => 
   try {
     const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
     const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
-    const expressions = descriptor.compatibilityManifest.expressions.map((entry) => ({
+    const expressions = descriptor.compatibilityManifest.expressions.map(entry => ({
       id: entry.id,
       file: entry.file,
       aliases: entry.aliases,
-      source: entry.source,
+      source: entry.source
     }))
-    const validExpressionIds = new Set(expressions.map((entry) => entry.id))
+    const validExpressionIds = new Set(expressions.map(entry => entry.id))
     const profilePath = resolveExpressionProfilePath(modelAbsolutePath)
     const profile = await readExpressionProfile(profilePath)
     const presets = normalizeProfileSemanticPresets(profile.semanticPresets, validExpressionIds)
@@ -561,15 +564,15 @@ ipcMain.handle('model:getExpressionTypes', async (_event, modelPath: string) => 
     timer.done({
       modelPath,
       expressionCount: expressions.length,
-      assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter((type) => presets[type].length > 0).length,
-      profilePath,
+      assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter(type => presets[type].length > 0).length,
+      profilePath
     })
     return {
       success: true,
       modelPath,
       profilePath,
       expressions,
-      presets,
+      presets
     }
   } catch (error: any) {
     console.error('[IPC] 读取模型表情类型失败:', error)
@@ -581,50 +584,49 @@ ipcMain.handle('model:getExpressionTypes', async (_event, modelPath: string) => 
 /**
  * 保存当前模型的固定表情类型分配。
  */
-ipcMain.handle('model:saveExpressionTypes', async (_event, modelPath: string, rawPresets: unknown) => {
-  const timer = logger.timer('save_expression_types', { modelPath })
-  try {
-    const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
-    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
-    const validExpressionIds = new Set(
-      descriptor.compatibilityManifest.expressions.map((entry) => entry.id)
-    )
-    const presets = normalizeRequestedExpressionPresets(rawPresets, validExpressionIds)
-    const profilePath = resolveExpressionProfilePath(modelAbsolutePath)
-    const profile = await readExpressionProfile(profilePath)
-    const nextProfile: ExpressionProfilePayload = {
-      ...profile,
-      version: typeof profile.version === 'number' ? Math.max(profile.version, 2) : 2,
-      semanticPresets: presets,
-      tags: {
-        ...(profile.tags && typeof profile.tags === 'object' && !Array.isArray(profile.tags)
-          ? profile.tags as Record<string, unknown>
-          : {}),
-        ...buildPresetAliasTags(presets),
-      },
-    }
+ipcMain.handle(
+  'model:saveExpressionTypes',
+  async (_event, modelPath: string, rawPresets: unknown) => {
+    const timer = logger.timer('save_expression_types', { modelPath })
+    try {
+      const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+      const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+      const validExpressionIds = new Set(
+        descriptor.compatibilityManifest.expressions.map(entry => entry.id)
+      )
+      const presets = normalizeRequestedExpressionPresets(rawPresets, validExpressionIds)
+      const profilePath = resolveExpressionProfilePath(modelAbsolutePath)
+      const profile = await readExpressionProfile(profilePath)
+      const nextProfile: ExpressionProfilePayload = {
+        ...profile,
+        version: typeof profile.version === 'number' ? Math.max(profile.version, 2) : 2,
+        semanticPresets: presets,
+        tags: {
+          ...(profile.tags && typeof profile.tags === 'object' && !Array.isArray(profile.tags)
+            ? (profile.tags as Record<string, unknown>)
+            : {}),
+          ...buildPresetAliasTags(presets)
+        }
+      }
 
-    await fs.promises.writeFile(
-      profilePath,
-      `${JSON.stringify(nextProfile, null, 2)}\n`,
-      'utf8',
-    )
+      await fs.promises.writeFile(profilePath, `${JSON.stringify(nextProfile, null, 2)}\n`, 'utf8')
 
-    timer.done({
-      modelPath,
-      profilePath,
-      assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter((type) => presets[type].length > 0).length,
-    })
-    return {
-      success: true,
-      profilePath,
+      timer.done({
+        modelPath,
+        profilePath,
+        assignedTypeCount: LIVE2D_EXPRESSION_TYPES.filter(type => presets[type].length > 0).length
+      })
+      return {
+        success: true,
+        profilePath
+      }
+    } catch (error: any) {
+      console.error('[IPC] 保存模型表情类型失败:', error)
+      timer.fail(error)
+      return { success: false, error: error.message }
     }
-  } catch (error: any) {
-    console.error('[IPC] 保存模型表情类型失败:', error)
-    timer.fail(error)
-    return { success: false, error: error.message }
   }
-})
+)
 
 /**
  * 加载模型到主窗口

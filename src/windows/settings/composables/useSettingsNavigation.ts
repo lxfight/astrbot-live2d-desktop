@@ -3,7 +3,7 @@ import {
   findSettingsMenuGroup,
   settingsMenuGroups,
   type SettingsChildKey,
-  type SettingsGroupKey,
+  type SettingsGroupKey
 } from '../settingsMenu'
 
 export function useSettingsNavigation() {
@@ -28,7 +28,7 @@ export function useSettingsNavigation() {
     }
 
     activeGroup.value = group
-    if (child && groupMeta.children.some((item) => item.key === child)) {
+    if (child && groupMeta.children.some(item => item.key === child)) {
       activeChild.value = child
       return
     }
@@ -47,7 +47,7 @@ export function useSettingsNavigation() {
   }
 
   function selectChild(child: SettingsChildKey) {
-    if (!activeGroupChildren.value.some((item) => item.key === child)) {
+    if (!activeGroupChildren.value.some(item => item.key === child)) {
       return
     }
 
@@ -62,6 +62,6 @@ export function useSettingsNavigation() {
     activeSectionKey,
     navigateToPage,
     selectGroup,
-    selectChild,
+    selectChild
   }
 }

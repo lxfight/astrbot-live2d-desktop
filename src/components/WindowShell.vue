@@ -16,7 +16,12 @@
 
         <div class="window-shell__actions window-no-drag">
           <slot name="topbar-extra"></slot>
-          <button v-if="showClose" class="window-shell__close" type="button" @click="$emit('close')">
+          <button
+            v-if="showClose"
+            class="window-shell__close"
+            type="button"
+            @click="$emit('close')"
+          >
             <X :size="16" />
           </button>
         </div>
@@ -43,16 +48,19 @@ import { computed, useSlots } from 'vue'
 import type { Component } from 'vue'
 import { X } from 'lucide-vue-next'
 
-withDefaults(defineProps<{
-  title: string
-  icon?: Component
-  showClose?: boolean
-  centered?: boolean
-}>(), {
-  icon: undefined,
-  showClose: true,
-  centered: false,
-})
+withDefaults(
+  defineProps<{
+    title: string
+    icon?: Component
+    showClose?: boolean
+    centered?: boolean
+  }>(),
+  {
+    icon: undefined,
+    showClose: true,
+    centered: false
+  }
+)
 
 defineEmits<{
   close: []
@@ -178,7 +186,8 @@ const hasAside = computed(() => Boolean(slots.aside))
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-tertiary);
-  transition: background var(--duration-fast) var(--ease-out),
+  transition:
+    background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 

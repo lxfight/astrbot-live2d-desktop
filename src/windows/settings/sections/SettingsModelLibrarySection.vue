@@ -2,9 +2,13 @@
   <section class="settings-section">
     <div class="settings-section__header">
       <h2>{{ $t('settings.menu.model.library') }}</h2>
-      <n-button type="primary" size="small" @click="handleImportModel">{{ $t('settings.model.library.importModel') }}</n-button>
+      <n-button type="primary" size="small" @click="handleImportModel">{{
+        $t('settings.model.library.importModel')
+      }}</n-button>
     </div>
-    <p class="settings-section__desc">{{ $t('settings.model.library.description', { count: modelList.length }) }}</p>
+    <p class="settings-section__desc">
+      {{ $t('settings.model.library.description', { count: modelList.length }) }}
+    </p>
 
     <div v-if="modelList.length > 0" class="model-grid">
       <article
@@ -17,7 +21,9 @@
           <div class="model-card__preview" :style="getModelPreviewStyle(model.path)">
             <span>{{ model.name.slice(0, 1).toUpperCase() }}</span>
           </div>
-          <span v-if="currentModelPath === model.path" class="model-card__badge">{{ $t('settings.model.library.current') }}</span>
+          <span v-if="currentModelPath === model.path" class="model-card__badge">{{
+            $t('settings.model.library.current')
+          }}</span>
         </div>
         <div class="model-card__body">
           <strong>{{ model.name }}</strong>
@@ -25,9 +31,15 @@
         </div>
         <div class="model-card__actions">
           <n-button size="small" type="primary" @click="handleLoadModel(model.path)">
-            {{ currentModelPath === model.path ? $t('settings.model.library.reload') : $t('settings.model.library.load') }}
+            {{
+              currentModelPath === model.path
+                ? $t('settings.model.library.reload')
+                : $t('settings.model.library.load')
+            }}
           </n-button>
-          <n-button size="small" tertiary type="error" @click="handleDeleteModel(model.name)">{{ $t('settings.model.library.delete') }}</n-button>
+          <n-button size="small" tertiary type="error" @click="handleDeleteModel(model.name)">{{
+            $t('settings.model.library.delete')
+          }}</n-button>
         </div>
       </article>
     </div>
@@ -44,7 +56,7 @@ const {
   handleDeleteModel,
   handleImportModel,
   handleLoadModel,
-  modelList,
+  modelList
 } = useModelSettingsDomain()
 </script>
 
@@ -61,7 +73,8 @@ const {
   gap: 10px;
   padding: 14px;
   border-radius: var(--desktop-radius-panel);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 34%), rgba(255, 255, 255, 0.02);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 34%), rgba(255, 255, 255, 0.02);
   border: 1px solid var(--desktop-panel-border);
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -73,7 +86,9 @@ const {
 
 .model-card--active {
   border-color: rgba(var(--color-accent-rgb), 0.32);
-  background: linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), transparent 30%), rgba(255, 255, 255, 0.024);
+  background:
+    linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.08), transparent 30%),
+    rgba(255, 255, 255, 0.024);
 }
 
 .model-card__top {

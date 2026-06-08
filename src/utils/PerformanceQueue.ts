@@ -4,9 +4,7 @@
  * - 同类型指令串行执行
  */
 import type { ResourceLike } from './resourceUrl'
-import type {
-  PerformElement as ProtocolPerformElement,
-} from '@/types/protocol'
+import type { PerformElement as ProtocolPerformElement } from '@/types/protocol'
 
 export type PerformElementType =
   | 'text'
@@ -80,7 +78,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
     return Promise.resolve()
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const timer = window.setTimeout(() => {
       cleanup()
       resolve()
@@ -102,7 +100,10 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-async function withAbort<T>(promise: MaybePromise<T>, signal?: AbortSignal): Promise<T | undefined> {
+async function withAbort<T>(
+  promise: MaybePromise<T>,
+  signal?: AbortSignal
+): Promise<T | undefined> {
   if (!signal) {
     return await promise
   }
@@ -111,7 +112,7 @@ async function withAbort<T>(promise: MaybePromise<T>, signal?: AbortSignal): Pro
     return undefined
   }
 
-  const abortPromise = new Promise<undefined>((resolve) => {
+  const abortPromise = new Promise<undefined>(resolve => {
     signal.addEventListener('abort', () => resolve(undefined), { once: true })
   })
 
@@ -179,7 +180,7 @@ class SerialTaskQueue {
   getStatus() {
     return {
       running: this.running,
-      queued: this.tasks.length,
+      queued: this.tasks.length
     }
   }
 }
@@ -259,7 +260,7 @@ export class PerformanceQueue {
 
     const sequenceState: SequenceState = {
       interruptible: sequence.interruptible !== false,
-      pending: sequence.sequence.length,
+      pending: sequence.sequence.length
     }
 
     this.sequenceStates.push(sequenceState)
@@ -268,7 +269,9 @@ export class PerformanceQueue {
     const sequenceVersion = this.executionVersion
 
     for (const element of sequence.sequence) {
-      this.dispatchQueue.enqueue((signal) => this.dispatchElement(element, signal, sequenceState, sequenceVersion))
+      this.dispatchQueue.enqueue(signal =>
+        this.dispatchElement(element, signal, sequenceState, sequenceVersion)
+      )
     }
   }
 
@@ -330,7 +333,7 @@ export class PerformanceQueue {
     element: PerformElement,
     signal: AbortSignal,
     sequenceState: SequenceState,
-    sequenceVersion: number,
+    sequenceVersion: number
   ): Promise<void> {
     if (signal.aborted || sequenceVersion !== this.executionVersion) {
       this.completeSequenceElement(sequenceState)
@@ -352,7 +355,7 @@ export class PerformanceQueue {
 
     switch (type) {
       case 'text':
-        this.textQueue.enqueue(async (taskSignal) => {
+        this.textQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -378,7 +381,7 @@ export class PerformanceQueue {
         break
 
       case 'motion':
-        this.motionQueue.enqueue(async (taskSignal) => {
+        this.motionQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -399,7 +402,7 @@ export class PerformanceQueue {
         break
 
       case 'expression':
-        this.expressionQueue.enqueue(async (taskSignal) => {
+        this.expressionQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -418,7 +421,7 @@ export class PerformanceQueue {
 
       case 'audio':
       case 'tts':
-        this.audioQueue.enqueue(async (taskSignal) => {
+        this.audioQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -450,7 +453,7 @@ export class PerformanceQueue {
         break
 
       case 'image':
-        this.imageQueue.enqueue(async (taskSignal) => {
+        this.imageQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -478,7 +481,7 @@ export class PerformanceQueue {
         break
 
       case 'video':
-        this.videoQueue.enqueue(async (taskSignal) => {
+        this.videoQueue.enqueue(async taskSignal => {
           try {
             if (sequenceVersion !== this.executionVersion) {
               return
@@ -530,8 +533,8 @@ export class PerformanceQueue {
         expression: this.expressionQueue.getStatus(),
         audio: this.audioQueue.getStatus(),
         image: this.imageQueue.getStatus(),
-        video: this.videoQueue.getStatus(),
-      },
+        video: this.videoQueue.getStatus()
+      }
     }
   }
 }

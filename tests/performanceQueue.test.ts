@@ -10,19 +10,19 @@ describe('PerformanceQueue', () => {
 
     queue.onAudio(() => {
       started += 1
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         resolveAudio = resolve
       })
     })
 
     queue.enqueue({
       interruptible: false,
-      sequence: [{ type: 'audio', url: 'first.mp3' }],
+      sequence: [{ type: 'audio', url: 'first.mp3' }]
     })
 
     queue.enqueue({
       interruptible: true,
-      sequence: [{ type: 'audio', url: 'second.mp3' }],
+      sequence: [{ type: 'audio', url: 'second.mp3' }]
     })
 
     await Promise.resolve()
@@ -38,34 +38,38 @@ describe('PerformanceQueue', () => {
     const queue = new PerformanceQueue()
     const received: Array<Record<string, unknown>> = []
 
-    queue.onExpression((element) => {
+    queue.onExpression(element => {
       received.push(element as Record<string, unknown>)
     })
 
     queue.enqueue({
-      sequence: [{
+      sequence: [
+        {
+          type: 'expression',
+          combo: [
+            { id: 'Smile', weight: 0.8 },
+            { id: 'Thinking', weight: 0.35 }
+          ],
+          holdMs: 1200,
+          resetPolicy: 'previous',
+          motionType: 'happy'
+        }
+      ]
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(received).toEqual([
+      {
         type: 'expression',
         combo: [
           { id: 'Smile', weight: 0.8 },
-          { id: 'Thinking', weight: 0.35 },
+          { id: 'Thinking', weight: 0.35 }
         ],
         holdMs: 1200,
         resetPolicy: 'previous',
-        motionType: 'happy',
-      }],
-    })
-
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    expect(received).toEqual([{
-      type: 'expression',
-      combo: [
-        { id: 'Smile', weight: 0.8 },
-        { id: 'Thinking', weight: 0.35 },
-      ],
-      holdMs: 1200,
-      resetPolicy: 'previous',
-      motionType: 'happy',
-    }])
+        motionType: 'happy'
+      }
+    ])
   })
 })

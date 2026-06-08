@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDefaultConnectionSettingsEditable,
   normalizeConnectionSettingsEditable,
-  type ConnectionSettingsEditable,
+  type ConnectionSettingsEditable
 } from '../src/shared/connectionSettings'
 import { validateBridgeEndpointDraft } from '../src/shared/bridgeConnectionValidation'
 
@@ -18,7 +18,7 @@ describe('Connection settings editable', () => {
 
   it('normalizes editable settings filling in defaults for missing fields', () => {
     const partial = normalizeConnectionSettingsEditable({
-      serverUrl: 'ws://example.com:8080',
+      serverUrl: 'ws://example.com:8080'
     } as ConnectionSettingsEditable)
 
     expect(partial.serverUrl).toBe('ws://example.com:8080')
@@ -32,7 +32,7 @@ describe('Connection settings editable', () => {
       token: '  mytoken  ',
       customResourceBaseUrl: '  https://res.com  ',
       customResourcePath: '  /api  ',
-      customResourceToken: '  restoken  ',
+      customResourceToken: '  restoken  '
     } as ConnectionSettingsEditable)
 
     expect(normalized.serverUrl).toBe('ws://test.com')
@@ -47,7 +47,7 @@ describe('Bridge endpoint validation', () => {
   it('validates a well-formed WebSocket URL with token', () => {
     const result = validateBridgeEndpointDraft({
       serverUrl: 'ws://127.0.0.1:9090/astrbot/live2d',
-      token: 'my-secret-token',
+      token: 'my-secret-token'
     })
     expect(result.valid).toBe(true)
   })
@@ -55,7 +55,7 @@ describe('Bridge endpoint validation', () => {
   it('rejects empty server URL', () => {
     const result = validateBridgeEndpointDraft({
       serverUrl: '',
-      token: 'token',
+      token: 'token'
     })
     expect(result.valid).toBe(false)
   })
@@ -63,7 +63,7 @@ describe('Bridge endpoint validation', () => {
   it('rejects empty token', () => {
     const result = validateBridgeEndpointDraft({
       serverUrl: 'ws://example.com',
-      token: '',
+      token: ''
     })
     expect(result.valid).toBe(false)
   })
@@ -71,7 +71,7 @@ describe('Bridge endpoint validation', () => {
   it('rejects invalid URL scheme (http instead of ws/wss)', () => {
     const result = validateBridgeEndpointDraft({
       serverUrl: 'http://example.com',
-      token: 'token',
+      token: 'token'
     })
     expect(result.valid).toBe(false)
   })
@@ -79,7 +79,7 @@ describe('Bridge endpoint validation', () => {
   it('accepts wss URL', () => {
     const result = validateBridgeEndpointDraft({
       serverUrl: 'wss://secure.example.com/live2d',
-      token: 'token',
+      token: 'token'
     })
     expect(result.valid).toBe(true)
   })

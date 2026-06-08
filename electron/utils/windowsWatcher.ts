@@ -1,18 +1,15 @@
 /**
  * Windows 平台原生窗口事件监听器
- * 
+ *
  * 使用 Windows API 的 SetWinEventHook 实现事件驱动的窗口监听
  * 相比轮询方案，响应延迟从 2 秒降低到 <10ms
- * 
+ *
  * FFI 层使用 koffi（预编译二进制，无需 node-gyp 编译）
  */
 
 import { screen } from 'electron'
 import { createRequire } from 'module'
-import type { 
-  PlatformWatcher, 
-  WindowInfo
-} from './windowWatcher'
+import type { PlatformWatcher, WindowInfo } from './windowWatcher'
 import { isWindowFullscreen } from './windowWatcher'
 
 const require = createRequire(import.meta.url)
@@ -21,8 +18,8 @@ const require = createRequire(import.meta.url)
 const EVENT_SYSTEM_FOREGROUND = 0x0003
 const EVENT_OBJECT_CREATE = 0x8000
 const EVENT_OBJECT_DESTROY = 0x8001
-const EVENT_OBJECT_LOCATIONCHANGE = 0x800B
-const EVENT_OBJECT_STATECHANGE = 0x800A
+const EVENT_OBJECT_LOCATIONCHANGE = 0x800b
+const EVENT_OBJECT_STATECHANGE = 0x800a
 
 const WINEVENT_OUTOFCONTEXT = 0x0000
 const WINEVENT_SKIPOWNPROCESS = 0x0002
@@ -69,28 +66,50 @@ function initWindowsApi(): boolean {
     // user32.dll
     const lib = koffi.load('user32.dll')
 
-    const SetWinEventHook = lib.func('int64 SetWinEventHook(uint32 eventMin, uint32 eventMax, int64 hmodWinEventProc, WinEventProc *lpfnWinEventProc, uint32 idProcess, uint32 idThread, uint32 dwFlags)')
+    const SetWinEventHook = lib.func(
+      'int64 SetWinEventHook(uint32 eventMin, uint32 eventMax, int64 hmodWinEventProc, WinEventProc *lpfnWinEventProc, uint32 idProcess, uint32 idThread, uint32 dwFlags)'
+    )
     const UnhookWinEvent = lib.func('int UnhookWinEvent(int64 hWinEventHook)')
     const GetForegroundWindow = lib.func('int64 GetForegroundWindow()')
     const GetWindowTextLengthW = lib.func('int GetWindowTextLengthW(int64 hWnd)')
     const GetWindowTextW = lib.func('int GetWindowTextW(int64 hWnd, void *lpString, int nMaxCount)')
-    const GetWindowThreadProcessId = lib.func('uint32 GetWindowThreadProcessId(int64 hWnd, uint32 *lpdwProcessId)')
+    const GetWindowThreadProcessId = lib.func(
+      'uint32 GetWindowThreadProcessId(int64 hWnd, uint32 *lpdwProcessId)'
+    )
     const GetWindowRect = lib.func('int GetWindowRect(int64 hWnd, void *lpRect)')
     const IsWindowVisible = lib.func('int IsWindowVisible(int64 hWnd)')
     const IsIconic = lib.func('int IsIconic(int64 hWnd)')
     const IsZoomed = lib.func('int IsZoomed(int64 hWnd)')
-    const GetClassNameW = lib.func('int GetClassNameW(int64 hWnd, void *lpClassName, int nMaxCount)')
+    const GetClassNameW = lib.func(
+      'int GetClassNameW(int64 hWnd, void *lpClassName, int nMaxCount)'
+    )
 
     // kernel32.dll
     const k32 = koffi.load('kernel32.dll')
-    const OpenProcess = k32.func('int64 OpenProcess(uint32 dwDesiredAccess, int bInheritHandle, uint32 dwProcessId)')
+    const OpenProcess = k32.func(
+      'int64 OpenProcess(uint32 dwDesiredAccess, int bInheritHandle, uint32 dwProcessId)'
+    )
     const CloseHandle = k32.func('int CloseHandle(int64 hObject)')
     const GetModuleFileNameExW = (() => {
       const psapi = koffi.load('Psapi.dll')
-      return psapi.func('uint32 GetModuleFileNameExW(int64 hProcess, int64 hModule, void *lpFilename, uint32 nSize)')
+      return psapi.func(
+        'uint32 GetModuleFileNameExW(int64 hProcess, int64 hModule, void *lpFilename, uint32 nSize)'
+      )
     })()
 
-    user32 = { SetWinEventHook, UnhookWinEvent, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, GetWindowRect, IsWindowVisible, IsIconic, IsZoomed, GetClassNameW }
+    user32 = {
+      SetWinEventHook,
+      UnhookWinEvent,
+      GetForegroundWindow,
+      GetWindowTextLengthW,
+      GetWindowTextW,
+      GetWindowThreadProcessId,
+      GetWindowRect,
+      IsWindowVisible,
+      IsIconic,
+      IsZoomed,
+      GetClassNameW
+    }
     kernel32 = { OpenProcess, CloseHandle, GetModuleFileNameExW }
 
     return true
@@ -132,9 +151,11 @@ function getWindowClassName(hwnd: bigint): string {
 /**
  * 获取窗口位置和大小
  */
-function getWindowBounds(hwnd: bigint): { x: number; y: number; width: number; height: number } | null {
+function getWindowBounds(
+  hwnd: bigint
+): { x: number; y: number; width: number; height: number } | null {
   try {
-    const rect = Buffer.alloc(16)  // RECT 结构体：4 个 LONG
+    const rect = Buffer.alloc(16) // RECT 结构体：4 个 LONG
     const result = user32.GetWindowRect(hwnd, rect)
     if (result === 0) return null
 
@@ -142,7 +163,7 @@ function getWindowBounds(hwnd: bigint): { x: number; y: number; width: number; h
       x: rect.readInt32LE(0),
       y: rect.readInt32LE(4),
       width: rect.readInt32LE(8) - rect.readInt32LE(0),
-      height: rect.readInt32LE(12) - rect.readInt32LE(4),
+      height: rect.readInt32LE(12) - rect.readInt32LE(4)
     }
   } catch {
     return null
@@ -245,7 +266,7 @@ function getWindowInfo(hwnd: bigint): WindowInfo | null {
       isFullscreen,
       isMinimized,
       isMaximized,
-      className,
+      className
     }
   } catch (error) {
     console.warn('[窗口监听] 获取窗口信息失败:', error)
@@ -263,7 +284,7 @@ export class WindowsWatcher implements PlatformWatcher {
     [EVENT_OBJECT_CREATE, 'create' as const],
     [EVENT_OBJECT_DESTROY, 'destroy' as const],
     [EVENT_OBJECT_LOCATIONCHANGE, 'move' as const],
-    [EVENT_OBJECT_STATECHANGE, 'resize' as const],
+    [EVENT_OBJECT_STATECHANGE, 'resize' as const]
   ])
   private isRunning = false
 
@@ -281,7 +302,15 @@ export class WindowsWatcher implements PlatformWatcher {
     this.eventCallback = callback
 
     // 创建事件处理回调
-    const handleEvent = (_hWinEventHook: bigint, event: number, hwnd: bigint, _idObject: number, _idChild: number, _idEventThread: number, _dwmsEventTime: number) => {
+    const handleEvent = (
+      _hWinEventHook: bigint,
+      event: number,
+      hwnd: bigint,
+      _idObject: number,
+      _idChild: number,
+      _idEventThread: number,
+      _dwmsEventTime: number
+    ) => {
       if (!this.eventCallback) return
 
       const type = this.eventTypeMap.get(event)
@@ -301,7 +330,7 @@ export class WindowsWatcher implements PlatformWatcher {
         type,
         timestamp: Date.now(),
         window: windowInfo,
-        previousWindow: type === 'focus' ? previousActiveWindow : undefined,
+        previousWindow: type === 'focus' ? previousActiveWindow : undefined
       })
 
       if (type === 'focus') {
@@ -341,7 +370,7 @@ export class WindowsWatcher implements PlatformWatcher {
           this.eventCallback?.({
             type: 'focus',
             timestamp: Date.now(),
-            window: windowInfo,
+            window: windowInfo
           })
         }
       }

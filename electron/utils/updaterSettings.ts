@@ -18,18 +18,17 @@ export function loadUpdaterSettings(): UpdaterSettings {
   }
 
   return {
-    autoUpdateEnabled: stored === 'true',
+    autoUpdateEnabled: stored === 'true'
   }
 }
 
-export function saveUpdaterSettings(
-  patch: Partial<UpdaterSettings>,
-): UpdaterSettings {
+export function saveUpdaterSettings(patch: Partial<UpdaterSettings>): UpdaterSettings {
   const current = loadUpdaterSettings()
   const nextSettings: UpdaterSettings = {
-    autoUpdateEnabled: typeof patch.autoUpdateEnabled === 'boolean'
-      ? patch.autoUpdateEnabled
-      : current.autoUpdateEnabled,
+    autoUpdateEnabled:
+      typeof patch.autoUpdateEnabled === 'boolean'
+        ? patch.autoUpdateEnabled
+        : current.autoUpdateEnabled
   }
 
   try {

@@ -28,46 +28,30 @@ export const settingsMenuGroups: SettingsMenuGroup[] = [
   {
     key: 'connection',
     icon: Globe,
-    children: [
-      { key: 'bridge' },
-      { key: 'workspace' },
-    ],
+    children: [{ key: 'bridge' }, { key: 'workspace' }]
   },
   {
     key: 'model',
     icon: Drama,
-    children: [
-      { key: 'current' },
-      { key: 'library' },
-    ],
+    children: [{ key: 'current' }, { key: 'library' }]
   },
   {
     key: 'history',
     icon: MessageSquare,
-    children: [
-      { key: 'messages' },
-      { key: 'statistics' },
-    ],
+    children: [{ key: 'messages' }, { key: 'statistics' }]
   },
   {
     key: 'advanced',
     icon: Settings,
-    children: [
-      { key: 'behavior' },
-      { key: 'shortcut' },
-      { key: 'windowWatcher' },
-      { key: 'data' },
-    ],
+    children: [{ key: 'behavior' }, { key: 'shortcut' }, { key: 'windowWatcher' }, { key: 'data' }]
   },
   {
     key: 'about',
     icon: Info,
-    children: [
-      { key: 'info' },
-    ],
-  },
+    children: [{ key: 'info' }]
+  }
 ]
 
 export function findSettingsMenuGroup(key: string): SettingsMenuGroup | undefined {
-  return settingsMenuGroups.find((group) => group.key === key)
+  return settingsMenuGroups.find(group => group.key === key)
 }

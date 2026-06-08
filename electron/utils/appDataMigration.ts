@@ -19,7 +19,7 @@ export const APP_DATA_MIGRATION_ENTRIES = [
   'Cookies',
   'Cookies-journal',
   path.join('Network', 'Cookies'),
-  path.join('Network', 'Cookies-journal'),
+  path.join('Network', 'Cookies-journal')
 ] as const
 
 export interface AppDataMigrationResult {
@@ -70,7 +70,7 @@ async function copyMissingDirectory(
   sourcePath: string,
   targetPath: string,
   rootTarget: string,
-  copiedEntries: string[],
+  copiedEntries: string[]
 ): Promise<void> {
   await fs.mkdir(targetPath, { recursive: true })
   const entries = await fs.readdir(sourcePath, { withFileTypes: true })
@@ -97,7 +97,7 @@ async function copyMissingDirectory(
 function createBaseResult(
   sourceRoot: string,
   targetRoot: string,
-  markerPath: string,
+  markerPath: string
 ): AppDataMigrationResult {
   return {
     attempted: false,
@@ -105,16 +105,21 @@ function createBaseResult(
     targetRoot,
     markerPath,
     copiedEntries: [],
-    errors: [],
+    errors: []
   }
 }
 
-async function writeMigrationMarker(markerPath: string, payload: MigrationMarkerPayload): Promise<void> {
+async function writeMigrationMarker(
+  markerPath: string,
+  payload: MigrationMarkerPayload
+): Promise<void> {
   await fs.mkdir(path.dirname(markerPath), { recursive: true })
   await fs.writeFile(markerPath, JSON.stringify(payload, null, 2), 'utf8')
 }
 
-export async function migrateAppDataByCopy(options: MigrateAppDataOptions): Promise<AppDataMigrationResult> {
+export async function migrateAppDataByCopy(
+  options: MigrateAppDataOptions
+): Promise<AppDataMigrationResult> {
   const sourceRoot = path.resolve(options.sourceRoot)
   const targetRoot = path.resolve(options.targetRoot)
   const markerPath = path.join(targetRoot, options.markerFileName ?? APP_DATA_MIGRATION_MARKER_FILE)
@@ -125,7 +130,7 @@ export async function migrateAppDataByCopy(options: MigrateAppDataOptions): Prom
     return result
   }
 
-  if (!await pathExists(sourceRoot)) {
+  if (!(await pathExists(sourceRoot))) {
     result.skippedReason = 'source-missing'
     return result
   }
@@ -141,7 +146,7 @@ export async function migrateAppDataByCopy(options: MigrateAppDataOptions): Prom
 
   for (const relativeEntry of entries) {
     const sourcePath = path.join(sourceRoot, relativeEntry)
-    if (!await pathExists(sourcePath)) {
+    if (!(await pathExists(sourcePath))) {
       continue
     }
 
@@ -154,7 +159,7 @@ export async function migrateAppDataByCopy(options: MigrateAppDataOptions): Prom
         continue
       }
 
-      if (stat.isFile() && await copyMissingFile(sourcePath, targetPath)) {
+      if (stat.isFile() && (await copyMissingFile(sourcePath, targetPath))) {
         result.copiedEntries.push(relativeEntry)
       }
     } catch (error) {
@@ -169,7 +174,7 @@ export async function migrateAppDataByCopy(options: MigrateAppDataOptions): Prom
       sourceRoot,
       targetRoot,
       migratedAt: new Date().toISOString(),
-      copiedEntries: result.copiedEntries,
+      copiedEntries: result.copiedEntries
     })
   }
 
@@ -188,13 +193,13 @@ export async function migrateLegacyAppDataIfNeeded(): Promise<AppDataMigrationRe
       markerPath,
       copiedEntries: [],
       errors: [],
-      skippedReason: 'not-portable',
+      skippedReason: 'not-portable'
     }
   }
 
   return migrateAppDataByCopy({
     sourceRoot: context.originalUserDataPath,
     targetRoot: context.resolvedUserDataPath,
-    markerFileName: APP_DATA_MIGRATION_MARKER_FILE,
+    markerFileName: APP_DATA_MIGRATION_MARKER_FILE
   })
 }

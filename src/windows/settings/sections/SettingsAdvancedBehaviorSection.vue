@@ -9,19 +9,26 @@
       <n-form-item :label="$t('settings.advanced.behavior.autoConnect')">
         <n-switch
           :value="connectionBehaviorSettings.autoConnectOnAppLaunch"
-          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ autoConnectOnAppLaunch: value })"
+          @update:value="
+            (value: boolean) => updateConnectionBehaviorSettings({ autoConnectOnAppLaunch: value })
+          "
         />
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.resumeOnWake')">
         <n-switch
           :value="connectionBehaviorSettings.resumeDesiredConnectionOnWake"
-          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ resumeDesiredConnectionOnWake: value })"
+          @update:value="
+            (value: boolean) =>
+              updateConnectionBehaviorSettings({ resumeDesiredConnectionOnWake: value })
+          "
         />
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.retryEnabled')">
         <n-switch
           :value="connectionBehaviorSettings.retryEnabled"
-          @update:value="(value: boolean) => updateConnectionBehaviorSettings({ retryEnabled: value })"
+          @update:value="
+            (value: boolean) => updateConnectionBehaviorSettings({ retryEnabled: value })
+          "
         />
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.retryBaseDelay')">
@@ -32,7 +39,10 @@
             :max="300000"
             :step="250"
             :precision="0"
-            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryBaseDelayMs: value ?? 1000 })"
+            @update:value="
+              (value: number | null) =>
+                updateConnectionBehaviorSettings({ retryBaseDelayMs: value ?? 1000 })
+            "
           />
           <span>{{ $t('settings.advanced.behavior.milliseconds') }}</span>
         </n-space>
@@ -45,7 +55,10 @@
             :max="300000"
             :step="250"
             :precision="0"
-            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryMaxDelayMs: value ?? 30000 })"
+            @update:value="
+              (value: number | null) =>
+                updateConnectionBehaviorSettings({ retryMaxDelayMs: value ?? 30000 })
+            "
           />
           <span>{{ $t('settings.advanced.behavior.milliseconds') }}</span>
         </n-space>
@@ -59,7 +72,10 @@
             :precision="0"
             clearable
             :placeholder="$t('settings.advanced.behavior.retryUnlimited')"
-            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ retryMaxAttempts: value })"
+            @update:value="
+              (value: number | null) =>
+                updateConnectionBehaviorSettings({ retryMaxAttempts: value })
+            "
           />
           <span>{{ $t('settings.advanced.behavior.times') }}</span>
         </n-space>
@@ -72,16 +88,26 @@
             :max="60000"
             :step="500"
             :precision="0"
-            @update:value="(value: number | null) => updateConnectionBehaviorSettings({ handshakeTimeoutMs: value ?? 8000 })"
+            @update:value="
+              (value: number | null) =>
+                updateConnectionBehaviorSettings({ handshakeTimeoutMs: value ?? 8000 })
+            "
           />
           <span>{{ $t('settings.advanced.behavior.milliseconds') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.recordingMode')">
-        <n-radio-group v-model:value="advancedSettings.recordingMode" @update:value="applyAdvancedSettingChange">
+        <n-radio-group
+          v-model:value="advancedSettings.recordingMode"
+          @update:value="applyAdvancedSettingChange"
+        >
           <n-space>
-            <n-radio-button value="hold">{{ $t('settings.advanced.behavior.recordingModeHold') }}</n-radio-button>
-            <n-radio-button value="toggle">{{ $t('settings.advanced.behavior.recordingModeToggle') }}</n-radio-button>
+            <n-radio-button value="hold">{{
+              $t('settings.advanced.behavior.recordingModeHold')
+            }}</n-radio-button>
+            <n-radio-button value="toggle">{{
+              $t('settings.advanced.behavior.recordingModeToggle')
+            }}</n-radio-button>
           </n-space>
         </n-radio-group>
         <template #feedback>
@@ -89,19 +115,31 @@
         </template>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.autoLoadLastModel')">
-        <n-switch v-model:value="advancedSettings.autoLoadLastModel" @update:value="applyAdvancedSettingChange" />
+        <n-switch
+          v-model:value="advancedSettings.autoLoadLastModel"
+          @update:value="applyAdvancedSettingChange"
+        />
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.silenceDetection')">
-        <n-switch v-model:value="advancedSettings.silenceDetectionEnabled" @update:value="applyAdvancedSettingChange" />
+        <n-switch
+          v-model:value="advancedSettings.silenceDetectionEnabled"
+          @update:value="applyAdvancedSettingChange"
+        />
         <template #feedback>
           {{ $t('settings.advanced.behavior.silenceDetectionFeedback') }}
         </template>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.baseEventNotifications')">
-        <n-switch v-model:value="advancedSettings.showBaseEventNotifications" @update:value="applyAdvancedSettingChange" />
+        <n-switch
+          v-model:value="advancedSettings.showBaseEventNotifications"
+          @update:value="applyAdvancedSettingChange"
+        />
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.logLevel')">
-        <n-radio-group v-model:value="advancedSettings.logLevel" @update:value="applyAdvancedSettingChange">
+        <n-radio-group
+          v-model:value="advancedSettings.logLevel"
+          @update:value="applyAdvancedSettingChange"
+        >
           <n-space>
             <n-radio-button value="info">Info</n-radio-button>
             <n-radio-button value="debug">Debug</n-radio-button>
@@ -110,45 +148,99 @@
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.bubbleStackMax')">
         <n-space align="center">
-          <n-input-number v-model:value="advancedSettings.bubbleStackMax" :min="1" :max="10" :precision="0" @update:value="applyAdvancedSettingChange" />
+          <n-input-number
+            v-model:value="advancedSettings.bubbleStackMax"
+            :min="1"
+            :max="10"
+            :precision="0"
+            @update:value="applyAdvancedSettingChange"
+          />
           <span>{{ $t('settings.advanced.behavior.bubbles') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.bubbleFollowUpWindow')">
         <n-space align="center">
-          <n-input-number v-model:value="advancedSettings.bubbleFollowUpWindowMs" :min="500" :max="15000" :step="500" :precision="0" @update:value="applyAdvancedSettingChange" />
+          <n-input-number
+            v-model:value="advancedSettings.bubbleFollowUpWindowMs"
+            :min="500"
+            :max="15000"
+            :step="500"
+            :precision="0"
+            @update:value="applyAdvancedSettingChange"
+          />
           <span>{{ $t('settings.advanced.behavior.milliseconds') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.imageInlineThreshold')">
         <n-space align="center">
-          <n-input-number v-model:value="advancedSettings.imageInlineThresholdKb" :min="64" :max="2048" :step="64" :precision="0" @update:value="applyAdvancedSettingChange" />
+          <n-input-number
+            v-model:value="advancedSettings.imageInlineThresholdKb"
+            :min="64"
+            :max="2048"
+            :step="64"
+            :precision="0"
+            @update:value="applyAdvancedSettingChange"
+          />
           <span>{{ $t('settings.advanced.behavior.kb') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.imageMaxSize')">
         <n-space align="center">
-          <n-input-number v-model:value="advancedSettings.imageMaxSizeMb" :min="1" :max="50" :step="1" :precision="0" @update:value="applyAdvancedSettingChange" />
+          <n-input-number
+            v-model:value="advancedSettings.imageMaxSizeMb"
+            :min="1"
+            :max="50"
+            :step="1"
+            :precision="0"
+            @update:value="applyAdvancedSettingChange"
+          />
           <span>{{ $t('settings.advanced.behavior.mb') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.screenshotTarget')">
-        <n-radio-group :value="screenshotSettings.defaultTarget" @update:value="(value: 'active' | 'desktop') => updateScreenshotSettings({ defaultTarget: value })">
+        <n-radio-group
+          :value="screenshotSettings.defaultTarget"
+          @update:value="
+            (value: 'active' | 'desktop') => updateScreenshotSettings({ defaultTarget: value })
+          "
+        >
           <n-space>
-            <n-radio-button value="active">{{ $t('settings.advanced.behavior.screenshotActiveWindow') }}</n-radio-button>
-            <n-radio-button value="desktop">{{ $t('settings.advanced.behavior.screenshotDesktop') }}</n-radio-button>
+            <n-radio-button value="active">{{
+              $t('settings.advanced.behavior.screenshotActiveWindow')
+            }}</n-radio-button>
+            <n-radio-button value="desktop">{{
+              $t('settings.advanced.behavior.screenshotDesktop')
+            }}</n-radio-button>
           </n-space>
         </n-radio-group>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.screenshotQuality')">
         <n-space align="center">
-          <n-input-number :value="screenshotSettings.quality" :min="30" :max="100" :step="5" :precision="0" @update:value="(value: number | null) => updateScreenshotSettings({ quality: value ?? 80 })" />
+          <n-input-number
+            :value="screenshotSettings.quality"
+            :min="30"
+            :max="100"
+            :step="5"
+            :precision="0"
+            @update:value="
+              (value: number | null) => updateScreenshotSettings({ quality: value ?? 80 })
+            "
+          />
           <span>{{ $t('settings.advanced.behavior.percent') }}</span>
         </n-space>
       </n-form-item>
       <n-form-item :label="$t('settings.advanced.behavior.screenshotMaxWidth')">
         <n-space align="center">
-          <n-input-number :value="screenshotSettings.maxWidth" :min="640" :max="3840" :step="160" :precision="0" @update:value="(value: number | null) => updateScreenshotSettings({ maxWidth: value ?? 1920 })" />
+          <n-input-number
+            :value="screenshotSettings.maxWidth"
+            :min="640"
+            :max="3840"
+            :step="160"
+            :precision="0"
+            @update:value="
+              (value: number | null) => updateScreenshotSettings({ maxWidth: value ?? 1920 })
+            "
+          />
           <span>{{ $t('settings.advanced.behavior.pixels') }}</span>
         </n-space>
       </n-form-item>
@@ -159,11 +251,16 @@
     <div class="settings-section__header">
       <h2>{{ $t('settings.advanced.behavior.desktopInteraction') }}</h2>
     </div>
-    <p class="settings-section__desc">{{ $t('settings.advanced.behavior.desktopInteractionDesc') }}</p>
+    <p class="settings-section__desc">
+      {{ $t('settings.advanced.behavior.desktopInteractionDesc') }}
+    </p>
 
     <n-form label-placement="top">
       <n-form-item :label="$t('settings.advanced.behavior.alwaysOnTop')">
-        <n-switch :value="desktopFeatureSettings.alwaysOnTop" @update:value="(value: boolean) => updateDesktopFeatureSetting('alwaysOnTop', value)" />
+        <n-switch
+          :value="desktopFeatureSettings.alwaysOnTop"
+          @update:value="(value: boolean) => updateDesktopFeatureSetting('alwaysOnTop', value)"
+        />
         <template #feedback>
           {{ $t('settings.advanced.behavior.alwaysOnTopFeedback') }}
         </template>
@@ -193,7 +290,9 @@
         <n-switch
           :value="desktopFeatureSettings.autoDetectFullscreen"
           :disabled="!platformCapabilities?.gameMode.supported"
-          @update:value="(value: boolean) => updateDesktopFeatureSetting('autoDetectFullscreen', value)"
+          @update:value="
+            (value: boolean) => updateDesktopFeatureSetting('autoDetectFullscreen', value)
+          "
         />
         <template #feedback>
           {{ $t('settings.advanced.behavior.autoDetectFullscreenFeedback') }}
@@ -206,7 +305,9 @@
     <div class="settings-section__header">
       <h2>{{ $t('settings.advanced.behavior.platformCapabilities') }}</h2>
     </div>
-    <p class="settings-section__desc">{{ $t('settings.advanced.behavior.platformCapabilitiesDesc') }}</p>
+    <p class="settings-section__desc">
+      {{ $t('settings.advanced.behavior.platformCapabilitiesDesc') }}
+    </p>
 
     <div class="settings-kv-list">
       <div class="settings-kv-list__row">
@@ -227,7 +328,11 @@
       </div>
     </div>
 
-    <n-alert v-if="platformCompatibilityNotice" :type="platformCompatibilityNotice.type" :show-icon="false">
+    <n-alert
+      v-if="platformCompatibilityNotice"
+      :type="platformCompatibilityNotice.type"
+      :show-icon="false"
+    >
       {{ platformCompatibilityNotice.text }}
     </n-alert>
   </section>
@@ -250,7 +355,7 @@ const {
   screenshotSettings,
   updateConnectionBehaviorSettings,
   updateDesktopFeatureSetting,
-  updateScreenshotSettings,
+  updateScreenshotSettings
 } = useAdvancedSettingsDomain()
 
 import { computed } from 'vue'

@@ -31,7 +31,7 @@ export const useLocaleStore = defineStore('locale', () => {
   // Apply on creation
   applyLocale(locale.value)
 
-  watch(locale, (val) => {
+  watch(locale, val => {
     applyLocale(val)
   })
 
@@ -39,9 +39,13 @@ export const useLocaleStore = defineStore('locale', () => {
   function bindI18n() {
     try {
       const i18nInstance = useI18n()
-      watch(locale, (val) => {
-        i18nInstance.locale.value = val as 'en' | 'zh-CN'
-      }, { immediate: true })
+      watch(
+        locale,
+        val => {
+          i18nInstance.locale.value = val as 'en' | 'zh-CN'
+        },
+        { immediate: true }
+      )
     } catch {
       // useI18n may not be available yet during initial app setup
     }

@@ -14,7 +14,13 @@ export interface ResourceLike {
 
 const LEGACY_DEFAULT_RESOURCE_BASE_URL = 'http://127.0.0.1:9091'
 const DEFAULT_RESOURCE_PATH = '/resources'
-const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', 'blob:', 'history-resource:'])
+const ALLOWED_RESOURCE_PROTOCOLS = new Set([
+  'http:',
+  'https:',
+  'data:',
+  'blob:',
+  'history-resource:'
+])
 
 export function normalizeResourceBaseUrl(resourceBaseUrl?: string): string {
   const baseUrl = (resourceBaseUrl || LEGACY_DEFAULT_RESOURCE_BASE_URL).trim()
@@ -36,18 +42,18 @@ function normalizeResourceRid(rid: string): string {
     .trim()
     .replace(/\\+/g, '/')
     .split('/')
-    .map((segment) => segment.trim())
+    .map(segment => segment.trim())
     .filter(Boolean)
 
   if (normalizedRid.length === 0) {
     throw new Error(i18n.global.t('error.resourceIdEmpty'))
   }
 
-  if (normalizedRid.some((segment) => segment === '.' || segment === '..')) {
+  if (normalizedRid.some(segment => segment === '.' || segment === '..')) {
     throw new Error(i18n.global.t('error.resourceIdIllegalPath'))
   }
 
-  return normalizedRid.map((segment) => encodeURIComponent(segment)).join('/')
+  return normalizedRid.map(segment => encodeURIComponent(segment)).join('/')
 }
 
 function shouldPreferRidUrl(config: ResourceUrlConfig): boolean {
@@ -112,8 +118,12 @@ export function resolveResourceRidUrl(rid: string, config: ResourceUrlConfig = {
   return withResourceToken(baseUrl, config.resourceToken)
 }
 
-export function resolveResourceSource(resource: ResourceLike, config: ResourceUrlConfig = {}): string | null {
-  const inline = typeof resource.inline === 'string' ? normalizeInlineResource(resource.inline) : null
+export function resolveResourceSource(
+  resource: ResourceLike,
+  config: ResourceUrlConfig = {}
+): string | null {
+  const inline =
+    typeof resource.inline === 'string' ? normalizeInlineResource(resource.inline) : null
   if (inline) {
     return inline
   }

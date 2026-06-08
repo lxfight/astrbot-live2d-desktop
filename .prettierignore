@@ -1,0 +1,12 @@
+dist
+dist-electron
+release
+node_modules
+.generated
+*.min.js
+*.min.css
+pnpm-lock.yaml
+public/lib
+coverage
+*.md
+CHANGELOG*.md

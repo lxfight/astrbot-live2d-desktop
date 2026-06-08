@@ -2,7 +2,7 @@ import { protocol } from 'electron'
 import {
   HISTORY_RESOURCE_PROTOCOL_SCHEME,
   getMessageResourceById,
-  parseHistoryResourceUrl,
+  parseHistoryResourceUrl
 } from '../database/messageResources'
 
 protocol.registerSchemesAsPrivileged([
@@ -13,9 +13,9 @@ protocol.registerSchemesAsPrivileged([
       secure: true,
       supportFetchAPI: true,
       corsEnabled: true,
-      stream: true,
-    },
-  },
+      stream: true
+    }
+  }
 ])
 
 let historyResourceProtocolRegistered = false
@@ -29,8 +29,8 @@ function buildRangeNotSatisfiableResponse(size: number): Response {
     status: 416,
     headers: {
       'Content-Range': `bytes */${size}`,
-      'Accept-Ranges': 'bytes',
-    },
+      'Accept-Ranges': 'bytes'
+    }
   })
 }
 
@@ -47,7 +47,10 @@ function buildBaseHeaders(mime: string, fileName: string | null, size: number): 
   return headers
 }
 
-function parseRangeHeader(rangeHeader: string | null, size: number): { start: number; end: number } | null {
+function parseRangeHeader(
+  rangeHeader: string | null,
+  size: number
+): { start: number; end: number } | null {
   if (!rangeHeader) {
     return null
   }
@@ -76,18 +79,18 @@ function parseRangeHeader(rangeHeader: string | null, size: number): { start: nu
   }
 
   if (
-    !Number.isInteger(start)
-    || !Number.isInteger(end)
-    || start < 0
-    || end < start
-    || start >= size
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 0 ||
+    end < start ||
+    start >= size
   ) {
     return null
   }
 
   return {
     start,
-    end: Math.min(end, size - 1),
+    end: Math.min(end, size - 1)
   }
 }
 
@@ -98,7 +101,7 @@ export function registerHistoryResourceProtocol(): void {
 
   historyResourceProtocolRegistered = true
 
-  protocol.handle(HISTORY_RESOURCE_PROTOCOL_SCHEME, async (request) => {
+  protocol.handle(HISTORY_RESOURCE_PROTOCOL_SCHEME, async request => {
     const parsed = parseHistoryResourceUrl(request.url)
     if (!parsed) {
       return buildNotFoundResponse('Invalid history resource URL')
@@ -121,7 +124,7 @@ export function registerHistoryResourceProtocol(): void {
     if (!range) {
       return new Response(buffer, {
         status: 200,
-        headers: baseHeaders,
+        headers: baseHeaders
       })
     }
 
@@ -131,7 +134,7 @@ export function registerHistoryResourceProtocol(): void {
 
     return new Response(partialBuffer, {
       status: 206,
-      headers: baseHeaders,
+      headers: baseHeaders
     })
   })
 }

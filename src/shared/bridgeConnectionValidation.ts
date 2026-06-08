@@ -21,7 +21,7 @@ export function validateBridgeEndpointDraft(input: {
     return {
       valid: false,
       code: 'INVALID_URL',
-      message: '服务器地址不能为空',
+      message: '服务器地址不能为空'
     }
   }
 
@@ -32,7 +32,7 @@ export function validateBridgeEndpointDraft(input: {
     return {
       valid: false,
       code: 'INVALID_URL',
-      message: '服务器地址格式无效，请填写完整的 WebSocket 地址',
+      message: '服务器地址格式无效，请填写完整的 WebSocket 地址'
     }
   }
 
@@ -40,7 +40,7 @@ export function validateBridgeEndpointDraft(input: {
     return {
       valid: false,
       code: 'INVALID_URL',
-      message: '服务器地址必须使用 ws 或 wss 协议',
+      message: '服务器地址必须使用 ws 或 wss 协议'
     }
   }
 
@@ -48,7 +48,7 @@ export function validateBridgeEndpointDraft(input: {
     return {
       valid: false,
       code: 'TOKEN_REQUIRED',
-      message: '认证密钥不能为空，请在设置中填写后再连接',
+      message: '认证密钥不能为空，请在设置中填写后再连接'
     }
   }
 

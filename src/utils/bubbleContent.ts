@@ -32,10 +32,7 @@ function mergeConsecutiveImages(sequence: BubblePerformElement[]): BubblePerform
   const result: BubblePerformElement[] = []
   for (const el of sequence) {
     const prev = result[result.length - 1]
-    if (
-      String(el?.type || '') === 'image' &&
-      prev && String(prev.type) === 'image'
-    ) {
+    if (String(el?.type || '') === 'image' && prev && String(prev.type) === 'image') {
       const prevHasInline = Boolean(typeof prev.inline === 'string' && prev.inline.trim())
       const elHasInline = Boolean(typeof el.inline === 'string' && el.inline?.trim())
       // 一个有 inline 一个只有 url/rid → 同一张图的两种传输方式，合并
@@ -83,12 +80,13 @@ export function splitPerformSequenceForBubble(
     const textContent = typeof element.content === 'string' ? element.content : ''
     const ttsText = typeof element.text === 'string' ? element.text : ''
 
-    if (!hasBubblePosition && (
-      type === 'text' ||
-      type === 'image' ||
-      type === 'audio' ||
-      (type === 'tts' && normalizeBubbleText(ttsText))
-    )) {
+    if (
+      !hasBubblePosition &&
+      (type === 'text' ||
+        type === 'image' ||
+        type === 'audio' ||
+        (type === 'tts' && normalizeBubbleText(ttsText)))
+    ) {
       const nextPosition = typeof element.position === 'string' ? element.position.trim() : ''
       position = nextPosition || 'center'
       hasBubblePosition = true
@@ -110,9 +108,10 @@ export function splitPerformSequenceForBubble(
     }
 
     if (type === 'audio') {
-      const audioText = typeof element.text === 'string' && normalizeBubbleText(element.text)
-        ? element.text
-        : '[语音消息]'
+      const audioText =
+        typeof element.text === 'string' && normalizeBubbleText(element.text)
+          ? element.text
+          : '[语音消息]'
       appendBubbleTextItem(bubbleItems, audioText)
       remainingSequence.push(element)
       continue
@@ -132,7 +131,7 @@ export function splitPerformSequenceForBubble(
   return {
     position,
     bubbleItems,
-    remainingSequence,
+    remainingSequence
   }
 }
 

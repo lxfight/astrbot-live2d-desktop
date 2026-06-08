@@ -8,11 +8,21 @@ import path from 'path'
 import { createTray, destroyTray, updateTrayTooltip } from './utils/tray'
 import { cleanupShortcuts } from './ipc/shortcut'
 import { getDesktopBehaviorCoordinator } from './desktopBehavior/coordinator'
-import { checkCubismCoreExists, showDownloadDialog, downloadWithProgress, registerCubismCoreProtocol } from './utils/downloadCubismCore'
+import {
+  checkCubismCoreExists,
+  showDownloadDialog,
+  downloadWithProgress,
+  registerCubismCoreProtocol
+} from './utils/downloadCubismCore'
 import { registerHistoryResourceProtocol } from './utils/historyResourceProtocol'
 import { migrateLegacyAppDataIfNeeded } from './utils/appDataMigration'
 import { configureElectronDataPath } from './utils/appPaths'
-import { createScopedLogger, initializeMainLogger, installMainProcessErrorHandlers, shutdownMainLogger } from './utils/logger'
+import {
+  createScopedLogger,
+  initializeMainLogger,
+  installMainProcessErrorHandlers,
+  shutdownMainLogger
+} from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
 import { t } from '../src/i18n/mainProcess'
 import './ipc/connection'
@@ -58,7 +68,7 @@ console.log(
 logger.info('data_path.configured', {
   mode: appDataContext.mode,
   originalUserDataPath: appDataContext.originalUserDataPath,
-  resolvedUserDataPath: appDataContext.resolvedUserDataPath,
+  resolvedUserDataPath: appDataContext.resolvedUserDataPath
 })
 
 // 锁屏前的状态，用于解锁后恢复
@@ -72,7 +82,9 @@ function pauseBackgroundActivities(reason: string): void {
   logger.info('background.pause', { reason })
   getDesktopBehaviorCoordinator().setBackgroundPaused(true)
   if (bridgeConnectionController) {
-    void bridgeConnectionController.handleSystemSuspend(reason === 'lock-screen' ? 'lock-screen' : 'suspend')
+    void bridgeConnectionController.handleSystemSuspend(
+      reason === 'lock-screen' ? 'lock-screen' : 'suspend'
+    )
   }
 }
 
@@ -84,7 +96,7 @@ function resumeBackgroundActivities(reason: string): void {
   logger.info('background.resume', { reason })
   getDesktopBehaviorCoordinator().setBackgroundPaused(false)
   if (bridgeConnectionController) {
-    void bridgeConnectionController.handleSystemResume().catch((err) => {
+    void bridgeConnectionController.handleSystemResume().catch(err => {
       console.error('[主进程] 恢复后重连失败:', err)
       logger.error('background.resume_reconnect.failed', err, { reason })
     })
@@ -95,9 +107,9 @@ function broadcastToAllWindows(channel: string, payload?: unknown): void {
   logger.debug('broadcast', {
     channel,
     windowCount: BrowserWindow.getAllWindows().length,
-    payload,
+    payload
   })
-  BrowserWindow.getAllWindows().forEach((win) => {
+  BrowserWindow.getAllWindows().forEach(win => {
     if (!win.isDestroyed()) {
       win.webContents.send(channel, payload)
     }
@@ -108,14 +120,17 @@ export function initBridgeConnectionController() {
   logger.info('bridge_controller.init')
   bridgeConnectionController = new BridgeConnectionController()
 
-  bridgeConnectionController.on('stateChanged', (snapshot) => {
+  bridgeConnectionController.on('stateChanged', snapshot => {
     broadcastToAllWindows('bridgeLifecycle:stateChanged', snapshot)
 
     const statusLabel = (() => {
       switch (snapshot.status) {
-        case 'connected': return t('tray.status.connected')
-        case 'connecting': return t('tray.status.connecting')
-        case 'handshaking': return t('tray.status.handshaking')
+        case 'connected':
+          return t('tray.status.connected')
+        case 'connecting':
+          return t('tray.status.connecting')
+        case 'handshaking':
+          return t('tray.status.handshaking')
         case 'waiting_retry': {
           if (snapshot.nextRetryAt) {
             const seconds = Math.max(1, Math.ceil((snapshot.nextRetryAt - Date.now()) / 1000))
@@ -123,16 +138,19 @@ export function initBridgeConnectionController() {
           }
           return t('tray.status.waiting')
         }
-        case 'suspended': return t('tray.status.suspended')
-        case 'error': return t('tray.status.error')
-        default: return t('tray.status.offline')
+        case 'suspended':
+          return t('tray.status.suspended')
+        case 'error':
+          return t('tray.status.error')
+        default:
+          return t('tray.status.offline')
       }
     })()
 
     updateTrayTooltip(statusLabel)
   })
 
-  bridgeConnectionController.on('perform:show', (payload) => {
+  bridgeConnectionController.on('perform:show', payload => {
     broadcastToAllWindows('perform:show', payload)
   })
 
@@ -151,7 +169,7 @@ async function initialize() {
   const migrationResult = await migrateLegacyAppDataIfNeeded()
   logger.info('app_data_migration.completed', {
     copiedCount: migrationResult.copiedEntries.length,
-    errorCount: migrationResult.errors.length,
+    errorCount: migrationResult.errors.length
   })
   if (migrationResult.copiedEntries.length > 0) {
     console.log(
@@ -161,9 +179,8 @@ async function initialize() {
   if (migrationResult.errors.length > 0) {
     const displayedErrors = migrationResult.errors.slice(0, 5)
     const remainingErrorCount = migrationResult.errors.length - displayedErrors.length
-    const truncatedSuffix = remainingErrorCount > 0
-      ? ` | 另外 ${remainingErrorCount} 个问题未展开`
-      : ''
+    const truncatedSuffix =
+      remainingErrorCount > 0 ? ` | 另外 ${remainingErrorCount} 个问题未展开` : ''
 
     console.warn(
       `[主进程] 数据迁移存在 ${migrationResult.errors.length} 个问题: ${displayedErrors.join(' | ')}${truncatedSuffix}`
@@ -181,7 +198,9 @@ async function initialize() {
     timer.fail(error)
     dialog.showErrorBox(
       t('mainProcess.databaseInitFailed'),
-      t('mainProcess.databaseInitFailedDetail', { error: error instanceof Error ? error.message : String(error) })
+      t('mainProcess.databaseInitFailedDetail', {
+        error: error instanceof Error ? error.message : String(error)
+      })
     )
     app.quit()
     return

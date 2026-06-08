@@ -51,12 +51,12 @@ const activeHoursRef = ref<HTMLElement>()
 let charts: echarts.ECharts[] = []
 
 function disposeCharts() {
-  charts.forEach((chart) => chart.dispose())
+  charts.forEach(chart => chart.dispose())
   charts = []
 }
 
 function handleResize() {
-  charts.forEach((chart) => chart.resize())
+  charts.forEach(chart => chart.resize())
 }
 
 function renderCharts(data: any[]) {
@@ -77,8 +77,8 @@ function renderCharts(data: any[]) {
     tooltip: {
       backgroundColor: tooltipBackground,
       borderColor: axisColor,
-      textStyle: { color: palette.value.textPrimary },
-    },
+      textStyle: { color: palette.value.textPrimary }
+    }
   }
 
   if (messageTrendRef.value) {
@@ -88,78 +88,90 @@ function renderCharts(data: any[]) {
       tooltip: { trigger: 'axis' },
       xAxis: {
         type: 'category',
-        data: data.map((item) => item.date),
+        data: data.map(item => item.date),
         axisLine: { lineStyle: { color: axisColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       yAxis: {
         type: 'value',
         splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       grid: { top: 20, right: 20, bottom: 20, left: 40, containLabel: true },
-      series: [{
-        name: t('settings.history.statistics.messageCount'),
-        type: 'line',
-        data: data.map((item) => item.message_count),
-        smooth: true,
-        symbol: 'none',
-        lineStyle: {
-          width: 3,
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: chartColors[0] },
-            { offset: 1, color: chartColors[1] },
-          ]),
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: withAlpha(chartColors[0], 0.28) },
-            { offset: 1, color: withAlpha(chartColors[1], 0.06) },
-          ]),
-        },
-      }],
+      series: [
+        {
+          name: t('settings.history.statistics.messageCount'),
+          type: 'line',
+          data: data.map(item => item.message_count),
+          smooth: true,
+          symbol: 'none',
+          lineStyle: {
+            width: 3,
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: chartColors[0] },
+              { offset: 1, color: chartColors[1] }
+            ])
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: withAlpha(chartColors[0], 0.28) },
+              { offset: 1, color: withAlpha(chartColors[1], 0.06) }
+            ])
+          }
+        }
+      ]
     })
     charts.push(chart)
   }
 
   if (performElementRef.value) {
     const chart = echarts.init(performElementRef.value)
-    const totalData = data.reduce((accumulator, item) => {
-      accumulator.text += item.text_count || 0
-      accumulator.image += item.image_count || 0
-      accumulator.audio += item.audio_count || 0
-      accumulator.video += item.video_count || 0
-      return accumulator
-    }, { text: 0, image: 0, audio: 0, video: 0 })
+    const totalData = data.reduce(
+      (accumulator, item) => {
+        accumulator.text += item.text_count || 0
+        accumulator.image += item.image_count || 0
+        accumulator.audio += item.audio_count || 0
+        accumulator.video += item.video_count || 0
+        return accumulator
+      },
+      { text: 0, image: 0, audio: 0, video: 0 }
+    )
 
     chart.setOption({
       ...commonOption,
       tooltip: { trigger: 'axis' },
       xAxis: {
         type: 'category',
-        data: [t('settings.history.statistics.text'), t('settings.history.statistics.image'), t('settings.history.statistics.audio'), t('settings.history.statistics.video')],
+        data: [
+          t('settings.history.statistics.text'),
+          t('settings.history.statistics.image'),
+          t('settings.history.statistics.audio'),
+          t('settings.history.statistics.video')
+        ],
         axisLine: { lineStyle: { color: axisColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       yAxis: {
         type: 'value',
         splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       grid: { top: 20, right: 20, bottom: 20, left: 40, containLabel: true },
-      series: [{
-        name: t('settings.history.statistics.usageCount'),
-        type: 'bar',
-        barWidth: '40%',
-        data: [totalData.text, totalData.image, totalData.audio, totalData.video],
-        itemStyle: {
-          borderRadius: [4, 4, 0, 0],
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: chartColors[2] },
-            { offset: 1, color: chartColors[0] },
-          ]),
-        },
-      }],
+      series: [
+        {
+          name: t('settings.history.statistics.usageCount'),
+          type: 'bar',
+          barWidth: '40%',
+          data: [totalData.text, totalData.image, totalData.audio, totalData.video],
+          itemStyle: {
+            borderRadius: [4, 4, 0, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: chartColors[2] },
+              { offset: 1, color: chartColors[0] }
+            ])
+          }
+        }
+      ]
     })
     charts.push(chart)
   }
@@ -168,7 +180,7 @@ function renderCharts(data: any[]) {
     const chart = echarts.init(activeHoursRef.value)
     const hourData = new Array(24).fill(0)
 
-    data.forEach((item) => {
+    data.forEach(item => {
       if (item.hour !== null && item.hour !== undefined) {
         hourData[item.hour] += item.message_count || 0
       }
@@ -181,36 +193,42 @@ function renderCharts(data: any[]) {
         type: 'category',
         data: Array.from({ length: 24 }, (_, index) => `${index}`),
         axisLine: { lineStyle: { color: axisColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       yAxis: {
         type: 'value',
         splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: labelColor },
+        axisLabel: { color: labelColor }
       },
       grid: { top: 20, right: 20, bottom: 20, left: 40, containLabel: true },
-      series: [{
-        name: t('settings.history.statistics.messageCount'),
-        type: 'bar',
-        barWidth: '60%',
-        data: hourData,
-        itemStyle: {
-          borderRadius: [2, 2, 0, 0],
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: chartColors[3] },
-            { offset: 1, color: chartColors[4] },
-          ]),
-        },
-      }],
+      series: [
+        {
+          name: t('settings.history.statistics.messageCount'),
+          type: 'bar',
+          barWidth: '60%',
+          data: hourData,
+          itemStyle: {
+            borderRadius: [2, 2, 0, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: chartColors[3] },
+              { offset: 1, color: chartColors[4] }
+            ])
+          }
+        }
+      ]
     })
     charts.push(chart)
   }
 }
 
-watch([statisticsData, palette], async ([data]) => {
-  await nextTick()
-  renderCharts(data)
-}, { deep: true, immediate: true })
+watch(
+  [statisticsData, palette],
+  async ([data]) => {
+    await nextTick()
+    renderCharts(data)
+  },
+  { deep: true, immediate: true }
+)
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)

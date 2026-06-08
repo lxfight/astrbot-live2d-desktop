@@ -4,7 +4,7 @@ import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { failingCopySources } = vi.hoisted(() => ({
-  failingCopySources: new Set<string>(),
+  failingCopySources: new Set<string>()
 }))
 
 vi.mock('node:fs/promises', async () => {
@@ -18,18 +18,18 @@ vi.mock('node:fs/promises', async () => {
       }
 
       return actual.copyFile(...args)
-    },
+    }
   }
 
   return {
     ...mockedFs,
-    default: mockedFs,
+    default: mockedFs
   }
 })
 
 import {
   APP_DATA_MIGRATION_MARKER_FILE,
-  migrateAppDataByCopy,
+  migrateAppDataByCopy
 } from '../electron/utils/appDataMigration'
 
 const tempRoots: string[] = []

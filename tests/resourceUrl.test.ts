@@ -8,7 +8,7 @@ describe('resourceUrl', () => {
       resolveResourceRidUrl('abc-123', {
         resourceBaseUrl: 'http://8.8.8.8:8090/',
         resourcePath: '/media-files/',
-        resourceToken: 'secret-token',
+        resourceToken: 'secret-token'
       })
     ).toBe('http://8.8.8.8:8090/media-files/abc-123?token=secret-token')
   })
@@ -18,12 +18,12 @@ describe('resourceUrl', () => {
       resolveResourceSource(
         {
           url: 'http://127.0.0.1:8090/resources/abc-123?token=wrong-token',
-          rid: 'abc-123',
+          rid: 'abc-123'
         },
         {
           resourceBaseUrl: 'http://203.0.113.10:18090',
           resourcePath: '/public-resources',
-          resourceToken: 'public-token',
+          resourceToken: 'public-token'
         }
       )
     ).toBe('http://203.0.113.10:18090/public-resources/abc-123?token=public-token')
@@ -33,7 +33,7 @@ describe('resourceUrl', () => {
     expect(
       resolveResourceSource({
         url: 'https://cdn.example.com/image.png',
-        rid: 'ignored-rid',
+        rid: 'ignored-rid'
       })
     ).toBe('https://cdn.example.com/image.png')
   })
@@ -41,7 +41,7 @@ describe('resourceUrl', () => {
   it('rejects unsafe direct urls', () => {
     expect(
       resolveResourceSource({
-        url: 'javascript:alert(1)',
+        url: 'javascript:alert(1)'
       })
     ).toBeNull()
   })
@@ -49,7 +49,7 @@ describe('resourceUrl', () => {
   it('rejects non-data inline payloads', () => {
     expect(
       resolveResourceSource({
-        inline: 'not-a-data-url',
+        inline: 'not-a-data-url'
       })
     ).toBeNull()
   })

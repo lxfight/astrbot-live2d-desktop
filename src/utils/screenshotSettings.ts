@@ -9,7 +9,7 @@ export interface ScreenshotSettings {
 export const DEFAULT_SCREENSHOT_SETTINGS: ScreenshotSettings = {
   defaultTarget: 'active',
   quality: 80,
-  maxWidth: 1920,
+  maxWidth: 1920
 }
 
 export function clampScreenshotQuality(value: unknown): number {
@@ -31,13 +31,11 @@ export function clampScreenshotMaxWidth(value: unknown): number {
 }
 
 export function normalizeScreenshotSettings(value: unknown): ScreenshotSettings {
-  const raw = value && typeof value === 'object'
-    ? value as Record<string, unknown>
-    : {}
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 
   return {
     defaultTarget: raw.defaultTarget === 'desktop' ? 'desktop' : 'active',
     quality: clampScreenshotQuality(raw.quality),
-    maxWidth: clampScreenshotMaxWidth(raw.maxWidth),
+    maxWidth: clampScreenshotMaxWidth(raw.maxWidth)
   }
 }

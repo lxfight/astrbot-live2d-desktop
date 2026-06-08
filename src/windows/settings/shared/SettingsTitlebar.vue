@@ -1,5 +1,9 @@
 <template>
-  <header class="settings-titlebar window-drag-region" :class="{ 'settings-titlebar--macos': isMacOS }" @dblclick="$emit('titlebar-dblclick')">
+  <header
+    class="settings-titlebar window-drag-region"
+    :class="{ 'settings-titlebar--macos': isMacOS }"
+    @dblclick="$emit('titlebar-dblclick')"
+  >
     <div class="settings-titlebar__brand">
       <span class="settings-titlebar__view">{{ $t('settings.titlebar.title') }}</span>
     </div>
@@ -14,13 +18,20 @@
       >
         <component :is="isPinned ? Pin : PinOff" :size="16" />
       </button>
-      <button class="settings-titlebar__button" type="button" :aria-label="$t('settings.titlebar.minimize')" @click="$emit('minimize')">
+      <button
+        class="settings-titlebar__button"
+        type="button"
+        :aria-label="$t('settings.titlebar.minimize')"
+        @click="$emit('minimize')"
+      >
         <Minus :size="16" />
       </button>
       <button
         class="settings-titlebar__button"
         type="button"
-        :aria-label="isWindowMaximized ? $t('settings.titlebar.restore') : $t('settings.titlebar.maximize')"
+        :aria-label="
+          isWindowMaximized ? $t('settings.titlebar.restore') : $t('settings.titlebar.maximize')
+        "
         @click="$emit('toggle-maximize')"
       >
         <component :is="isWindowMaximized ? Copy : Square" :size="14" />

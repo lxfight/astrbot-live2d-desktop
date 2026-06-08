@@ -87,6 +87,6 @@ export function buildDefaultBridgeLifecycleSnapshot(): BridgeLifecycleSnapshot {
     suspendReason: null,
     lastError: null,
     lastDisconnect: null,
-    updatedAt: Date.now(),
+    updatedAt: Date.now()
   }
 }

@@ -10,12 +10,12 @@ import os from 'node:os'
 import path from 'node:path'
 
 const require = createRequire(import.meta.url)
-const rawArgs = process.argv.slice(2).filter((arg) => arg !== '--')
+const rawArgs = process.argv.slice(2).filter(arg => arg !== '--')
 const optional = rawArgs.includes('--optional')
 const skip = process.env.NATIVE_REBUILD_SKIP === '1'
-const platformArg = rawArgs.find((arg) => arg.startsWith('--platform='))
-const archArg = rawArgs.find((arg) => arg.startsWith('--arch='))
-const onlyArg = rawArgs.find((arg) => arg.startsWith('--only='))
+const platformArg = rawArgs.find(arg => arg.startsWith('--platform='))
+const archArg = rawArgs.find(arg => arg.startsWith('--arch='))
+const onlyArg = rawArgs.find(arg => arg.startsWith('--only='))
 
 const targetPlatform = platformArg ? platformArg.slice('--platform='.length) : process.platform
 const targetArch = archArg ? archArg.slice('--arch='.length) : process.arch
@@ -23,7 +23,7 @@ const onlyPackages = onlyArg
   ? onlyArg
       .slice('--only='.length)
       .split(',')
-      .map((item) => item.trim())
+      .map(item => item.trim())
       .filter(Boolean)
   : []
 
@@ -31,7 +31,7 @@ function runCommand(command, args, env = process.env) {
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     env,
-    encoding: 'utf8',
+    encoding: 'utf8'
   })
 
   if (result.error) {
@@ -67,12 +67,12 @@ function resolveWindowsPnpmCmd() {
 
   const whereResult = spawnSync('where', ['pnpm.cmd'], {
     encoding: 'utf8',
-    windowsHide: true,
+    windowsHide: true
   })
   if (whereResult.status === 0 && whereResult.stdout) {
     const resolved = whereResult.stdout
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .map(line => line.trim())
       .find(Boolean)
     if (resolved) return resolved
   }
@@ -87,18 +87,21 @@ function normalizeNpmExecPathForWindows(env) {
   if (!currentExecPath) return env
 
   const lower = String(currentExecPath).toLowerCase()
-  const looksLikePnpmScript = lower.includes('pnpm') && (lower.endsWith('.js') || lower.endsWith('.cjs'))
+  const looksLikePnpmScript =
+    lower.includes('pnpm') && (lower.endsWith('.js') || lower.endsWith('.cjs'))
   if (!looksLikePnpmScript) return env
 
   const pnpmCmd = resolveWindowsPnpmCmd()
   if (!pnpmCmd) {
-    console.warn('[native-rebuild] unable to locate pnpm.cmd on Windows, keeping npm_execpath unchanged')
+    console.warn(
+      '[native-rebuild] unable to locate pnpm.cmd on Windows, keeping npm_execpath unchanged'
+    )
     return env
   }
 
   return {
     ...env,
-    npm_execpath: pnpmCmd,
+    npm_execpath: pnpmCmd
   }
 }
 
@@ -162,7 +165,7 @@ function getElectronNativeEnv() {
     npm_config_platform: targetPlatform,
     npm_config_target_platform: targetPlatform,
     npm_config_update_binary: 'true',
-    npm_config_fallback_to_build: 'true',
+    npm_config_fallback_to_build: 'true'
   }
 
   if (targetPlatform !== process.platform) {
@@ -177,7 +180,9 @@ function getElectronNativeEnv() {
     env.npm_config_target = electronVersion
     env.npm_config_disturl = 'https://electronjs.org/headers'
   } else {
-    console.warn('[native-rebuild] failed to resolve Electron version, falling back to default npm install env')
+    console.warn(
+      '[native-rebuild] failed to resolve Electron version, falling back to default npm install env'
+    )
   }
 
   return env
@@ -201,7 +206,11 @@ function runSelectiveRebuild(packages) {
     console.warn(
       `[native-rebuild] selective rebuild: ${packageName} (${targetPlatform}-${targetArch})`
     )
-    const result = runCommand(process.execPath, [pnpmCliScript, '--dir', packageDir, 'run', 'install'], env)
+    const result = runCommand(
+      process.execPath,
+      [pnpmCliScript, '--dir', packageDir, 'run', 'install'],
+      env
+    )
     if (result.status !== 0) {
       return result
     }
@@ -270,8 +279,12 @@ function clearBetterSqlitePrebuildCache() {
 
 function printFailureHint() {
   console.error('[native-rebuild] failed to rebuild native dependencies for Electron.')
-  console.error('[native-rebuild] if better-sqlite3 fails on Windows, install VS Build Tools and retry:')
-  console.error('[native-rebuild] 1) Install: Visual Studio 2022 Build Tools (Desktop development with C++)')
+  console.error(
+    '[native-rebuild] if better-sqlite3 fails on Windows, install VS Build Tools and retry:'
+  )
+  console.error(
+    '[native-rebuild] 1) Install: Visual Studio 2022 Build Tools (Desktop development with C++)'
+  )
   console.error('[native-rebuild] 2) Run: pnpm run rebuild')
 }
 

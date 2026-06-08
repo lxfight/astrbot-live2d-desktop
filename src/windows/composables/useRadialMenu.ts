@@ -3,9 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { useThemeStore } from '@/stores/theme'
 import { withAlpha } from '@/utils/themePalette'
-import {
-  ChartColumn, Settings, MessageCircle, Crosshair,
-} from 'lucide-vue-next'
+import { ChartColumn, Settings, MessageCircle, Crosshair } from 'lucide-vue-next'
 
 const MENU_RADIUS = 100
 
@@ -35,10 +33,15 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
     const items = [
       { key: 'history', icon: ChartColumn, label: t('menu.history'), action: openHistory },
       { key: 'settings', icon: Settings, label: t('menu.settings'), action: openSettings },
-      { key: 'talk', icon: MessageCircle, label: t('menu.talk'), action: openInput },
+      { key: 'talk', icon: MessageCircle, label: t('menu.talk'), action: openInput }
     ]
     if (resetPosition) {
-      items.push({ key: 'resetPosition', icon: Crosshair, label: t('menu.resetPosition'), action: resetPosition })
+      items.push({
+        key: 'resetPosition',
+        icon: Crosshair,
+        label: t('menu.resetPosition'),
+        action: resetPosition
+      })
     }
     return items
   })
@@ -61,7 +64,10 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
     }
   }
 
-  function handleModelRightClick(position: { x: number; y: number }, modelPositionRef: { x: number; y: number }) {
+  function handleModelRightClick(
+    position: { x: number; y: number },
+    modelPositionRef: { x: number; y: number }
+  ) {
     modelPositionRef.x = position.x
     modelPositionRef.y = position.y
 
@@ -122,6 +128,6 @@ export function useRadialMenu(options: UseRadialMenuOptions) {
     handleMenuMouseEnter,
     handleMenuMouseLeave,
     getMenuItemStyle,
-    setOpenInput,
+    setOpenInput
   }
 }

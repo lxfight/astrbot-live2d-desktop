@@ -222,7 +222,8 @@ export default {
   'settings.about.adapterPlugin': '平台适配器插件',
   'settings.about.enabled': '已启用',
   'settings.about.disabled': '已关闭',
-  'settings.about.autoCheckDesc': '启用后，每次启动时会自动检查是否有新版本。关闭后不会在启动时自动检查更新，但仍可手动检查。',
+  'settings.about.autoCheckDesc':
+    '启用后，每次启动时会自动检查是否有新版本。关闭后不会在启动时自动检查更新，但仍可手动检查。',
   'settings.about.checkUpdate': '检查更新',
   'settings.about.restartAndInstall': '重启并安装',
   'settings.about.poweredBy': 'Powered by Live2D',
@@ -272,7 +273,8 @@ export default {
 
   // Settings — Connection misc
   'settings.connection.initFailed': '连接配置初始化失败',
-  'settings.connection.settingsStaleWarning': '检测到其他窗口更新了连接配置，请先保存或放弃当前修改后再同步',
+  'settings.connection.settingsStaleWarning':
+    '检测到其他窗口更新了连接配置，请先保存或放弃当前修改后再同步',
   'settings.connection.resetFailed': '连接配置重置失败: {error}',
 
   // Settings — Model
@@ -290,9 +292,12 @@ export default {
   'settings.advanced.platform.gameModeHeuristic': '可用（活跃窗口启发式）',
   'settings.advanced.platform.passThroughSupported': '支持',
   'settings.advanced.platform.passThroughUnsupported': '不支持（当前平台无法稳定转发鼠标事件）',
-  'settings.advanced.platform.waylandNotice': 'Wayland 会话下智能穿透与自动检测全屏应用不可用；建议在支持 X11 的环境中使用以获得更完整体验。',
-  'settings.advanced.platform.linuxNotice': 'Linux 会话下智能穿透不可用，自动更新需通过 Releases 手动下载。',
-  'settings.advanced.platform.win32GameModeDisabled': '当前 Windows 平台已关闭自动检测全屏应用：{reason}',
+  'settings.advanced.platform.waylandNotice':
+    'Wayland 会话下智能穿透与自动检测全屏应用不可用；建议在支持 X11 的环境中使用以获得更完整体验。',
+  'settings.advanced.platform.linuxNotice':
+    'Linux 会话下智能穿透不可用，自动更新需通过 Releases 手动下载。',
+  'settings.advanced.platform.win32GameModeDisabled':
+    '当前 Windows 平台已关闭自动检测全屏应用：{reason}',
 
   // Settings — History
   'settings.history.direction.outgoing': '发送',
@@ -366,7 +371,8 @@ export default {
   // Cubism download dialogs
   'cubism.download.title': 'Live2D SDK 下载',
   'cubism.download.message': '首次使用需要下载 Live2D Cubism SDK',
-  'cubism.download.detail': '应用需要下载 Live2D Cubism Core 文件才能正常运行。\n\n当前基线：{baseline}\n来源：{url}\n\n点击"确定"开始下载（约 200KB）。',
+  'cubism.download.detail':
+    '应用需要下载 Live2D Cubism Core 文件才能正常运行。\n\n当前基线：{baseline}\n来源：{url}\n\n点击"确定"开始下载（约 200KB）。',
   'cubism.download.successTitle': '下载完成',
   'cubism.download.successMessage': 'Live2D SDK 下载成功',
   'cubism.download.successDetail': '应用将继续启动。',
@@ -377,7 +383,8 @@ export default {
 
   // Main process error dialogs
   'mainProcess.databaseInitFailed': '数据库初始化失败',
-  'mainProcess.databaseInitFailedDetail': '无法创建或打开数据库文件，应用将退出。\n\n错误详情: {error}',
+  'mainProcess.databaseInitFailedDetail':
+    '无法创建或打开数据库文件，应用将退出。\n\n错误详情: {error}',
   'mainProcess.initFailed': '初始化失败',
   'mainProcess.initFailedDetail': '应用初始化过程中发生错误，将退出。\n\n{error}',
 
@@ -399,11 +406,13 @@ export default {
   'settings.connection.workspace.sourceColor': '主题色',
 
   // Settings — Model current
-  'settings.model.current.description': '查看当前加载的 Live2D 模型信息，并确认当前主题色是否来自模型配色。',
+  'settings.model.current.description':
+    '查看当前加载的 Live2D 模型信息，并确认当前主题色是否来自模型配色。',
   'settings.model.current.notLoaded': '当前未加载模型',
   'settings.model.current.expressions': '表情类型',
   'settings.model.current.saveExpression': '保存分配',
-  'settings.model.current.expressionDesc': '为固定表情类型分配当前模型的 exp3 表情。一个类型可分配多个表情，执行时会随机选择一个。',
+  'settings.model.current.expressionDesc':
+    '为固定表情类型分配当前模型的 exp3 表情。一个类型可分配多个表情，执行时会随机选择一个。',
   'settings.model.current.expressionProfilePath': '配置随模型保存：{path}',
   'settings.model.current.unassigned': '未分配',
   'settings.model.current.noExpressions': '当前模型没有可分配的 exp3 表情',
@@ -412,7 +421,8 @@ export default {
   'settings.model.current.scale': '当前模型大小缩放',
   'settings.model.current.resetScale': '重置',
   'settings.model.current.themeFollowModel': '主题色跟随当前模型',
-  'settings.model.current.themeFollowFeedback': '启用后，界面主题会跟随当前模型配色；关闭后将保留手动或已有主题设置。',
+  'settings.model.current.themeFollowFeedback':
+    '启用后，界面主题会跟随当前模型配色；关闭后将保留手动或已有主题设置。',
   'settings.model.current.currentThemeColor': '当前主题色',
   'settings.model.current.pickColor': '选择颜色',
   'settings.model.current.resetAutoColor': '恢复自动提取',
@@ -431,7 +441,8 @@ export default {
   'settings.model.library.empty': '暂无模型，请先导入',
 
   // Settings — Advanced behavior
-  'settings.advanced.behavior.description': '配置应用启动行为、通知策略和日志级别。切换后立即生效。',
+  'settings.advanced.behavior.description':
+    '配置应用启动行为、通知策略和日志级别。切换后立即生效。',
   'settings.advanced.behavior.autoConnect': '启动时自动连接',
   'settings.advanced.behavior.resumeOnWake': '系统恢复后自动恢复连接',
   'settings.advanced.behavior.retryEnabled': '启用自动重试',
@@ -443,10 +454,12 @@ export default {
   'settings.advanced.behavior.recordingMode': '录音模式',
   'settings.advanced.behavior.recordingModeHold': '按住说话',
   'settings.advanced.behavior.recordingModeToggle': '点击切换',
-  'settings.advanced.behavior.recordingModeFeedback': '按住说话：按下按钮开始录音，松开结束。点击切换：点击一次开始录音，再次点击结束。',
+  'settings.advanced.behavior.recordingModeFeedback':
+    '按住说话：按下按钮开始录音，松开结束。点击切换：点击一次开始录音，再次点击结束。',
   'settings.advanced.behavior.autoLoadLastModel': '启动时自动加载上次模型',
   'settings.advanced.behavior.silenceDetection': '录音时启用静音检测',
-  'settings.advanced.behavior.silenceDetectionFeedback': '长时间未检测到声音时自动结束录音，减少空白语音片段。',
+  'settings.advanced.behavior.silenceDetectionFeedback':
+    '长时间未检测到声音时自动结束录音，减少空白语音片段。',
   'settings.advanced.behavior.baseEventNotifications': '基础事件弹窗提示',
   'settings.advanced.behavior.logLevel': '日志级别',
   'settings.advanced.behavior.bubbleStackMax': '最大气泡数量',
@@ -459,18 +472,24 @@ export default {
   'settings.advanced.behavior.screenshotQuality': '截图质量',
   'settings.advanced.behavior.screenshotMaxWidth': '截图最大宽度',
   'settings.advanced.behavior.desktopInteraction': '桌面交互',
-  'settings.advanced.behavior.desktopInteractionDesc': '控制桌面窗口的置顶、鼠标穿透和全屏应用检测行为。此处开关会在切换后立即保存并生效。',
+  'settings.advanced.behavior.desktopInteractionDesc':
+    '控制桌面窗口的置顶、鼠标穿透和全屏应用检测行为。此处开关会在切换后立即保存并生效。',
   'settings.advanced.behavior.alwaysOnTop': '始终置顶显示',
-  'settings.advanced.behavior.alwaysOnTopFeedback': '保持桌面角色窗口位于普通应用之上，适合需要持续显示角色的场景。',
+  'settings.advanced.behavior.alwaysOnTopFeedback':
+    '保持桌面角色窗口位于普通应用之上，适合需要持续显示角色的场景。',
   'settings.advanced.behavior.passThroughMode': '鼠标穿透',
   'settings.advanced.behavior.passThroughNone': '不穿透',
   'settings.advanced.behavior.passThroughDynamic': '智能穿透',
   'settings.advanced.behavior.passThroughFull': '完全穿透',
-  'settings.advanced.behavior.passThroughNoneFeedback': '鼠标事件在模型区域正常响应，不穿透到底层应用。',
-  'settings.advanced.behavior.passThroughDynamicFeedback': '鼠标悬停模型或交互控件时可点击，其他区域穿透到底层应用。',
-  'settings.advanced.behavior.passThroughFullFeedback': '主窗口完全忽略鼠标事件，仅可通过快捷键和托盘菜单操作。',
+  'settings.advanced.behavior.passThroughNoneFeedback':
+    '鼠标事件在模型区域正常响应，不穿透到底层应用。',
+  'settings.advanced.behavior.passThroughDynamicFeedback':
+    '鼠标悬停模型或交互控件时可点击，其他区域穿透到底层应用。',
+  'settings.advanced.behavior.passThroughFullFeedback':
+    '主窗口完全忽略鼠标事件，仅可通过快捷键和托盘菜单操作。',
   'settings.advanced.behavior.autoDetectFullscreen': '自动检测全屏应用',
-  'settings.advanced.behavior.autoDetectFullscreenFeedback': '检测到游戏或其他全屏应用时，自动配合桌面模式调整窗口行为；当前平台不支持时会禁用此选项。',
+  'settings.advanced.behavior.autoDetectFullscreenFeedback':
+    '检测到游戏或其他全屏应用时，自动配合桌面模式调整窗口行为；当前平台不支持时会禁用此选项。',
   'settings.advanced.behavior.platformCapabilities': '平台能力',
   'settings.advanced.behavior.platformCapabilitiesDesc': '当前系统平台支持的功能特性。',
   'settings.advanced.behavior.currentPlatform': '当前平台',
@@ -498,21 +517,26 @@ export default {
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': '未保存',
   'settings.advanced.watcher.synced': '已同步',
-  'settings.advanced.watcher.description': '改为草稿态编辑。所有修改只在点击"保存更改"后写入后端，避免输入过程持续触发 IPC。',
+  'settings.advanced.watcher.description':
+    '改为草稿态编辑。所有修改只在点击"保存更改"后写入后端，避免输入过程持续触发 IPC。',
   'settings.advanced.watcher.discardChanges': '放弃修改',
   'settings.advanced.watcher.saveChanges': '保存更改',
   'settings.advanced.watcher.resetDefault': '恢复默认',
   'settings.advanced.watcher.basicSwitches': '基础开关',
-  'settings.advanced.watcher.basicSwitchesDesc': '监听窗口变化，让 AI 主动感知你的操作。这里的改动在保存前只会停留在本地草稿。',
+  'settings.advanced.watcher.basicSwitchesDesc':
+    '监听窗口变化，让 AI 主动感知你的操作。这里的改动在保存前只会停留在本地草稿。',
   'settings.advanced.watcher.enableWatcher': '启用窗口监听',
   'settings.advanced.watcher.enableAppLaunch': '启用应用启动监听',
-  'settings.advanced.watcher.appLaunchFeedback': '关闭后不会再因检测到新应用启动而主动发送桌面事件，但窗口监听的其他配置仍可保留。',
+  'settings.advanced.watcher.appLaunchFeedback':
+    '关闭后不会再因检测到新应用启动而主动发送桌面事件，但窗口监听的其他配置仍可保留。',
   'settings.advanced.watcher.monitorFrequency': '监控频率',
   'settings.advanced.watcher.monitorFrequencyDesc': '调整事件触发的频率限制，避免 AI 频繁响应。',
   'settings.advanced.watcher.globalInterval': '全局频率限制（毫秒）',
-  'settings.advanced.watcher.globalIntervalFeedback': '两次事件之间的最小间隔。默认 1000ms（1秒）。',
+  'settings.advanced.watcher.globalIntervalFeedback':
+    '两次事件之间的最小间隔。默认 1000ms（1秒）。',
   'settings.advanced.watcher.perWindowInterval': '单窗口频率限制（毫秒）',
-  'settings.advanced.watcher.perWindowIntervalFeedback': '同一窗口两次事件之间的最小间隔。默认 3000ms（3秒）。',
+  'settings.advanced.watcher.perWindowIntervalFeedback':
+    '同一窗口两次事件之间的最小间隔。默认 3000ms（3秒）。',
   'settings.advanced.watcher.minInterval': '最小间隔（毫秒）',
   'settings.advanced.watcher.minIntervalFeedback': '防止过于频繁的触发。默认 100ms。',
   'settings.advanced.watcher.globalIntervalPlaceholder': '默认 1000ms',
@@ -538,12 +562,15 @@ export default {
   'settings.advanced.watcher.aiModeSpecificApps': '仅检测到特定应用时响应',
   'settings.advanced.watcher.specificAppsList': '特定应用列表（每行一个进程名）',
   'settings.advanced.watcher.ignoreRules': '忽略规则',
-  'settings.advanced.watcher.ignoreRulesDesc': '配置额外需要忽略的进程和窗口。系统关键进程已内置过滤，此处添加的规则会与内置规则合并生效。',
+  'settings.advanced.watcher.ignoreRulesDesc':
+    '配置额外需要忽略的进程和窗口。系统关键进程已内置过滤，此处添加的规则会与内置规则合并生效。',
   'settings.advanced.watcher.builtinRules': '内置忽略规则（始终生效）',
-  'settings.advanced.watcher.builtinRulesContent': '进程：dwm.exe, csrss.exe, explorer.exe, SearchUI.exe 等系统进程\n标题：Program Manager, 锁屏, Lock Screen, Task Switching 等系统窗口',
+  'settings.advanced.watcher.builtinRulesContent':
+    '进程：dwm.exe, csrss.exe, explorer.exe, SearchUI.exe 等系统进程\n标题：Program Manager, 锁屏, Lock Screen, Task Switching 等系统窗口',
   'settings.advanced.watcher.ignoreProcessNames': '额外忽略的进程名（每行一个）',
   'settings.advanced.watcher.ignoreProcessNamesPlaceholder': '输入额外要忽略的进程名...',
-  'settings.advanced.watcher.ignoreProcessNamesFeedback': '这些进程名会与内置规则合并，用于过滤不需要触发 AI 响应的进程。',
+  'settings.advanced.watcher.ignoreProcessNamesFeedback':
+    '这些进程名会与内置规则合并，用于过滤不需要触发 AI 响应的进程。',
   'settings.advanced.watcher.ignoreTitleKeywords': '额外忽略的窗口标题关键词（每行一个）',
   'settings.advanced.watcher.ignoreTitleKeywordsPlaceholder': '输入额外要忽略的标题关键词...',
   'settings.advanced.watcher.ignoreTitleKeywordsFeedback': '标题包含这些关键词的窗口会被忽略。',
@@ -588,7 +615,8 @@ export default {
   'error.modelNameEmpty': '模型名称不能为空',
   'error.modelNameIllegal': '模型名称非法',
   'error.selectValidModelFolder': '请选择有效的模型文件夹',
-  'error.cubism2ModelUnsupported': '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 模型。',
+  'error.cubism2ModelUnsupported':
+    '检测到 .model.json（Cubism 2）模型。当前版本已停用 Cubism 2，请改用 .model3.json 模型。',
   'error.model3NotFound': '该文件夹内未找到 .model3.json 模型文件',
   'error.modelResourceIncomplete': '模型资源不完整',
   'error.desktopSourceUnavailable': '无法获取桌面截图源',
@@ -616,9 +644,11 @@ export default {
   'error.recordingAlreadyStopped': '录音已停止',
   'error.saveOfflineHistoryFailed': '保存离线历史消息失败',
   'error.wakeWordEmpty': '唤醒词为空，已停止监听',
-  'error.missingPorcupineAccessKey': '缺少 Porcupine AccessKey，请在配置中设置 VITE_PORCUPINE_ACCESS_KEY',
+  'error.missingPorcupineAccessKey':
+    '缺少 Porcupine AccessKey，请在配置中设置 VITE_PORCUPINE_ACCESS_KEY',
   'error.wakeWordResourceMissing': '唤醒词资源缺失: {files}',
-  'error.porcupineModuleLoadFailed': '无法加载本地 Porcupine 模块 ({path})。请确认文件存在且可离线访问。原始错误: {message}',
+  'error.porcupineModuleLoadFailed':
+    '无法加载本地 Porcupine 模块 ({path})。请确认文件存在且可离线访问。原始错误: {message}',
   'error.porcupineCreateNotFound': '未找到 Porcupine.create 接口，请检查本地 Porcupine SDK 文件',
   'error.porcupineNoBuiltinKeyword': '当前 Porcupine 模块不支持内置关键词，请改为本地 .ppn 文件',
   'error.builtinKeywordNotFound': '未找到内置唤醒词: {name}',
@@ -640,5 +670,5 @@ export default {
 
   // Settings — History media viewer
   'settings.history.mediaViewer.imageAlt': '历史消息图片放大预览',
-  'settings.history.mediaViewer.closeHint': '按 ESC 键或点击空白区域关闭',
+  'settings.history.mediaViewer.closeHint': '按 ESC 键或点击空白区域关闭'
 }

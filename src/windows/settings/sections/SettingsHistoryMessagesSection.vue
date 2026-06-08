@@ -23,20 +23,23 @@
           style="width: 100px"
           @update:value="handleDirectionFilterChange"
         />
-        <n-button size="small" type="error" @click="handleClearHistory">{{ $t('settings.history.messages.clear') }}</n-button>
-        <n-button size="small" type="primary" @click="handleRefreshMessages">{{ $t('settings.history.messages.refresh') }}</n-button>
+        <n-button size="small" type="error" @click="handleClearHistory">{{
+          $t('settings.history.messages.clear')
+        }}</n-button>
+        <n-button size="small" type="primary" @click="handleRefreshMessages">{{
+          $t('settings.history.messages.refresh')
+        }}</n-button>
       </div>
     </div>
-    <p class="settings-section__desc">{{ $t('settings.history.messages.total', { count: totalMessages }) }}</p>
+    <p class="settings-section__desc">
+      {{ $t('settings.history.messages.total', { count: totalMessages }) }}
+    </p>
 
     <div class="message-list">
       <article
         v-for="msg in messages"
         :key="msg.id"
-        :class="[
-          'message-item',
-          `message-item--${msg.direction}`,
-        ]"
+        :class="['message-item', `message-item--${msg.direction}`]"
       >
         <div class="message-avatar">
           <span class="message-avatar__icon">
@@ -56,8 +59,16 @@
               :key="idx"
               :class="['content-item', `content-item--${item.type}`]"
             >
-              <div v-if="item.type === 'text'" class="text-content" v-html="renderMarkdown(item.text)"></div>
-              <div v-else-if="item.type === 'image'" class="image-content" @click.capture="openMediaViewer('image', item.src)">
+              <div
+                v-if="item.type === 'text'"
+                class="text-content"
+                v-html="renderMarkdown(item.text)"
+              ></div>
+              <div
+                v-else-if="item.type === 'image'"
+                class="image-content"
+                @click.capture="openMediaViewer('image', item.src)"
+              >
                 <n-image
                   :src="item.src"
                   :preview-src="item.src"
@@ -80,19 +91,31 @@
                 <div class="voice-bubble__wave">
                   <span></span><span></span><span></span><span></span><span></span>
                 </div>
-                <span class="voice-bubble__duration">{{ getVoiceDurationLabel(getVoiceItemKey(msg, idx)) }}</span>
+                <span class="voice-bubble__duration">{{
+                  getVoiceDurationLabel(getVoiceItemKey(msg, idx))
+                }}</span>
                 <audio
-                  :ref="(el) => setVoiceRef(el, getVoiceItemKey(msg, idx))"
+                  :ref="el => setVoiceRef(el, getVoiceItemKey(msg, idx))"
                   :src="item.src"
                   preload="metadata"
                   @loadedmetadata="onVoiceMetadataLoaded(getVoiceItemKey(msg, idx))"
                   @ended="onVoiceEnded(getVoiceItemKey(msg, idx))"
                 ></audio>
               </div>
-              <div v-else-if="item.type === 'video'" class="video-content" @click="openMediaViewer('video', item.src)">
+              <div
+                v-else-if="item.type === 'video'"
+                class="video-content"
+                @click="openMediaViewer('video', item.src)"
+              >
                 <div class="video-preview-wrapper">
                   <div class="video-play-hint"><Play :size="20" /></div>
-                  <video class="video-player" :src="item.src" preload="metadata" playsinline muted></video>
+                  <video
+                    class="video-player"
+                    :src="item.src"
+                    preload="metadata"
+                    playsinline
+                    muted
+                  ></video>
                 </div>
               </div>
               <div v-else-if="item.type === 'file'" class="file-content">
@@ -141,25 +164,19 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { format } from 'date-fns'
-import {
-  Bot,
-  Download,
-  ExternalLink,
-  FileText,
-  Mic,
-  Play,
-  Search,
-  User,
-} from 'lucide-vue-next'
+import { Bot, Download, ExternalLink, FileText, Mic, Play, Search, User } from 'lucide-vue-next'
 import {
   buildHistoryRenderableItems,
   getLruCacheEntry,
   parseHistoryContent,
   setLruCacheEntry,
   type HistoryContentElement,
-  type HistoryRenderableItem,
+  type HistoryRenderableItem
 } from '@/utils/historyContent'
-import { configureMarked, renderBubbleMarkdown as renderMarkdownFromShared } from '@/utils/markedLatex'
+import {
+  configureMarked,
+  renderBubbleMarkdown as renderMarkdownFromShared
+} from '@/utils/markedLatex'
 import { useHistorySettingsDomain } from '../domains/createHistorySettingsDomain'
 import SettingsHistoryMediaViewer from './SettingsHistoryMediaViewer.vue'
 
@@ -184,7 +201,7 @@ const {
   openHistoryFile,
   pageSize,
   totalMessages,
-  totalPages,
+  totalPages
 } = useHistorySettingsDomain()
 
 configureMarked()
@@ -254,11 +271,14 @@ function toggleVoicePlay(key: string) {
     return
   }
 
-  void audio.play().then(() => {
-    playingVoiceKey.value = key
-  }).catch(() => {
-    playingVoiceKey.value = null
-  })
+  void audio
+    .play()
+    .then(() => {
+      playingVoiceKey.value = key
+    })
+    .catch(() => {
+      playingVoiceKey.value = null
+    })
 }
 
 function onVoiceEnded(key: string) {
@@ -326,7 +346,7 @@ function parseContent(content: string): HistoryContentElement[] {
 function buildHistoryPreviewCacheKey(content: string): string {
   let hash = 0
   for (let index = 0; index < content.length; index += 1) {
-    hash = ((hash << 5) - hash) + content.charCodeAt(index)
+    hash = (hash << 5) - hash + content.charCodeAt(index)
     hash |= 0
   }
 
@@ -346,7 +366,7 @@ function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
       includeTtsText: true,
       resourceBaseUrl: historyResourceBaseUrl.value,
       resourcePath: historyResourcePath.value,
-      resourceToken: historyResourceToken.value,
+      resourceToken: historyResourceToken.value
     })
 
     return setLruCacheEntry(messagePreviewCache, cacheKey, items, HISTORY_PREVIEW_CACHE_LIMIT)
@@ -356,7 +376,12 @@ function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
 }
 
 function getVoiceItemKey(messageRecord: any, index: number): string {
-  const messageKey = messageRecord?.message_id || messageRecord?.messageId || messageRecord?.id || messageRecord?.timestamp || 'message'
+  const messageKey =
+    messageRecord?.message_id ||
+    messageRecord?.messageId ||
+    messageRecord?.id ||
+    messageRecord?.timestamp ||
+    'message'
   return `${messageKey}:${index}`
 }
 
@@ -369,7 +394,9 @@ function getMessageAuthorLabel(messageRecord: any): string {
     return 'AstrBot'
   }
 
-  return messageRecord.user_name || messageRecord.user_id || t('settings.history.messages.unknownSource')
+  return (
+    messageRecord.user_name || messageRecord.user_id || t('settings.history.messages.unknownSource')
+  )
 }
 
 onBeforeUnmount(() => {

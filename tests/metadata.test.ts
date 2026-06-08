@@ -6,7 +6,7 @@ import {
   LOCAL_STORAGE_METADATA,
   PROTOCOL_VERSION,
   SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS,
-  USER_CONFIG_KEYS,
+  USER_CONFIG_KEYS
 } from '../src/shared/metadata'
 
 describe('metadata', () => {
@@ -21,19 +21,19 @@ describe('metadata', () => {
     expect(PROTOCOL_VERSION).toBe('1.0.0')
     expect(LOCAL_STORAGE_METADATA.advancedSettings).toEqual({
       key: 'advancedSettings',
-      version: 1,
+      version: 1
     })
     expect(LOCAL_STORAGE_METADATA.connectionSettings).toEqual({
       key: 'connectionSettings',
-      version: 2,
+      version: 2
     })
     expect(LOCAL_STORAGE_METADATA.lastModelPath).toEqual({
-      key: 'lastModelPath',
+      key: 'lastModelPath'
     })
     expect(SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS).toEqual([
       'lastModelPath',
       'advancedSettings',
-      'rendererThemeState',
+      'rendererThemeState'
     ])
   })
 
@@ -50,7 +50,7 @@ describe('metadata', () => {
       alwaysOnTop: 'tray_always_on_top',
       fullPassThrough: 'tray_pass_through_mode',
       dynamicPassThrough: 'desktop_dynamic_pass_through',
-      autoDetectFullscreen: 'tray_game_mode',
+      autoDetectFullscreen: 'tray_game_mode'
     })
   })
 })

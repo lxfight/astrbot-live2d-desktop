@@ -45,7 +45,12 @@ function appendHistoryTextItem(items: HistoryRenderableItem[], text: string): vo
   items.push({ type: 'text', text })
 }
 
-export function setLruCacheEntry<T>(cache: Map<string, T>, key: string, value: T, limit: number): T {
+export function setLruCacheEntry<T>(
+  cache: Map<string, T>,
+  key: string,
+  value: T,
+  limit: number
+): T {
   if (cache.has(key)) {
     cache.delete(key)
   } else if (cache.size >= limit) {
@@ -73,7 +78,7 @@ export function getLruCacheEntry<T>(cache: Map<string, T>, key: string): T | und
 export function parseHistoryContent(
   content: string,
   cache: Map<string, HistoryContentElement[]>,
-  cacheLimit = 1000,
+  cacheLimit = 1000
 ): HistoryContentElement[] {
   const cached = getLruCacheEntry(cache, content)
   if (cached !== undefined) {
@@ -83,7 +88,7 @@ export function parseHistoryContent(
   try {
     const parsed = JSON.parse(content)
     const result = Array.isArray(parsed)
-      ? parsed as HistoryContentElement[]
+      ? (parsed as HistoryContentElement[])
       : [parsed as HistoryContentElement]
     return setLruCacheEntry(cache, content, result, cacheLimit)
   } catch {
@@ -106,9 +111,7 @@ export function resolveHistoryImageSource(
   return resolveHistoryMediaSource(element, resourceConfig)
 }
 
-export function extractHistoryRawText(
-  content: HistoryContentElement[] | null | undefined,
-): string {
+export function extractHistoryRawText(content: HistoryContentElement[] | null | undefined): string {
   const parts: string[] = []
 
   for (const element of content || []) {

@@ -9,22 +9,26 @@ describe('appPaths', () => {
       originalUserDataPath: 'C:\\Users\\tester\\AppData\\Roaming\\astrbot-live2d-desktop',
       exePath: 'D:\\portable\\AstrBot Live2D Desktop.exe',
       portableExecutableDir: 'E:\\AstrBotPortable',
-      hasPortableMarker: true,
+      hasPortableMarker: true
     })
 
     expect(context.mode).toBe('portable')
     expect(context.portableBaseDir).toBe(path.resolve('E:\\AstrBotPortable'))
-    expect(context.resolvedUserDataPath).toBe(path.join(path.resolve('E:\\AstrBotPortable'), 'data'))
+    expect(context.resolvedUserDataPath).toBe(
+      path.join(path.resolve('E:\\AstrBotPortable'), 'data')
+    )
   })
 
   it('keeps the default userData path for installed builds', () => {
-    const originalUserDataPath = path.resolve('C:\\Users\\tester\\AppData\\Roaming\\astrbot-live2d-desktop')
+    const originalUserDataPath = path.resolve(
+      'C:\\Users\\tester\\AppData\\Roaming\\astrbot-live2d-desktop'
+    )
     const context = resolveAppDataPathContext({
       isPackaged: true,
       originalUserDataPath,
       exePath: 'C:\\Program Files\\AstrBot Live2D Desktop\\AstrBot Live2D Desktop.exe',
       portableExecutableDir: '',
-      hasPortableMarker: false,
+      hasPortableMarker: false
     })
 
     expect(context.mode).toBe('installed')
@@ -39,7 +43,7 @@ describe('appPaths', () => {
       originalUserDataPath,
       exePath: 'D:\\repo\\node_modules\\electron\\dist\\electron.exe',
       portableExecutableDir: 'E:\\ShouldBeIgnored',
-      hasPortableMarker: true,
+      hasPortableMarker: true
     })
 
     expect(context.mode).toBe('development')

@@ -11,7 +11,7 @@ import {
   normalizeLogLevel,
   setActiveLogLevel,
   writeStructuredLogEntry,
-  type LogMeta,
+  type LogMeta
 } from '../utils/logger'
 import { getUserConfig, setUserConfig } from '../database/schema'
 
@@ -73,7 +73,7 @@ function createExportTimestamp(): string {
     String(now.getDate()).padStart(2, '0'),
     String(now.getHours()).padStart(2, '0'),
     String(now.getMinutes()).padStart(2, '0'),
-    String(now.getSeconds()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0')
   ]
   return `${parts[0]}${parts[1]}${parts[2]}-${parts[3]}${parts[4]}${parts[5]}`
 }
@@ -100,9 +100,7 @@ async function listRecentLogFiles(days: number): Promise<string[]> {
     }
   }
 
-  return files
-    .sort((left, right) => right.mtimeMs - left.mtimeMs)
-    .map((file) => file.path)
+  return files.sort((left, right) => right.mtimeMs - left.mtimeMs).map(file => file.path)
 }
 
 ipcMain.on('log:renderer', (_event, payload: RendererLogPayload | undefined) => {
@@ -111,7 +109,7 @@ ipcMain.on('log:renderer', (_event, payload: RendererLogPayload | undefined) => 
   const args = sanitizeRendererArgs(payload?.args)
   writeStructuredLogEntry(level, source, 'console', {
     args,
-    context: payload?.context || {},
+    context: payload?.context || {}
   })
 })
 
@@ -173,40 +171,44 @@ ipcMain.handle('log:exportBundle', async (_event, days?: number) => {
 
     await fs.promises.writeFile(
       path.join(exportDir, 'manifest.json'),
-      JSON.stringify({
-        exportedAt: new Date().toISOString(),
-        days: exportDays,
-        count: files.length,
-        level: getActiveLogLevel(),
-        retentionDays: getLogRetentionDays(),
-        maxFileBytes: getMaxLogFileBytes(),
-      }, null, 2),
-      'utf8',
+      JSON.stringify(
+        {
+          exportedAt: new Date().toISOString(),
+          days: exportDays,
+          count: files.length,
+          level: getActiveLogLevel(),
+          retentionDays: getLogRetentionDays(),
+          maxFileBytes: getMaxLogFileBytes()
+        },
+        null,
+        2
+      ),
+      'utf8'
     )
 
     logInfo('log', 'export_bundle.success', {
       days: exportDays,
       count: files.length,
-      path: exportDir,
+      path: exportDir
     })
 
     return {
       success: true,
       path: exportDir,
-      count: files.length,
+      count: files.length
     }
   } catch (error: any) {
     logWarn('log', 'export_bundle.failed', {
       days: exportDays,
       path: exportDir,
-      error: error?.message || String(error),
+      error: error?.message || String(error)
     })
 
     return {
       success: false,
       path: exportDir,
       count: 0,
-      error: error?.message || String(error),
+      error: error?.message || String(error)
     }
   }
 })

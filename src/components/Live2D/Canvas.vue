@@ -5,7 +5,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
-import type { CubismCompatibilityManifest, CubismExpressionRequest, CubismModelInfo } from '@/utils/cubism'
+import type {
+  CubismCompatibilityManifest,
+  CubismExpressionRequest,
+  CubismModelInfo
+} from '@/utils/cubism'
 
 const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
@@ -36,7 +40,7 @@ function startRenderLoop() {
       model.update()
       model.render()
     }
-    
+
     renderFrameId = requestAnimationFrame(renderFrame)
   }
 
@@ -58,7 +62,7 @@ async function loadModel(
   modelPath: string,
   initialPosition?: { x: number; y: number },
   initialScale: number = 1.0,
-  compatibilityManifest?: CubismCompatibilityManifest | null,
+  compatibilityManifest?: CubismCompatibilityManifest | null
 ) {
   if (!canvasRef.value) {
     console.error('[Live2D] Canvas 未初始化')
@@ -109,7 +113,7 @@ function getModelInfo(): CubismModelInfo {
       capabilities: {
         expressionCombo: false,
         semanticExpression: false,
-        expressionProfile: false,
+        expressionProfile: false
       },
       expressionCatalog: [],
       semanticPresets: {},
@@ -123,8 +127,8 @@ function getModelInfo(): CubismModelInfo {
         discoveredMotionGroups: 0,
         scannedExpressionCount: 0,
         scannedMotionCount: 0,
-        warnings: [],
-      },
+        warnings: []
+      }
     }
   }
   return model.getModelInfo()
@@ -153,7 +157,7 @@ function playRandomMotion() {
   if (!model) return
 
   const info = model.getModelInfo()
-  const groupNames = Object.keys(info.motionGroups).filter((group) => {
+  const groupNames = Object.keys(info.motionGroups).filter(group => {
     const motions = info.motionGroups[group]
     return Array.isArray(motions) && motions.length > 0
   })
@@ -547,7 +551,7 @@ onMounted(async () => {
       await setMousePassthrough(false)
     }
 
-    disposeDesktopBehaviorListener = window.electron.desktopBehavior.onSnapshotChanged((snapshot) => {
+    disposeDesktopBehaviorListener = window.electron.desktopBehavior.onSnapshotChanged(snapshot => {
       void applyDesktopBehaviorSnapshot(snapshot)
     })
   }
@@ -592,7 +596,7 @@ defineExpose({
   getModelBounds,
   getModelOverlayBounds,
   getTextureSource: () => model?.getTextureSource(),
-  getTextureSources: () => model?.getTextureSources() || [],
+  getTextureSources: () => model?.getTextureSources() || []
 })
 </script>
 

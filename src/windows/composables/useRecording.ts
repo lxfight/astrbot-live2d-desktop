@@ -5,7 +5,7 @@ import { AudioRecorder } from '@/utils/AudioRecorder'
 import {
   clampMaxRecordingSeconds,
   type AdvancedSettings,
-  type RecordingMode,
+  type RecordingMode
 } from '@/utils/advancedSettings'
 
 type RecordingSource = 'manual' | 'shortcut'
@@ -32,7 +32,7 @@ export function useRecording(options: UseRecordingOptions) {
     showBaseEventStatus,
     updateUIPositions,
     generateMessageId,
-    syncRecordingState,
+    syncRecordingState
   } = options
 
   const { t } = useI18n()
@@ -59,7 +59,7 @@ export function useRecording(options: UseRecordingOptions) {
     try {
       const result = syncRecordingState(recording)
       if (result && typeof (result as Promise<void>).catch === 'function') {
-        ;(result as Promise<void>).catch((error) => {
+        ;(result as Promise<void>).catch(error => {
           console.warn('[主窗口] 同步录音状态失败:', error)
         })
       }
@@ -97,9 +97,10 @@ export function useRecording(options: UseRecordingOptions) {
       return
     }
 
-    const source = (typeof opts === 'object' && opts !== null && 'source' in opts
-      ? (opts as StartRecordingOptions).source
-      : 'manual') || 'manual'
+    const source =
+      (typeof opts === 'object' && opts !== null && 'source' in opts
+        ? (opts as StartRecordingOptions).source
+        : 'manual') || 'manual'
     const maxRecordingSeconds = getMaxRecordingSeconds()
 
     try {
@@ -240,7 +241,7 @@ export function useRecording(options: UseRecordingOptions) {
             resourceContext: {
               resourceBaseUrl: connectionStore.resourceBaseUrl,
               resourcePath: connectionStore.resourcePath,
-              resourceToken: connectionStore.resourceToken,
+              resourceToken: connectionStore.resourceToken
             }
           })
         } catch (error) {
@@ -284,6 +285,6 @@ export function useRecording(options: UseRecordingOptions) {
     toggleRecording,
     cancelRecordingIfActive,
     sendAudioMessage,
-    cleanup,
+    cleanup
   }
 }

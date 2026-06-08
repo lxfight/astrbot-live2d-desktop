@@ -15,7 +15,9 @@ export interface MaintenanceSettingsDomain {
   handleResetSettings: () => void
 }
 
-export const maintenanceSettingsDomainKey: InjectionKey<MaintenanceSettingsDomain> = Symbol('maintenance-settings-domain')
+export const maintenanceSettingsDomainKey: InjectionKey<MaintenanceSettingsDomain> = Symbol(
+  'maintenance-settings-domain'
+)
 
 export function useMaintenanceSettingsDomain() {
   const domain = inject(maintenanceSettingsDomainKey)
@@ -38,15 +40,10 @@ interface CreateMaintenanceSettingsDomainOptions {
 type DialogApi = ReturnType<typeof useDialog>
 type MessageApi = ReturnType<typeof useMessage>
 
-export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettingsDomainOptions): MaintenanceSettingsDomain {
-  const {
-    aboutDomain,
-    advancedDomain,
-    connectionDomain,
-    dialog,
-    message,
-    watcherDomain,
-  } = options
+export function createMaintenanceSettingsDomain(
+  options: CreateMaintenanceSettingsDomainOptions
+): MaintenanceSettingsDomain {
+  const { aboutDomain, advancedDomain, connectionDomain, dialog, message, watcherDomain } = options
 
   const { t } = useI18n()
 
@@ -77,8 +74,9 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
       positiveText: t('dialog.confirm'),
       negativeText: t('dialog.cancel'),
       onPositiveClick: () => {
-        const preservedEntries = SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS
-          .map((key) => [key, localStorage.getItem(key)] as const)
+        const preservedEntries = SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS.map(
+          key => [key, localStorage.getItem(key)] as const
+        )
 
         localStorage.clear()
 
@@ -89,7 +87,7 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
         }
 
         message.success(t('toast.cacheCleared'))
-      },
+      }
     })
   }
 
@@ -114,7 +112,7 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
         } catch (error: any) {
           message.error(t('toast.settingsResetFailed', { error: error?.message || String(error) }))
         }
-      },
+      }
     })
   }
 
@@ -143,6 +141,6 @@ export function createMaintenanceSettingsDomain(options: CreateMaintenanceSettin
     handleDownloadCubismCore,
     handleExportLogs,
     handleOpenLogs,
-    handleResetSettings,
+    handleResetSettings
   }
 }

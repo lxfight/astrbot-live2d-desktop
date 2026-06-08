@@ -8,7 +8,7 @@ import {
   type ConnectionBehaviorSettingsMigrateLegacyResult,
   type ConnectionBehaviorSettingsPersistedV1,
   type ConnectionBehaviorSettingsSavePayload,
-  type ConnectionBehaviorSettingsSaveResult,
+  type ConnectionBehaviorSettingsSaveResult
 } from '../../src/shared/connectionBehaviorSettings'
 
 const STORAGE_KEY = USER_CONFIG_KEYS.connectionBehaviorSettingsV1
@@ -56,22 +56,26 @@ function readPersistedSettingsRecord(): {
 } {
   try {
     const envelope = readPersistedEnvelope()
-    if (!envelope || envelope.version !== CONNECTION_BEHAVIOR_SETTINGS_SCHEMA_VERSION || !isObject(envelope.data)) {
+    if (
+      !envelope ||
+      envelope.version !== CONNECTION_BEHAVIOR_SETTINGS_SCHEMA_VERSION ||
+      !isObject(envelope.data)
+    ) {
       return {
         exists: false,
-        settings: buildDefaultConnectionBehaviorSettings(),
+        settings: buildDefaultConnectionBehaviorSettings()
       }
     }
 
     return {
       exists: true,
-      settings: normalizeConnectionBehaviorSettings(envelope.data),
+      settings: normalizeConnectionBehaviorSettings(envelope.data)
     }
   } catch (error) {
     console.error('[ConnectionBehaviorSettingsService] 读取连接行为配置失败:', error)
     return {
       exists: false,
-      settings: buildDefaultConnectionBehaviorSettings(),
+      settings: buildDefaultConnectionBehaviorSettings()
     }
   }
 }
@@ -79,7 +83,7 @@ function readPersistedSettingsRecord(): {
 function writePersistedSettings(settings: ConnectionBehaviorSettingsPersistedV1): void {
   const envelope: StoredConnectionBehaviorSettingsEnvelope = {
     version: CONNECTION_BEHAVIOR_SETTINGS_SCHEMA_VERSION,
-    data: normalizeConnectionBehaviorSettings(settings),
+    data: normalizeConnectionBehaviorSettings(settings)
   }
   setUserConfig(STORAGE_KEY, JSON.stringify(envelope))
 }
@@ -117,23 +121,25 @@ export function loadConnectionBehaviorSettings(): ConnectionBehaviorSettingsLoad
     const record = readPersistedSettingsRecord()
     return {
       success: true,
-      data: record.settings,
+      data: record.settings
     }
   } catch (error) {
     return {
       success: false,
       code: 'PERSIST_FAILED',
-      message: `读取连接行为配置失败: ${toErrorMessage(error)}`,
+      message: `读取连接行为配置失败: ${toErrorMessage(error)}`
     }
   }
 }
 
-export function saveConnectionBehaviorSettings(payload: ConnectionBehaviorSettingsSavePayload): ConnectionBehaviorSettingsSaveResult {
+export function saveConnectionBehaviorSettings(
+  payload: ConnectionBehaviorSettingsSavePayload
+): ConnectionBehaviorSettingsSaveResult {
   if (!isObject(payload) || !isObject(payload.data)) {
     return {
       success: false,
       code: 'INVALID_PAYLOAD',
-      message: '连接行为配置请求体无效',
+      message: '连接行为配置请求体无效'
     }
   }
 
@@ -142,43 +148,45 @@ export function saveConnectionBehaviorSettings(payload: ConnectionBehaviorSettin
     writePersistedSettings(nextSettings)
     return {
       success: true,
-      data: nextSettings,
+      data: nextSettings
     }
   } catch (error) {
     return {
       success: false,
       code: 'PERSIST_FAILED',
-      message: `保存连接行为配置失败: ${toErrorMessage(error)}`,
+      message: `保存连接行为配置失败: ${toErrorMessage(error)}`
     }
   }
 }
 
-export function migrateLegacyConnectionBehaviorSettings(rawLegacyJson: string): ConnectionBehaviorSettingsMigrateLegacyResult {
+export function migrateLegacyConnectionBehaviorSettings(
+  rawLegacyJson: string
+): ConnectionBehaviorSettingsMigrateLegacyResult {
   try {
     const existing = readPersistedSettingsRecord()
     if (existing.exists) {
       return {
         success: true,
-        data: existing.settings,
+        data: existing.settings
       }
     }
 
     const defaults = buildDefaultConnectionBehaviorSettings()
     const migrated = normalizeConnectionBehaviorSettings({
       ...defaults,
-      autoConnectOnAppLaunch: extractLegacyAutoConnect(rawLegacyJson),
+      autoConnectOnAppLaunch: extractLegacyAutoConnect(rawLegacyJson)
     })
     writePersistedSettings(migrated)
 
     return {
       success: true,
-      data: migrated,
+      data: migrated
     }
   } catch (error) {
     return {
       success: false,
       code: 'MIGRATION_FAILED',
-      message: `迁移旧版连接行为配置失败: ${toErrorMessage(error)}`,
+      message: `迁移旧版连接行为配置失败: ${toErrorMessage(error)}`
     }
   }
 }

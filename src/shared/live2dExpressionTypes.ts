@@ -14,10 +14,10 @@ export const LIVE2D_EXPRESSION_TYPES = [
   'playful',
   'sweat',
   'special',
-  'speaking',
+  'speaking'
 ] as const
 
-export type Live2DExpressionType = typeof LIVE2D_EXPRESSION_TYPES[number]
+export type Live2DExpressionType = (typeof LIVE2D_EXPRESSION_TYPES)[number]
 
 export type Live2DExpressionTypeMeta = {
   key: Live2DExpressionType
@@ -27,7 +27,9 @@ export type Live2DExpressionTypeMeta = {
 
 export type ExpressionTypeResolver = (key: string) => string
 
-export function createLive2DExpressionTypeMeta(t: ExpressionTypeResolver): Live2DExpressionTypeMeta[] {
+export function createLive2DExpressionTypeMeta(
+  t: ExpressionTypeResolver
+): Live2DExpressionTypeMeta[] {
   return [
     { key: 'neutral', label: t('expression.neutral'), group: t('expression.group.basic') },
     { key: 'happy', label: t('expression.happy'), group: t('expression.group.emotion') },
@@ -42,7 +44,7 @@ export function createLive2DExpressionTypeMeta(t: ExpressionTypeResolver): Live2
     { key: 'playful', label: t('expression.playful'), group: t('expression.group.effect') },
     { key: 'sweat', label: t('expression.sweat'), group: t('expression.group.effect') },
     { key: 'special', label: t('expression.special'), group: t('expression.group.effect') },
-    { key: 'speaking', label: t('expression.speaking'), group: t('expression.group.effect') },
+    { key: 'speaking', label: t('expression.speaking'), group: t('expression.group.effect') }
   ]
 }
 

@@ -24,28 +24,42 @@ export type ExpressionCatalogBuildResult = {
 }
 
 const KEYWORD_TAGS: Array<{ tag: string; keywords: string[]; confidence: number }> = [
-  { tag: 'happy', keywords: ['happy', 'smile', 'joy', 'laugh', 'grin', '开心', '高兴', '笑'], confidence: 0.92 },
+  {
+    tag: 'happy',
+    keywords: ['happy', 'smile', 'joy', 'laugh', 'grin', '开心', '高兴', '笑'],
+    confidence: 0.92
+  },
   { tag: 'sad', keywords: ['sad', 'cry', 'tear', 'blue', '难过', '伤心', '哭'], confidence: 0.92 },
   { tag: 'angry', keywords: ['angry', 'mad', 'rage', 'annoy', '生气', '愤怒'], confidence: 0.92 },
   { tag: 'surprised', keywords: ['surprise', 'shock', 'wow', '惊讶', '震惊'], confidence: 0.9 },
   { tag: 'thinking', keywords: ['think', 'thinking', 'ponder', '思考'], confidence: 0.86 },
-  { tag: 'neutral', keywords: ['neutral', 'default', 'normal', 'idle', '平静', '默认'], confidence: 0.82 },
-  { tag: 'speaking', keywords: ['talk', 'speak', 'chat', '说话'], confidence: 0.72 },
+  {
+    tag: 'neutral',
+    keywords: ['neutral', 'default', 'normal', 'idle', '平静', '默认'],
+    confidence: 0.82
+  },
+  { tag: 'speaking', keywords: ['talk', 'speak', 'chat', '说话'], confidence: 0.72 }
 ]
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return [...new Set(
-    values
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .map(value => value.trim())
-  )]
+  return [
+    ...new Set(
+      values
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map(value => value.trim())
+    )
+  ]
 }
 
 function normalizePresetKey(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function inferTags(id: string, parameterIds: string[], profile?: ExpressionProfile): { tags: string[]; confidence: number } {
+function inferTags(
+  id: string,
+  parameterIds: string[],
+  profile?: ExpressionProfile
+): { tags: string[]; confidence: number } {
   const explicitTags = profile?.tags?.[id] ?? []
   if (explicitTags.length > 0) {
     return {
@@ -65,9 +79,7 @@ function inferTags(id: string, parameterIds: string[], profile?: ExpressionProfi
   }
 
   const tags = uniqueStrings(matched.map(item => item.tag))
-  const confidence = matched.length > 0
-    ? Math.max(...matched.map(item => item.confidence))
-    : 0.35
+  const confidence = matched.length > 0 ? Math.max(...matched.map(item => item.confidence)) : 0.35
 
   return { tags, confidence }
 }
@@ -113,14 +125,13 @@ export function buildExpressionCatalog(
     .filter(({ parsed }) => parsed.parameters.length > 0)
     .map(({ parsed, source }) => {
       const inferred = inferTags(parsed.id, parsed.parameterIds, profile ?? undefined)
-      const aliases = uniqueStrings([
-        parsed.id,
-        ...(profile?.aliases?.[parsed.id] ?? [])
-      ])
+      const aliases = uniqueStrings([parsed.id, ...(profile?.aliases?.[parsed.id] ?? [])])
       const allowInferredSemantic = source !== 'scan' || hasExplicitTags(profile, parsed.id)
       const tags = useProfileSemanticPresets
         ? uniqueStrings(profile?.tags?.[parsed.id] ?? [])
-        : allowInferredSemantic ? inferred.tags : []
+        : allowInferredSemantic
+          ? inferred.tags
+          : []
       const conflictGroups = inferConflictGroups(tags)
 
       return {
@@ -129,8 +140,12 @@ export function buildExpressionCatalog(
         aliases,
         tags,
         confidence: useProfileSemanticPresets
-          ? tags.length > 0 ? 1 : 0.35
-          : allowInferredSemantic ? inferred.confidence : 0.35,
+          ? tags.length > 0
+            ? 1
+            : 0.35
+          : allowInferredSemantic
+            ? inferred.confidence
+            : 0.35,
         parameterIds: parsed.parameterIds,
         conflictGroups,
         supportsCombo: parsed.parameters.length > 0
@@ -167,9 +182,11 @@ export function buildExpressionCatalog(
       continue
     }
 
-    const resolvedItems = uniqueStrings(items
-      .map((item) => resolveCatalogExpressionId(item, aliasIndex))
-      .filter((item): item is string => Boolean(item)))
+    const resolvedItems = uniqueStrings(
+      items
+        .map(item => resolveCatalogExpressionId(item, aliasIndex))
+        .filter((item): item is string => Boolean(item))
+    )
 
     semanticPresets[presetKey] = resolvedItems
   }

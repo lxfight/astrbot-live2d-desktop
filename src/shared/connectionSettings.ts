@@ -20,7 +20,10 @@ export interface ConnectionSettingsPersistedV3 {
   updatedAt: number
 }
 
-export type ConnectionSettingsEditable = Omit<ConnectionSettingsPersistedV3, 'revision' | 'updatedAt'>
+export type ConnectionSettingsEditable = Omit<
+  ConnectionSettingsPersistedV3,
+  'revision' | 'updatedAt'
+>
 
 export interface ConnectionSettingsSavePayload {
   data: ConnectionSettingsEditable
@@ -72,32 +75,33 @@ export function buildDefaultConnectionSettingsEditable(): ConnectionSettingsEdit
     token: '',
     customResourceBaseUrl: '',
     customResourcePath: '',
-    customResourceToken: '',
+    customResourceToken: ''
   }
 }
 
 export function normalizeConnectionSettingsEditable(
-  value: Partial<ConnectionSettingsEditable> | null | undefined,
+  value: Partial<ConnectionSettingsEditable> | null | undefined
 ): ConnectionSettingsEditable {
   const defaults = buildDefaultConnectionSettingsEditable()
   const source = value || {}
 
   return {
-    serverUrl: typeof source.serverUrl === 'string' && source.serverUrl.trim()
-      ? source.serverUrl.trim()
-      : defaults.serverUrl,
-    token: typeof source.token === 'string'
-      ? source.token.trim()
-      : defaults.token,
-    customResourceBaseUrl: typeof source.customResourceBaseUrl === 'string'
-      ? source.customResourceBaseUrl.trim()
-      : defaults.customResourceBaseUrl,
-    customResourcePath: typeof source.customResourcePath === 'string'
-      ? source.customResourcePath.trim()
-      : defaults.customResourcePath,
-    customResourceToken: typeof source.customResourceToken === 'string'
-      ? source.customResourceToken.trim()
-      : defaults.customResourceToken,
+    serverUrl:
+      typeof source.serverUrl === 'string' && source.serverUrl.trim()
+        ? source.serverUrl.trim()
+        : defaults.serverUrl,
+    token: typeof source.token === 'string' ? source.token.trim() : defaults.token,
+    customResourceBaseUrl:
+      typeof source.customResourceBaseUrl === 'string'
+        ? source.customResourceBaseUrl.trim()
+        : defaults.customResourceBaseUrl,
+    customResourcePath:
+      typeof source.customResourcePath === 'string'
+        ? source.customResourcePath.trim()
+        : defaults.customResourcePath,
+    customResourceToken:
+      typeof source.customResourceToken === 'string'
+        ? source.customResourceToken.trim()
+        : defaults.customResourceToken
   }
 }
-

@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url)
 const CURRENT_DB_VERSION = 2
 const USER_PROFILE_CONFIG_KEYS = {
   userId: USER_CONFIG_KEYS.userId,
-  userName: USER_CONFIG_KEYS.userName,
+  userName: USER_CONFIG_KEYS.userName
 } as const
 
 function setDatabaseVersion(database: Database.Database, version: number): void {
@@ -158,12 +158,22 @@ function ensureMessageSearchIndex(database: Database.Database): void {
     END;
   `)
 
-  const messageCount = (database.prepare('SELECT COUNT(*) AS count FROM messages').get() as { count?: number } | undefined)?.count || 0
+  const messageCount =
+    (
+      database.prepare('SELECT COUNT(*) AS count FROM messages').get() as
+        | { count?: number }
+        | undefined
+    )?.count || 0
   if (messageCount === 0) {
     return
   }
 
-  const indexCount = (database.prepare('SELECT COUNT(*) AS count FROM messages_fts').get() as { count?: number } | undefined)?.count || 0
+  const indexCount =
+    (
+      database.prepare('SELECT COUNT(*) AS count FROM messages_fts').get() as
+        | { count?: number }
+        | undefined
+    )?.count || 0
   if (indexCount !== messageCount) {
     database.prepare("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')").run()
   }
@@ -308,20 +318,24 @@ export function savePerformance(record: PerformanceRecord): void {
 
 export function updateMessageContent(messageId: string, content: unknown): void {
   const db = getDatabase()
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE messages
     SET content = ?
     WHERE message_id = ?
-  `).run(JSON.stringify(content), messageId)
+  `
+  ).run(JSON.stringify(content), messageId)
 }
 
 export function updatePerformanceSequenceByMessageId(messageId: string, sequence: unknown): void {
   const db = getDatabase()
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE performances
     SET sequence = ?
     WHERE message_id = ?
-  `).run(JSON.stringify(sequence), messageId)
+  `
+  ).run(JSON.stringify(sequence), messageId)
 }
 
 export function deleteHistoryMessageByMessageId(messageId: string): void {

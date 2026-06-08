@@ -4,15 +4,26 @@ import { useI18n } from 'vue-i18n'
 import { createDeferredTaskCache } from '../composables/createDeferredTaskCache'
 
 const BUILTIN_PROCESS_NAMES = [
-  'dwm.exe', 'csrss.exe', 'explorer.exe', 'SearchUI.exe',
-  'ShellExperienceHost.exe', 'StartMenuExperienceHost.exe',
-  'TextInputHost.exe', 'SecurityHealthSystray.exe',
+  'dwm.exe',
+  'csrss.exe',
+  'explorer.exe',
+  'SearchUI.exe',
+  'ShellExperienceHost.exe',
+  'StartMenuExperienceHost.exe',
+  'TextInputHost.exe',
+  'SecurityHealthSystray.exe'
 ]
 
 const BUILTIN_TITLE_KEYWORDS = [
-  'Program Manager', '锁屏', 'Lock Screen', 'LockApp',
-  'Windows Shell Experience Host', 'Windows Default Lock Screen',
-  'Windows 输入体验', 'Task Switching', 'Task View',
+  'Program Manager',
+  '锁屏',
+  'Lock Screen',
+  'LockApp',
+  'Windows Shell Experience Host',
+  'Windows Default Lock Screen',
+  'Windows 输入体验',
+  'Task Switching',
+  'Task View'
 ]
 
 function createDefaultWatcherConfig(): WindowWatcherConfig {
@@ -22,7 +33,7 @@ function createDefaultWatcherConfig(): WindowWatcherConfig {
     throttle: {
       globalInterval: 1000,
       perWindowInterval: 3000,
-      minInterval: 100,
+      minInterval: 100
     },
     events: {
       focus: true,
@@ -35,16 +46,16 @@ function createDefaultWatcherConfig(): WindowWatcherConfig {
       move: false,
       minimize: false,
       maximize: false,
-      restore: false,
+      restore: false
     },
     ignore: {
       processNames: ['dwm.exe', 'csrss.exe', 'explorer.exe'],
-      titleKeywords: ['Program Manager', '锁屏', 'Lock Screen'],
+      titleKeywords: ['Program Manager', '锁屏', 'Lock Screen']
     },
     aiResponse: {
       mode: 'first-open',
-      specificApps: [],
-    },
+      specificApps: []
+    }
   }
 }
 
@@ -55,7 +66,7 @@ function cloneWatcherConfig(config: WindowWatcherConfig): WindowWatcherConfig {
     throttle: {
       globalInterval: Number(config.throttle.globalInterval),
       perWindowInterval: Number(config.throttle.perWindowInterval),
-      minInterval: Number(config.throttle.minInterval),
+      minInterval: Number(config.throttle.minInterval)
     },
     events: {
       focus: Boolean(config.events.focus),
@@ -68,16 +79,16 @@ function cloneWatcherConfig(config: WindowWatcherConfig): WindowWatcherConfig {
       move: Boolean(config.events.move),
       minimize: Boolean(config.events.minimize),
       maximize: Boolean(config.events.maximize),
-      restore: Boolean(config.events.restore),
+      restore: Boolean(config.events.restore)
     },
     ignore: {
       processNames: [...config.ignore.processNames],
-      titleKeywords: [...config.ignore.titleKeywords],
+      titleKeywords: [...config.ignore.titleKeywords]
     },
     aiResponse: {
       mode: config.aiResponse.mode,
-      specificApps: [...config.aiResponse.specificApps],
-    },
+      specificApps: [...config.aiResponse.specificApps]
+    }
   }
 }
 
@@ -99,7 +110,8 @@ export interface WatcherSettingsDomain {
   updateSpecificApps: (value: string) => void
 }
 
-export const watcherSettingsDomainKey: InjectionKey<WatcherSettingsDomain> = Symbol('watcher-settings-domain')
+export const watcherSettingsDomainKey: InjectionKey<WatcherSettingsDomain> =
+  Symbol('watcher-settings-domain')
 
 export function useWatcherSettingsDomain() {
   const domain = inject(watcherSettingsDomainKey)
@@ -139,14 +151,16 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
     savedSnapshot.value = buildSnapshot(cloneWatcherConfig(nextConfig))
   }
 
-  const dirty = computed(() => buildSnapshot(cloneWatcherConfig(draftConfig.value)) !== savedSnapshot.value)
+  const dirty = computed(
+    () => buildSnapshot(cloneWatcherConfig(draftConfig.value)) !== savedSnapshot.value
+  )
   const canSave = computed(() => dirty.value && !saving.value)
 
   function updateSpecificApps(value: string) {
     specificAppsInput.value = value
     draftConfig.value.aiResponse.specificApps = value
       .split('\n')
-      .map((item) => item.trim())
+      .map(item => item.trim())
       .filter(Boolean)
   }
 
@@ -154,16 +168,22 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
     ignoreProcessNamesInput.value = value
     draftConfig.value.ignore.processNames = value
       .split('\n')
-      .map((item) => item.trim())
-      .filter((item) => Boolean(item) && !BUILTIN_PROCESS_NAMES.includes(item))
+      .map(item => item.trim())
+      .filter(item => Boolean(item) && !BUILTIN_PROCESS_NAMES.includes(item))
   }
 
   function updateIgnoreTitleKeywords(value: string) {
     ignoreTitleKeywordsInput.value = value
     draftConfig.value.ignore.titleKeywords = value
       .split('\n')
-      .map((item) => item.trim())
-      .filter((item) => Boolean(item) && !BUILTIN_TITLE_KEYWORDS.some((keyword) => item.toLowerCase().includes(keyword.toLowerCase())))
+      .map(item => item.trim())
+      .filter(
+        item =>
+          Boolean(item) &&
+          !BUILTIN_TITLE_KEYWORDS.some(keyword =>
+            item.toLowerCase().includes(keyword.toLowerCase())
+          )
+      )
   }
 
   async function ensureReady(force = false) {
@@ -174,10 +194,14 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
     status.value = 'loading'
 
     try {
-      await taskCache.runTask('watcher:config', async () => {
-        const config = await window.electron.window.getWatcherConfig()
-        applySavedConfig(config)
-      }, force)
+      await taskCache.runTask(
+        'watcher:config',
+        async () => {
+          const config = await window.electron.window.getWatcherConfig()
+          applySavedConfig(config)
+        },
+        force
+      )
       status.value = 'ready'
     } catch (error) {
       status.value = 'error'
@@ -240,6 +264,6 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
     status,
     updateIgnoreProcessNames,
     updateIgnoreTitleKeywords,
-    updateSpecificApps,
+    updateSpecificApps
   }
 }

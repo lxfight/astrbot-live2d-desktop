@@ -17,22 +17,28 @@ export const useModelStore = defineStore('model', () => {
   const modelPositions = ref<Record<string, { x: number; y: number }>>(
     readJsonStorage(MODEL_POSITIONS_KEY, {
       fallback: {},
-      normalize: (value) => (value && typeof value === 'object' ? value as Record<string, { x: number; y: number }> : {}),
-      version: MODEL_POSITIONS_VERSION,
+      normalize: value =>
+        value && typeof value === 'object'
+          ? (value as Record<string, { x: number; y: number }>)
+          : {},
+      version: MODEL_POSITIONS_VERSION
     })
   )
   const modelScales = ref<Record<string, number>>(
     readJsonStorage(MODEL_SCALES_KEY, {
       fallback: {},
-      normalize: (value) => (value && typeof value === 'object' ? value as Record<string, number> : {}),
-      version: MODEL_SCALES_VERSION,
+      normalize: value =>
+        value && typeof value === 'object' ? (value as Record<string, number>) : {},
+      version: MODEL_SCALES_VERSION
     })
   )
   let positionPersistTimer: number | null = null
   let scalePersistTimer: number | null = null
 
   function persistModelPositions() {
-    writeJsonStorage(MODEL_POSITIONS_KEY, modelPositions.value, { version: MODEL_POSITIONS_VERSION })
+    writeJsonStorage(MODEL_POSITIONS_KEY, modelPositions.value, {
+      version: MODEL_POSITIONS_VERSION
+    })
   }
 
   function scheduleModelPositionsPersist() {
@@ -119,14 +125,18 @@ export const useModelStore = defineStore('model', () => {
     if (event.key === MODEL_POSITIONS_KEY) {
       modelPositions.value = readJsonStorage(MODEL_POSITIONS_KEY, {
         fallback: {},
-        normalize: (value) => (value && typeof value === 'object' ? value as Record<string, { x: number; y: number }> : {}),
-        version: MODEL_POSITIONS_VERSION,
+        normalize: value =>
+          value && typeof value === 'object'
+            ? (value as Record<string, { x: number; y: number }>)
+            : {},
+        version: MODEL_POSITIONS_VERSION
       })
     } else if (event.key === MODEL_SCALES_KEY) {
       modelScales.value = readJsonStorage(MODEL_SCALES_KEY, {
         fallback: {},
-        normalize: (value) => (value && typeof value === 'object' ? value as Record<string, number> : {}),
-        version: MODEL_SCALES_VERSION,
+        normalize: value =>
+          value && typeof value === 'object' ? (value as Record<string, number>) : {},
+        version: MODEL_SCALES_VERSION
       })
     }
   }

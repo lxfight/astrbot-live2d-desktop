@@ -74,9 +74,7 @@ export function parseExp3Text(text: string, id: string, file: string): ParsedExp
         continue
       }
 
-      const value = typeof item?.Value === 'number' && Number.isFinite(item.Value)
-        ? item.Value
-        : 0
+      const value = typeof item?.Value === 'number' && Number.isFinite(item.Value) ? item.Value : 0
       const blend = normalizeBlendType(item?.Blend)
 
       parameters.push({

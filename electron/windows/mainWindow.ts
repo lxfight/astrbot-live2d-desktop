@@ -34,15 +34,15 @@ export function createMainWindow(): BrowserWindow {
     hasShadow: false,
     ...(process.platform === 'win32'
       ? {
-          thickFrame: false,
+          thickFrame: false
         }
       : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      backgroundThrottling: false,
-    },
+      backgroundThrottling: false
+    }
   })
 
   const coordinator = getDesktopBehaviorCoordinator()
@@ -62,9 +62,12 @@ export function createMainWindow(): BrowserWindow {
     coordinator.reapplyMainWindowState({ raiseToTop: true })
   })
 
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    console.error('[主窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)
-  })
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL) => {
+      console.error('[主窗口] 页面加载失败:', errorCode, errorDescription, validatedURL)
+    }
+  )
 
   mainWindow.on('closed', () => {
     mainWindow = null

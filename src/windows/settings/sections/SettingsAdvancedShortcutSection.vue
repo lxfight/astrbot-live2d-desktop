@@ -13,9 +13,15 @@
             readonly
             @keydown="handleShortcutKeyDown"
           />
-          <n-button @click="handleClearShortcut">{{ $t('settings.advanced.shortcut.clear') }}</n-button>
+          <n-button @click="handleClearShortcut">{{
+            $t('settings.advanced.shortcut.clear')
+          }}</n-button>
           <n-button type="primary" @click="handleRegisterShortcut">
-            {{ shortcutRegistered ? $t('settings.advanced.shortcut.registered') : $t('settings.advanced.shortcut.register') }}
+            {{
+              shortcutRegistered
+                ? $t('settings.advanced.shortcut.registered')
+                : $t('settings.advanced.shortcut.register')
+            }}
           </n-button>
         </div>
       </n-form-item>
@@ -45,7 +51,7 @@ const {
   handleRegisterShortcut,
   handleShortcutKeyDown,
   recordingSecondsValue,
-  shortcutRegistered,
+  shortcutRegistered
 } = useAdvancedSettingsDomain()
 </script>
 

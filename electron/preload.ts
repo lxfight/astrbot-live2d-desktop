@@ -12,14 +12,18 @@ function subscribeIpc<T extends unknown[]>(channel: string, callback: (...args: 
   }
 }
 
-function isErrorLike(arg: any): arg is { name?: unknown; message?: unknown; stack?: unknown; code?: unknown } {
+function isErrorLike(
+  arg: any
+): arg is { name?: unknown; message?: unknown; stack?: unknown; code?: unknown } {
   const code = arg && typeof arg === 'object' ? (arg as { code?: unknown }).code : undefined
-  return Boolean(arg) && typeof arg === 'object' && (
-    typeof arg.name === 'string'
-    || typeof arg.message === 'string'
-    || typeof arg.stack === 'string'
-    || typeof code === 'string'
-    || typeof code === 'number'
+  return (
+    Boolean(arg) &&
+    typeof arg === 'object' &&
+    (typeof arg.name === 'string' ||
+      typeof arg.message === 'string' ||
+      typeof arg.stack === 'string' ||
+      typeof code === 'string' ||
+      typeof code === 'number')
   )
 }
 
@@ -61,9 +65,10 @@ function sanitizeLogValue(value: any, seen: WeakSet<object>, depth: number): any
   if (isErrorLike(value)) {
     return {
       name: typeof value.name === 'string' ? value.name : 'UnknownError',
-      message: typeof value.message === 'string' ? summarizeLogString(value.message) : String(value),
+      message:
+        typeof value.message === 'string' ? summarizeLogString(value.message) : String(value),
       stack: typeof value.stack === 'string' ? summarizeLogString(value.stack) : undefined,
-      code: sanitizeErrorCode(value.code),
+      code: sanitizeErrorCode(value.code)
     }
   }
 
@@ -83,12 +88,12 @@ function sanitizeLogValue(value: any, seen: WeakSet<object>, depth: number): any
   if (Array.isArray(value)) {
     const preview = value
       .slice(0, MAX_LOG_ARRAY_PREVIEW)
-      .map((item) => sanitizeLogValue(item, seen, depth + 1))
+      .map(item => sanitizeLogValue(item, seen, depth + 1))
     seen.delete(value)
     return {
       __type: 'array',
       length: value.length,
-      preview,
+      preview
     }
   }
 
@@ -133,7 +138,11 @@ function resolveRendererWindowKind(): string {
     return bodyKind
   }
 
-  const fileName = window.location.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/i, '')
+  const fileName = window.location.pathname
+    .split('/')
+    .filter(Boolean)
+    .pop()
+    ?.replace(/\.html$/i, '')
   if (fileName) {
     return fileName
   }
@@ -144,7 +153,11 @@ function resolveRendererWindowKind(): string {
 
 function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]): void {
   try {
-    const fileName = window.location.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/i, '')
+    const fileName = window.location.pathname
+      .split('/')
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.html$/i, '')
     const windowKind = resolveRendererWindowKind()
     const sourceLabel = fileName
       ? `renderer:${windowKind || fileName}`
@@ -154,12 +167,12 @@ function sendRendererLog(level: 'debug' | 'info' | 'warn' | 'error', args: any[]
     ipcRenderer.send('log:renderer', {
       level,
       source: sourceLabel,
-      args: args.map((item) => normalizeRendererLogArg(item)),
+      args: args.map(item => normalizeRendererLogArg(item)),
       context: {
         windowKind,
         path: window.location.pathname,
-        hash: window.location.hash,
-      },
+        hash: window.location.hash
+      }
     })
   } catch {
     // ignore ipc log failure to avoid affecting business flow
@@ -174,7 +187,8 @@ contextBridge.exposeInMainWorld('electron', {
   bridge: {
     getSession: () => ipcRenderer.invoke('bridge:getSession'),
     sendMessage: (payload: any) => ipcRenderer.invoke('bridge:sendMessage', payload),
-    sendTouch: (x: number, y: number, action: string) => ipcRenderer.invoke('bridge:sendTouch', x, y, action),
+    sendTouch: (x: number, y: number, action: string) =>
+      ipcRenderer.invoke('bridge:sendTouch', x, y, action),
     sendState: (op: string, payload: any) => ipcRenderer.invoke('bridge:sendState', op, payload),
 
     onPerformShow: (callback: (payload: any) => void) => subscribeIpc('perform:show', callback),
@@ -185,7 +199,8 @@ contextBridge.exposeInMainWorld('electron', {
     getSnapshot: () => ipcRenderer.invoke('bridgeLifecycle:getSnapshot'),
     connect: () => ipcRenderer.invoke('bridgeLifecycle:connect'),
     disconnect: () => ipcRenderer.invoke('bridgeLifecycle:disconnect'),
-    onStateChanged: (callback: (snapshot: any) => void) => subscribeIpc('bridgeLifecycle:stateChanged', callback),
+    onStateChanged: (callback: (snapshot: any) => void) =>
+      subscribeIpc('bridgeLifecycle:stateChanged', callback)
   },
 
   // 窗口管理
@@ -196,17 +211,22 @@ contextBridge.exposeInMainWorld('electron', {
     toggleMaximizeCurrent: () => ipcRenderer.invoke('window:toggleMaximizeCurrent'),
     isMaximizedCurrent: () => ipcRenderer.invoke('window:isMaximizedCurrent'),
     closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
-    notifyRendererReady: (windowKind: string) => ipcRenderer.invoke('window:notifyRendererReady', windowKind),
+    notifyRendererReady: (windowKind: string) =>
+      ipcRenderer.invoke('window:notifyRendererReady', windowKind),
     closeWelcome: () => ipcRenderer.invoke('window:closeWelcome'),
     getScreenshotSettings: () => ipcRenderer.invoke('window:getScreenshotSettings'),
-    updateScreenshotSettings: (settings: any) => ipcRenderer.invoke('window:updateScreenshotSettings', settings),
-    onMaximizedChanged: (callback: (maximized: boolean) => void) => subscribeIpc('window:maximizedChanged', callback),
+    updateScreenshotSettings: (settings: any) =>
+      ipcRenderer.invoke('window:updateScreenshotSettings', settings),
+    onMaximizedChanged: (callback: (maximized: boolean) => void) =>
+      subscribeIpc('window:maximizedChanged', callback),
     openExternal: (url: string) => ipcRenderer.invoke('window:openExternal', url),
-    openResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:openResource', source, suggestedName),
-    saveResource: (source: string, suggestedName?: string) => ipcRenderer.invoke('window:saveResource', source, suggestedName),
+    openResource: (source: string, suggestedName?: string) =>
+      ipcRenderer.invoke('window:openResource', source, suggestedName),
+    saveResource: (source: string, suggestedName?: string) =>
+      ipcRenderer.invoke('window:saveResource', source, suggestedName),
     getAppVersion: () => ipcRenderer.invoke('window:getAppVersion'),
     getPlatformCapabilities: () => ipcRenderer.invoke('window:getPlatformCapabilities'),
-    
+
     // 窗口事件监听
     startWatching: () => ipcRenderer.invoke('window:startWatching'),
     getActiveWindow: () => ipcRenderer.invoke('window:getActiveWindow'),
@@ -228,12 +248,15 @@ contextBridge.exposeInMainWorld('electron', {
 
   desktopBehavior: {
     getPreferences: () => ipcRenderer.invoke('desktopBehavior:getPreferences'),
-    updatePreferences: (config: any) => ipcRenderer.invoke('desktopBehavior:updatePreferences', config),
+    updatePreferences: (config: any) =>
+      ipcRenderer.invoke('desktopBehavior:updatePreferences', config),
     getSnapshot: () => ipcRenderer.invoke('desktopBehavior:getSnapshot'),
-    setMousePassthrough: (ignoreMouseEvents: boolean) => ipcRenderer.invoke('desktopBehavior:setMousePassthrough', ignoreMouseEvents),
+    setMousePassthrough: (ignoreMouseEvents: boolean) =>
+      ipcRenderer.invoke('desktopBehavior:setMousePassthrough', ignoreMouseEvents),
     setModelReady: (ready: boolean) => ipcRenderer.invoke('desktopBehavior:setModelReady', ready),
     requestReveal: (reason?: string) => ipcRenderer.invoke('desktopBehavior:requestReveal', reason),
-    onSnapshotChanged: (callback: (snapshot: any) => void) => subscribeIpc('desktopBehavior:snapshotChanged', callback),
+    onSnapshotChanged: (callback: (snapshot: any) => void) =>
+      subscribeIpc('desktopBehavior:snapshotChanged', callback)
   },
 
   // 设置窗口专用
@@ -255,15 +278,19 @@ contextBridge.exposeInMainWorld('electron', {
   connectionSettings: {
     load: () => ipcRenderer.invoke('connectionSettings:load'),
     save: (payload: any) => ipcRenderer.invoke('connectionSettings:save', payload),
-    migrateLegacy: (rawLegacyJson: string) => ipcRenderer.invoke('connectionSettings:migrateLegacy', rawLegacyJson),
-    onChanged: (callback: (event: any) => void) => subscribeIpc('connectionSettings:changed', callback),
+    migrateLegacy: (rawLegacyJson: string) =>
+      ipcRenderer.invoke('connectionSettings:migrateLegacy', rawLegacyJson),
+    onChanged: (callback: (event: any) => void) =>
+      subscribeIpc('connectionSettings:changed', callback)
   },
 
   connectionBehaviorSettings: {
     load: () => ipcRenderer.invoke('connectionBehaviorSettings:load'),
     save: (payload: any) => ipcRenderer.invoke('connectionBehaviorSettings:save', payload),
-    migrateLegacy: (rawLegacyJson: string) => ipcRenderer.invoke('connectionBehaviorSettings:migrateLegacy', rawLegacyJson),
-    onChanged: (callback: (event: any) => void) => subscribeIpc('connectionBehaviorSettings:changed', callback),
+    migrateLegacy: (rawLegacyJson: string) =>
+      ipcRenderer.invoke('connectionBehaviorSettings:migrateLegacy', rawLegacyJson),
+    onChanged: (callback: (event: any) => void) =>
+      subscribeIpc('connectionBehaviorSettings:changed', callback)
   },
 
   // 历史记录
@@ -272,20 +299,25 @@ contextBridge.exposeInMainWorld('electron', {
     saveMessage: (record: any) => ipcRenderer.invoke('history:saveMessage', record),
     savePerformance: (record: any) => ipcRenderer.invoke('history:savePerformance', record),
     updateStatistics: (data: any) => ipcRenderer.invoke('history:updateStatistics', data),
-    getStatistics: (startDate: string, endDate: string) => ipcRenderer.invoke('history:getStatistics', startDate, endDate),
-    getAverageResponseTime: (startDate: number, endDate: number) => ipcRenderer.invoke('history:getAverageResponseTime', startDate, endDate),
+    getStatistics: (startDate: string, endDate: string) =>
+      ipcRenderer.invoke('history:getStatistics', startDate, endDate),
+    getAverageResponseTime: (startDate: number, endDate: number) =>
+      ipcRenderer.invoke('history:getAverageResponseTime', startDate, endDate),
     clearHistory: () => ipcRenderer.invoke('history:clearHistory')
   },
 
   // 模型管理
   model: {
     selectFolder: () => ipcRenderer.invoke('model:selectFolder'),
-    import: (sourcePath: string, modelName: string) => ipcRenderer.invoke('model:import', sourcePath, modelName),
+    import: (sourcePath: string, modelName: string) =>
+      ipcRenderer.invoke('model:import', sourcePath, modelName),
     getList: () => ipcRenderer.invoke('model:getList'),
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),
     prepareLoad: (modelPath: string) => ipcRenderer.invoke('model:prepareLoad', modelPath),
-    getExpressionTypes: (modelPath: string) => ipcRenderer.invoke('model:getExpressionTypes', modelPath),
-    saveExpressionTypes: (modelPath: string, presets: any) => ipcRenderer.invoke('model:saveExpressionTypes', modelPath, presets),
+    getExpressionTypes: (modelPath: string) =>
+      ipcRenderer.invoke('model:getExpressionTypes', modelPath),
+    saveExpressionTypes: (modelPath: string, presets: any) =>
+      ipcRenderer.invoke('model:saveExpressionTypes', modelPath, presets),
     load: (modelPath: string) => ipcRenderer.invoke('model:load', modelPath),
     onLoad: (callback: (modelPath: string) => void) => {
       return subscribeIpc('model:load', callback)
@@ -297,7 +329,8 @@ contextBridge.exposeInMainWorld('electron', {
     register: (accelerator: string) => ipcRenderer.invoke('shortcut:register', accelerator),
     unregister: () => ipcRenderer.invoke('shortcut:unregister'),
     isRegistered: (accelerator: string) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
-    setRecordingState: (recording: boolean) => ipcRenderer.invoke('shortcut:setRecordingState', recording),
+    setRecordingState: (recording: boolean) =>
+      ipcRenderer.invoke('shortcut:setRecordingState', recording),
     onRecordingStart: (callback: () => void) => subscribeIpc('shortcut:recording-start', callback),
     onRecordingStop: (callback: () => void) => subscribeIpc('shortcut:recording-stop', callback)
   },
@@ -322,11 +355,12 @@ contextBridge.exposeInMainWorld('electron', {
     getSettings: () => ipcRenderer.invoke('update:getSettings'),
     updateSettings: (settings: any) => ipcRenderer.invoke('update:updateSettings', settings),
     quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
-    onStateChanged: (callback: (state: any) => void) => subscribeIpc('update:stateChanged', callback)
+    onStateChanged: (callback: (state: any) => void) =>
+      subscribeIpc('update:stateChanged', callback)
   },
 
   // 语言设置
   locale: {
-    set: (locale: string) => ipcRenderer.invoke('locale:set', locale),
+    set: (locale: string) => ipcRenderer.invoke('locale:set', locale)
   }
 })

@@ -10,7 +10,7 @@ describe('CubismModel getModelInfo', () => {
     model.getModelName = () => 'Sample'
     model.motionGroups = new Map([
       ['Idle', [{ file: 'idle.motion3.json', motion: {} }]],
-      ['Broken', [{ file: 'broken.motion3.json' }]],
+      ['Broken', [{ file: 'broken.motion3.json' }]]
     ])
     model.expressionFiles = [
       {
@@ -19,15 +19,15 @@ describe('CubismModel getModelInfo', () => {
         expression: {},
         aliases: ['smile'],
         source: 'model3',
-        parseWarnings: [],
+        parseWarnings: []
       },
       {
         name: 'Broken',
         file: 'Broken.exp3.json',
         aliases: ['broken'],
         source: 'scan',
-        parseWarnings: [],
-      },
+        parseWarnings: []
+      }
     ]
     model.expressionCatalogSummary = [
       {
@@ -35,15 +35,15 @@ describe('CubismModel getModelInfo', () => {
         aliases: ['Smile', 'smile'],
         tags: ['happy'],
         conflictGroups: ['emotion'],
-        supportsCombo: true,
+        supportsCombo: true
       },
       {
         id: 'Broken',
         aliases: ['Broken', 'broken'],
         tags: ['sad'],
         conflictGroups: ['emotion'],
-        supportsCombo: true,
-      },
+        supportsCombo: true
+      }
     ]
     model.semanticPresets = { happy: ['Smile'], sad: ['Broken'] }
     model.hasExpressionProfile = true
@@ -52,7 +52,7 @@ describe('CubismModel getModelInfo', () => {
     const info = model.getModelInfo()
 
     expect(info.motionGroups).toEqual({
-      Idle: [{ index: 0, file: 'idle.motion3.json' }],
+      Idle: [{ index: 0, file: 'idle.motion3.json' }]
     })
     expect(info.expressions).toEqual(['Smile'])
     expect(info.expressionCatalog).toEqual([
@@ -61,8 +61,8 @@ describe('CubismModel getModelInfo', () => {
         aliases: ['Smile', 'smile'],
         tags: ['happy'],
         conflictGroups: ['emotion'],
-        supportsCombo: true,
-      },
+        supportsCombo: true
+      }
     ])
     expect(info.semanticPresets).toEqual({ happy: ['Smile'] })
   })

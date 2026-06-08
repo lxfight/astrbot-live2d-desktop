@@ -1,20 +1,29 @@
 import { ipcMain, shell, app, dialog, BrowserWindow, net } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
-import { showSettingsWindow, closeSettingsWindow, markSettingsWindowRendererReady } from '../windows/settingsWindow'
+import {
+  showSettingsWindow,
+  closeSettingsWindow,
+  markSettingsWindowRendererReady
+} from '../windows/settingsWindow'
 import { closeWelcomeWindow } from '../windows/welcomeWindow'
 import { getPlatformCapabilities } from '../utils/platformCapabilities'
 import { loadScreenshotSettings, saveScreenshotSettings } from '../utils/screenshotSettings'
 import { decodeInlineDataUrl } from '../protocol/messageContent'
 import {
   HISTORY_RESOURCE_PROTOCOL_SCHEME,
-  getMessageResourceByUrl,
+  getMessageResourceByUrl
 } from '../database/messageResources'
 import { createScopedLogger } from '../utils/logger'
 import { t } from '../../src/i18n/mainProcess'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
-const ALLOWED_RESOURCE_PROTOCOLS = new Set(['http:', 'https:', 'data:', `${HISTORY_RESOURCE_PROTOCOL_SCHEME}:`])
+const ALLOWED_RESOURCE_PROTOCOLS = new Set([
+  'http:',
+  'https:',
+  'data:',
+  `${HISTORY_RESOURCE_PROTOCOL_SCHEME}:`
+])
 const TEMP_RESOURCE_DIR = path.join(app.getPath('temp'), 'astrbot-live2d-history')
 const logger = createScopedLogger('ipc.window')
 
@@ -161,7 +170,7 @@ ipcMain.handle('window:closeSettings', async () => {
   return { success: true }
 })
 
-ipcMain.handle('window:minimizeCurrent', async (event) => {
+ipcMain.handle('window:minimizeCurrent', async event => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
     logger.warn('minimize_current.failed', { reason: 'window_not_found' })
@@ -173,7 +182,7 @@ ipcMain.handle('window:minimizeCurrent', async (event) => {
   return { success: true }
 })
 
-ipcMain.handle('window:toggleMaximizeCurrent', async (event) => {
+ipcMain.handle('window:toggleMaximizeCurrent', async event => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
     logger.warn('toggle_maximize_current.failed', { reason: 'window_not_found' })
@@ -190,19 +199,19 @@ ipcMain.handle('window:toggleMaximizeCurrent', async (event) => {
   logger.info('toggle_maximize_current', {
     windowId: targetWindow.id,
     wasMaximized,
-    maximized: targetWindow.isMaximized(),
+    maximized: targetWindow.isMaximized()
   })
   return { success: true, maximized: targetWindow.isMaximized() }
 })
 
-ipcMain.handle('window:isMaximizedCurrent', async (event) => {
+ipcMain.handle('window:isMaximizedCurrent', async event => {
   const targetWindow = getSenderWindow(event)
   const maximized = targetWindow ? targetWindow.isMaximized() : false
   logger.debug('is_maximized_current', { windowId: targetWindow?.id, maximized })
   return maximized
 })
 
-ipcMain.handle('window:closeCurrent', async (event) => {
+ipcMain.handle('window:closeCurrent', async event => {
   const targetWindow = getSenderWindow(event)
   if (!targetWindow) {
     logger.warn('close_current.failed', { reason: 'window_not_found' })
@@ -214,7 +223,7 @@ ipcMain.handle('window:closeCurrent', async (event) => {
   return { success: true }
 })
 
-ipcMain.handle('window:toggleSettingsPin', async (event) => {
+ipcMain.handle('window:toggleSettingsPin', async event => {
   const targetWindow = BrowserWindow.fromWebContents(event.sender)
   if (!targetWindow || targetWindow.isDestroyed()) {
     return { success: false, pinned: false }
@@ -249,7 +258,7 @@ ipcMain.handle('window:notifyRendererReady', async (event, windowKind?: string) 
   logger.info('renderer_ready', {
     windowId: targetWindow.id,
     windowKind,
-    visible: targetWindow.isVisible(),
+    visible: targetWindow.isVisible()
   })
   return { success: true }
 })
@@ -294,7 +303,7 @@ ipcMain.handle('window:openExternal', async (_event, url: string) => {
 ipcMain.handle('window:openResource', async (_event, source: string, suggestedName?: string) => {
   const timer = logger.timer('open_resource', {
     source,
-    suggestedName,
+    suggestedName
   })
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
@@ -325,7 +334,7 @@ ipcMain.handle('window:openResource', async (_event, source: string, suggestedNa
 ipcMain.handle('window:saveResource', async (_event, source: string, suggestedName?: string) => {
   const timer = logger.timer('save_resource', {
     source,
-    suggestedName,
+    suggestedName
   })
   const safeSource = toSafeResourceSource(source)
   if (!safeSource) {
@@ -336,7 +345,7 @@ ipcMain.handle('window:saveResource', async (_event, source: string, suggestedNa
   try {
     const fileName = sanitizeSuggestedFileName(suggestedName, 'download.bin')
     const result = await dialog.showSaveDialog({
-      defaultPath: path.join(app.getPath('downloads'), fileName),
+      defaultPath: path.join(app.getPath('downloads'), fileName)
     })
 
     if (result.canceled || !result.filePath) {
@@ -371,7 +380,7 @@ ipcMain.handle('window:getPlatformCapabilities', async () => {
 
 /**
  * 窗口事件监听
- * 
+ *
  * 使用 IPC 单向通信，渲染进程通过此接口注册监听器
  */
 import { getWindowWatcher } from '../utils/windowWatcher'
@@ -400,12 +409,12 @@ function buildDesktopAppLaunchSystemPrompt(appName: string, userName: string): s
     'guidance:',
     '- Treat this as contextual telemetry, not explicit user intent.',
     '- Do not claim screen details unless capture_screenshot is called.',
-    '- Optional next actions: ignore, brief proactive comment, or capture_screenshot then respond.',
+    '- Optional next actions: ignore, brief proactive comment, or capture_screenshot then respond.'
   ].join('\n')
 }
 
 // 窗口事件监听器注册
-ipcMain.handle('window:startWatching', async (event) => {
+ipcMain.handle('window:startWatching', async event => {
   const timer = logger.timer('start_watching')
   const window = BrowserWindow.fromWebContents(event.sender)
   if (!window) {
@@ -417,7 +426,7 @@ ipcMain.handle('window:startWatching', async (event) => {
   registeredRenderers.add(window)
   logger.info('watcher.renderer_registered', {
     windowId: window.id,
-    registeredCount: registeredRenderers.size,
+    registeredCount: registeredRenderers.size
   })
 
   // 获取窗口监听器实例
@@ -450,23 +459,25 @@ ipcMain.handle('window:startWatching', async (event) => {
       const session = controller.getSession()
       if (!session) return
       const userName = getUserName()?.trim() || 'Desktop User'
-      void controller.sendMessage({
-        content: [
-          {
-            type: 'text',
-            text: buildDesktopAppLaunchSystemPrompt(appName, userName),
-          },
-        ],
-        metadata: {
-          userId: session.userId,
-          userName,
-          sessionId: session.sessionId,
-          messageType: 'notify',
-        },
-      }).catch((error) => {
-        console.error('[窗口监听] 发送应用启动通知失败:', error)
-        logger.error('app_launch_notify.failed', error, { appName })
-      })
+      void controller
+        .sendMessage({
+          content: [
+            {
+              type: 'text',
+              text: buildDesktopAppLaunchSystemPrompt(appName, userName)
+            }
+          ],
+          metadata: {
+            userId: session.userId,
+            userName,
+            sessionId: session.sessionId,
+            messageType: 'notify'
+          }
+        })
+        .catch(error => {
+          console.error('[窗口监听] 发送应用启动通知失败:', error)
+          logger.error('app_launch_notify.failed', error, { appName })
+        })
     })
   }
   await watcher.startAppLaunchDetection()
@@ -476,7 +487,7 @@ ipcMain.handle('window:startWatching', async (event) => {
     registeredRenderers.delete(window)
     logger.info('watcher.renderer_closed', {
       windowId: window.id,
-      registeredCount: registeredRenderers.size,
+      registeredCount: registeredRenderers.size
     })
 
     // 如果没有渲染进程了，停止监听器并移除全局监听器
@@ -502,7 +513,7 @@ ipcMain.handle('window:startWatching', async (event) => {
     windowId: window.id,
     watcherActive: watcher.isActive(),
     globalListenerRegistered,
-    appLaunchListenerRegistered,
+    appLaunchListenerRegistered
   })
   return { success: true }
 })
@@ -573,7 +584,8 @@ ipcMain.handle('window:resetWatcherConfig', async () => {
 // 手动下载 Cubism SDK
 ipcMain.handle('window:downloadCubismCore', async () => {
   const timer = logger.timer('download_cubism_core')
-  const { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } = await import('../utils/downloadCubismCore')
+  const { checkCubismCoreExists, showDownloadDialog, downloadWithProgress } =
+    await import('../utils/downloadCubismCore')
 
   if (checkCubismCoreExists()) {
     timer.done({ alreadyExists: true })

@@ -4,7 +4,7 @@ import {
   DEFAULT_SCREENSHOT_SETTINGS,
   clampScreenshotMaxWidth,
   clampScreenshotQuality,
-  normalizeScreenshotSettings,
+  normalizeScreenshotSettings
 } from '../src/utils/screenshotSettings'
 
 describe('screenshotSettings', () => {
@@ -16,18 +16,22 @@ describe('screenshotSettings', () => {
   })
 
   it('normalizes persisted screenshot settings', () => {
-    expect(normalizeScreenshotSettings({
+    expect(
+      normalizeScreenshotSettings({
+        defaultTarget: 'desktop',
+        quality: 72,
+        maxWidth: 1600
+      })
+    ).toEqual({
       defaultTarget: 'desktop',
       quality: 72,
-      maxWidth: 1600,
-    })).toEqual({
-      defaultTarget: 'desktop',
-      quality: 72,
-      maxWidth: 1600,
+      maxWidth: 1600
     })
   })
 
   it('falls back to defaults for invalid values', () => {
-    expect(normalizeScreenshotSettings({ defaultTarget: 'window' })).toEqual(DEFAULT_SCREENSHOT_SETTINGS)
+    expect(normalizeScreenshotSettings({ defaultTarget: 'window' })).toEqual(
+      DEFAULT_SCREENSHOT_SETTINGS
+    )
   })
 })

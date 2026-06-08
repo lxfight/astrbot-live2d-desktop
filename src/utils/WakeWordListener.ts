@@ -2,5 +2,5 @@ export {
   WakeWordListener,
   type WakeWordDetectedPayload,
   type WakeWordListenerOptions,
-  type WakeWordStatus,
+  type WakeWordStatus
 } from './WakeWordListenerWebSpeech'

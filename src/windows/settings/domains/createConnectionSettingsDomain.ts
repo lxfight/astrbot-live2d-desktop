@@ -5,7 +5,7 @@ import { useConnectionStore } from '@/stores/connection'
 import {
   buildDefaultConnectionSettingsEditable,
   normalizeConnectionSettingsEditable,
-  type ConnectionSettingsEditable,
+  type ConnectionSettingsEditable
 } from '@/shared/connectionSettings'
 import { validateBridgeEndpointDraft } from '@/shared/bridgeConnectionValidation'
 
@@ -37,7 +37,9 @@ export interface ConnectionSettingsDomain {
   workspaceRows: ComputedRef<Array<{ label: string; value: string }>>
 }
 
-export const connectionSettingsDomainKey: InjectionKey<ConnectionSettingsDomain> = Symbol('connection-settings-domain')
+export const connectionSettingsDomainKey: InjectionKey<ConnectionSettingsDomain> = Symbol(
+  'connection-settings-domain'
+)
 
 export function useConnectionSettingsDomain() {
   const domain = inject(connectionSettingsDomainKey)
@@ -50,12 +52,17 @@ export function useConnectionSettingsDomain() {
 
 type MessageApi = ReturnType<typeof useMessage>
 
-function isSameEditableSettings(a: ConnectionSettingsEditable, b: ConnectionSettingsEditable): boolean {
-  return a.serverUrl === b.serverUrl
-    && a.token === b.token
-    && a.customResourceBaseUrl === b.customResourceBaseUrl
-    && a.customResourcePath === b.customResourcePath
-    && a.customResourceToken === b.customResourceToken
+function isSameEditableSettings(
+  a: ConnectionSettingsEditable,
+  b: ConnectionSettingsEditable
+): boolean {
+  return (
+    a.serverUrl === b.serverUrl &&
+    a.token === b.token &&
+    a.customResourceBaseUrl === b.customResourceBaseUrl &&
+    a.customResourcePath === b.customResourcePath &&
+    a.customResourceToken === b.customResourceToken
+  )
 }
 
 export function createConnectionSettingsDomain(message: MessageApi): ConnectionSettingsDomain {
@@ -83,7 +90,10 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       return false
     }
 
-    return !isSameEditableSettings(collectEditableSettings(), normalizeConnectionSettingsEditable(connectionStore.persistedSettings))
+    return !isSameEditableSettings(
+      collectEditableSettings(),
+      normalizeConnectionSettingsEditable(connectionStore.persistedSettings)
+    )
   })
 
   const connectionStatusText = computed(() => {
@@ -96,35 +106,64 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
         return t('settings.connection.status.online')
       case 'waiting_retry':
         return connectionStore.nextRetryAt
-          ? t('settings.connection.status.waitingRetry', { attempt: connectionStore.reconnectAttempt })
+          ? t('settings.connection.status.waitingRetry', {
+              attempt: connectionStore.reconnectAttempt
+            })
           : t('settings.connection.status.waiting')
       case 'suspended':
         return t('settings.connection.status.suspended')
       case 'error':
-        return connectionStore.lastError?.message || t('settings.connection.status.connectionFailed')
+        return (
+          connectionStore.lastError?.message || t('settings.connection.status.connectionFailed')
+        )
       default:
         return t('settings.connection.status.offline')
     }
   })
 
   const canConnect = computed(() => {
-    return connectionStore.lifecycleStatus !== 'connecting'
-      && connectionStore.lifecycleStatus !== 'handshaking'
-      && connectionStore.lifecycleStatus !== 'connected'
+    return (
+      connectionStore.lifecycleStatus !== 'connecting' &&
+      connectionStore.lifecycleStatus !== 'handshaking' &&
+      connectionStore.lifecycleStatus !== 'connected'
+    )
   })
 
   const canDisconnect = computed(() => {
-    return connectionStore.lifecycleStatus !== 'idle' || connectionStore.desiredState === 'connected'
+    return (
+      connectionStore.lifecycleStatus !== 'idle' || connectionStore.desiredState === 'connected'
+    )
   })
 
   const workspaceRows = computed(() => {
     return [
-      { label: t('settings.connection.workspace.connectionStatus'), value: connectionStatusText.value },
-      { label: t('settings.connection.workspace.desiredState'), value: connectionStore.desiredState === 'connected' ? t('settings.connection.workspace.keepConnected') : t('settings.connection.workspace.keepDisconnected') },
-      { label: t('settings.connection.workspace.userId'), value: userId.value || t('settings.connection.workspace.notAssigned') },
-      { label: t('settings.connection.workspace.sessionId'), value: sessionId.value || t('settings.connection.workspace.notEstablished') },
-      { label: t('settings.connection.workspace.resourceBaseUrl'), value: resourceBaseUrl.value || t('settings.connection.workspace.autoFollow') },
-      { label: t('settings.connection.workspace.resourcePath'), value: resourcePath.value || '/resources' },
+      {
+        label: t('settings.connection.workspace.connectionStatus'),
+        value: connectionStatusText.value
+      },
+      {
+        label: t('settings.connection.workspace.desiredState'),
+        value:
+          connectionStore.desiredState === 'connected'
+            ? t('settings.connection.workspace.keepConnected')
+            : t('settings.connection.workspace.keepDisconnected')
+      },
+      {
+        label: t('settings.connection.workspace.userId'),
+        value: userId.value || t('settings.connection.workspace.notAssigned')
+      },
+      {
+        label: t('settings.connection.workspace.sessionId'),
+        value: sessionId.value || t('settings.connection.workspace.notEstablished')
+      },
+      {
+        label: t('settings.connection.workspace.resourceBaseUrl'),
+        value: resourceBaseUrl.value || t('settings.connection.workspace.autoFollow')
+      },
+      {
+        label: t('settings.connection.workspace.resourcePath'),
+        value: resourcePath.value || '/resources'
+      }
     ]
   })
 
@@ -134,7 +173,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       token: token.value,
       customResourceBaseUrl: resourceServerUrl.value,
       customResourcePath: resourceServerPath.value,
-      customResourceToken: resourceAccessToken.value,
+      customResourceToken: resourceAccessToken.value
     })
   }
 
@@ -160,7 +199,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       if (force) {
         await Promise.all([
           connectionStore.reloadPersistedSettings(),
-          connectionStore.refreshLifecycleSnapshot(),
+          connectionStore.refreshLifecycleSnapshot()
         ])
       }
       if (force || !hasUnsavedConnectionSettings.value) {
@@ -183,7 +222,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
   async function persistDraft() {
     const result = await window.electron.connectionSettings.save({
       data: collectEditableSettings(),
-      expectedRevision: connectionStore.persistedRevision,
+      expectedRevision: connectionStore.persistedRevision
     })
 
     if (result.success) {
@@ -197,13 +236,13 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       syncDraftFromStore()
       return {
         success: false as const,
-        error: t('settings.connection.settingsStaleWarning'),
+        error: t('settings.connection.settingsStaleWarning')
       }
     }
 
     return {
       success: false as const,
-      error: result.message,
+      error: result.message
     }
   }
 
@@ -236,7 +275,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
       const draft = collectEditableSettings()
       const validationResult = validateBridgeEndpointDraft({
         serverUrl: draft.serverUrl,
-        token: draft.token,
+        token: draft.token
       })
 
       if (!validationResult.valid) {
@@ -267,7 +306,7 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
     const draft = collectEditableSettings()
     const validationResult = validateBridgeEndpointDraft({
       serverUrl: draft.serverUrl,
-      token: draft.token,
+      token: draft.token
     })
 
     if (!validationResult.valid) {
@@ -353,6 +392,6 @@ export function createConnectionSettingsDomain(message: MessageApi): ConnectionS
     status,
     token,
     userId,
-    workspaceRows,
+    workspaceRows
   }
 }

@@ -19,7 +19,11 @@
       </div>
       <div class="settings-kv-list__row">
         <span>{{ $t('settings.about.autoCheckUpdate') }}</span>
-        <strong>{{ updaterSettings.autoUpdateEnabled ? $t('settings.about.enabled') : $t('settings.about.disabled') }}</strong>
+        <strong>{{
+          updaterSettings.autoUpdateEnabled
+            ? $t('settings.about.enabled')
+            : $t('settings.about.disabled')
+        }}</strong>
       </div>
       <div class="settings-kv-list__row">
         <span>{{ $t('settings.about.author') }}</span>
@@ -27,7 +31,7 @@
       </div>
     </div>
 
-    <n-form label-placement="top" style="margin-top: 16px;">
+    <n-form label-placement="top" style="margin-top: 16px">
       <n-form-item :label="$t('settings.about.language')">
         <n-select
           :value="localeStore.locale"
@@ -37,7 +41,10 @@
         />
       </n-form-item>
       <n-form-item :label="$t('settings.about.autoCheckUpdate')">
-        <n-switch :value="updaterSettings.autoUpdateEnabled" @update:value="updateAutoUpdateSetting" />
+        <n-switch
+          :value="updaterSettings.autoUpdateEnabled"
+          @update:value="updateAutoUpdateSetting"
+        />
         <template #feedback>
           {{ $t('settings.about.autoCheckDesc') }}
         </template>
@@ -45,8 +52,12 @@
     </n-form>
 
     <div class="settings-section__actions">
-      <n-button :loading="checkingUpdate" @click="handleCheckUpdates">{{ $t('settings.about.checkUpdate') }}</n-button>
-      <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">{{ $t('settings.about.restartAndInstall') }}</n-button>
+      <n-button :loading="checkingUpdate" @click="handleCheckUpdates">{{
+        $t('settings.about.checkUpdate')
+      }}</n-button>
+      <n-button v-if="canInstallUpdate" type="primary" @click="handleInstallUpdate">{{
+        $t('settings.about.restartAndInstall')
+      }}</n-button>
     </div>
   </section>
 
@@ -82,7 +93,7 @@ const localeStore = useLocaleStore()
 
 const languageOptions = [
   { label: '中文', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
+  { label: 'English', value: 'en' }
 ]
 
 function handleLocaleChange(value: string) {
@@ -101,7 +112,7 @@ const {
   handleOpenLink,
   updateAutoUpdateSetting,
   updateStatusLabel,
-  updaterSettings,
+  updaterSettings
 } = useAboutSettingsDomain()
 </script>
 

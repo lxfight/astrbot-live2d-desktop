@@ -55,11 +55,13 @@ export function readJsonStorage<T>(key: string, options: ReadStorageOptions<T>):
   }
 }
 
-export function writeJsonStorage<T>(key: string, value: T, options: WriteStorageOptions = {}): void {
+export function writeJsonStorage<T>(
+  key: string,
+  value: T,
+  options: WriteStorageOptions = {}
+): void {
   const { version } = options
-  const payload = version
-    ? { version, data: value }
-    : value
+  const payload = version ? { version, data: value } : value
 
   localStorage.setItem(key, JSON.stringify(payload))
 }

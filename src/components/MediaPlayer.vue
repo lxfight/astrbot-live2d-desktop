@@ -15,7 +15,9 @@
       <div v-if="currentImage" class="media-overlay image-overlay" @click="hideImage">
         <div class="media-card media-card--image" @click.stop>
           <div class="media-card__header">
-            <button class="media-card__close" type="button" @click.stop="hideImage">{{ $t('media.close') }}</button>
+            <button class="media-card__close" type="button" @click.stop="hideImage">
+              {{ $t('media.close') }}
+            </button>
           </div>
           <img :src="currentImage" :alt="$t('media.imageAlt')" />
           <p class="media-card__hint">{{ $t('media.clickToClose') }}</p>
@@ -28,15 +30,11 @@
       <div v-if="currentVideo" class="media-overlay video-overlay" @click="hideVideo">
         <div class="media-card media-card--video" @click.stop>
           <div class="media-card__header">
-            <button class="media-card__close" type="button" @click.stop="hideVideo">{{ $t('media.close') }}</button>
+            <button class="media-card__close" type="button" @click.stop="hideVideo">
+              {{ $t('media.close') }}
+            </button>
           </div>
-          <video
-            ref="videoRef"
-            :src="currentVideo"
-            autoplay
-            controls
-            @ended="handleVideoEnded"
-          />
+          <video ref="videoRef" :src="currentVideo" autoplay controls @ended="handleVideoEnded" />
           <p class="media-card__hint">{{ $t('media.clickToClose') }}</p>
         </div>
       </div>
@@ -63,8 +61,19 @@ let currentAudioSourceLog: Record<string, unknown> | null = null
 let isResettingAudioElement = false
 
 const AUDIO_READY_TIMEOUT_MS = 15000
-const NETWORK_STATE_LABELS = ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE']
-const READY_STATE_LABELS = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA']
+const NETWORK_STATE_LABELS = [
+  'NETWORK_EMPTY',
+  'NETWORK_IDLE',
+  'NETWORK_LOADING',
+  'NETWORK_NO_SOURCE'
+]
+const READY_STATE_LABELS = [
+  'HAVE_NOTHING',
+  'HAVE_METADATA',
+  'HAVE_CURRENT_DATA',
+  'HAVE_FUTURE_DATA',
+  'HAVE_ENOUGH_DATA'
+]
 
 // 定义 emit
 const emit = defineEmits<{
@@ -96,7 +105,7 @@ function previewUrl(url: string | null | undefined): string | null {
 function buildAudioSourceLog(
   source: ResourceLike,
   resolvedUrl: string | null = null,
-  playbackUrl: string | null = null,
+  playbackUrl: string | null = null
 ): Record<string, unknown> {
   const inline = typeof source.inline === 'string' ? source.inline.trim() : ''
   const url = typeof source.url === 'string' ? source.url.trim() : ''
@@ -116,7 +125,7 @@ function buildAudioSourceLog(
     hasInline: Boolean(inline),
     hasRid: Boolean(rid),
     resolvedUrl: previewUrl(resolvedUrl),
-    playbackUrl: previewUrl(playbackUrl),
+    playbackUrl: previewUrl(playbackUrl)
   }
 }
 
@@ -139,7 +148,7 @@ function formatPlaybackError(error: unknown): Record<string, unknown> {
       name: error.name,
       message: error.message,
       stack: error.stack || null,
-      code: errorCode,
+      code: errorCode
     }
   }
 
@@ -148,13 +157,13 @@ function formatPlaybackError(error: unknown): Record<string, unknown> {
     return {
       name: typeof errorLike.name === 'string' ? errorLike.name : 'UnknownError',
       message: typeof errorLike.message === 'string' ? errorLike.message : String(error),
-      code: sanitizeErrorCode(errorLike.code),
+      code: sanitizeErrorCode(errorLike.code)
     }
   }
 
   return {
     name: 'UnknownError',
-    message: String(error),
+    message: String(error)
   }
 }
 
@@ -173,7 +182,7 @@ function describeAudioState(audioElement?: HTMLAudioElement): Record<string, unk
     currentTime: Number.isFinite(audioElement.currentTime) ? audioElement.currentTime : null,
     duration: Number.isFinite(audioElement.duration) ? audioElement.duration : null,
     errorCode: mediaError?.code ?? null,
-    errorMessage: mediaError?.message || null,
+    errorMessage: mediaError?.message || null
   }
 }
 
@@ -199,7 +208,10 @@ function clearAudioElementSource(audioElement?: HTMLAudioElement) {
   currentAudioSourceLog = null
 }
 
-function waitForAudioReady(audioElement: HTMLAudioElement, timeoutMs = AUDIO_READY_TIMEOUT_MS): Promise<void> {
+function waitForAudioReady(
+  audioElement: HTMLAudioElement,
+  timeoutMs = AUDIO_READY_TIMEOUT_MS
+): Promise<void> {
   if (audioElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
     return Promise.resolve()
   }
@@ -269,14 +281,11 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
     stopAudio()
 
     isAudioActive = true
-    resolvedAudioUrl = resolveResourceSource(
-      source,
-      {
-        resourceBaseUrl: connectionStore.resourceBaseUrl,
-        resourcePath: connectionStore.resourcePath,
-        resourceToken: connectionStore.resourceToken,
-      }
-    )
+    resolvedAudioUrl = resolveResourceSource(source, {
+      resourceBaseUrl: connectionStore.resourceBaseUrl,
+      resourcePath: connectionStore.resourcePath,
+      resourceToken: connectionStore.resourceToken
+    })
 
     if (!resolvedAudioUrl) {
       throw new Error(t('media.audioUrlInvalid'))
@@ -294,8 +303,9 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
   } catch (error) {
     console.error('[媒体播放器] 音频播放失败:', {
       error: formatPlaybackError(error),
-      source: currentAudioSourceLog || buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl),
-      element: describeAudioState(audioElement),
+      source:
+        currentAudioSourceLog || buildAudioSourceLog(source, resolvedAudioUrl, playbackAudioUrl),
+      element: describeAudioState(audioElement)
     })
     clearAudioElementSource(audioElement)
     if (isAudioActive) {
@@ -326,13 +336,11 @@ function stopAudio() {
  */
 function showImage(urlOrData: string, duration?: number) {
   const imageUrl = resolveResourceSource(
-    isDirectResourceUrl(urlOrData)
-      ? { url: urlOrData }
-      : { rid: urlOrData },
+    isDirectResourceUrl(urlOrData) ? { url: urlOrData } : { rid: urlOrData },
     {
       resourceBaseUrl: connectionStore.resourceBaseUrl,
       resourcePath: connectionStore.resourcePath,
-      resourceToken: connectionStore.resourceToken,
+      resourceToken: connectionStore.resourceToken
     }
   )
 
@@ -372,13 +380,11 @@ function hideImage() {
  */
 function playVideo(urlOrData: string) {
   const videoUrl = resolveResourceSource(
-    isDirectResourceUrl(urlOrData)
-      ? { url: urlOrData }
-      : { rid: urlOrData },
+    isDirectResourceUrl(urlOrData) ? { url: urlOrData } : { rid: urlOrData },
     {
       resourceBaseUrl: connectionStore.resourceBaseUrl,
       resourcePath: connectionStore.resourcePath,
-      resourceToken: connectionStore.resourceToken,
+      resourceToken: connectionStore.resourceToken
     }
   )
 
@@ -417,7 +423,7 @@ function handleAudioError() {
   }
   console.error('[媒体播放器] 音频元素错误事件:', {
     source: currentAudioSourceLog,
-    element: describeAudioState(audioRef.value),
+    element: describeAudioState(audioRef.value)
   })
 }
 
@@ -427,7 +433,7 @@ function handleAudioStalled() {
   }
   console.warn('[媒体播放器] 音频加载停滞:', {
     source: currentAudioSourceLog,
-    element: describeAudioState(audioRef.value),
+    element: describeAudioState(audioRef.value)
   })
 }
 
@@ -437,7 +443,7 @@ function handleAudioAbort() {
   }
   console.warn('[媒体播放器] 音频加载中止:', {
     source: currentAudioSourceLog,
-    element: describeAudioState(audioRef.value),
+    element: describeAudioState(audioRef.value)
   })
 }
 
@@ -506,8 +512,7 @@ audio {
   border-radius: 28px;
   border: 1px solid rgba(var(--color-accent-rgb), 0.18);
   background:
-    linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.14), transparent 18%),
-    #0f1520;
+    linear-gradient(180deg, rgba(var(--color-accent-rgb), 0.14), transparent 18%), #0f1520;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.42),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
@@ -537,7 +542,8 @@ audio {
   border: 1px solid var(--surface-border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-secondary);
-  transition: background var(--duration-fast) var(--ease-out),
+  transition:
+    background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 
