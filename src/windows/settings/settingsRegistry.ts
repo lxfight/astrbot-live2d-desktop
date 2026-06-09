@@ -72,6 +72,14 @@ export function createSettingsSectionRegistry(
       loader: () => import('./sections/SettingsConnectionBridgeSection.vue'),
       prepare: force => connectionDomain.refreshConnectionState(force)
     },
+    'connection/connectionBehavior': {
+      key: 'connection/connectionBehavior',
+      group: 'connection',
+      child: 'connectionBehavior',
+      cachePolicy: 'keep-alive',
+      skeletonKind: 'form',
+      loader: () => import('./sections/SettingsConnectionBehaviorSection.vue')
+    },
     'connection/workspace': {
       key: 'connection/workspace',
       group: 'connection',

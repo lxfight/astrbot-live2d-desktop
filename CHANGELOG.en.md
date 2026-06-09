@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2026-06-09
+
+### Added
+- Connection behavior settings panel: Visual configuration for auto-connect, retry strategy, handshake timeout and more.
+- Config import/export: Backup and restore all app settings (connection, user preferences, UI settings).
+- Special thanks: Added futureppo's sponsor link in README and Settings About page, thanking for the generous AI Token support.
+
+### Improved
+- Live2D resource loading optimization: Integrated ModelResourceCache to auto-cache textures, motions, expressions, reducing redundant loads.
+- Performance monitoring: Auto-enabled FPS and memory monitoring in dev mode, with warnings when thresholds are breached.
+
 ## [1.2.0] - 2026-05-28
 
 ### Added

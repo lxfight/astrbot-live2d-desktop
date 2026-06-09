@@ -71,6 +71,7 @@ export default {
   // Settings menu
   'settings.menu.connection': '连接',
   'settings.menu.connection.bridge': 'Bridge 连接',
+  'settings.menu.connection.connectionBehavior': '连接行为',
   'settings.menu.connection.workspace': '工作区状态',
   'settings.menu.model': '模型',
   'settings.menu.model.current': '当前模型',
@@ -249,6 +250,35 @@ export default {
   'settings.connection.bridge.resourcePathPlaceholder': '默认沿用握手路径或 /resources',
   'settings.connection.bridge.resourceToken': '资源访问令牌',
   'settings.connection.bridge.resourceTokenPlaceholder': '留空时复用 WebSocket 认证令牌',
+
+  // Settings — Connection behavior
+  'settings.connection.behavior.title': '连接行为',
+  'settings.connection.behavior.autoConnectOnAppLaunch': '启动时自动连接',
+  'settings.connection.behavior.autoConnectOnAppLaunchDesc':
+    '应用启动时自动连接到服务器。关闭后需手动点击连接。',
+  'settings.connection.behavior.resumeDesiredConnectionOnWake': '唤醒后恢复连接',
+  'settings.connection.behavior.resumeDesiredConnectionOnWakeDesc':
+    '系统从休眠唤醒后，自动恢复之前的连接状态。',
+  'settings.connection.behavior.retryEnabled': '启用自动重试',
+  'settings.connection.behavior.retryEnabledDesc': '连接失败或断开后，自动按指数退避策略重试连接。',
+  'settings.connection.behavior.retryBaseDelayMs': '基础重试延迟',
+  'settings.connection.behavior.retryBaseDelayMsDesc':
+    '首次重试的延迟时间。后续重试会逐渐增加延迟（指数退避）。',
+  'settings.connection.behavior.retryMaxDelayMs': '最大重试延迟',
+  'settings.connection.behavior.retryMaxDelayMsDesc': '重试延迟的上限，防止延迟时间无限增长。',
+  'settings.connection.behavior.retryMaxAttempts': '最大重试次数',
+  'settings.connection.behavior.retryMaxAttemptsDesc':
+    '达到此次数后停止重试。设为"不限"则一直重试直到成功或手动停止。',
+  'settings.connection.behavior.handshakeTimeoutMs': '握手超时时间',
+  'settings.connection.behavior.handshakeTimeoutMsDesc':
+    '建立 WebSocket 连接后，等待握手完成的最长时间。',
+  'settings.connection.behavior.unlimited': '不限',
+  'settings.connection.behavior.limited': '限制',
+  'settings.connection.behavior.reset': '重置',
+  'settings.connection.behavior.save': '保存连接行为设置',
+  'settings.connection.behavior.cancel': '取消更改',
+  'settings.connection.behavior.saveSuccess': '连接行为设置已保存',
+  'settings.connection.behavior.saveFailed': '保存失败: {error}',
 
   // Settings — Connection status
   'settings.connection.status.connecting': '正在建立连接',
@@ -515,6 +545,21 @@ export default {
   'settings.advanced.data.clearCache': '清除缓存',
   'settings.advanced.data.resetSettings': '重置所有设置',
   'settings.advanced.data.downloadCubismCore': '下载 Live2D SDK',
+  'settings.advanced.data.exportConfig': '导出配置',
+  'settings.advanced.data.importConfig': '导入配置',
+  'settings.advanced.data.exportConfigSuccess': '配置已导出到: {path}',
+  'settings.advanced.data.exportConfigFailed': '导出配置失败: {error}',
+  'settings.advanced.data.importConfigTitle': '确认导入配置',
+  'settings.advanced.data.importConfigPreview':
+    '导出时间: {exportedAt}\n连接设置: {connectionSettings}\n连接行为: {behaviorSettings}\n用户配置: {userConfigCount} 项\n界面设置: {localStorageCount} 项\n\n导入后将覆盖现有配置，是否继续？',
+  'settings.advanced.data.importConfigSuccess': '配置导入成功',
+  'settings.advanced.data.importConfigFailed': '导入配置失败: {error}',
+  'settings.advanced.data.restartRequired': '建议重启应用',
+  'settings.advanced.data.restartRequiredDesc': '配置已导入，建议重启应用以确保所有更改生效。',
+
+  // Common
+  'common.yes': '是',
+  'common.no': '否',
 
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': '未保存',

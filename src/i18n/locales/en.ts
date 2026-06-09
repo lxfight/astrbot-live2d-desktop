@@ -76,6 +76,7 @@ const en: I18nMessageSchema = {
   // Settings menu
   'settings.menu.connection': 'Connection',
   'settings.menu.connection.bridge': 'Bridge Connection',
+  'settings.menu.connection.connectionBehavior': 'Connection Behavior',
   'settings.menu.connection.workspace': 'Workspace Status',
   'settings.menu.model': 'Model',
   'settings.menu.model.current': 'Current Model',
@@ -259,6 +260,37 @@ const en: I18nMessageSchema = {
   'settings.connection.bridge.resourcePathPlaceholder': 'Defaults to handshake path or /resources',
   'settings.connection.bridge.resourceToken': 'Resource Access Token',
   'settings.connection.bridge.resourceTokenPlaceholder': 'Reuses WebSocket auth token when empty',
+
+  // Settings — Connection behavior
+  'settings.connection.behavior.title': 'Connection Behavior',
+  'settings.connection.behavior.autoConnectOnAppLaunch': 'Auto-connect on App Launch',
+  'settings.connection.behavior.autoConnectOnAppLaunchDesc':
+    'Automatically connect to the server when the app starts. Requires manual connection when disabled.',
+  'settings.connection.behavior.resumeDesiredConnectionOnWake': 'Resume Connection on Wake',
+  'settings.connection.behavior.resumeDesiredConnectionOnWakeDesc':
+    'Automatically resume the previous connection state after system wakes from sleep.',
+  'settings.connection.behavior.retryEnabled': 'Enable Auto-retry',
+  'settings.connection.behavior.retryEnabledDesc':
+    'Automatically retry connection with exponential backoff strategy after failure or disconnect.',
+  'settings.connection.behavior.retryBaseDelayMs': 'Base Retry Delay',
+  'settings.connection.behavior.retryBaseDelayMsDesc':
+    'Initial retry delay. Subsequent retries will gradually increase (exponential backoff).',
+  'settings.connection.behavior.retryMaxDelayMs': 'Max Retry Delay',
+  'settings.connection.behavior.retryMaxDelayMsDesc':
+    'Upper limit for retry delay to prevent infinite growth.',
+  'settings.connection.behavior.retryMaxAttempts': 'Max Retry Attempts',
+  'settings.connection.behavior.retryMaxAttemptsDesc':
+    'Stop retrying after reaching this number. Set to "Unlimited" to retry indefinitely until success or manual stop.',
+  'settings.connection.behavior.handshakeTimeoutMs': 'Handshake Timeout',
+  'settings.connection.behavior.handshakeTimeoutMsDesc':
+    'Maximum time to wait for handshake completion after WebSocket connection is established.',
+  'settings.connection.behavior.unlimited': 'Unlimited',
+  'settings.connection.behavior.limited': 'Limited',
+  'settings.connection.behavior.reset': 'Reset',
+  'settings.connection.behavior.save': 'Save Connection Behavior',
+  'settings.connection.behavior.cancel': 'Cancel Changes',
+  'settings.connection.behavior.saveSuccess': 'Connection behavior settings saved',
+  'settings.connection.behavior.saveFailed': 'Save failed: {error}',
 
   // Settings — Connection status
   'settings.connection.status.connecting': 'Connecting',
@@ -536,6 +568,22 @@ const en: I18nMessageSchema = {
   'settings.advanced.data.clearCache': 'Clear Cache',
   'settings.advanced.data.resetSettings': 'Reset All Settings',
   'settings.advanced.data.downloadCubismCore': 'Download Live2D SDK',
+  'settings.advanced.data.exportConfig': 'Export Config',
+  'settings.advanced.data.importConfig': 'Import Config',
+  'settings.advanced.data.exportConfigSuccess': 'Config exported to: {path}',
+  'settings.advanced.data.exportConfigFailed': 'Export failed: {error}',
+  'settings.advanced.data.importConfigTitle': 'Confirm Import Config',
+  'settings.advanced.data.importConfigPreview':
+    'Exported at: {exportedAt}\nConnection settings: {connectionSettings}\nConnection behavior: {behaviorSettings}\nUser config: {userConfigCount} items\nUI settings: {localStorageCount} items\n\nThis will overwrite existing config. Continue?',
+  'settings.advanced.data.importConfigSuccess': 'Config imported successfully',
+  'settings.advanced.data.importConfigFailed': 'Import failed: {error}',
+  'settings.advanced.data.restartRequired': 'Restart Recommended',
+  'settings.advanced.data.restartRequiredDesc':
+    'Config imported successfully. Restart the app to ensure all changes take effect.',
+
+  // Common
+  'common.yes': 'Yes',
+  'common.no': 'No',
 
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': 'Unsaved',

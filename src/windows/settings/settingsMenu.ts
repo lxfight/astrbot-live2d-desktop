@@ -3,6 +3,7 @@ import { Drama, Globe, Info, MessageSquare, Settings } from 'lucide-vue-next'
 export type SettingsGroupKey = 'connection' | 'model' | 'history' | 'advanced' | 'about'
 export type SettingsChildKey =
   | 'bridge'
+  | 'connectionBehavior'
   | 'workspace'
   | 'current'
   | 'library'
@@ -28,7 +29,7 @@ export const settingsMenuGroups: SettingsMenuGroup[] = [
   {
     key: 'connection',
     icon: Globe,
-    children: [{ key: 'bridge' }, { key: 'workspace' }]
+    children: [{ key: 'bridge' }, { key: 'connectionBehavior' }, { key: 'workspace' }]
   },
   {
     key: 'model',

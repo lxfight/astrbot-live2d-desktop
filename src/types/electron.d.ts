@@ -337,6 +337,28 @@ declare global {
       locale: {
         set: (locale: string) => Promise<{ success: boolean }>
       }
+      config: {
+        export: () => Promise<{
+          success: boolean
+          filePath?: string
+          canceled?: boolean
+          error?: string
+        }>
+        import: () => Promise<{
+          success: boolean
+          canceled?: boolean
+          preview?: {
+            exportedAt: string
+            hasConnectionSettings: boolean
+            hasConnectionBehaviorSettings: boolean
+            userConfigKeys: string[]
+            localStorageKeys: string[]
+          }
+          data?: any
+          error?: string
+        }>
+        applyImport: (data: any) => Promise<{ success: boolean; error?: string }>
+      }
     }
   }
 }
