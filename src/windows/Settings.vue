@@ -142,6 +142,7 @@ const sectionRegistry = createSettingsSectionRegistry({
   aboutDomain,
   connectionDomain,
   historyDomain,
+  maintenanceDomain,
   modelDomain,
   watcherDomain
 })

@@ -6,6 +6,7 @@ import type { AdvancedSettingsDomain } from './domains/createAdvancedSettingsDom
 import type { WatcherSettingsDomain } from './domains/createWatcherSettingsDomain'
 import type { AboutSettingsDomain } from './domains/createAboutSettingsDomain'
 import type { HistorySettingsDomain } from './domains/createHistorySettingsDomain'
+import type { MaintenanceSettingsDomain } from './domains/createMaintenanceSettingsDomain'
 
 export type SettingsSectionCachePolicy = 'keep-alive' | 'discard'
 export type SettingsSectionSkeletonKind = 'form' | 'list' | 'dense'
@@ -35,6 +36,7 @@ export interface SettingsSectionRegistryDomains {
   aboutDomain: AboutSettingsDomain
   connectionDomain: ConnectionSettingsDomain
   historyDomain: HistorySettingsDomain
+  maintenanceDomain: MaintenanceSettingsDomain
   modelDomain: ModelSettingsDomain
   watcherDomain: WatcherSettingsDomain
 }
@@ -66,6 +68,7 @@ export function createSettingsSectionRegistry(
     aboutDomain,
     connectionDomain,
     historyDomain,
+    maintenanceDomain,
     modelDomain,
     watcherDomain
   } = domains
@@ -180,7 +183,8 @@ export function createSettingsSectionRegistry(
       layoutProfile: 'document',
       cachePolicy: 'discard',
       skeletonKind: 'dense',
-      loader: () => import('./sections/SettingsAdvancedDataSection.vue')
+      loader: () => import('./sections/SettingsAdvancedDataSection.vue'),
+      prepare: force => maintenanceDomain.ensureStorageOverviewReady(force)
     },
     'about/info': {
       key: 'about/info',

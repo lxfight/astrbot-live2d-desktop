@@ -89,7 +89,7 @@ function getCubismCoreCandidatePaths(): string[] {
   return Array.from(new Set(candidates))
 }
 
-function resolveExistingCubismCorePath(): string | null {
+export function resolveExistingCubismCorePath(): string | null {
   for (const candidate of getCubismCoreCandidatePaths()) {
     if (fs.existsSync(candidate)) {
       return candidate

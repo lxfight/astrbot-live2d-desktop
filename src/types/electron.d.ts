@@ -41,6 +41,7 @@ import type {
   HistoryMessageRecord as _HistoryMessageRecord,
   HistorySaveMessageResult as _HistorySaveMessageResult
 } from '../shared/history'
+import type { StorageOverview as _StorageOverview } from '../shared/storageOverview'
 import type {
   CubismCompatibilityManifest as _CubismCompatibilityManifest,
   CubismModelLoadDescriptor as _CubismModelLoadDescriptor
@@ -84,6 +85,7 @@ declare global {
   type HistoryMessageRecord = _HistoryMessageRecord
   type HistoryGetMessagesResult = _HistoryGetMessagesResult
   type HistorySaveMessageResult = _HistorySaveMessageResult
+  type StorageOverview = _StorageOverview
   type CubismCompatibilityManifest = _CubismCompatibilityManifest
   type CubismModelLoadDescriptor = _CubismModelLoadDescriptor
   type Live2DExpressionTypePresetMap = _Live2DExpressionTypePresetMap
@@ -252,6 +254,13 @@ declare global {
           endDate: number
         ) => Promise<{ success: boolean; data?: number; error?: string }>
         clearHistory: () => Promise<{ success: boolean; error?: string }>
+      }
+      storage: {
+        getOverview: () => Promise<{
+          success: boolean
+          data?: StorageOverview
+          error?: string
+        }>
       }
       model: {
         selectFolder: () => Promise<{

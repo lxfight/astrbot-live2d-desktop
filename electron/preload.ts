@@ -307,6 +307,10 @@ contextBridge.exposeInMainWorld('electron', {
     clearHistory: () => ipcRenderer.invoke('history:clearHistory')
   },
 
+  storage: {
+    getOverview: () => ipcRenderer.invoke('storage:getOverview')
+  },
+
   // 模型管理
   model: {
     selectFolder: () => ipcRenderer.invoke('model:selectFolder'),

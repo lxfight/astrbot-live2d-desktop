@@ -1,10 +1,11 @@
-import { inject, type InjectionKey } from 'vue'
+import { inject, ref, type InjectionKey, type Ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { SETTINGS_PRESERVED_LOCAL_STORAGE_KEYS } from '@/shared/metadata'
 import type { ConnectionSettingsDomain } from './createConnectionSettingsDomain'
 import type { AdvancedSettingsDomain } from './createAdvancedSettingsDomain'
 import type { AboutSettingsDomain } from './createAboutSettingsDomain'
+import type { StorageOverview } from '@/shared/storageOverview'
 import type { WatcherSettingsDomain } from './createWatcherSettingsDomain'
 
 export interface MaintenanceSettingsDomain {
@@ -15,6 +16,9 @@ export interface MaintenanceSettingsDomain {
   handleImportConfig: () => Promise<void>
   handleOpenLogs: () => Promise<void>
   handleResetSettings: () => void
+  storageOverview: Ref<StorageOverview | null>
+  storageOverviewLoading: Ref<boolean>
+  ensureStorageOverviewReady: (force?: boolean) => Promise<void>
 }
 
 export const maintenanceSettingsDomainKey: InjectionKey<MaintenanceSettingsDomain> = Symbol(
@@ -48,6 +52,44 @@ export function createMaintenanceSettingsDomain(
   const { aboutDomain, advancedDomain, connectionDomain, dialog, message, watcherDomain } = options
 
   const { t } = useI18n()
+
+  const storageOverview = ref<StorageOverview | null>(null)
+  const storageOverviewLoading = ref(false)
+  let storageOverviewLoaded = false
+
+  async function ensureStorageOverviewReady(force = false) {
+    if (storageOverviewLoading.value) {
+      return
+    }
+
+    if (storageOverviewLoaded && !force) {
+      return
+    }
+
+    storageOverviewLoading.value = true
+    try {
+      const result = await window.electron.storage.getOverview()
+      if (result.success && result.data) {
+        storageOverview.value = result.data
+        storageOverviewLoaded = true
+        return
+      }
+
+      message.error(
+        t('settings.advanced.data.storageLoadFailed', {
+          error: result.error || t('error.unknown')
+        })
+      )
+    } catch (error: unknown) {
+      message.error(
+        t('settings.advanced.data.storageLoadFailed', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      )
+    } finally {
+      storageOverviewLoading.value = false
+    }
+  }
 
   async function handleOpenLogs() {
     const result = await window.electron.log.openDirectory()
@@ -89,6 +131,7 @@ export function createMaintenanceSettingsDomain(
         }
 
         message.success(t('toast.cacheCleared'))
+        void ensureStorageOverviewReady(true)
       }
     })
   }
@@ -223,6 +266,9 @@ export function createMaintenanceSettingsDomain(
     handleExportLogs,
     handleImportConfig,
     handleOpenLogs,
-    handleResetSettings
+    handleResetSettings,
+    storageOverview,
+    storageOverviewLoading,
+    ensureStorageOverviewReady
   }
 }

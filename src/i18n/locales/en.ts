@@ -550,6 +550,7 @@ const en: I18nMessageSchema = {
   'settings.model.library.importModel': 'Import Model',
   'settings.model.library.description':
     'Manage local Live2D model files. {count} model(s) in total.',
+  'settings.model.library.modelCount': '{count} model(s)',
   'settings.model.library.current': 'Current',
   'settings.model.library.reload': 'Reload',
   'settings.model.library.load': 'Load',
@@ -642,6 +643,31 @@ const en: I18nMessageSchema = {
   'settings.advanced.data.restartRequired': 'Restart Recommended',
   'settings.advanced.data.restartRequiredDesc':
     'Config imported successfully. Restart the app to ensure all changes take effect.',
+  'settings.advanced.data.storageTitle': 'Local storage overview',
+  'settings.advanced.data.actionsTitle': 'Maintenance',
+  'settings.advanced.data.refreshStorage': 'Refresh stats',
+  'settings.advanced.data.storageLoadFailed': 'Failed to load storage stats: {error}',
+  'settings.advanced.data.appDataPath': 'Data directory',
+  'settings.advanced.data.storageMode.development': 'Development',
+  'settings.advanced.data.storageMode.installed': 'Installed',
+  'settings.advanced.data.storageMode.portable': 'Portable',
+  'settings.advanced.data.metricDatabaseFile': 'Database file',
+  'settings.advanced.data.metricDatabaseVersion': 'Schema v{version}',
+  'settings.advanced.data.metricResourceBlob': 'Embedded message media',
+  'settings.advanced.data.metricResourceCount': '{count} files',
+  'settings.advanced.data.metricModelsDir': 'Model library',
+  'settings.advanced.data.metricModelCount': '{count} models',
+  'settings.advanced.data.metricLogs': 'Log files',
+  'settings.advanced.data.metricLogFiles': '{count} files',
+  'settings.advanced.data.metricCubismCore': 'Live2D Core',
+  'settings.advanced.data.cubismNotInstalled': 'Not installed',
+  'settings.advanced.data.metricSessions': 'Sessions',
+  'settings.advanced.data.metricMessageRows': '{count} message rows',
+  'settings.advanced.data.metricPerformances': 'Performances',
+  'settings.advanced.data.metricPerformancesInterrupted': '{count} interrupted',
+  'settings.advanced.data.metricResourceDedup': 'Media fingerprints',
+  'settings.advanced.data.resourceBreakdownTitle': 'Embedded media by type',
+  'settings.advanced.data.dataSpan': 'Message time span',
 
   // Common
   'common.yes': 'Yes',
@@ -650,8 +676,6 @@ const en: I18nMessageSchema = {
   // Settings — Advanced watcher
   'settings.advanced.watcher.unsaved': 'Unsaved',
   'settings.advanced.watcher.synced': 'Synced',
-  'settings.advanced.watcher.description':
-    'Draft-based editing. All changes are only written to the backend after clicking "Save Changes", avoiding continuous IPC triggers during input.',
   'settings.advanced.watcher.discardChanges': 'Discard Changes',
   'settings.advanced.watcher.saveChanges': 'Save Changes',
   'settings.advanced.watcher.resetDefault': 'Reset to Default',
