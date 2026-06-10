@@ -1,6 +1,6 @@
 <template>
   <SettingsPageScaffold>
-    <SettingsSubsection :description="$t('settings.advanced.watcher.description')">
+    <SettingsSubsection>
       <template #actions>
         <span class="status-pill" :class="dirty ? 'status-pill--warning' : 'status-pill--success'">
           {{

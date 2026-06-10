@@ -6,7 +6,7 @@
           $t('settings.model.library.importModel')
         }}</n-button>
         <span class="model-library__count">{{
-          $t('settings.model.library.description', { count: modelList.length })
+          $t('settings.model.library.modelCount', { count: modelList.length })
         }}</span>
       </div>
 

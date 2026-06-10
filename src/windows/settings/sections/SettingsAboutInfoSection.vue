@@ -4,7 +4,6 @@
       immersive
       :page-key="`about-${appVersion}`"
       :title="APP_METADATA.displayName"
-      :description="$t('settings.about.heroSubtitle')"
     >
       <template #extra>
         <p class="settings-about-hero-version">
@@ -108,8 +107,6 @@
           </button>
         </div>
       </section>
-
-      <p class="settings-section__note">{{ $t('settings.about.poweredBy') }}</p>
     </div>
   </div>
 </template>

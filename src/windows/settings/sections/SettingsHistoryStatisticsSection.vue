@@ -1,9 +1,6 @@
 <template>
   <SettingsPageScaffold class="settings-workspace-page">
     <div class="settings-workspace-toolbar">
-      <span class="settings-workspace-toolbar__meta">{{
-        $t('settings.history.statistics.description')
-      }}</span>
       <div class="settings-workspace-toolbar__spacer" />
       <n-date-picker
         v-model:value="dateRange"
