@@ -10,10 +10,18 @@ import type { HistorySettingsDomain } from './domains/createHistorySettingsDomai
 export type SettingsSectionCachePolicy = 'keep-alive' | 'discard'
 export type SettingsSectionSkeletonKind = 'form' | 'list' | 'dense'
 
+export type SettingsLayoutProfile =
+  | 'document'
+  | 'dashboard'
+  | 'workspace'
+  | 'master-detail'
+  | 'immersive'
+
 export interface SettingsSectionRegistryEntry {
   key: string
   group: SettingsGroupKey
   child: SettingsChildKey
+  layoutProfile: SettingsLayoutProfile
   cachePolicy: SettingsSectionCachePolicy
   skeletonKind: SettingsSectionSkeletonKind
   loader: () => Promise<{ default: Component }>
@@ -67,6 +75,7 @@ export function createSettingsSectionRegistry(
       key: 'connection/bridge',
       group: 'connection',
       child: 'bridge',
+      layoutProfile: 'dashboard',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsConnectionBridgeSection.vue'),
@@ -76,6 +85,7 @@ export function createSettingsSectionRegistry(
       key: 'connection/connectionBehavior',
       group: 'connection',
       child: 'connectionBehavior',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsConnectionBehaviorSection.vue')
@@ -84,6 +94,7 @@ export function createSettingsSectionRegistry(
       key: 'connection/workspace',
       group: 'connection',
       child: 'workspace',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsConnectionWorkspaceSection.vue'),
@@ -93,6 +104,7 @@ export function createSettingsSectionRegistry(
       key: 'model/current',
       group: 'model',
       child: 'current',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsModelCurrentSection.vue'),
@@ -105,6 +117,7 @@ export function createSettingsSectionRegistry(
       key: 'model/library',
       group: 'model',
       child: 'library',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'list',
       loader: () => import('./sections/SettingsModelLibrarySection.vue'),
@@ -114,6 +127,7 @@ export function createSettingsSectionRegistry(
       key: 'history/messages',
       group: 'history',
       child: 'messages',
+      layoutProfile: 'workspace',
       cachePolicy: 'discard',
       skeletonKind: 'list',
       loader: () => import('./sections/SettingsHistoryMessagesSection.vue'),
@@ -123,6 +137,7 @@ export function createSettingsSectionRegistry(
       key: 'history/statistics',
       group: 'history',
       child: 'statistics',
+      layoutProfile: 'workspace',
       cachePolicy: 'discard',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsHistoryStatisticsSection.vue'),
@@ -132,6 +147,7 @@ export function createSettingsSectionRegistry(
       key: 'advanced/behavior',
       group: 'advanced',
       child: 'behavior',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedBehaviorSection.vue'),
@@ -141,6 +157,7 @@ export function createSettingsSectionRegistry(
       key: 'advanced/shortcut',
       group: 'advanced',
       child: 'shortcut',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedShortcutSection.vue'),
@@ -150,6 +167,7 @@ export function createSettingsSectionRegistry(
       key: 'advanced/windowWatcher',
       group: 'advanced',
       child: 'windowWatcher',
+      layoutProfile: 'document',
       cachePolicy: 'keep-alive',
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedWatcherSection.vue'),
@@ -159,6 +177,7 @@ export function createSettingsSectionRegistry(
       key: 'advanced/data',
       group: 'advanced',
       child: 'data',
+      layoutProfile: 'document',
       cachePolicy: 'discard',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsAdvancedDataSection.vue')
@@ -167,6 +186,7 @@ export function createSettingsSectionRegistry(
       key: 'about/info',
       group: 'about',
       child: 'info',
+      layoutProfile: 'immersive',
       cachePolicy: 'discard',
       skeletonKind: 'dense',
       loader: () => import('./sections/SettingsAboutInfoSection.vue'),
