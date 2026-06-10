@@ -1,7 +1,10 @@
 <template>
-  <section class="settings-section">
-    <div class="settings-section__header">
-      <h2>{{ $t('settings.menu.history.statistics') }}</h2>
+  <SettingsPageScaffold class="settings-workspace-page">
+    <div class="settings-workspace-toolbar">
+      <span class="settings-workspace-toolbar__meta">{{
+        $t('settings.history.statistics.description')
+      }}</span>
+      <div class="settings-workspace-toolbar__spacer" />
       <n-date-picker
         v-model:value="dateRange"
         type="daterange"
@@ -10,23 +13,22 @@
         @update:value="handleDateRangeChange"
       />
     </div>
-    <p class="settings-section__desc">{{ $t('settings.history.statistics.description') }}</p>
 
-    <div class="chart-grid">
-      <div class="chart-card">
+    <div class="settings-workspace-body chart-grid">
+      <div class="chart-card settings-section">
         <h3>{{ $t('settings.history.statistics.messageTrend') }}</h3>
         <div ref="messageTrendRef" class="chart-container"></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card settings-section">
         <h3>{{ $t('settings.history.statistics.contentDistribution') }}</h3>
         <div ref="performElementRef" class="chart-container"></div>
       </div>
-      <div class="chart-card chart-card--wide">
+      <div class="chart-card chart-card--wide settings-section">
         <h3>{{ $t('settings.history.statistics.activeHours') }}</h3>
         <div ref="activeHoursRef" class="chart-container"></div>
       </div>
     </div>
-  </section>
+  </SettingsPageScaffold>
 </template>
 
 <script setup lang="ts">
@@ -36,6 +38,7 @@ import { storeToRefs } from 'pinia'
 import * as echarts from 'echarts'
 import { useThemeStore } from '@/stores/theme'
 import { withAlpha } from '@/utils/themePalette'
+import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import { useHistorySettingsDomain } from '../domains/createHistorySettingsDomain'
 
 const { t } = useI18n()

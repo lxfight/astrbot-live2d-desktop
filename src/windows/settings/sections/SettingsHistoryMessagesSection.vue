@@ -1,41 +1,39 @@
 <template>
-  <section class="settings-section settings-section--fill">
-    <div class="settings-section__header">
-      <h2>{{ $t('settings.menu.history.messages') }}</h2>
-      <div class="history-toolbar-actions">
-        <n-input
-          v-model:value="keyword"
-          :placeholder="$t('settings.history.messages.searchPlaceholder')"
-          clearable
-          size="small"
-          @update:value="handleSearch"
-        >
-          <template #prefix>
-            <Search :size="14" />
-          </template>
-        </n-input>
-        <n-select
-          v-model:value="directionFilter"
-          :options="directionOptions"
-          :placeholder="$t('settings.history.messages.direction')"
-          clearable
-          size="small"
-          style="width: 100px"
-          @update:value="handleDirectionFilterChange"
-        />
-        <n-button size="small" type="error" @click="handleClearHistory">{{
-          $t('settings.history.messages.clear')
-        }}</n-button>
-        <n-button size="small" type="primary" @click="handleRefreshMessages">{{
-          $t('settings.history.messages.refresh')
-        }}</n-button>
-      </div>
+  <SettingsPageScaffold class="settings-workspace-page">
+    <div class="settings-workspace-toolbar">
+      <n-input
+        v-model:value="keyword"
+        :placeholder="$t('settings.history.messages.searchPlaceholder')"
+        clearable
+        size="small"
+        @update:value="handleSearch"
+      >
+        <template #prefix>
+          <Search :size="14" />
+        </template>
+      </n-input>
+      <n-select
+        v-model:value="directionFilter"
+        :options="directionOptions"
+        :placeholder="$t('settings.history.messages.direction')"
+        clearable
+        size="small"
+        style="width: 110px"
+        @update:value="handleDirectionFilterChange"
+      />
+      <span class="settings-workspace-toolbar__meta">
+        {{ $t('settings.history.messages.total', { count: totalMessages }) }}
+      </span>
+      <div class="settings-workspace-toolbar__spacer" />
+      <n-button size="small" type="error" @click="handleClearHistory">{{
+        $t('settings.history.messages.clear')
+      }}</n-button>
+      <n-button size="small" type="primary" @click="handleRefreshMessages">{{
+        $t('settings.history.messages.refresh')
+      }}</n-button>
     </div>
-    <p class="settings-section__desc">
-      {{ $t('settings.history.messages.total', { count: totalMessages }) }}
-    </p>
 
-    <div class="message-list">
+    <div class="settings-workspace-body message-list">
       <article
         v-for="msg in messages"
         :key="msg.id"
@@ -48,10 +46,7 @@
         </div>
 
         <div class="message-bubble">
-          <div class="message-bubble__header">
-            <strong class="message-bubble__name">{{ getMessageAuthorLabel(msg) }}</strong>
-            <span class="message-bubble__time">{{ formatTimestamp(msg.timestamp) }}</span>
-          </div>
+          <strong class="message-bubble__name">{{ getMessageAuthorLabel(msg) }}</strong>
 
           <div class="message-bubble__body">
             <div
@@ -136,6 +131,9 @@
               </div>
             </div>
           </div>
+          <time class="message-bubble__time" :datetime="String(msg.timestamp)">{{
+            formatTimestamp(msg.timestamp)
+          }}</time>
         </div>
       </article>
     </div>
@@ -147,7 +145,7 @@
       :page-size="pageSize"
       show-size-picker
       :page-sizes="[10, 20, 50]"
-      class="history-pagination"
+      class="history-pagination settings-workspace-footer"
       @update:page="handlePageChange"
       @update:page-size="handlePageSizeChange"
     />
@@ -157,7 +155,7 @@
       :type="mediaViewerType"
       :src="mediaViewerSrc"
     />
-  </section>
+  </SettingsPageScaffold>
 </template>
 
 <script setup lang="ts">
@@ -177,6 +175,7 @@ import {
   configureMarked,
   renderBubbleMarkdown as renderMarkdownFromShared
 } from '@/utils/markedLatex'
+import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import { useHistorySettingsDomain } from '../domains/createHistorySettingsDomain'
 import SettingsHistoryMediaViewer from './SettingsHistoryMediaViewer.vue'
 
@@ -228,7 +227,7 @@ function openMediaViewer(type: 'image' | 'video', src: string) {
   mediaViewerVisible.value = true
 }
 
-function setVoiceRef(element: any, key: string) {
+function setVoiceRef(element: unknown, key: string) {
   if (element) {
     const audioElement = element as HTMLAudioElement
     voiceRefs.set(key, audioElement)
@@ -375,17 +374,19 @@ function getMessagePreviewItems(content: string): HistoryRenderableItem[] {
   }
 }
 
-function getVoiceItemKey(messageRecord: any, index: number): string {
-  const messageKey =
-    messageRecord?.message_id ||
-    messageRecord?.messageId ||
-    messageRecord?.id ||
-    messageRecord?.timestamp ||
-    'message'
+function getVoiceItemKey(
+  messageRecord: { id?: string; timestamp?: number },
+  index: number
+): string {
+  const messageKey = messageRecord?.id || messageRecord?.timestamp || 'message'
   return `${messageKey}:${index}`
 }
 
-function getMessageAuthorLabel(messageRecord: any): string {
+function getMessageAuthorLabel(messageRecord: {
+  direction?: string
+  user_name?: string
+  user_id?: string
+}): string {
   if (messageRecord.direction === 'outgoing') {
     return messageRecord.user_name || t('settings.history.messages.me')
   }
@@ -411,4 +412,51 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 @use './settings-history.scss';
+
+.settings-workspace-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.settings-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--settings-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--settings-bg-content);
+}
+
+.settings-workspace-toolbar :deep(.n-input) {
+  width: min(240px, 100%);
+}
+
+.settings-workspace-toolbar__meta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.settings-workspace-toolbar__spacer {
+  flex: 1;
+}
+
+.settings-workspace-body.message-list {
+  flex: 1;
+  min-height: 200px;
+  max-height: none;
+}
+
+.settings-workspace-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--settings-border);
+}
 </style>
