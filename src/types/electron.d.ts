@@ -197,6 +197,7 @@ declare global {
           cancelled?: boolean
         }>
         toggleSettingsPin: () => Promise<{ success: boolean; pinned: boolean }>
+        isSettingsPinned: () => Promise<boolean>
         onWindowEvent: (callback: (event: WindowEvent) => void) => Unsubscribe
       }
       desktopBehavior: {

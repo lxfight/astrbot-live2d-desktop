@@ -223,6 +223,14 @@ ipcMain.handle('window:closeCurrent', async event => {
   return { success: true }
 })
 
+ipcMain.handle('window:isSettingsPinned', async event => {
+  const targetWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    return false
+  }
+  return targetWindow.isAlwaysOnTop()
+})
+
 ipcMain.handle('window:toggleSettingsPin', async event => {
   const targetWindow = BrowserWindow.fromWebContents(event.sender)
   if (!targetWindow || targetWindow.isDestroyed()) {

@@ -5,13 +5,15 @@ type MessageApi = ReturnType<typeof useMessage>
 
 export function useSettingsWindowChrome(message: MessageApi) {
   const isWindowMaximized = ref(false)
-  const isPinned = ref(true)
+  const isPinned = ref(false)
 
   async function loadInitialState() {
     try {
       isWindowMaximized.value = await window.electron.window.isMaximizedCurrent()
+      isPinned.value = await window.electron.window.isSettingsPinned()
     } catch {
       isWindowMaximized.value = false
+      isPinned.value = false
     }
   }
 

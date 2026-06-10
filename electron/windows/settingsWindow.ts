@@ -52,7 +52,7 @@ export function createSettingsWindow(page?: string): BrowserWindow {
     titleBarStyle: 'hidden',
     transparent: false,
     resizable: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     backgroundColor: '#171210',
     webPreferences: {
       nodeIntegration: false,

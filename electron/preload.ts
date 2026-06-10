@@ -238,6 +238,7 @@ contextBridge.exposeInMainWorld('electron', {
     resetWatcherConfig: () => ipcRenderer.invoke('window:resetWatcherConfig'),
     downloadCubismCore: () => ipcRenderer.invoke('window:downloadCubismCore'),
     toggleSettingsPin: () => ipcRenderer.invoke('window:toggleSettingsPin'),
+    isSettingsPinned: () => ipcRenderer.invoke('window:isSettingsPinned'),
     onWindowEvent: (callback: (event: any) => void) => {
       const listener = (_event: any, event: any) => callback(event)
       ipcRenderer.on('window:event', listener)
