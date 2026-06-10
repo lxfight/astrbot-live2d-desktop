@@ -10,7 +10,9 @@ import type { WatcherSettingsDomain } from './createWatcherSettingsDomain'
 export interface MaintenanceSettingsDomain {
   handleClearCache: () => void
   handleDownloadCubismCore: () => Promise<void>
+  handleExportConfig: () => Promise<void>
   handleExportLogs: () => Promise<void>
+  handleImportConfig: () => Promise<void>
   handleOpenLogs: () => Promise<void>
   handleResetSettings: () => void
 }
@@ -116,6 +118,84 @@ export function createMaintenanceSettingsDomain(
     })
   }
 
+  async function handleExportConfig() {
+    try {
+      const result = await window.electron.config.export()
+      if (result.canceled) {
+        return
+      }
+      if (result.success && result.filePath) {
+        message.success(t('settings.advanced.data.exportConfigSuccess', { path: result.filePath }))
+        return
+      }
+      message.error(
+        t('settings.advanced.data.exportConfigFailed', {
+          error: result.error || t('error.unknown')
+        })
+      )
+    } catch (error: unknown) {
+      message.error(
+        t('settings.advanced.data.exportConfigFailed', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      )
+    }
+  }
+
+  async function handleImportConfig() {
+    try {
+      const result = await window.electron.config.import()
+      if (result.canceled) {
+        return
+      }
+      if (!result.success || !result.preview || !result.data) {
+        message.error(
+          t('settings.advanced.data.importConfigFailed', {
+            error: result.error || t('error.unknown')
+          })
+        )
+        return
+      }
+
+      const preview = result.preview
+      dialog.warning({
+        title: t('settings.advanced.data.importConfigTitle'),
+        content: t('settings.advanced.data.importConfigPreview', {
+          exportedAt: preview.exportedAt,
+          connectionSettings: preview.hasConnectionSettings
+            ? t('settings.about.enabled')
+            : t('settings.about.disabled'),
+          behaviorSettings: preview.hasConnectionBehaviorSettings
+            ? t('settings.about.enabled')
+            : t('settings.about.disabled'),
+          userConfigCount: preview.userConfigKeys.length,
+          localStorageCount: preview.localStorageKeys.length
+        }),
+        positiveText: t('dialog.confirm'),
+        negativeText: t('dialog.cancel'),
+        onPositiveClick: async () => {
+          const applyResult = await window.electron.config.applyImport(result.data)
+          if (applyResult.success) {
+            message.success(t('settings.advanced.data.importConfigSuccess'))
+            await connectionDomain.handleExternalSettingsChanged()
+            return
+          }
+          message.error(
+            t('settings.advanced.data.importConfigFailed', {
+              error: applyResult.error || t('error.unknown')
+            })
+          )
+        }
+      })
+    } catch (error: unknown) {
+      message.error(
+        t('settings.advanced.data.importConfigFailed', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      )
+    }
+  }
+
   async function handleDownloadCubismCore() {
     try {
       const result = await window.electron.window.downloadCubismCore()
@@ -139,7 +219,9 @@ export function createMaintenanceSettingsDomain(
   return {
     handleClearCache,
     handleDownloadCubismCore,
+    handleExportConfig,
     handleExportLogs,
+    handleImportConfig,
     handleOpenLogs,
     handleResetSettings
   }
