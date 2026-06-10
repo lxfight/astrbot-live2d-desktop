@@ -77,6 +77,7 @@ const READY_STATE_LABELS = [
 
 // 定义 emit
 const emit = defineEmits<{
+  audioStart: [audioElement: HTMLAudioElement]
   audioEnd: []
 }>()
 
@@ -300,6 +301,7 @@ async function playAudio(source: ResourceLike, volume: number = 1.0) {
     audioElement.load()
     await waitForAudioReady(audioElement)
     await audioElement.play()
+    emit('audioStart', audioElement)
   } catch (error) {
     console.error('[媒体播放器] 音频播放失败:', {
       error: formatPlaybackError(error),
