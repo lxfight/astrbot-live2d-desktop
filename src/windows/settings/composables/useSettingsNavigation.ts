@@ -54,6 +54,16 @@ export function useSettingsNavigation() {
     activeChild.value = child
   }
 
+  function selectPage(group: SettingsGroupKey, child: SettingsChildKey) {
+    const groupMeta = findSettingsMenuGroup(group)
+    if (!groupMeta?.children.some(item => item.key === child)) {
+      return
+    }
+
+    activeGroup.value = group
+    activeChild.value = child
+  }
+
   return {
     activeGroup,
     activeChild,
@@ -62,6 +72,7 @@ export function useSettingsNavigation() {
     activeSectionKey,
     navigateToPage,
     selectGroup,
-    selectChild
+    selectChild,
+    selectPage
   }
 }

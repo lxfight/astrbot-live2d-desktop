@@ -1,26 +1,31 @@
 <template>
   <div class="settings-window">
-    <SettingsTitlebar
+    <SettingsShellTitlebar
+      :active-child="activeChild"
+      :active-group="activeGroup"
       :is-window-maximized="isWindowMaximized"
       :is-pinned="isPinned"
       @close="handleCloseWindow"
       @minimize="handleMinimizeWindow"
+      @open-search="commandPaletteOpen = true"
       @titlebar-dblclick="handleTitleBarDoubleClick"
       @toggle-maximize="handleToggleWindowMaximize"
       @toggle-pin="handleTogglePin"
     />
 
-    <div class="settings-workspace">
-      <SettingsPrimaryNav :active-group="activeGroup" @select-group="selectGroup" />
+    <SettingsCommandPalette v-model:show="commandPaletteOpen" @select="selectPage" />
 
-      <SettingsSecondaryNav
+    <div
+      class="settings-workspace"
+      :class="{ 'settings-workspace--sidebar-collapsed': settingsSidebarCollapsed }"
+    >
+      <SettingsSidebar
         :active-child="activeChild"
         :active-group="activeGroup"
-        :items="activeGroupChildren"
-        @select-child="selectChild"
+        @select="selectPage"
       />
 
-      <main class="settings-content">
+      <main class="settings-content" :class="contentLayoutClass">
         <SettingsSectionSkeleton v-if="!navigationReady" kind="form" />
         <SettingsSectionHost
           v-else
@@ -34,19 +39,22 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
+import { storeToRefs } from 'pinia'
+import { useAppearanceStore } from '@/stores/appearance'
 import { useConnectionStore } from '@/stores/connection'
 import { useModelStore } from '@/stores/model'
 import { useThemeStore } from '@/stores/theme'
-import { createSettingsSectionRegistry } from './settings/settingsRegistry'
+import { createSettingsSectionRegistry, getSettingsSectionEntry } from './settings/settingsRegistry'
+import { settingsPageContextKey } from './settings/settingsPageContext'
 import { useSettingsNavigation } from './settings/composables/useSettingsNavigation'
 import { useSettingsWindowChrome } from './settings/composables/useSettingsWindowChrome'
-import SettingsPrimaryNav from './settings/shared/SettingsPrimaryNav.vue'
+import SettingsCommandPalette from './settings/shared/SettingsCommandPalette.vue'
+import SettingsSidebar from './settings/shared/SettingsSidebar.vue'
 import SettingsSectionSkeleton from './settings/shared/SettingsSectionSkeleton.vue'
-import SettingsSecondaryNav from './settings/shared/SettingsSecondaryNav.vue'
 import SettingsSectionHost from './settings/shared/SettingsSectionHost.vue'
-import SettingsTitlebar from './settings/shared/SettingsTitlebar.vue'
+import SettingsShellTitlebar from './settings/shared/SettingsShellTitlebar.vue'
 import {
   connectionSettingsDomainKey,
   createConnectionSettingsDomain
@@ -82,9 +90,13 @@ const dialog = useDialog()
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
+const appearanceStore = useAppearanceStore()
+const { settingsSidebarCollapsed } = storeToRefs(appearanceStore)
 
-const { activeChild, activeGroup, activeGroupChildren, navigateToPage, selectChild, selectGroup } =
-  useSettingsNavigation()
+const { activeChild, activeGroup, navigateToPage, selectPage } = useSettingsNavigation()
+
+provide(settingsPageContextKey, { activeGroup, activeChild })
+
 const {
   applyMaximizedChanged,
   handleCloseWindow,
@@ -96,6 +108,8 @@ const {
   handleTogglePin,
   loadInitialState
 } = useSettingsWindowChrome(message)
+
+const commandPaletteOpen = ref(false)
 
 const connectionDomain = createConnectionSettingsDomain(message)
 const modelDomain = createModelSettingsDomain(message)
@@ -132,10 +146,27 @@ const sectionRegistry = createSettingsSectionRegistry({
   watcherDomain
 })
 
+const contentLayoutClass = computed(() => {
+  const entry = getSettingsSectionEntry(sectionRegistry, activeGroup.value, activeChild.value)
+  const profile = entry?.layoutProfile ?? 'document'
+  return `settings-content--${profile}`
+})
+
 const navigationReady = ref(false)
 const settingsWindowDisposers: Unsubscribe[] = []
 
+function onCommandPaletteShortcut(event: KeyboardEvent) {
+  const isMac = navigator.platform.toLowerCase().includes('mac')
+  const mod = isMac ? event.metaKey : event.ctrlKey
+  if (mod && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    commandPaletteOpen.value = true
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', onCommandPaletteShortcut)
+
   await connectionStore.ensureInitialized()
   modelStore.startStorageSync()
   themeStore.startStorageSync()
@@ -203,6 +234,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onCommandPaletteShortcut)
   modelStore.stopStorageSync()
   themeStore.stopStorageSync()
 
