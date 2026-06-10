@@ -116,6 +116,38 @@ type ResolvedMotionDefinition = {
   motions: Array<{ file: string; source: CubismModelDiscoverySource }>
 }
 
+/** 主题色提取用缩略图的最长边（缩小后仍足够统计颜色分布） */
+const TEXTURE_THUMBNAIL_MAX_EDGE = 256
+
+/**
+ * 把纹理源图缩小成缩略图 canvas。
+ * 主题色提取直接采样源图而非 WebGL 读回：覆盖整张纹理且不受预乘 alpha 失真影响。
+ */
+function createTextureThumbnail(source: HTMLImageElement | ImageBitmap): HTMLCanvasElement | null {
+  const sourceWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width
+  const sourceHeight = source instanceof HTMLImageElement ? source.naturalHeight : source.height
+  if (!sourceWidth || !sourceHeight) {
+    return null
+  }
+
+  const scale = Math.min(1, TEXTURE_THUMBNAIL_MAX_EDGE / Math.max(sourceWidth, sourceHeight))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale))
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale))
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    return null
+  }
+
+  try {
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+  } catch {
+    return null
+  }
+  return canvas
+}
+
 function uniqueAliases(values: string[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -254,6 +286,8 @@ export class CubismModel {
 
   // 纹理
   private textures: WebGLTexture[] = []
+  /** 纹理源图缩略图（按纹理序号对应），用于主题色提取，避免从 WebGL 读回预乘像素 */
+  private textureThumbnails: HTMLCanvasElement[] = []
 
   private static readonly MODEL_BOUNDS_PADDING = 8
   private static readonly SEMANTIC_EXPRESSION_MIN_WEIGHT = 0.8
@@ -894,7 +928,7 @@ export class CubismModel {
       const texturePath = getTexturePath(this.modelPath, textureFileName)
 
       try {
-        const texture = await this.loadTexture(texturePath)
+        const texture = await this.loadTexture(texturePath, i)
         this.textures[i] = texture
 
         // 绑定纹理到渲染器
@@ -919,7 +953,7 @@ export class CubismModel {
   /**
    * 加载纹理图像（带缓存）
    */
-  private async loadTexture(texturePath: string): Promise<WebGLTexture> {
+  private async loadTexture(texturePath: string, textureIndex: number): Promise<WebGLTexture> {
     if (!this.gl) {
       throw new Error(i18n.global.t('error.webglContextNotInitialized'))
     }
@@ -936,6 +970,11 @@ export class CubismModel {
           if (!texture) {
             reject(new Error(i18n.global.t('error.createTextureFailed')))
             return
+          }
+
+          const thumbnail = createTextureThumbnail(imageSource)
+          if (thumbnail) {
+            this.textureThumbnails[textureIndex] = thumbnail
           }
 
           this.gl!.bindTexture(this.gl!.TEXTURE_2D, texture)
@@ -2059,92 +2098,13 @@ export class CubismModel {
 
   /**
    * 获取纹理源列表（用于颜色提取）
+   *
+   * 返回加载纹理时缓存的源图缩略图。
+   * 不从 WebGL 读回：readPixels 无法得知纹理尺寸（固定区域只能采到图集一角），
+   * 且纹理以预乘 alpha 上传，读回值颜色失真。
    */
   getTextureSources(): HTMLCanvasElement[] {
-    if (!this.renderer || !this.gl) return []
-
-    try {
-      const textures = (this.renderer as any).getBindedTextures?.()
-      const textureCount = typeof textures?.getSize === 'function' ? textures.getSize() : 0
-      if (!textures || textureCount === 0) return []
-
-      const sources: HTMLCanvasElement[] = []
-
-      // 遍历所有纹理（csmMap 使用 _keyValues 数组而非 forEach）
-      const keyValues = textures._keyValues || []
-      for (let i = 0; i < keyValues.length; i++) {
-        const pair = keyValues[i]
-        const glTexture = pair?.second as WebGLTexture | undefined
-        if (!glTexture) continue
-
-        try {
-          // 创建临时 canvas 来读取纹理数据
-          const tempCanvas = document.createElement('canvas')
-          const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) continue
-
-          // 使用固定尺寸（因为 WebGL 不提供直接获取纹理尺寸的方法）
-          const width = 512
-          const height = 512
-
-          tempCanvas.width = width
-          tempCanvas.height = height
-
-          // 使用 readPixels 读取纹理数据
-          const framebuffer = this.gl!.createFramebuffer()
-          this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, framebuffer)
-          this.gl!.framebufferTexture2D(
-            this.gl!.FRAMEBUFFER,
-            this.gl!.COLOR_ATTACHMENT0,
-            this.gl!.TEXTURE_2D,
-            glTexture,
-            0
-          )
-
-          // 检查 framebuffer 状态
-          const status = this.gl!.checkFramebufferStatus(this.gl!.FRAMEBUFFER)
-          if (status !== this.gl!.FRAMEBUFFER_COMPLETE) {
-            console.warn(`[CubismModel] Framebuffer 不完整: ${status}`)
-            this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, null)
-            this.gl!.deleteFramebuffer(framebuffer)
-            continue
-          }
-
-          const pixels = new Uint8Array(width * height * 4)
-          this.gl!.readPixels(0, 0, width, height, this.gl!.RGBA, this.gl!.UNSIGNED_BYTE, pixels)
-
-          // 清理 framebuffer
-          this.gl!.bindFramebuffer(this.gl!.FRAMEBUFFER, null)
-          this.gl!.deleteFramebuffer(framebuffer)
-
-          // 将像素数据绘制到 canvas
-          const imageData = tempCtx.createImageData(width, height)
-
-          // WebGL 的 readPixels 返回的是从底部到顶部的数据，需要翻转
-          for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-              const srcIndex = ((height - y - 1) * width + x) * 4
-              const dstIndex = (y * width + x) * 4
-              imageData.data[dstIndex] = pixels[srcIndex] // R
-              imageData.data[dstIndex + 1] = pixels[srcIndex + 1] // G
-              imageData.data[dstIndex + 2] = pixels[srcIndex + 2] // B
-              imageData.data[dstIndex + 3] = pixels[srcIndex + 3] // A
-            }
-          }
-
-          tempCtx.putImageData(imageData, 0, 0)
-
-          sources.push(tempCanvas)
-        } catch (e) {
-          console.warn(`[CubismModel] 读取纹理 ${i} 失败:`, e)
-        }
-      }
-
-      return sources
-    } catch (e) {
-      console.warn('[CubismModel] 获取纹理源失败:', e)
-      return []
-    }
+    return this.textureThumbnails.filter((canvas): canvas is HTMLCanvasElement => Boolean(canvas))
   }
 
   /**
@@ -2383,6 +2343,7 @@ export class CubismModel {
       this.textures = []
       // 模型重载和切换会复用同一个 canvas，不能在这里主动丢失 WebGL 上下文。
     }
+    this.textureThumbnails = []
 
     // 释放渲染器
     if (this.userModel) {

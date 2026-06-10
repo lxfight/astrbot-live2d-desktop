@@ -1,84 +1,129 @@
 import type { ThemeRgb } from '@/utils/themePalette'
 
 const MAX_TEXTURES = 4
-const SAMPLE_STRIDE = 8 // 每 8 个像素采样一次（性能）
+/** 输入是 ≤256 边长的缩略图，隔像素采样足够 */
+const SAMPLE_STRIDE = 2
+/** 色相直方图桶数（每桶 15°） */
+const HUE_BUCKET_COUNT = 24
+/** HSV 明度下限：过暗像素（阴影、描边）不参与统计 */
+const MIN_VALUE = 0.12
+/** 饱和度下限：灰/白像素没有可用的色相信息 */
+const MIN_SATURATION = 0.15
+const MIN_ALPHA = 128
+
+type HueBucket = {
+  weight: number
+  r: number
+  g: number
+  b: number
+}
+
+/** RGB → 色相桶下标（hue ∈ [0°, 360°) 均分 HUE_BUCKET_COUNT 桶） */
+function hueBucketIndex(r: number, g: number, b: number, max: number, min: number): number {
+  const delta = max - min
+  let hue: number
+  if (delta === 0) {
+    hue = 0
+  } else if (max === r) {
+    hue = ((g - b) / delta + 6) % 6
+  } else if (max === g) {
+    hue = (b - r) / delta + 2
+  } else {
+    hue = (r - g) / delta + 4
+  }
+  return Math.min(HUE_BUCKET_COUNT - 1, Math.floor((hue / 6) * HUE_BUCKET_COUNT))
+}
 
 /**
- * 从 canvas 中采样像素并分析主题色
- * 直接读取 WebGL readPixels 产生的像素数据，不依赖外部库
+ * 从 RGBA 像素数据统计主题色（纯函数，便于单元测试）。
+ *
+ * 色相直方图按「面积 × 饱和度」计票选出主色相，再对该色相邻域内的像素求
+ * 饱和度加权平均色。面积主导让大面积主色（如蓝白模型的蓝）胜过高饱和的
+ * 小色块（嘴内、腮红等红色系部件），饱和度权重则压制大面积的低饱和肤色。
+ */
+export function pickThemeColorFromPixels(pixelArrays: Uint8ClampedArray[]): ThemeRgb | null {
+  const buckets: HueBucket[] = Array.from({ length: HUE_BUCKET_COUNT }, () => ({
+    weight: 0,
+    r: 0,
+    g: 0,
+    b: 0
+  }))
+  let totalWeight = 0
+
+  for (const data of pixelArrays) {
+    for (let i = 0; i + 3 < data.length; i += 4 * SAMPLE_STRIDE) {
+      if (data[i + 3] < MIN_ALPHA) continue
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+
+      const max = Math.max(r, g, b)
+      const min = Math.min(r, g, b)
+      if (max < MIN_VALUE * 255) continue
+      const saturation = (max - min) / max
+      if (saturation < MIN_SATURATION) continue
+
+      const bucket = buckets[hueBucketIndex(r, g, b, max, min)]
+      bucket.weight += saturation
+      bucket.r += r * saturation
+      bucket.g += g * saturation
+      bucket.b += b * saturation
+      totalWeight += saturation
+    }
+  }
+
+  if (totalWeight <= 0) return null
+
+  // 3 桶滑动窗口（45° 色相范围）计票选峰值，主色相横跨桶边界时合计面积仍能胜出
+  let bestIndex = 0
+  let bestScore = -1
+  for (let i = 0; i < HUE_BUCKET_COUNT; i++) {
+    const prev = buckets[(i + HUE_BUCKET_COUNT - 1) % HUE_BUCKET_COUNT]
+    const next = buckets[(i + 1) % HUE_BUCKET_COUNT]
+    const score = prev.weight + buckets[i].weight + next.weight
+    if (score > bestScore) {
+      bestScore = score
+      bestIndex = i
+    }
+  }
+
+  let weight = 0
+  let r = 0
+  let g = 0
+  let b = 0
+  for (const offset of [-1, 0, 1]) {
+    const bucket = buckets[(bestIndex + offset + HUE_BUCKET_COUNT) % HUE_BUCKET_COUNT]
+    weight += bucket.weight
+    r += bucket.r
+    g += bucket.g
+    b += bucket.b
+  }
+  if (weight <= 0) return null
+
+  return {
+    r: Math.round(r / weight),
+    g: Math.round(g / weight),
+    b: Math.round(b / weight)
+  }
+}
+
+/**
+ * 从纹理缩略图 canvas 中提取主题色
  */
 export function extractModelThemeColor(canvases: HTMLCanvasElement[]): ThemeRgb | null {
-  const buckets = new Map<string, { r: number; g: number; b: number; count: number }>()
+  const pixelArrays: Uint8ClampedArray[] = []
 
   for (const canvas of canvases.slice(0, MAX_TEXTURES)) {
+    if (!canvas.width || !canvas.height) continue
     const ctx = canvas.getContext('2d')
     if (!ctx) continue
 
-    let data: Uint8ClampedArray
     try {
-      data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      pixelArrays.push(ctx.getImageData(0, 0, canvas.width, canvas.height).data)
     } catch {
       continue
     }
-
-    for (let i = 0; i < data.length; i += 4 * SAMPLE_STRIDE) {
-      const r = data[i],
-        g = data[i + 1],
-        b = data[i + 2],
-        a = data[i + 3]
-      if (a < 100) continue
-
-      // 跳过接近纯黑/纯白
-      const lightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255
-      if (lightness > 0.93 || lightness < 0.07) continue
-
-      // 跳过低饱和度（灰色系）
-      const max = Math.max(r, g, b),
-        min = Math.min(r, g, b)
-      const saturation = max === 0 ? 0 : (max - min) / max
-      if (saturation < 0.12) continue
-
-      // 分桶（RGB 量化到 12 级，约 216 桶）
-      const key = `${Math.round(r / 22)}:${Math.round(g / 22)}:${Math.round(b / 22)}`
-      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, count: 0 }
-      bucket.r += r
-      bucket.g += g
-      bucket.b += b
-      bucket.count++
-      buckets.set(key, bucket)
-    }
   }
 
-  if (buckets.size === 0) return null
-
-  // 按数量排序，取前 8 个桶
-  const top = Array.from(buckets.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 8)
-
-  let best: ThemeRgb | null = null
-  let bestScore = -1
-
-  for (const bucket of top) {
-    const r = Math.round(bucket.r / bucket.count)
-    const g = Math.round(bucket.g / bucket.count)
-    const b = Math.round(bucket.b / bucket.count)
-
-    const max = Math.max(r, g, b),
-      min = Math.min(r, g, b)
-    const saturation = max === 0 ? 0 : (max - min) / max
-    const lightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255
-
-    // 评分：饱和度权重最高，亮度偏好中间调，频率作为次要因素
-    const lightnessTarget = 1 - Math.abs(lightness - 0.42) * 2.4
-    const frequencyRatio = bucket.count / top[0].count
-    const score = saturation * 0.55 + Math.max(0, lightnessTarget) * 0.3 + frequencyRatio * 0.15
-
-    if (score > bestScore) {
-      best = { r, g, b }
-      bestScore = score
-    }
-  }
-
-  return best
+  return pickThemeColorFromPixels(pixelArrays)
 }
