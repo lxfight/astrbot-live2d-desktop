@@ -259,6 +259,11 @@ import { useAudioWaiters } from './composables/useAudioWaiters'
 import { summarizePerformPayloadForLog } from './composables/performElementSummary'
 import { recordPerformanceHistory } from './composables/performanceHistoryRecorder'
 
+import { convertModelInfoToV2, shouldUseV2Protocol } from '@/utils/modelInfoConverter'
+import { parseMotionIdParts } from '@/shared/modelAliasMerge'
+import { AliasMapper } from '@electron/utils/aliasMapper'
+import { IdleManager } from '@electron/services/idleManager'
+
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
 const themeStore = useThemeStore()
@@ -296,6 +301,67 @@ let modelLoadInFlight = false
 let hasOpenedModelLibraryWindow = false
 
 const advancedSettings = ref<AdvancedSettings>(loadAdvancedSettings())
+
+// ─── 别名映射器 ─────────────────────────────────────────────────
+const aliasMapper = new AliasMapper()
+
+// ─── 待机管理器 ─────────────────────────────────────────────────
+let idleManager: IdleManager | null = null
+
+const expressionResetTimers = new Set<ReturnType<typeof setTimeout>>()
+
+function clearExpressionResetTimers() {
+  for (const timer of expressionResetTimers) {
+    clearTimeout(timer)
+  }
+  expressionResetTimers.clear()
+}
+
+function scheduleExpressionReset(element: PerformElement, holdMs: number) {
+  const timer = setTimeout(() => {
+    expressionResetTimers.delete(timer)
+    if (element.resetPolicy === 'fadeOut') {
+      live2dCanvasRef.value?.setExpression({ id: '' })
+    } else if (element.resetPolicy === 'default') {
+      live2dCanvasRef.value?.setExpression({ id: 'default' })
+    }
+  }, holdMs)
+  expressionResetTimers.add(timer)
+}
+
+function startIdleManagerFromConfig(motionIds: string[]) {
+  if (motionIds.length === 0) {
+    return
+  }
+  idleManager = new IdleManager()
+  idleManager.setIdleMotions(motionIds)
+  idleManager.start((group, index, priority, loop) => {
+    live2dCanvasRef.value?.playMotion(group, index, priority, loop)
+  })
+  console.log('[主窗口] 待机管理器已启动，idle 动作数量:', motionIds.length)
+}
+
+function restoreIdleIfNeeded() {
+  if (performQueue.hasPendingSequences()) {
+    return
+  }
+  if (idleManager && !idleManager.isRunning()) {
+    idleManager.start((group, index, priority, loop) => {
+      live2dCanvasRef.value?.playMotion(group, index, priority, loop)
+    })
+    console.log('[主窗口] 待机管理器已恢复')
+  }
+}
+
+function stopIdleForPerformance() {
+  if (!idleManager?.isRunning()) {
+    return
+  }
+  idleManager.stop(() => {
+    live2dCanvasRef.value?.stopBodyMotions()
+  })
+  console.log('[主窗口] 待机管理器已停止')
+}
 
 // ─── 模型状态提示 ─────────────────────────────────────────────────
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
@@ -590,18 +656,53 @@ performQueue.onText((content, position, _duration) => {
   latestBubbleEntryId = pushBubble([{ type: 'text', text: content }], position, false)
 })
 
-performQueue.onMotion((group, index, priority) => {
-  live2dCanvasRef.value?.playMotion(group, index, priority)
+performQueue.onMotion((element: PerformElement) => {
+  // v2.0: 支持 name 字段（别名）
+  if (element.name) {
+    const motionId = aliasMapper.getMotionId(element.name)
+    if (!motionId) {
+      console.warn('[主窗口] 未知动作别名:', element.name)
+      return
+    }
+
+    const { group, index } = parseMotionIdParts(motionId)
+
+    live2dCanvasRef.value?.playMotion(group, index, element.priority ?? 2)
+    return
+  }
+
+  // v1.0: 使用 group/index
+  if (element.group) {
+    live2dCanvasRef.value?.playMotion(element.group, element.index ?? 0, element.priority ?? 2)
+  }
 })
 
-performQueue.onExpression(element => {
+performQueue.onExpression((element: PerformElement) => {
+  // v2.0: 支持 name 字段 + holdMs + resetPolicy
+  if (element.name) {
+    const exprId = aliasMapper.getExpressionId(element.name) || element.name
+
+    live2dCanvasRef.value?.setExpression({
+      id: exprId,
+      fade: element.fade,
+      holdMs: element.holdMs,
+      resetPolicy: (element.resetPolicy as any) || 'previous'
+    })
+
+    if (element.holdMs && element.resetPolicy !== 'hold') {
+      scheduleExpressionReset(element, element.holdMs)
+    }
+    return
+  }
+
+  // v1.0: 使用 id
   const expressionRequest: CubismExpressionRequest = {
     id: element.id,
     combo: element.combo,
     semantic: element.semantic,
     fade: element.fade,
     holdMs: element.holdMs,
-    resetPolicy: element.resetPolicy,
+    resetPolicy: (element.resetPolicy as any) || 'previous',
     motionType: element.motionType
   }
   live2dCanvasRef.value?.setExpression(expressionRequest)
@@ -651,6 +752,10 @@ performQueue.onImage((url, _duration) => {
 
 performQueue.onVideo(url => {
   mediaPlayerRef.value?.playVideo(url)
+})
+
+performQueue.onIdle(() => {
+  restoreIdleIfNeeded()
 })
 
 function applyModelPositionState(savedPosition: { x: number; y: number } | null) {
@@ -724,6 +829,7 @@ watch(
 
 function interruptPerformance() {
   performQueue.interrupt()
+  clearExpressionResetTimers()
   latestBubbleEntryId = null
 
   clearAllBubbles()
@@ -802,7 +908,42 @@ async function handleModelLoaded() {
 
   showBaseEventStatus(t('main.status.modelLoaded'), 'success')
   if (activeModelPath) {
+    modelStore.setCurrentModel(activeModelPath)
     themeStore.setCurrentModel(activeModelPath)
+  }
+
+  idleManager = null
+
+  // 加载或自动生成别名配置
+  if (activeModelPath) {
+    try {
+      const motionDurations = live2dCanvasRef.value?.getMotionDurationMap?.() ?? {}
+      const ensureResult = await window.electron.modelConfig.ensure({
+        modelPath: activeModelPath,
+        motionDurations
+      })
+
+      if (ensureResult.success && ensureResult.config) {
+        aliasMapper.loadFromConfig(ensureResult.config)
+        if (ensureResult.created) {
+          console.log('[主窗口] 已自动生成并保存别名配置')
+        } else {
+          console.log('[主窗口] 别名配置已加载')
+        }
+
+        const idleMotions = ensureResult.config.motionAliases
+          .filter((m: { enabled: boolean; category: string }) => m.enabled && m.category === 'idle')
+          .map((m: { id: string }) => m.id)
+
+        startIdleManagerFromConfig(idleMotions)
+      } else {
+        console.warn('[主窗口] 别名配置不可用:', ensureResult.error)
+      }
+    } catch (error) {
+      console.warn('[主窗口] 加载别名配置失败:', error)
+    }
+
+    await syncCurrentModelInfoToBridge('模型加载完成')
   }
 
   // 提取主题色
@@ -817,14 +958,12 @@ async function handleModelLoaded() {
   }
 }
 
-// 模型信息变化
+// 模型信息变化（配置加载完成前可能先触发，仅更新主题名）
 async function handleModelInfoChanged(modelInfo: StateModelPayload) {
   console.log('[主窗口] 模型信息变化:', modelInfo)
   if (modelInfo.name) {
     themeStore.setModelName(modelInfo.name)
   }
-
-  await syncModelInfoToBridge(modelInfo, '模型信息变化')
 }
 
 async function syncModelInfoToBridge(
@@ -836,8 +975,24 @@ async function syncModelInfoToBridge(
   }
 
   try {
-    await connectionStore.sendState('state.model', modelInfo)
-    console.log(`[主窗口] 已同步模型信息到服务器: ${reason}`)
+    // 根据配置决定使用 v1.0 或 v2.0 协议
+    let payload = modelInfo
+
+    if (shouldUseV2Protocol()) {
+      // 如果有配置文件，使用 aliasMapper 导出
+      if (aliasMapper.hasConfig()) {
+        payload = aliasMapper.exportForAdapter(modelInfo.name || '未命名模型')
+        console.log('[主窗口] 使用 AliasMapper 导出 v2.0 格式')
+      } else {
+        // 否则使用自动转换
+        payload = convertModelInfoToV2(modelInfo)
+        console.log('[主窗口] 使用自动转换 v2.0 格式')
+      }
+    }
+
+    console.log('[主窗口] 发送模型信息:', payload)
+    await connectionStore.sendState('state.model', payload)
+    console.log(`[主窗口] 已同步模型信息到服务器 (${payload.version || 'v1.0'}): ${reason}`)
   } catch (error: any) {
     console.error(`[主窗口] 同步模型信息失败: ${reason}`, error)
   }
@@ -1107,6 +1262,32 @@ onMounted(async () => {
     })
   )
 
+  mainWindowDisposers.push(
+    window.electron.model.onPreviewMotion(payload => {
+      stopIdleForPerformance()
+      live2dCanvasRef.value?.playMotion(
+        payload.group,
+        payload.index,
+        payload.priority ?? 2,
+        payload.loop ?? false
+      )
+    })
+  )
+
+  mainWindowDisposers.push(
+    window.electron.model.onPreviewExpression(payload => {
+      const holdMs = payload.holdMs ?? 2500
+      const resetPolicy =
+        (payload.resetPolicy as CubismExpressionRequest['resetPolicy']) ?? 'neutral'
+      live2dCanvasRef.value?.setExpression({
+        id: payload.id,
+        fade: payload.fade ?? 200,
+        holdMs,
+        resetPolicy
+      })
+    })
+  )
+
   // 监听从设置页面加载模型的指令（只显示一次提示）
   mainWindowDisposers.push(
     window.electron.model.onLoad(async (modelPath: string) => {
@@ -1137,6 +1318,9 @@ onMounted(async () => {
     window.electron.bridge.onPerformShow((payload: PerformSequence) => {
       console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
 
+      // 停止待机
+      stopIdleForPerformance()
+
       const { isFollowUp } = checkFollowUp()
 
       // interrupt=true 且不是追加时才中断旧表演
@@ -1166,6 +1350,8 @@ onMounted(async () => {
             sequence: remainingSequence as PerformElement[],
             interruptible: payload.interruptible !== false
           })
+        } else {
+          restoreIdleIfNeeded()
         }
 
         // 保存表演记录和更新统计
