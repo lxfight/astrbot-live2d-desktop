@@ -5,6 +5,7 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { formatCubismAssetIssues, validateCubismModelAssets } from '../utils/cubismAssetManifest'
 import { createCubismModelLoadDescriptor } from '../utils/cubismModelDiscovery'
+import { buildCatalogForAbsoluteModel, ensureModelAliasConfig } from '../utils/modelCatalog'
 import { getAppDataPath } from '../utils/appPaths'
 import { createScopedLogger } from '../utils/logger'
 import { t } from '../../src/i18n/mainProcess'
@@ -75,7 +76,7 @@ function findCubism2ModelJsonFiles(rootDir: string): string[] {
   )
 }
 
-function resolveModelAbsolutePath(modelPath: string): string {
+export function resolveModelAbsolutePath(modelPath: string): string {
   const normalized = String(modelPath || '').trim()
   if (!normalized) {
     throw new Error(t('error.modelPathEmpty'))
@@ -623,6 +624,54 @@ ipcMain.handle(
     } catch (error: any) {
       console.error('[IPC] 保存模型表情类型失败:', error)
       timer.fail(error)
+      return { success: false, error: error.message }
+    }
+  }
+)
+
+/**
+ * 设置页用：从磁盘 manifest 生成动作/表情目录（不依赖主窗口 canvas）
+ */
+ipcMain.handle('model:getCatalog', async (_event, modelPath: string) => {
+  const timer = logger.timer('get_catalog', { modelPath })
+  try {
+    const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+    const catalog = buildCatalogForAbsoluteModel(modelPath, modelAbsolutePath)
+    const motionGroups: Record<string, number> = {}
+    for (const motion of catalog.motions) {
+      motionGroups[motion.group] = (motionGroups[motion.group] ?? 0) + 1
+    }
+    timer.done({
+      motionCount: catalog.motions.length,
+      expressionCount: catalog.expressions.length,
+      motionGroups
+    })
+    return { success: true, catalog }
+  } catch (error: any) {
+    timer.fail(error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
+ * 加载模型后若无别名配置则自动生成并保存
+ */
+ipcMain.handle(
+  'modelConfig:ensure',
+  async (_event, payload: { modelPath: string; motionDurations?: Record<string, number> }) => {
+    const modelPath = payload?.modelPath
+    if (!modelPath) {
+      return { success: false, error: 'modelPath is required' }
+    }
+    try {
+      const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
+      const result = await ensureModelAliasConfig(
+        modelPath,
+        modelAbsolutePath,
+        payload.motionDurations
+      )
+      return { success: true, config: result.config, created: result.created }
+    } catch (error: any) {
       return { success: false, error: error.message }
     }
   }

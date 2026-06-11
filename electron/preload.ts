@@ -319,6 +319,28 @@ contextBridge.exposeInMainWorld('electron', {
     getList: () => ipcRenderer.invoke('model:getList'),
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),
     prepareLoad: (modelPath: string) => ipcRenderer.invoke('model:prepareLoad', modelPath),
+    getCatalog: (modelPath: string) => ipcRenderer.invoke('model:getCatalog', modelPath),
+    previewMotion: (payload: { group: string; index: number; priority?: number; loop?: boolean }) =>
+      ipcRenderer.invoke('model:previewMotion', payload),
+    previewExpression: (payload: { id: string; fade?: number }) =>
+      ipcRenderer.invoke('model:previewExpression', payload),
+    captureThumbnail: () => ipcRenderer.invoke('model:captureThumbnail'),
+    onPreviewMotion: (
+      callback: (payload: {
+        group: string
+        index: number
+        priority?: number
+        loop?: boolean
+      }) => void
+    ) => subscribeIpc('model:previewMotion', callback),
+    onPreviewExpression: (
+      callback: (payload: {
+        id: string
+        fade?: number
+        holdMs?: number
+        resetPolicy?: string
+      }) => void
+    ) => subscribeIpc('model:previewExpression', callback),
     getExpressionTypes: (modelPath: string) =>
       ipcRenderer.invoke('model:getExpressionTypes', modelPath),
     saveExpressionTypes: (modelPath: string, presets: any) =>
@@ -327,6 +349,14 @@ contextBridge.exposeInMainWorld('electron', {
     onLoad: (callback: (modelPath: string) => void) => {
       return subscribeIpc('model:load', callback)
     }
+  },
+
+  modelConfig: {
+    load: (modelPath: string) => ipcRenderer.invoke('modelConfig:load', modelPath),
+    save: (config: any) => ipcRenderer.invoke('modelConfig:save', config),
+    delete: (modelPath: string) => ipcRenderer.invoke('modelConfig:delete', modelPath),
+    ensure: (payload: { modelPath: string; motionDurations?: Record<string, number> }) =>
+      ipcRenderer.invoke('modelConfig:ensure', payload)
   },
 
   // 全局快捷键

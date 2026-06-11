@@ -32,6 +32,9 @@ import { cleanupAllTempResources } from './ipc/window'
 import './ipc/history'
 import './ipc/storage'
 import './ipc/model'
+import './ipc/modelConfig'
+import { registerModelConfigHandlers } from './ipc/modelConfig'
+import { registerModelPreviewHandlers } from './ipc/modelPreview'
 import './ipc/shortcut'
 import './ipc/user'
 import './ipc/log'
@@ -273,6 +276,8 @@ app.whenReady().then(() => {
 
   registerCubismCoreProtocol()
   registerHistoryResourceProtocol()
+  registerModelConfigHandlers()
+  registerModelPreviewHandlers()
   initialize().catch(err => {
     console.error('[主进程] 初始化失败:', err)
     logger.error('initialize.failed', err)
