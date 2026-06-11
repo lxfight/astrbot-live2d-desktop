@@ -580,7 +580,7 @@ export class CubismTargetPoint {
    */
   update(deltaTimeSeconds: number): void {
     // 目标时间
-    const timeToReachOneSecond = 0.5
+    const timeToReachOneSecond = 1.15
     const curTimeToWeight = timeToReachOneSecond / deltaTimeSeconds
 
     // 面部跟踪

@@ -268,6 +268,16 @@ export class CubismModel {
     value: number
   }> = []
 
+  private static readonly GAZE_FOCUS_EPS = 0.08
+  /** 鼠标在模型附近注视时，待机噪声不叠加到头部/眼球（避免与 drag 视线相加偏移） */
+  private static readonly IDLE_NOISE_GAZE_CHANNELS = new Set([
+    'ParamAngleX',
+    'ParamAngleY',
+    'ParamAngleZ',
+    'ParamEyeBallX',
+    'ParamEyeBallY'
+  ])
+
   // 动画相关
   private lastUpdateTime: number = 0
   private deltaTime: number = 0
@@ -278,6 +288,8 @@ export class CubismModel {
   private projectionMatrix: CubismMatrix44 = new CubismMatrix44()
   private dragManager: CubismTargetPoint = new CubismTargetPoint()
   private focusBoundsCache: { bounds: ModelBounds | null; timestamp: number } | null = null
+  /** 指针在注视区内（带滞回），用于抑制头眼待机噪声 */
+  private gazePointerInRange = false
 
   // 位置相关
   private modelX: number = 0
@@ -1769,6 +1781,16 @@ export class CubismModel {
   }
 
   /**
+   * 指针在注视区或视线尚未回正时，头/眼通道不叠待机噪声
+   */
+  private isGazeDrivingHeadOrEyes(): boolean {
+    const x = this.dragManager.getX()
+    const y = this.dragManager.getY()
+    const eps = CubismModel.GAZE_FOCUS_EPS
+    return this.gazePointerInRange || Math.hypot(x, y) > eps
+  }
+
+  /**
    * 是否处于「表演级」动作（会压制程序化待机噪声与自动眨眼）。
    * 低优先级 Idle 循环待机不算表演，应与 noise+motion 并存。
    */
@@ -1843,17 +1865,28 @@ export class CubismModel {
     // 程序化待机动画：动作演出期间淡出让位，结束后淡入恢复
     if (this.idleAnimator) {
       const suppressed = this.shouldSuppressIdleNoiseAndBlink()
+      const gazeFollowActive = this.isGazeDrivingHeadOrEyes()
+
       for (const entry of this.idleAnimator.advance(deltaTimeSeconds, suppressed)) {
+        if (gazeFollowActive && CubismModel.IDLE_NOISE_GAZE_CHANNELS.has(entry.parameterId)) {
+          continue
+        }
         model.addParameterValueById(this.getParameterIdHandle(entry.parameterId), entry.value)
       }
     }
 
-    // 视线/姿态跟随拖拽
     const dragX = this.dragManager.getX()
     const dragY = this.dragManager.getY()
+    const gazeStrength = Math.min(1, Math.hypot(dragX, dragY))
+
     model.addParameterValueById(this.getParameterIdHandle('ParamAngleX'), dragX * 30)
     model.addParameterValueById(this.getParameterIdHandle('ParamAngleY'), dragY * 30)
-    model.addParameterValueById(this.getParameterIdHandle('ParamAngleZ'), dragX * dragY * -30)
+    if (gazeStrength > 0.12) {
+      model.addParameterValueById(
+        this.getParameterIdHandle('ParamAngleZ'),
+        dragX * dragY * -30 * gazeStrength
+      )
+    }
     model.addParameterValueById(this.getParameterIdHandle('ParamBodyAngleX'), dragX * 10)
     model.addParameterValueById(this.getParameterIdHandle('ParamEyeBallX'), dragX)
     model.addParameterValueById(this.getParameterIdHandle('ParamEyeBallY'), dragY)
@@ -1941,21 +1974,25 @@ export class CubismModel {
     const bounds = this.getFocusBounds()
     if (!bounds) return
 
-    const margin = bounds.height * 0.2
+    const marginIn = bounds.height * 0.45
+    const marginOut = bounds.height * 0.32
+    const margin = this.gazePointerInRange ? marginIn : marginOut
     const inRange =
       x >= bounds.left - margin &&
       x <= bounds.right + margin &&
       y >= bounds.top - margin &&
       y <= bounds.bottom + margin
+
+    this.gazePointerInRange = inRange
+
     if (!inRange) {
       this.dragManager.set(0, 0)
       return
     }
 
     const headX = (bounds.left + bounds.right) / 2
-    const headY = bounds.top + bounds.height * 0.25
-    // 满偏距离取约一个身位的 60%：鼠标在模型附近时跟随灵敏，远处饱和为注视方向
-    const range = Math.max(1, bounds.height * 0.6)
+    const headY = bounds.top + bounds.height * 0.2
+    const range = Math.max(1, bounds.height * 0.85)
     const normalizedX = Math.min(1, Math.max(-1, (x - headX) / range))
     const normalizedY = Math.min(1, Math.max(-1, -(y - headY) / range))
 
