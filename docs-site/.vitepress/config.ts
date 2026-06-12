@@ -74,7 +74,7 @@ export default defineConfig({
   title: 'AstrBot Live2D Desktop',
   description: 'AstrBot Live2D 桌面端、适配器与桥接协议文档。',
   lang: 'zh-CN',
-  base: '/',
+  base: process.env.VITEPRESS_BASE ?? '/',
   cleanUrls: true,
   themeConfig: {
     logo: '/logo.svg',
