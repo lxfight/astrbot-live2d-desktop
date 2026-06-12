@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.0] - 2026-06-12
+
+### Added
+- Added v2 model capability sync: the desktop client reports motion/expression aliases, categories, and durations through `state.model`.
+- Added per-model alias configuration for motion and expression names used by LLMs and the AstrBot adapter.
+- Added motion preview, expression preview, and thumbnail capture entry points for model configuration.
+
+### Changed
+- `perform.show` now supports `motion.name` / `expression.name` alias triggers while keeping v1 `group/index` and `id` compatibility.
+- Improved priority handling between idle motions, procedural noise, mouse gaze, and expression hold behavior.
+- Bubble auto-hide now uses a fixed lifecycle to avoid long messages occupying the screen for too long.
+
+### Fixed
+- Fixed cross-platform smoke test failures caused by outdated bubble-hide and CubismTargetPoint easing expectations.
+
+### Compatibility
+- Update `astrbot_plugin_live2d_adapter` to a version that supports v2 alias model payloads to use the alias protocol fully.
+
 ## [1.4.0] - 2026-06-10
 
 ### Added

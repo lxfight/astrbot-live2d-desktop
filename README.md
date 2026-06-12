@@ -6,7 +6,7 @@
 </picture>
 
 <p>
-  <strong>v1.4.0</strong> · 协议 <strong>1.0.0</strong>
+  <strong>v1.5.0</strong> · 协议 <strong>1.0.0 / v2 别名扩展</strong>
 </p>
 
 [![QQ Group](https://img.shields.io/badge/QQ群-1101928371-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/q/ZaEiwF7vuG)

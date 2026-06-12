@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.0] - 2026-06-12
+
+### Added
+- 新增 v2 模型能力同步：桌面端向适配器上报 `state.model` 的动作/表情别名、分类与持续时间。
+- 新增模型别名配置能力：可在模型设置中为动作、表情维护面向 LLM/适配器的可读名称。
+- 新增动作预览、表情预览与缩略图捕获入口，便于整理模型配置。
+
+### Changed
+- `perform.show` 支持通过 `motion.name` / `expression.name` 触发别名动作与表情，同时保留 v1 的 `group/index` 与 `id` 兼容。
+- 优化待机动作、程序化噪声、鼠标注视和表情保持之间的优先级，减少头眼偏移与表演冲突。
+- 气泡生命周期统一为固定自动隐藏时长，避免长消息长期占据屏幕。
+
+### Fixed
+- 修复跨平台 smoke 测试中气泡隐藏时长与 CubismTargetPoint 慢回正预期不一致的问题。
+
+### Compatibility
+- 需要配套更新 `astrbot_plugin_live2d_adapter` 到支持 v2 alias model payload 的版本，以完整使用别名协议。
+
 ## [1.4.0] - 2026-06-10
 
 ### Added

@@ -5,7 +5,7 @@ node_modules
 # 构建输出
 dist
 dist-electron
-release
+/release
 out
 build
 *.tsbuildinfo

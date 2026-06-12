@@ -1,6 +1,6 @@
 {
   "name": "astrbot-live2d-desktop",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -91,6 +91,9 @@
     "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"**/*.{ts,tsx,vue,js,jsx,json,css,scss,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,vue,js,jsx,json,css,scss,md}\"",
+    "docs:dev": "vitepress dev docs-site",
+    "docs:build": "vitepress build docs-site",
+    "docs:preview": "vitepress preview docs-site",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');['release','dist','dist-electron'].forEach(p=>fs.existsSync(p)&&fs.rmSync(p,{recursive:true,force:true}));\"",
     "rebuild": "node scripts/rebuild-native.js",
@@ -170,6 +173,7 @@
     "typescript-eslint": "^8.60.1",
     "vite": "^6.4.1",
     "vite-plugin-electron": "^0.29.1",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.2",
     "vue-tsc": "^3.2.6",
     "wait-on": "^7.2.0"
