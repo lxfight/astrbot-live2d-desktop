@@ -38,11 +38,12 @@ Connects to AstrBot in real time, enabling models to display text, motions, expr
 
 ## Quick Links
 
-- Detailed usage tutorial: [`docs/USAGE_TUTORIAL.en.md`](./docs/USAGE_TUTORIAL.en.md)
-- Platform support matrix: [`docs/PLATFORM_SUPPORT.en.md`](./docs/PLATFORM_SUPPORT.en.md)
-- Cubism integration guide: [`docs/CUBISM_RUNTIME.en.md`](./docs/CUBISM_RUNTIME.en.md)
-- Protocol documentation: `AstrBot/data/plugins/astrbot-live2d-adapter/docs/API.md`
-- Adapter deployment tutorial: `AstrBot/data/plugins/astrbot-live2d-adapter/docs/TUTORIAL.zh-CN.md`
+- Documentation site: [GitHub Pages](https://lxfight.github.io/astrbot-live2d-desktop/en/)
+- Detailed usage tutorial: [Usage Tutorial](https://lxfight.github.io/astrbot-live2d-desktop/en/guide/usage)
+- Adapter deployment tutorial: [Adapter Deployment](https://lxfight.github.io/astrbot-live2d-desktop/en/adapter/deployment)
+- Protocol documentation: [Protocol Overview](https://lxfight.github.io/astrbot-live2d-desktop/en/protocol/overview)
+- Platform support matrix: [Platform Support](https://lxfight.github.io/astrbot-live2d-desktop/en/release/platform-support)
+- Cubism integration guide: [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/en/guide/cubism-runtime)
 
 ## Features
 
@@ -74,7 +75,7 @@ Connects to AstrBot in real time, enabling models to display text, motions, expr
 - `semantic`: Supports selecting expressions by semantic tags, but this is not arbitrary natural language understanding.
   - Only discovered expressions that have been successfully parsed with parameters participate in tag classification and semantic routing.
   - Expressions discovered only via directory scan do not automatically receive inferred semantic tags; explicit `tags` or `semanticPresets` must be configured in `astrbot.live2d.profile.json`.
-- For more complete loading rules and limitations, see [`docs/CUBISM_RUNTIME.en.md`](./docs/CUBISM_RUNTIME.en.md).
+- For more complete loading rules and limitations, see [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/en/guide/cubism-runtime).
 
 ## Quick Start
 
@@ -160,7 +161,7 @@ pnpm run typecheck
 
 > Note: Build artifacts do not include the Live2D Cubism SDK. The app prompts users to download it on first launch.
 
-> Note: The repository does not directly include official framework source code in `src/`. See `docs/CUBISM_RUNTIME.en.md` for current integration details.
+> Note: The repository does not directly include official framework source code in `src/`. See [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/en/guide/cubism-runtime) for current integration details.
 
 ### Native Dependency Build Instructions (Windows)
 

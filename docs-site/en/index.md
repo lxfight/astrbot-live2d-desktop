@@ -33,6 +33,9 @@ features:
 ## Documentation Map
 
 - [Getting Started](./guide/getting-started.md): install, connect, import a model, and verify the bridge.
+- [Usage Tutorial](./guide/usage.md): daily desktop use, recording, history, data maintenance, and FAQ.
+- [Adapter Deployment](./adapter/deployment.md): AstrBot plugin installation, cloud deployment, security baseline, and common commands.
+- [Cubism Runtime](./guide/cubism-runtime.md): official SDK integration, model discovery, profile metadata, and expression capability boundaries.
 - [Architecture](./guide/architecture.md): how the desktop app, adapter, AstrBot, and model runtime cooperate.
 - [Protocol Overview](./protocol/overview.md): packet layers and compatibility rules.
 - [Connection](./protocol/connection.md): WebSocket, token, handshake response, heartbeat, and resource config.
@@ -42,3 +45,4 @@ features:
 - [Resources](./protocol/resources.md): `url` / `rid` / `inline` references and resource upload flow.
 - [Desktop RPC](./protocol/desktop-rpc.md): window list, active window, screenshots, and tool calls.
 - [Model Aliases](./model-config/overview.md): how to configure motion and expression names.
+- [Platform Support](./release/platform-support.md): Windows, macOS, Linux X11/Wayland capability matrix.

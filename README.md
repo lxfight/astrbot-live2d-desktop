@@ -38,11 +38,12 @@
 
 ## 快速入口
 
-- 详细使用教程：[`docs/USAGE_TUTORIAL.zh-CN.md`](./docs/USAGE_TUTORIAL.zh-CN.md)
-- 平台支持矩阵：[`docs/PLATFORM_SUPPORT.zh-CN.md`](./docs/PLATFORM_SUPPORT.zh-CN.md)
-- Cubism 接入说明：[`docs/CUBISM_RUNTIME.zh-CN.md`](./docs/CUBISM_RUNTIME.zh-CN.md)
-- 协议文档：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/API.md`
-- 适配器部署教程：`AstrBot/data/plugins/astrbot-live2d-adapter/docs/TUTORIAL.zh-CN.md`
+- 文档站首页：[GitHub Pages](https://lxfight.github.io/astrbot-live2d-desktop/)
+- 详细使用教程：[使用教程](https://lxfight.github.io/astrbot-live2d-desktop/guide/usage)
+- 适配器部署教程：[适配器部署](https://lxfight.github.io/astrbot-live2d-desktop/adapter/deployment)
+- 协议文档：[协议总览](https://lxfight.github.io/astrbot-live2d-desktop/protocol/overview)
+- 平台支持矩阵：[平台支持](https://lxfight.github.io/astrbot-live2d-desktop/release/platform-support)
+- Cubism 接入说明：[Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/guide/cubism-runtime)
 
 ## 功能亮点
 
@@ -74,7 +75,7 @@
 - `semantic`：支持按语义标签选择表情，但它不是任意自然语言理解。
   - 只有已发现且成功解析出参数的表情，才会参与标签归类与语义路由。
   - 仅靠目录扫描发现的表情，默认不会自动开放推断语义标签；需要在 `astrbot.live2d.profile.json` 中显式配置 `tags` 或 `semanticPresets`。
-- 更完整的加载规则与限制说明见 [`docs/CUBISM_RUNTIME.zh-CN.md`](./docs/CUBISM_RUNTIME.zh-CN.md)。
+- 更完整的加载规则与限制说明见 [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/guide/cubism-runtime)。
 
 
 ## 用户快速开始
@@ -161,7 +162,7 @@ pnpm run typecheck
 
 > 注意：构建产物不包含 Live2D Cubism SDK，应用首次启动时会提示用户下载。
 
-> 补充：仓库不会把官方 framework 源码直接放进 `src/`；当前接入细节见 `docs/CUBISM_RUNTIME.zh-CN.md`。
+> 补充：仓库不会把官方 framework 源码直接放进 `src/`；当前接入细节见 [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/guide/cubism-runtime)。
 
 ### 原生依赖构建说明（Windows）
 

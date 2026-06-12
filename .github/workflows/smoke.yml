@@ -6,7 +6,11 @@ on:
       - master
     paths-ignore:
       - 'docs-site/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'README.en.md'
       - '.github/workflows/docs.yml'
+      - '.github/workflows/smoke.yml'
   pull_request:
   workflow_dispatch:
 

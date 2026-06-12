@@ -4,6 +4,7 @@ const repo = 'https://github.com/lxfight/astrbot-live2d-desktop'
 
 const zhNav = [
   { text: '指南', link: '/guide/getting-started' },
+  { text: '适配器', link: '/adapter/deployment' },
   { text: '协议', link: '/protocol/overview' },
   { text: '模型配置', link: '/model-config/overview' },
   { text: '发布', link: '/release/compatibility' }
@@ -11,6 +12,7 @@ const zhNav = [
 
 const enNav = [
   { text: 'Guide', link: '/en/guide/getting-started' },
+  { text: 'Adapter', link: '/en/adapter/deployment' },
   { text: 'Protocol', link: '/en/protocol/overview' },
   { text: 'Model Config', link: '/en/model-config/overview' },
   { text: 'Release', link: '/en/release/compatibility' }
@@ -22,8 +24,14 @@ const zhSidebar = [
     items: [
       { text: '总览', link: '/' },
       { text: '快速开始', link: '/guide/getting-started' },
+      { text: '使用教程', link: '/guide/usage' },
+      { text: 'Cubism Runtime', link: '/guide/cubism-runtime' },
       { text: '架构', link: '/guide/architecture' }
     ]
+  },
+  {
+    text: '适配器',
+    items: [{ text: '部署与安全', link: '/adapter/deployment' }]
   },
   {
     text: '协议',
@@ -44,7 +52,10 @@ const zhSidebar = [
   },
   {
     text: '发布',
-    items: [{ text: '兼容性', link: '/release/compatibility' }]
+    items: [
+      { text: '兼容性', link: '/release/compatibility' },
+      { text: '平台支持', link: '/release/platform-support' }
+    ]
   }
 ]
 
@@ -54,8 +65,14 @@ const enSidebar = [
     items: [
       { text: 'Overview', link: '/en/' },
       { text: 'Getting Started', link: '/en/guide/getting-started' },
+      { text: 'Usage Tutorial', link: '/en/guide/usage' },
+      { text: 'Cubism Runtime', link: '/en/guide/cubism-runtime' },
       { text: 'Architecture', link: '/en/guide/architecture' }
     ]
+  },
+  {
+    text: 'Adapter',
+    items: [{ text: 'Deployment and Security', link: '/en/adapter/deployment' }]
   },
   {
     text: 'Protocol',
@@ -76,7 +93,10 @@ const enSidebar = [
   },
   {
     text: 'Release',
-    items: [{ text: 'Compatibility', link: '/en/release/compatibility' }]
+    items: [
+      { text: 'Compatibility', link: '/en/release/compatibility' },
+      { text: 'Platform Support', link: '/en/release/platform-support' }
+    ]
   }
 ]
 

@@ -33,6 +33,9 @@ features:
 ## 文档地图
 
 - [快速开始](./guide/getting-started.md)：安装、连接、导入模型并验证桥接链路。
+- [使用教程](./guide/usage.md)：桌面端日常使用、录音、历史、数据维护与常见问题。
+- [适配器部署](./adapter/deployment.md)：AstrBot 插件安装、云服务器部署、安全基线与常用命令。
+- [Cubism Runtime](./guide/cubism-runtime.md)：官方 SDK 接入、模型发现、profile 与表情能力边界。
 - [架构](./guide/architecture.md)：桌面端、适配器、AstrBot 与模型运行时如何协作。
 - [协议总览](./protocol/overview.md)：包结构、协议分层与兼容性规则。
 - [连接与握手](./protocol/connection.md)：WebSocket、token、握手响应、心跳与资源配置。
@@ -42,3 +45,4 @@ features:
 - [资源协议](./protocol/resources.md)：`url` / `rid` / `inline` 引用和资源上传流程。
 - [桌面感知 RPC](./protocol/desktop-rpc.md)：窗口列表、活跃窗口、截图和工具调用。
 - [模型别名](./model-config/overview.md)：如何配置动作和表情名称。
+- [平台支持](./release/platform-support.md)：Windows、macOS、Linux X11/Wayland 的能力矩阵。
