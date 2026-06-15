@@ -1,6 +1,6 @@
 {
   "name": "astrbot-live2d-desktop",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "AstrBot Live2D 桌面应用",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -157,6 +157,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.8.0",
     "@vue/language-core": "^3.2.6",
+    "asar": "^3.2.0",
     "concurrently": "^8.2.2",
     "electron": "^40.8.5",
     "electron-builder": "^26.8.1",
