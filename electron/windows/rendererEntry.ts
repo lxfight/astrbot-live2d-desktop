@@ -6,7 +6,8 @@ export type RendererEntryName = 'main' | 'settings' | 'welcome'
 const RENDERER_DEV_SERVER_URL = 'http://localhost:5173/'
 
 export function isRendererDevMode(): boolean {
-  return process.env.NODE_ENV === 'development' || !app.isPackaged
+  // 只在开发环境且未打包时使用开发服务器
+  return process.env.NODE_ENV === 'development' && !app.isPackaged
 }
 
 export function loadRendererEntry(
