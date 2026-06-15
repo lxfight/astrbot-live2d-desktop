@@ -1,11 +1,7 @@
 import { BrowserWindow, app } from 'electron'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { resolveAppIconPath } from '../utils/icon'
 import { loadRendererEntry } from './rendererEntry'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 let welcomeWindow: BrowserWindow | null = null
 
