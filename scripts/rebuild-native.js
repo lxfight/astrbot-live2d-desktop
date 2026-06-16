@@ -224,9 +224,10 @@ function runRebuildAttempt() {
     return runSelectiveRebuild(onlyPackages)
   }
 
-  // Windows arm64 commonly lacks complete native toolchains for active-win/node-window-manager.
-  // Rebuild only better-sqlite3 to keep arm64 artifacts buildable.
-  if (targetPlatform === 'win32' && targetArch === 'arm64') {
+  // GitHub windows runners ship a VS toolchain that node-gyp 11.x cannot detect,
+  // breaking source builds of active-win/node-window-manager. Both modules ship
+  // Electron-compatible prebuilts, so we only rebuild better-sqlite3 from source.
+  if (targetPlatform === 'win32') {
     return runSelectiveRebuild(['better-sqlite3'])
   }
 
