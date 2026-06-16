@@ -774,6 +774,9 @@ function applyModelPositionState(savedPosition: { x: number; y: number } | null)
 }
 
 async function loadModelWithState(modelPath: string, options: { showWarnings?: boolean } = {}) {
+  // 确保 Cubism Core 已加载（防止手动加载/IPC 加载与 onMounted 预加载竞态）
+  await ensureCubismCoreLoaded()
+
   const shouldShowWarnings = options.showWarnings !== false
   const savedPosition = modelStore.getModelPosition(modelPath)
   const savedScale = modelStore.getModelScale(modelPath)
@@ -1178,9 +1181,9 @@ function handleAudioEnd() {
 
 // 监听表演指令
 onMounted(async () => {
-  // 并行启动：Cubism Core 预加载 + connection store 初始化。
-  // 不再阻塞 Vue 挂载（Core 加载原本在 beforeMount 中阻塞 createApp）。
-  const cubismCorePromise = ensureCubismCoreLoaded()
+  // 并行启动：Cubism Core 预加载（预热，不 await）+ connection store 初始化。
+  // Core 加载原本在 beforeMount 中阻塞 createApp，现在改为后台预热，实际等待由 loadModelWithState 统一处理。
+  void ensureCubismCoreLoaded()
   const ensureInitPromise = connectionStore.ensureInitialized()
 
   // 启用性能监控（开发模式）
@@ -1227,13 +1230,25 @@ onMounted(async () => {
   // 等待 connection store 初始化完成
   await ensureInitPromise
 
-  // 并行执行所有独立的启动期 IPC（原本是串行 await）
+  // 并行执行快速启动期 IPC（getUserName/getPlatformCapabilities/syncRecordingShortcutState）
+  // startWatching 单独后台启动，不阻塞模型加载和事件注册
   const startupOutcome = await Promise.allSettled([
     window.electron.user.getUserName(),
     window.electron.window.getPlatformCapabilities(),
-    window.electron.window.startWatching(),
     syncRecordingShortcutState(false)
   ])
+
+  // startWatching 后台启动（不 await，避免拖慢启动）
+  void window.electron.window.startWatching().then(
+    result => {
+      if (!result.success) {
+        console.warn('[主窗口] 窗口监听启动失败:', result.error)
+      }
+    },
+    error => {
+      console.warn('[主窗口] 窗口监听启动失败:', error)
+    }
+  )
 
   const userNameOutcome = startupOutcome[0]
   if (userNameOutcome.status === 'fulfilled' && userNameOutcome.value) {
@@ -1245,16 +1260,6 @@ onMounted(async () => {
   const platformOutcome = startupOutcome[1]
   if (platformOutcome.status === 'fulfilled') {
     showPlatformCompatibilityHint(platformOutcome.value)
-  }
-
-  const watchOutcome = startupOutcome[2]
-  if (watchOutcome.status === 'fulfilled') {
-    const startWatchingResult = watchOutcome.value
-    if (!startWatchingResult.success) {
-      console.warn('[主窗口] 窗口监听启动失败:', startWatchingResult.error)
-    }
-  } else {
-    console.warn('[主窗口] 窗口监听启动失败:', watchOutcome.reason)
   }
   mainWindowDisposers.push(
     window.electron.shortcut.onRecordingStart(() => {
@@ -1321,6 +1326,30 @@ onMounted(async () => {
       }
     })
   )
+
+  // 主窗口 ready 后，拉取可能在 onLoad 注册前发送的 pending model path
+  try {
+    const pendingResult = await window.electron.model.getPendingLoad()
+    if (pendingResult.success && pendingResult.modelPath) {
+      console.log('[主窗口] 拉取到 pending 模型加载指令:', pendingResult.modelPath)
+      // 复用 onLoad 的处理逻辑，直接触发 model:load 事件处理
+      if (!modelLoadInFlight) {
+        modelLoadInFlight = true
+        try {
+          await loadModelWithState(pendingResult.modelPath)
+        } catch (error: any) {
+          loadingModelPath.value = ''
+          hasModel.value = false
+          showModelStatus(t('main.status.modelLoadFailed', { message: error.message }), 'error')
+          openModelLibraryWindowOnce()
+        } finally {
+          modelLoadInFlight = false
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[主窗口] 拉取 pending 模型加载指令失败:', error)
+  }
 
   mainWindowDisposers.push(
     window.electron.bridge.onPerformShow((payload: PerformSequence) => {
@@ -1396,8 +1425,7 @@ onMounted(async () => {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
 
     try {
-      // 确保 Cubism Core 已加载完成（通常与启动期 IPC 并行已就绪）
-      await cubismCorePromise
+      // loadModelWithState 内部已统一 await ensureCubismCoreLoaded()
       await loadModelWithState(lastModelPath)
       console.log('[主窗口] 自动加载成功')
     } catch (error: any) {
