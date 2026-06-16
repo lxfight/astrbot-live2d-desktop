@@ -78,23 +78,38 @@ const motionColumns: DataTableColumns<any> = [
     key: 'enabled',
     title: t('settings.modelConfig.enabled'),
     width: 80,
-    render: row => h(NSwitch, { value: row.enabled, onUpdateValue: v => (row.enabled = v) })
+    render: (row, index) =>
+      h(NSwitch, {
+        value: row.enabled,
+        onUpdateValue: v => {
+          motionAliases.value[index].enabled = v
+        }
+      })
   },
   { key: 'id', title: t('settings.modelConfig.motionId'), width: 120 },
   {
     key: 'name',
     title: t('settings.modelConfig.alias'),
     width: 150,
-    render: row => h(NInput, { value: row.name, onUpdateValue: v => (row.name = v), size: 'small' })
+    render: (row, index) =>
+      h(NInput, {
+        value: row.name,
+        onUpdateValue: v => {
+          motionAliases.value[index].name = v
+        },
+        size: 'small'
+      })
   },
   {
     key: 'category',
     title: t('settings.modelConfig.category'),
     width: 120,
-    render: row =>
+    render: (row, index) =>
       h(NSelect, {
         value: row.category,
-        onUpdateValue: v => (row.category = v),
+        onUpdateValue: v => {
+          motionAliases.value[index].category = v
+        },
         options: [
           { label: t('settings.modelConfig.idle'), value: 'idle' },
           { label: t('settings.modelConfig.action'), value: 'action' }
@@ -105,10 +120,12 @@ const motionColumns: DataTableColumns<any> = [
   {
     key: 'description',
     title: t('settings.modelConfig.description'),
-    render: row =>
+    render: (row, index) =>
       h(NInput, {
         value: row.description,
-        onUpdateValue: v => (row.description = v),
+        onUpdateValue: v => {
+          motionAliases.value[index].description = v
+        },
         size: 'small'
       })
   }
@@ -119,22 +136,37 @@ const expressionColumns: DataTableColumns<any> = [
     key: 'enabled',
     title: t('settings.modelConfig.enabled'),
     width: 80,
-    render: row => h(NSwitch, { value: row.enabled, onUpdateValue: v => (row.enabled = v) })
+    render: (row, index) =>
+      h(NSwitch, {
+        value: row.enabled,
+        onUpdateValue: v => {
+          expressionAliases.value[index].enabled = v
+        }
+      })
   },
   { key: 'id', title: t('settings.modelConfig.expressionId'), width: 120 },
   {
     key: 'name',
     title: t('settings.modelConfig.alias'),
     width: 150,
-    render: row => h(NInput, { value: row.name, onUpdateValue: v => (row.name = v), size: 'small' })
+    render: (row, index) =>
+      h(NInput, {
+        value: row.name,
+        onUpdateValue: v => {
+          expressionAliases.value[index].name = v
+        },
+        size: 'small'
+      })
   },
   {
     key: 'description',
     title: t('settings.modelConfig.description'),
-    render: row =>
+    render: (row, index) =>
       h(NInput, {
         value: row.description,
-        onUpdateValue: v => (row.description = v),
+        onUpdateValue: v => {
+          expressionAliases.value[index].description = v
+        },
         size: 'small'
       })
   }
