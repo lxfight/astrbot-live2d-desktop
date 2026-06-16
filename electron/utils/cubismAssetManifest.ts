@@ -1,4 +1,4 @@
-import fs from 'fs'
+import fsp from 'fs/promises'
 import path from 'path'
 
 import { discoverCubismModelCompatibility } from './cubismModelDiscovery'
@@ -26,7 +26,7 @@ export type CubismAssetValidationResult = {
   manifest: CubismAssetManifest
   issues: CubismAssetIssue[]
   discoveryWarnings: string[]
-  compatibilityManifest?: ReturnType<typeof discoverCubismModelCompatibility>
+  compatibilityManifest?: Awaited<ReturnType<typeof discoverCubismModelCompatibility>>
   fatalError?: string
 }
 
@@ -58,18 +58,25 @@ function createIssue(
   }
 }
 
-function ensureFileExists(rootDir: string, relativePath: string): boolean {
+async function ensureFileExists(rootDir: string, relativePath: string): Promise<boolean> {
   const absolutePath = path.join(rootDir, relativePath)
-  return fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()
+  try {
+    const stat = await fsp.stat(absolutePath)
+    return stat.isFile()
+  } catch {
+    return false
+  }
 }
 
-export function validateCubismModelAssets(modelJsonPath: string): CubismAssetValidationResult {
+export async function validateCubismModelAssets(
+  modelJsonPath: string
+): Promise<CubismAssetValidationResult> {
   const modelAbsolutePath = path.resolve(modelJsonPath)
   const modelDir = path.dirname(modelAbsolutePath)
   const modelFile = path.basename(modelAbsolutePath)
   const relativeModelFile = normalizeRelativePath(modelFile)
 
-  if (!ensureFileExists(modelDir, modelFile)) {
+  if (!(await ensureFileExists(modelDir, modelFile))) {
     return {
       manifest: {
         modelFile: relativeModelFile,
@@ -85,7 +92,7 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
 
   let parsed: Model3Json
   try {
-    parsed = JSON.parse(fs.readFileSync(modelAbsolutePath, 'utf8')) as Model3Json
+    parsed = JSON.parse(await fsp.readFile(modelAbsolutePath, 'utf8')) as Model3Json
   } catch (error) {
     return {
       manifest: {
@@ -102,7 +109,7 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
   }
 
   const refs = parsed.FileReferences ?? {}
-  const compatibilityManifest = discoverCubismModelCompatibility(modelAbsolutePath)
+  const compatibilityManifest = await discoverCubismModelCompatibility(modelAbsolutePath)
   const standardExpressionRefs = (refs.Expressions ?? [])
     .map(entry => entry?.File)
     .filter((value): value is string => Boolean(value))
@@ -137,7 +144,7 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
 
   const issues: CubismAssetIssue[] = []
 
-  if (!manifest.moc || !ensureFileExists(modelDir, manifest.moc)) {
+  if (!manifest.moc || !(await ensureFileExists(modelDir, manifest.moc))) {
     issues.push(createIssue('required', 'moc', manifest.moc || '[missing-moc-reference]'))
   }
 
@@ -146,32 +153,32 @@ export function validateCubismModelAssets(modelJsonPath: string): CubismAssetVal
   }
 
   for (const texture of manifest.textures) {
-    if (!ensureFileExists(modelDir, texture)) {
+    if (!(await ensureFileExists(modelDir, texture))) {
       issues.push(createIssue('required', 'texture', texture))
     }
   }
 
   for (const motion of standardMotionRefs) {
-    if (!ensureFileExists(modelDir, motion)) {
+    if (!(await ensureFileExists(modelDir, motion))) {
       issues.push(createIssue('optional', 'motion', motion))
     }
   }
 
   for (const expression of standardExpressionRefs) {
-    if (!ensureFileExists(modelDir, expression)) {
+    if (!(await ensureFileExists(modelDir, expression))) {
       issues.push(createIssue('optional', 'expression', expression))
     }
   }
 
-  if (manifest.physics && !ensureFileExists(modelDir, manifest.physics)) {
+  if (manifest.physics && !(await ensureFileExists(modelDir, manifest.physics))) {
     issues.push(createIssue('optional', 'physics', manifest.physics))
   }
 
-  if (manifest.pose && !ensureFileExists(modelDir, manifest.pose)) {
+  if (manifest.pose && !(await ensureFileExists(modelDir, manifest.pose))) {
     issues.push(createIssue('optional', 'pose', manifest.pose))
   }
 
-  if (manifest.userData && !ensureFileExists(modelDir, manifest.userData)) {
+  if (manifest.userData && !(await ensureFileExists(modelDir, manifest.userData))) {
     issues.push(createIssue('optional', 'userData', manifest.userData))
   }
 

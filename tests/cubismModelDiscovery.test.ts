@@ -33,7 +33,7 @@ describe('discoverCubismModelCompatibility', () => {
     }
   })
 
-  test('reads companion declarations and resolves basename-only file references', () => {
+  test('reads companion declarations and resolves basename-only file references', async () => {
     const modelDir = createTempModelDir()
     writeText(path.join(modelDir, 'sample.moc3'), 'moc')
     writeText(path.join(modelDir, 'texture_00.png'), 'png')
@@ -71,7 +71,9 @@ describe('discoverCubismModelCompatibility', () => {
       ]
     })
 
-    const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
+    const manifest = await discoverCubismModelCompatibility(
+      path.join(modelDir, 'sample.model3.json')
+    )
 
     expect(manifest.discovery.mode).toBe('compatibility')
     expect(manifest.expressionProfileFile).toBe('astrbot.live2d.profile.json')
@@ -92,7 +94,7 @@ describe('discoverCubismModelCompatibility', () => {
     })
   })
 
-  test('falls back to directory scan when no companion declarations exist', () => {
+  test('falls back to directory scan when no companion declarations exist', async () => {
     const modelDir = createTempModelDir()
     writeText(path.join(modelDir, 'sample.moc3'), 'moc')
     writeText(path.join(modelDir, 'texture_00.png'), 'png')
@@ -107,7 +109,9 @@ describe('discoverCubismModelCompatibility', () => {
       }
     })
 
-    const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
+    const manifest = await discoverCubismModelCompatibility(
+      path.join(modelDir, 'sample.model3.json')
+    )
 
     expect(manifest.discovery.mode).toBe('compatibility')
     expect(manifest.expressionProfileFile).toBeNull()
@@ -125,7 +129,7 @@ describe('discoverCubismModelCompatibility', () => {
     })
   })
 
-  test('keeps standard model expression names as primary ids', () => {
+  test('keeps standard model expression names as primary ids', async () => {
     const modelDir = createTempModelDir()
     writeText(path.join(modelDir, 'sample.moc3'), 'moc')
     writeText(path.join(modelDir, 'texture_00.png'), 'png')
@@ -144,7 +148,9 @@ describe('discoverCubismModelCompatibility', () => {
       }
     })
 
-    const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
+    const manifest = await discoverCubismModelCompatibility(
+      path.join(modelDir, 'sample.model3.json')
+    )
 
     expect(manifest.expressions).toEqual([
       {
@@ -156,7 +162,7 @@ describe('discoverCubismModelCompatibility', () => {
     ])
   })
 
-  test('falls back to file basename when companion hotkey names are empty', () => {
+  test('falls back to file basename when companion hotkey names are empty', async () => {
     const modelDir = createTempModelDir()
     writeText(path.join(modelDir, 'sample.moc3'), 'moc')
     writeText(path.join(modelDir, 'texture_00.png'), 'png')
@@ -189,7 +195,9 @@ describe('discoverCubismModelCompatibility', () => {
       ]
     })
 
-    const manifest = discoverCubismModelCompatibility(path.join(modelDir, 'sample.model3.json'))
+    const manifest = await discoverCubismModelCompatibility(
+      path.join(modelDir, 'sample.model3.json')
+    )
 
     expect(manifest.expressions).toEqual([
       {

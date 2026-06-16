@@ -263,6 +263,7 @@ import { convertModelInfoToV2, shouldUseV2Protocol } from '@/utils/modelInfoConv
 import { parseMotionIdParts } from '@/shared/modelAliasMerge'
 import { AliasMapper } from '@electron/utils/aliasMapper'
 import { IdleManager } from '@electron/services/idleManager'
+import { ensureCubismCoreLoaded } from '@/bootstrap/windowApp'
 
 const connectionStore = useConnectionStore()
 const modelStore = useModelStore()
@@ -1177,7 +1178,10 @@ function handleAudioEnd() {
 
 // 监听表演指令
 onMounted(async () => {
-  await connectionStore.ensureInitialized()
+  // 并行启动：Cubism Core 预加载 + connection store 初始化。
+  // 不再阻塞 Vue 挂载（Core 加载原本在 beforeMount 中阻塞 createApp）。
+  const cubismCorePromise = ensureCubismCoreLoaded()
+  const ensureInitPromise = connectionStore.ensureInitialized()
 
   // 启用性能监控（开发模式）
   if (import.meta.env.DEV) {
@@ -1214,40 +1218,44 @@ onMounted(async () => {
     mainWindowDisposers.push(unsubscribe)
   }
 
-  // 获取用户名称
-  try {
-    const name = await window.electron.user.getUserName()
-    if (name) {
-      currentUserName.value = name
-    }
-  } catch (error) {
-    console.error('[主窗口] 获取用户名称失败:', error)
-  }
-
-  // 监听全局快捷键录音
+  // 同步注册监听器
   initializeAdvancedSettingsForSession()
   modelStore.startStorageSync()
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('resize', updateUIPositions)
 
-  try {
-    const platformCapabilities = await window.electron.window.getPlatformCapabilities()
-    showPlatformCompatibilityHint(platformCapabilities)
-  } catch {
-    // ignore capability lookup failures in startup flow
+  // 等待 connection store 初始化完成
+  await ensureInitPromise
+
+  // 并行执行所有独立的启动期 IPC（原本是串行 await）
+  const startupOutcome = await Promise.allSettled([
+    window.electron.user.getUserName(),
+    window.electron.window.getPlatformCapabilities(),
+    window.electron.window.startWatching(),
+    syncRecordingShortcutState(false)
+  ])
+
+  const userNameOutcome = startupOutcome[0]
+  if (userNameOutcome.status === 'fulfilled' && userNameOutcome.value) {
+    currentUserName.value = userNameOutcome.value
+  } else if (userNameOutcome.status === 'rejected') {
+    console.error('[主窗口] 获取用户名称失败:', userNameOutcome.reason)
   }
 
-  try {
-    const startWatchingResult = await window.electron.window.startWatching()
+  const platformOutcome = startupOutcome[1]
+  if (platformOutcome.status === 'fulfilled') {
+    showPlatformCompatibilityHint(platformOutcome.value)
+  }
+
+  const watchOutcome = startupOutcome[2]
+  if (watchOutcome.status === 'fulfilled') {
+    const startWatchingResult = watchOutcome.value
     if (!startWatchingResult.success) {
       console.warn('[主窗口] 窗口监听启动失败:', startWatchingResult.error)
     }
-  } catch (error) {
-    console.warn('[主窗口] 窗口监听启动失败:', error)
+  } else {
+    console.warn('[主窗口] 窗口监听启动失败:', watchOutcome.reason)
   }
-
-  await syncRecordingShortcutState(false)
-
   mainWindowDisposers.push(
     window.electron.shortcut.onRecordingStart(() => {
       console.log('[主窗口] 全局快捷键：开始录音')
@@ -1388,6 +1396,8 @@ onMounted(async () => {
     console.log('[主窗口] 自动加载上次模型:', lastModelPath)
 
     try {
+      // 确保 Cubism Core 已加载完成（通常与启动期 IPC 并行已就绪）
+      await cubismCorePromise
       await loadModelWithState(lastModelPath)
       console.log('[主窗口] 自动加载成功')
     } catch (error: any) {

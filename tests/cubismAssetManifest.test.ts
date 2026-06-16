@@ -30,7 +30,7 @@ describe('validateCubismModelAssets', () => {
     }
   })
 
-  test('reports no required issues for complete minimal model', () => {
+  test('reports no required issues for complete minimal model', async () => {
     const modelDir = createTempModelDir()
     fs.writeFileSync(path.join(modelDir, 'sample.moc3'), 'moc')
     fs.writeFileSync(path.join(modelDir, 'texture_00.png'), 'png')
@@ -46,14 +46,14 @@ describe('validateCubismModelAssets', () => {
       }
     })
 
-    const result = validateCubismModelAssets(path.join(modelDir, 'sample.model3.json'))
+    const result = await validateCubismModelAssets(path.join(modelDir, 'sample.model3.json'))
 
     expect(result.manifest.moc).toBe('sample.moc3')
     expect(result.issues.filter(issue => issue.severity === 'required')).toHaveLength(0)
     expect(result.issues.filter(issue => issue.severity === 'optional')).toHaveLength(0)
   })
 
-  test('reports required moc and texture issues', () => {
+  test('reports required moc and texture issues', async () => {
     const modelDir = createTempModelDir()
 
     writeJson(path.join(modelDir, 'broken.model3.json'), {
@@ -63,14 +63,14 @@ describe('validateCubismModelAssets', () => {
       }
     })
 
-    const result = validateCubismModelAssets(path.join(modelDir, 'broken.model3.json'))
+    const result = await validateCubismModelAssets(path.join(modelDir, 'broken.model3.json'))
     const formatted = formatCubismAssetIssues(result.issues)
 
     expect(formatted).toContain('required:moc:broken.moc3')
     expect(formatted).toContain('required:texture:missing/texture_00.png')
   })
 
-  test('reports optional motion expression physics pose and userdata issues', () => {
+  test('reports optional motion expression physics pose and userdata issues', async () => {
     const modelDir = createTempModelDir()
     fs.writeFileSync(path.join(modelDir, 'sample.moc3'), 'moc')
     fs.writeFileSync(path.join(modelDir, 'texture_00.png'), 'png')
@@ -89,7 +89,7 @@ describe('validateCubismModelAssets', () => {
       }
     })
 
-    const result = validateCubismModelAssets(path.join(modelDir, 'sample.model3.json'))
+    const result = await validateCubismModelAssets(path.join(modelDir, 'sample.model3.json'))
     const formatted = formatCubismAssetIssues(result.issues)
 
     expect(formatted).toContain('optional:motion:idle.motion3.json')
@@ -99,11 +99,11 @@ describe('validateCubismModelAssets', () => {
     expect(formatted).toContain('optional:userData:sample.userdata3.json')
   })
 
-  test('reports fatal error for invalid model3 json payload', () => {
+  test('reports fatal error for invalid model3 json payload', async () => {
     const modelDir = createTempModelDir()
     fs.writeFileSync(path.join(modelDir, 'invalid.model3.json'), '{', 'utf8')
 
-    const result = validateCubismModelAssets(path.join(modelDir, 'invalid.model3.json'))
+    const result = await validateCubismModelAssets(path.join(modelDir, 'invalid.model3.json'))
 
     expect(result.fatalError).toContain('模型配置解析失败')
     expect(result.issues).toEqual([

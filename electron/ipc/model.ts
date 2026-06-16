@@ -366,7 +366,7 @@ ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: stri
       modelFileCount: modelFiles.length,
       chosenModelFile
     })
-    const validationResult = validateCubismModelAssets(chosenModelFile)
+    const validationResult = await validateCubismModelAssets(chosenModelFile)
     const requiredIssues = validationResult.issues.filter(issue => issue.severity === 'required')
     const optionalIssues = validationResult.issues.filter(issue => issue.severity === 'optional')
 
@@ -507,7 +507,7 @@ ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
   const timer = logger.timer('prepare_load', { modelPath })
   try {
     const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
-    const validationResult = validateCubismModelAssets(modelAbsolutePath)
+    const validationResult = await validateCubismModelAssets(modelAbsolutePath)
     if (validationResult.fatalError) {
       throw new Error(validationResult.fatalError)
     }
@@ -519,7 +519,7 @@ ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
       )
     }
 
-    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+    const descriptor = await createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
     descriptor.warnings = [
       ...formatCubismAssetIssues(
         validationResult.issues.filter(issue => issue.severity === 'optional')
@@ -550,7 +550,7 @@ ipcMain.handle('model:getExpressionTypes', async (_event, modelPath: string) => 
   const timer = logger.timer('get_expression_types', { modelPath })
   try {
     const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
-    const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+    const descriptor = await createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
     const expressions = descriptor.compatibilityManifest.expressions.map(entry => ({
       id: entry.id,
       file: entry.file,
@@ -591,7 +591,7 @@ ipcMain.handle(
     const timer = logger.timer('save_expression_types', { modelPath })
     try {
       const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
-      const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+      const descriptor = await createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
       const validExpressionIds = new Set(
         descriptor.compatibilityManifest.expressions.map(entry => entry.id)
       )
@@ -636,7 +636,7 @@ ipcMain.handle('model:getCatalog', async (_event, modelPath: string) => {
   const timer = logger.timer('get_catalog', { modelPath })
   try {
     const modelAbsolutePath = resolveModelAbsolutePath(modelPath)
-    const catalog = buildCatalogForAbsoluteModel(modelPath, modelAbsolutePath)
+    const catalog = await buildCatalogForAbsoluteModel(modelPath, modelAbsolutePath)
     const motionGroups: Record<string, number> = {}
     for (const motion of catalog.motions) {
       motionGroups[motion.group] = (motionGroups[motion.group] ?? 0) + 1

@@ -1,4 +1,4 @@
-import fs from 'fs'
+import fsp from 'fs/promises'
 import path from 'path'
 
 import type {
@@ -106,7 +106,7 @@ function isPathInsideRoot(rootDir: string, targetPath: string): boolean {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
-function tryResolveDeclaredPath(rootDir: string, candidate: string): string | null {
+async function tryResolveDeclaredPath(rootDir: string, candidate: string): Promise<string | null> {
   const normalized = normalizeRelativePath(candidate)
   if (!normalized) {
     return null
@@ -117,16 +117,26 @@ function tryResolveDeclaredPath(rootDir: string, candidate: string): string | nu
     return null
   }
 
-  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+  try {
+    const stat = await fsp.stat(absolute)
+    if (!stat.isFile()) {
+      return null
+    }
+  } catch {
     return null
   }
 
   return normalizeRelativePath(path.relative(rootDir, absolute))
 }
 
-function ensureFileExists(rootDir: string, relativePath: string): boolean {
+async function ensureFileExists(rootDir: string, relativePath: string): Promise<boolean> {
   const absolutePath = path.join(rootDir, relativePath)
-  return fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()
+  try {
+    const stat = await fsp.stat(absolutePath)
+    return stat.isFile()
+  } catch {
+    return false
+  }
 }
 
 function pushBasenameIndex(index: Map<string, string[]>, relativePath: string): void {
@@ -136,19 +146,19 @@ function pushBasenameIndex(index: Map<string, string[]>, relativePath: string): 
   index.set(key, current)
 }
 
-function scanModelDirectory(modelDir: string): ScanIndex {
+async function scanModelDirectory(modelDir: string): Promise<ScanIndex> {
   const motionFiles: string[] = []
   const expressionFiles: string[] = []
   const companionFiles: string[] = []
   const motionByBasename = new Map<string, string[]>()
   const expressionByBasename = new Map<string, string[]>()
 
-  function walk(currentDir: string): void {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+  async function walk(currentDir: string): Promise<void> {
+    const entries = await fsp.readdir(currentDir, { withFileTypes: true })
     for (const entry of entries) {
       const absolutePath = path.join(currentDir, entry.name)
       if (entry.isDirectory()) {
-        walk(absolutePath)
+        await walk(absolutePath)
         continue
       }
       if (!entry.isFile()) {
@@ -170,7 +180,7 @@ function scanModelDirectory(modelDir: string): ScanIndex {
     }
   }
 
-  walk(modelDir)
+  await walk(modelDir)
 
   motionFiles.sort()
   expressionFiles.sort()
@@ -232,19 +242,19 @@ function chooseBestBasenameMatch(
   }
 }
 
-function resolveCandidatePath(
+async function resolveCandidatePath(
   rootDir: string,
   rawFile: string,
   kind: 'motion' | 'expression',
   scanIndex: ScanIndex,
   warnings: string[]
-): string | null {
+): Promise<string | null> {
   const trimmed = String(rawFile || '').trim()
   if (!trimmed) {
     return null
   }
 
-  const declaredMatch = tryResolveDeclaredPath(rootDir, trimmed)
+  const declaredMatch = await tryResolveDeclaredPath(rootDir, trimmed)
   if (declaredMatch) {
     return declaredMatch
   }
@@ -347,20 +357,20 @@ function inferFallbackMotionGroup(relativePath: string): string {
   return baseName
 }
 
-function appendStandardDeclarations(
+async function appendStandardDeclarations(
   modelDir: string,
   modelJson: Model3Json,
   expressionEntries: Map<string, ExpressionBuilderEntry>,
   motionEntries: Map<string, MotionBuilderEntry>,
   warnings: string[]
-): { expressionCount: number; motionGroupCount: number } {
+): Promise<{ expressionCount: number; motionGroupCount: number }> {
   const refs = modelJson.FileReferences ?? {}
   let expressionCount = 0
   let motionGroupCount = 0
 
   for (const expressionRef of refs.Expressions ?? []) {
     const file = typeof expressionRef?.File === 'string' ? expressionRef.File : ''
-    const resolved = tryResolveDeclaredPath(modelDir, file)
+    const resolved = await tryResolveDeclaredPath(modelDir, file)
     if (!resolved) {
       if (file) {
         warnings.push(`标准模型声明的表情文件不存在: ${normalizeRelativePath(file)}`)
@@ -384,7 +394,7 @@ function appendStandardDeclarations(
     let groupHasMotion = false
     for (const item of items ?? []) {
       const file = typeof item?.File === 'string' ? item.File : ''
-      const resolved = tryResolveDeclaredPath(modelDir, file)
+      const resolved = await tryResolveDeclaredPath(modelDir, file)
       if (!resolved) {
         if (file) {
           warnings.push(`标准模型声明的动作文件不存在: ${normalizeRelativePath(file)}`)
@@ -405,19 +415,19 @@ function appendStandardDeclarations(
   }
 }
 
-function appendVTubeStudioDeclarations(
+async function appendVTubeStudioDeclarations(
   modelDir: string,
   companionRelativePath: string,
   scanIndex: ScanIndex,
   expressionEntries: Map<string, ExpressionBuilderEntry>,
   motionEntries: Map<string, MotionBuilderEntry>,
   warnings: string[]
-): void {
+): Promise<void> {
   const absolutePath = path.join(modelDir, companionRelativePath)
   let parsed: VTubeStudioJson
 
   try {
-    parsed = JSON.parse(fs.readFileSync(absolutePath, 'utf8')) as VTubeStudioJson
+    parsed = JSON.parse(await fsp.readFile(absolutePath, 'utf8')) as VTubeStudioJson
   } catch (error) {
     warnings.push(
       `伴生清单解析失败 ${companionRelativePath}: ${error instanceof Error ? error.message : String(error)}`
@@ -427,7 +437,7 @@ function appendVTubeStudioDeclarations(
 
   const idleAnimation = parsed.FileReferences?.IdleAnimation
   const idleResolved = idleAnimation
-    ? resolveCandidatePath(modelDir, idleAnimation, 'motion', scanIndex, warnings)
+    ? await resolveCandidatePath(modelDir, idleAnimation, 'motion', scanIndex, warnings)
     : null
   if (idleResolved) {
     ensureMotionEntry(motionEntries, idleResolved, 'companion', 1, 'Idle')
@@ -435,7 +445,7 @@ function appendVTubeStudioDeclarations(
 
   const idleLostAnimation = parsed.FileReferences?.IdleAnimationWhenTrackingLost
   const idleLostResolved = idleLostAnimation
-    ? resolveCandidatePath(modelDir, idleLostAnimation, 'motion', scanIndex, warnings)
+    ? await resolveCandidatePath(modelDir, idleLostAnimation, 'motion', scanIndex, warnings)
     : null
   if (idleLostResolved) {
     ensureMotionEntry(motionEntries, idleLostResolved, 'companion', 1, 'IdleTrackingLost')
@@ -452,7 +462,13 @@ function appendVTubeStudioDeclarations(
 
     const lowerFile = rawFile.toLowerCase()
     if (lowerFile.endsWith(EXPRESSION_SUFFIX) || isExpressionHotkeyAction(action)) {
-      const resolved = resolveCandidatePath(modelDir, rawFile, 'expression', scanIndex, warnings)
+      const resolved = await resolveCandidatePath(
+        modelDir,
+        rawFile,
+        'expression',
+        scanIndex,
+        warnings
+      )
       if (!resolved) {
         warnings.push(`伴生清单声明的表情文件不存在: ${rawFile}`)
         continue
@@ -470,7 +486,7 @@ function appendVTubeStudioDeclarations(
     }
 
     if (lowerFile.endsWith(MOTION_SUFFIX) || isMotionHotkeyAction(action)) {
-      const resolved = resolveCandidatePath(modelDir, rawFile, 'motion', scanIndex, warnings)
+      const resolved = await resolveCandidatePath(modelDir, rawFile, 'motion', scanIndex, warnings)
       if (!resolved) {
         warnings.push(`伴生清单声明的动作文件不存在: ${rawFile}`)
         continue
@@ -563,26 +579,26 @@ function ensureUniqueExpressionIds(
   })
 }
 
-export function discoverCubismModelCompatibility(
+export async function discoverCubismModelCompatibility(
   modelJsonPath: string
-): CubismCompatibilityManifest {
+): Promise<CubismCompatibilityManifest> {
   const modelAbsolutePath = path.resolve(modelJsonPath)
   const modelDir = path.dirname(modelAbsolutePath)
   const modelFile = normalizeRelativePath(path.basename(modelAbsolutePath))
   const expressionProfileAbsolutePath = path.join(modelDir, PROFILE_FILE_NAME)
   const warnings: string[] = []
-  const scanIndex = scanModelDirectory(modelDir)
+  const scanIndex = await scanModelDirectory(modelDir)
   const expressionEntries = new Map<string, ExpressionBuilderEntry>()
   const motionEntries = new Map<string, MotionBuilderEntry>()
 
   let modelJson: Model3Json = {}
   try {
-    modelJson = JSON.parse(fs.readFileSync(modelAbsolutePath, 'utf8')) as Model3Json
+    modelJson = JSON.parse(await fsp.readFile(modelAbsolutePath, 'utf8')) as Model3Json
   } catch (error) {
     warnings.push(`标准模型配置解析失败: ${error instanceof Error ? error.message : String(error)}`)
   }
 
-  const standardSummary = appendStandardDeclarations(
+  const standardSummary = await appendStandardDeclarations(
     modelDir,
     modelJson,
     expressionEntries,
@@ -591,7 +607,7 @@ export function discoverCubismModelCompatibility(
   )
 
   for (const companionFile of scanIndex.companionFiles) {
-    appendVTubeStudioDeclarations(
+    await appendVTubeStudioDeclarations(
       modelDir,
       companionFile,
       scanIndex,
@@ -629,10 +645,12 @@ export function discoverCubismModelCompatibility(
       return groups
     }, {})
 
+  const hasExpressionProfile = await ensureFileExists(modelDir, PROFILE_FILE_NAME)
+
   return {
     version: COMPATIBILITY_MANIFEST_VERSION,
     modelFile,
-    expressionProfileFile: ensureFileExists(modelDir, PROFILE_FILE_NAME)
+    expressionProfileFile: hasExpressionProfile
       ? normalizeRelativePath(path.relative(modelDir, expressionProfileAbsolutePath))
       : null,
     expressions,
@@ -649,11 +667,11 @@ export function discoverCubismModelCompatibility(
   }
 }
 
-export function createCubismModelLoadDescriptor(
+export async function createCubismModelLoadDescriptor(
   modelPath: string,
   modelJsonPath: string
-): CubismModelLoadDescriptor {
-  const compatibilityManifest = discoverCubismModelCompatibility(modelJsonPath)
+): Promise<CubismModelLoadDescriptor> {
+  const compatibilityManifest = await discoverCubismModelCompatibility(modelJsonPath)
   return {
     modelPath,
     compatibilityManifest,

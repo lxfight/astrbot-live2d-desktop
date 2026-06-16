@@ -9,11 +9,11 @@ import {
 import { mergeAliasConfigWithCatalog } from '../../src/shared/modelAliasMerge'
 import { readModelConfigFile, writeModelConfigFile } from './modelConfigPaths'
 
-export function buildCatalogForAbsoluteModel(
+export async function buildCatalogForAbsoluteModel(
   modelPath: string,
   modelAbsolutePath: string
-): ModelCatalogPayload {
-  const descriptor = createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
+): Promise<ModelCatalogPayload> {
+  const descriptor = await createCubismModelLoadDescriptor(modelPath, modelAbsolutePath)
   const displayName = path.basename(path.dirname(modelAbsolutePath)) || 'model'
   return buildModelCatalogFromManifest(modelPath, descriptor.compatibilityManifest, displayName)
 }
@@ -43,7 +43,7 @@ export async function ensureModelAliasConfig(
   motionDurations?: Record<string, number>
 ): Promise<{ config: ModelAliasConfigV2; created: boolean }> {
   const catalog = applyMotionDurationOverrides(
-    buildCatalogForAbsoluteModel(modelPath, modelAbsolutePath),
+    await buildCatalogForAbsoluteModel(modelPath, modelAbsolutePath),
     motionDurations
   )
 
