@@ -422,6 +422,12 @@ declare global {
         }>
         applyImport: (data: any) => Promise<{ success: boolean; error?: string }>
       }
+
+      migration: {
+        onBackgroundCompleted: (
+          callback: (payload: { copiedEntries: string[] }) => void
+        ) => Unsubscribe
+      }
     }
   }
 }

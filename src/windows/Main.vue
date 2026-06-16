@@ -1183,7 +1183,9 @@ function handleAudioEnd() {
 onMounted(async () => {
   // 并行启动：Cubism Core 预加载（预热，不 await）+ connection store 初始化。
   // Core 加载原本在 beforeMount 中阻塞 createApp，现在改为后台预热，实际等待由 loadModelWithState 统一处理。
-  void ensureCubismCoreLoaded()
+  void ensureCubismCoreLoaded().catch(error => {
+    console.warn('[主窗口] Cubism Core 预热失败（加载模型时会重试）:', error.message)
+  })
   const ensureInitPromise = connectionStore.ensureInitialized()
 
   // 启用性能监控（开发模式）
@@ -1423,6 +1425,7 @@ onMounted(async () => {
   )
 
   const lastModelPath = modelStore.getLastModel()
+  let autoLoadFailed = false
   // 如果 pending 模型加载成功，跳过自动加载（避免重复加载）
   if (consumedPendingLoad) {
     console.log('[主窗口] 已加载 pending 模型，跳过自动加载')
@@ -1435,6 +1438,7 @@ onMounted(async () => {
       console.log('[主窗口] 自动加载成功')
     } catch (error: any) {
       console.warn('[主窗口] 自动加载失败:', error.message)
+      autoLoadFailed = true
       loadingModelPath.value = ''
       // 自动加载失败，显示导入提示
       hasModel.value = false
@@ -1444,6 +1448,24 @@ onMounted(async () => {
     // 未启用自动加载或没有上次模型，显示导入提示
     hasModel.value = false
     openModelLibraryWindowOnce()
+  }
+
+  // 监听后台迁移完成（便携版首次启动时 models 迁移可能在自动加载后完成）
+  if (autoLoadFailed && lastModelPath) {
+    mainWindowDisposers.push(
+      window.electron.migration.onBackgroundCompleted(async payload => {
+        const copiedEntries = payload.copiedEntries || []
+        if (copiedEntries.includes('models')) {
+          console.log('[主窗口] 后台模型迁移完成，重试自动加载')
+          try {
+            await loadModelWithState(lastModelPath)
+            console.log('[主窗口] 重试自动加载成功')
+          } catch (error: any) {
+            console.warn('[主窗口] 重试自动加载失败:', error.message)
+          }
+        }
+      })
+    )
   }
 
   // 自动注册全局快捷键

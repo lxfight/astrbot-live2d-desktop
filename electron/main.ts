@@ -191,7 +191,7 @@ async function initialize() {
     )
   }
 
-  // 阶段 2: 后台迁移非关键数据（models、logs、lib 等大目录）
+  // 阶段 2: 后台迁移非关键数据（models、logs 等大目录）
   void migrateBackgroundAppDataIfNeeded().then(
     migrationResult => {
       logger.info('app_data_migration.background.completed', {
@@ -200,8 +200,12 @@ async function initialize() {
       })
       if (migrationResult.copiedEntries.length > 0) {
         console.log(
-          `[主进程] 已迁移 ${migrationResult.copiedEntries.length} 个后台数据条目（models/logs/lib）`
+          `[主进程] 已迁移 ${migrationResult.copiedEntries.length} 个后台数据条目（models/logs）`
         )
+        // 通知主窗口后台迁移完成（models 迁移完成后可重试自动加载）
+        broadcastToAllWindows('migration:backgroundCompleted', {
+          copiedEntries: migrationResult.copiedEntries
+        })
       }
       if (migrationResult.errors.length > 0) {
         console.warn(

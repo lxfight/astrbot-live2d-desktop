@@ -398,5 +398,11 @@ contextBridge.exposeInMainWorld('electron', {
   // 语言设置
   locale: {
     set: (locale: string) => ipcRenderer.invoke('locale:set', locale)
+  },
+
+  // 数据迁移事件
+  migration: {
+    onBackgroundCompleted: (callback: (payload: { copiedEntries: string[] }) => void) =>
+      subscribeIpc('migration:backgroundCompleted', callback)
   }
 })
