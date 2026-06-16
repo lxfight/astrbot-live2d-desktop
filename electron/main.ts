@@ -15,7 +15,6 @@ import {
   registerCubismCoreProtocol
 } from './utils/downloadCubismCore'
 import { registerHistoryResourceProtocol } from './utils/historyResourceProtocol'
-import { migrateLegacyAppDataIfNeeded } from './utils/appDataMigration'
 import { configureElectronDataPath } from './utils/appPaths'
 import {
   createScopedLogger,
@@ -172,36 +171,51 @@ async function initialize() {
   const timer = logger.timer('initialize')
   logger.info('initialize.start')
 
-  // 旧数据迁移改后台执行（失败仅 log，不阻塞窗口显示）
-  void migrateLegacyAppDataIfNeeded().then(
+  // 阶段 1: 同步迁移关键数据（history.db、配置、浏览器存储）
+  // 必须在 initDatabase 前完成，避免目标已存在导致跳过
+  const { migrateCriticalAppDataIfNeeded, migrateBackgroundAppDataIfNeeded } =
+    await import('./utils/appDataMigration')
+  const criticalMigrationResult = await migrateCriticalAppDataIfNeeded()
+  logger.info('app_data_migration.critical.completed', {
+    copiedCount: criticalMigrationResult.copiedEntries.length,
+    errorCount: criticalMigrationResult.errors.length
+  })
+  if (criticalMigrationResult.copiedEntries.length > 0) {
+    console.log(
+      `[主进程] 已迁移 ${criticalMigrationResult.copiedEntries.length} 个关键数据条目（history.db/配置/存储）`
+    )
+  }
+  if (criticalMigrationResult.errors.length > 0) {
+    console.warn(
+      `[主进程] 关键数据迁移存在 ${criticalMigrationResult.errors.length} 个问题: ${criticalMigrationResult.errors.join(' | ')}`
+    )
+  }
+
+  // 阶段 2: 后台迁移非关键数据（models、logs、lib 等大目录）
+  void migrateBackgroundAppDataIfNeeded().then(
     migrationResult => {
-      logger.info('app_data_migration.completed', {
+      logger.info('app_data_migration.background.completed', {
         copiedCount: migrationResult.copiedEntries.length,
         errorCount: migrationResult.errors.length
       })
       if (migrationResult.copiedEntries.length > 0) {
         console.log(
-          `[主进程] 已复制 ${migrationResult.copiedEntries.length} 个旧数据条目到当前数据目录`
+          `[主进程] 已迁移 ${migrationResult.copiedEntries.length} 个后台数据条目（models/logs/lib）`
         )
       }
       if (migrationResult.errors.length > 0) {
-        const displayedErrors = migrationResult.errors.slice(0, 5)
-        const remainingErrorCount = migrationResult.errors.length - displayedErrors.length
-        const truncatedSuffix =
-          remainingErrorCount > 0 ? ` | 另外 ${remainingErrorCount} 个问题未展开` : ''
-
         console.warn(
-          `[主进程] 数据迁移存在 ${migrationResult.errors.length} 个问题: ${displayedErrors.join(' | ')}${truncatedSuffix}`
+          `[主进程] 后台数据迁移存在 ${migrationResult.errors.length} 个问题: ${migrationResult.errors.slice(0, 3).join(' | ')}`
         )
       }
     },
     error => {
-      console.warn('[主进程] 旧数据迁移失败:', error)
-      logger.warn('app_data_migration.failed', { error })
+      console.warn('[主进程] 后台数据迁移失败:', error)
+      logger.warn('app_data_migration.background.failed', { error })
     }
   )
 
-  // 初始化数据库（必须同步，后续依赖）
+  // 初始化数据库（关键数据已同步迁移完成）
   try {
     initDatabase()
     applyPersistedLogLevel()

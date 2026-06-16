@@ -3,13 +3,12 @@ import path from 'node:path'
 import { getAppDataPathContext } from './appPaths'
 
 export const APP_DATA_MIGRATION_MARKER_FILE = '.app-data-migration-v1.json'
-export const APP_DATA_MIGRATION_ENTRIES = [
+
+// 关键数据：必须在 initDatabase 前同步迁移（避免目标已存在导致跳过）
+export const APP_DATA_MIGRATION_CRITICAL_ENTRIES = [
   'history.db',
   'history.db-shm',
   'history.db-wal',
-  'models',
-  'logs',
-  'lib',
   'window-watcher-config.json',
   'Local Storage',
   'Session Storage',
@@ -20,6 +19,14 @@ export const APP_DATA_MIGRATION_ENTRIES = [
   'Cookies-journal',
   path.join('Network', 'Cookies'),
   path.join('Network', 'Cookies-journal')
+] as const
+
+// 非关键数据：可后台迁移（模型、日志、lib 等大目录）
+export const APP_DATA_MIGRATION_BACKGROUND_ENTRIES = ['models', 'logs', 'lib'] as const
+
+export const APP_DATA_MIGRATION_ENTRIES = [
+  ...APP_DATA_MIGRATION_CRITICAL_ENTRIES,
+  ...APP_DATA_MIGRATION_BACKGROUND_ENTRIES
 ] as const
 
 export interface AppDataMigrationResult {
@@ -201,5 +208,61 @@ export async function migrateLegacyAppDataIfNeeded(): Promise<AppDataMigrationRe
     sourceRoot: context.originalUserDataPath,
     targetRoot: context.resolvedUserDataPath,
     markerFileName: APP_DATA_MIGRATION_MARKER_FILE
+  })
+}
+
+/**
+ * 仅迁移关键数据（history.db、配置、浏览器存储）
+ * 必须在 initDatabase 前同步调用，避免目标已存在导致跳过
+ */
+export async function migrateCriticalAppDataIfNeeded(): Promise<AppDataMigrationResult> {
+  const context = getAppDataPathContext()
+  const markerPath = path.join(context.resolvedUserDataPath, APP_DATA_MIGRATION_MARKER_FILE)
+
+  if (!context.isPortable) {
+    return {
+      attempted: false,
+      sourceRoot: context.originalUserDataPath,
+      targetRoot: context.resolvedUserDataPath,
+      markerPath,
+      copiedEntries: [],
+      errors: [],
+      skippedReason: 'not-portable'
+    }
+  }
+
+  return migrateAppDataByCopy({
+    sourceRoot: context.originalUserDataPath,
+    targetRoot: context.resolvedUserDataPath,
+    markerFileName: APP_DATA_MIGRATION_MARKER_FILE,
+    entries: APP_DATA_MIGRATION_CRITICAL_ENTRIES
+  })
+}
+
+/**
+ * 仅迁移非关键数据（models、logs、lib 等大目录）
+ * 可后台调用，不阻塞窗口显示
+ */
+export async function migrateBackgroundAppDataIfNeeded(): Promise<AppDataMigrationResult> {
+  const context = getAppDataPathContext()
+  const markerPath = path.join(context.resolvedUserDataPath, APP_DATA_MIGRATION_MARKER_FILE)
+
+  if (!context.isPortable) {
+    return {
+      attempted: false,
+      sourceRoot: context.originalUserDataPath,
+      targetRoot: context.resolvedUserDataPath,
+      markerPath,
+      copiedEntries: [],
+      errors: [],
+      skippedReason: 'not-portable'
+    }
+  }
+
+  return migrateAppDataByCopy({
+    sourceRoot: context.originalUserDataPath,
+    targetRoot: context.resolvedUserDataPath,
+    markerFileName: APP_DATA_MIGRATION_MARKER_FILE,
+    entries: APP_DATA_MIGRATION_BACKGROUND_ENTRIES
   })
 }
