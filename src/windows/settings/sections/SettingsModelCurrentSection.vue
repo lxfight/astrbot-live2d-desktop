@@ -200,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, h } from 'vue'
+import { computed, onMounted, watch, h } from 'vue'
 import { NButton, NInput, NSelect, NSwitch, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
@@ -210,13 +210,9 @@ import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/stores/theme'
 import { useAdvancedSettingsDomain } from '../domains/createAdvancedSettingsDomain'
 import { useModelSettingsDomain } from '../domains/createModelSettingsDomain'
-import {
-  buildModelConfigFromCatalog,
-  generateExpressionAliasFromId,
-  generateMotionAliasFromId,
-  type ModelCatalogPayload
-} from '@/shared/modelConfigFactory'
-import { mergeAliasConfigWithCatalog, parseMotionIdParts } from '@/shared/modelAliasMerge'
+import { useModelAliasConfigEditor } from '../composables/useModelAliasConfigEditor'
+import type { ExpressionAliasConfig, MotionAliasConfig } from '@/shared/modelConfigFactory'
+import { parseMotionIdParts } from '@/shared/modelAliasMerge'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -240,9 +236,16 @@ const {
 const themeStore = useThemeStore()
 const { manualColorOverride } = storeToRefs(themeStore)
 
-const saving = ref(false)
-const motionAliases = ref<any[]>([])
-const expressionAliases = ref<any[]>([])
+const {
+  saving,
+  motionAliases,
+  expressionAliases,
+  loadConfig,
+  autoGenerateAliases,
+  saveConfig,
+  patchMotionAlias,
+  patchExpressionAlias
+} = useModelAliasConfigEditor(currentModelPath)
 
 function handleColorPick(event: Event) {
   const input = event.target as HTMLInputElement
@@ -310,19 +313,28 @@ async function captureModelThumbnail() {
   console.log('[别名配置] 缩略图 dataUrl 长度:', result.dataUrl.length)
 }
 
-const motionColumns = computed<DataTableColumns<any>>(() => [
+const motionColumns = computed<DataTableColumns<MotionAliasConfig>>(() => [
   {
     key: 'enabled',
     title: t('settings.modelConfig.enabled'),
     width: 80,
-    render: row => h(NSwitch, { value: row.enabled, onUpdateValue: v => (row.enabled = v) })
+    render: row =>
+      h(NSwitch, {
+        value: row.enabled,
+        onUpdateValue: value => patchMotionAlias(row.id, { enabled: value })
+      })
   },
   { key: 'id', title: t('settings.modelConfig.motionId'), width: 120 },
   {
     key: 'name',
     title: t('settings.modelConfig.alias'),
     width: 150,
-    render: row => h(NInput, { value: row.name, onUpdateValue: v => (row.name = v), size: 'small' })
+    render: row =>
+      h(NInput, {
+        value: row.name,
+        onUpdateValue: value => patchMotionAlias(row.id, { name: value }),
+        size: 'small'
+      })
   },
   {
     key: 'category',
@@ -331,7 +343,8 @@ const motionColumns = computed<DataTableColumns<any>>(() => [
     render: row =>
       h(NSelect, {
         value: row.category,
-        onUpdateValue: v => (row.category = v),
+        onUpdateValue: value =>
+          patchMotionAlias(row.id, { category: value as MotionAliasConfig['category'] }),
         options: [
           { label: t('settings.modelConfig.idle'), value: 'idle' },
           { label: t('settings.modelConfig.action'), value: 'action' }
@@ -345,7 +358,7 @@ const motionColumns = computed<DataTableColumns<any>>(() => [
     render: row =>
       h(NInput, {
         value: row.description,
-        onUpdateValue: v => (row.description = v),
+        onUpdateValue: value => patchMotionAlias(row.id, { description: value }),
         size: 'small'
       })
   },
@@ -362,19 +375,28 @@ const motionColumns = computed<DataTableColumns<any>>(() => [
   }
 ])
 
-const expressionColumns = computed<DataTableColumns<any>>(() => [
+const expressionColumns = computed<DataTableColumns<ExpressionAliasConfig>>(() => [
   {
     key: 'enabled',
     title: t('settings.modelConfig.enabled'),
     width: 80,
-    render: row => h(NSwitch, { value: row.enabled, onUpdateValue: v => (row.enabled = v) })
+    render: row =>
+      h(NSwitch, {
+        value: row.enabled,
+        onUpdateValue: value => patchExpressionAlias(row.id, { enabled: value })
+      })
   },
   { key: 'id', title: t('settings.modelConfig.expressionId'), width: 120 },
   {
     key: 'name',
     title: t('settings.modelConfig.alias'),
     width: 150,
-    render: row => h(NInput, { value: row.name, onUpdateValue: v => (row.name = v), size: 'small' })
+    render: row =>
+      h(NInput, {
+        value: row.name,
+        onUpdateValue: value => patchExpressionAlias(row.id, { name: value }),
+        size: 'small'
+      })
   },
   {
     key: 'description',
@@ -382,7 +404,7 @@ const expressionColumns = computed<DataTableColumns<any>>(() => [
     render: row =>
       h(NInput, {
         value: row.description,
-        onUpdateValue: v => (row.description = v),
+        onUpdateValue: value => patchExpressionAlias(row.id, { description: value }),
         size: 'small'
       })
   },
@@ -398,109 +420,6 @@ const expressionColumns = computed<DataTableColumns<any>>(() => [
       )
   }
 ])
-
-async function loadFromModelCatalog() {
-  const modelPath = currentModelPath.value
-  if (!modelPath) return
-
-  const catalogResult = await window.electron.model.getCatalog(modelPath)
-  if (!catalogResult.success || !catalogResult.catalog) {
-    console.log('[别名配置] 无法从主进程获取模型目录:', catalogResult.error)
-    return
-  }
-
-  const config = buildModelConfigFromCatalog(catalogResult.catalog as ModelCatalogPayload)
-  motionAliases.value = config.motionAliases
-  expressionAliases.value = config.expressionAliases
-  console.log(
-    '[别名配置] 从模型目录生成:',
-    motionAliases.value.length,
-    '个动作,',
-    expressionAliases.value.length,
-    '个表情'
-  )
-}
-
-async function loadConfig() {
-  const modelPath = currentModelPath.value
-  if (!modelPath) {
-    console.log('[别名配置] 没有当前模型')
-    return
-  }
-
-  console.log('[别名配置] 开始加载配置:', modelPath)
-  try {
-    const result = await window.electron.modelConfig.load(modelPath)
-
-    if (result.success && result.config) {
-      const catalogResult = await window.electron.model.getCatalog(modelPath)
-      if (catalogResult.success && catalogResult.catalog) {
-        const merged = mergeAliasConfigWithCatalog(
-          result.config,
-          catalogResult.catalog as ModelCatalogPayload
-        )
-        motionAliases.value = merged.motionAliases
-        expressionAliases.value = merged.expressionAliases
-        console.log(
-          '[别名配置] 已合并配置与目录:',
-          motionAliases.value.length,
-          '动作,',
-          expressionAliases.value.length,
-          '表情'
-        )
-      } else {
-        motionAliases.value = result.config.motionAliases
-        expressionAliases.value = result.config.expressionAliases
-      }
-    } else {
-      console.log('[别名配置] 无配置文件，从模型信息生成')
-      await loadFromModelCatalog()
-    }
-  } catch (error) {
-    console.error('[别名配置] 加载失败:', error)
-    await loadFromModelCatalog()
-  }
-}
-
-function autoGenerateAliases() {
-  motionAliases.value.forEach(m => {
-    if (!m.name || m.name === m.id) {
-      m.name = generateMotionAliasFromId(m.id)
-    }
-  })
-  expressionAliases.value.forEach(e => {
-    if (!e.name || e.name === e.id) {
-      e.name = generateExpressionAliasFromId(e.id)
-    }
-  })
-  message.success(t('settings.modelConfig.generated'))
-}
-
-async function saveConfig() {
-  const modelPath = currentModelPath.value
-  if (!modelPath) return
-
-  saving.value = true
-  try {
-    const config = {
-      modelPath,
-      version: '2.0',
-      motionAliases: motionAliases.value,
-      expressionAliases: expressionAliases.value
-    }
-
-    const result = await window.electron.modelConfig.save(config)
-    if (result.success) {
-      message.success(t('settings.modelConfig.saved'))
-    } else {
-      message.error(result.error || t('settings.modelConfig.saveFailed'))
-    }
-  } catch (error: any) {
-    message.error(error.message)
-  } finally {
-    saving.value = false
-  }
-}
 
 onMounted(() => {
   console.log('[别名配置] 组件挂载, currentModelPath:', currentModelPath.value)
