@@ -6,6 +6,7 @@ const en: I18nMessageSchema = {
   'main.empty.subtitle': 'No model imported yet. Please import a Live2D model first.',
   'main.empty.import': 'Import Model',
   'main.empty.settings': 'Or manage models in Settings',
+  'main.loading.model': 'Loading model',
 
   // Main window — status toasts
   'main.status.connected': 'Connected to server',

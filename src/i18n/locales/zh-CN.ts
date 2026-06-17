@@ -4,6 +4,7 @@ export default {
   'main.empty.subtitle': '还没有导入模型，请先导入一个 Live2D 模型',
   'main.empty.import': '导入模型',
   'main.empty.settings': '或者在设置中管理模型',
+  'main.loading.model': '模型加载中',
 
   // Main window — status toasts
   'main.status.connected': '已连接到服务器',

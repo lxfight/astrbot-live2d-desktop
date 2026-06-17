@@ -2,7 +2,7 @@
   <div class="main-window" :style="mainWindowStyle" @click="handleWindowClick">
     <!-- Live2D 画布 -->
     <Transition name="fade">
-      <div v-if="!hasModel" class="empty-state">
+      <div v-if="!hasModel && !isModelLoading" class="empty-state">
         <div class="empty-content">
           <div class="empty-icon">
             <Drama :size="80" />
@@ -24,6 +24,17 @@
       </div>
     </Transition>
 
+    <!-- 模型加载占位 -->
+    <Transition name="model-loading">
+      <div
+        v-if="isModelLoading && !hasModel"
+        class="model-loading-anchor"
+        :style="modelLoadingStyle"
+      >
+        <n-spin size="large" :description="$t('main.loading.model')" />
+      </div>
+    </Transition>
+
     <!-- Live2D 画布 -->
     <Live2DCanvas
       v-show="hasModel"
@@ -32,6 +43,7 @@
       @model-loaded="handleModelLoaded"
       @model-info-changed="handleModelInfoChanged"
       @model-position-changed="handleModelPositionChanged"
+      @model-overlay-changed="handleModelOverlayChanged"
     />
 
     <!-- 媒体播放器 -->
@@ -298,6 +310,11 @@ const PLATFORM_COMPATIBILITY_HINT_KEY = 'platformCompatibilityHintShown'
 const currentUserName = ref(t('main.defaultUserName'))
 const hasModel = ref(false)
 const loadingModelPath = ref('')
+const modelLoadingStyle = ref<FloatingOverlayStyle>({
+  left: `${modelPositionX}px`,
+  top: `${modelPositionY}px`
+})
+let modelOverlayAnchor: { anchorX: number; topCenterY: number; bottomCenterY: number } | null = null
 let themeExtractionRevision = 0
 let modelLoadInFlight = false
 let hasOpenedModelLibraryWindow = false
@@ -572,9 +589,12 @@ function handleModelRightClick(position: { x: number; y: number }) {
   _handleModelRightClick(position, { x: modelPositionX, y: modelPositionY })
 }
 
-// 主窗口可见性由主进程统一协调：只有模型加载成功后才显示透明桌面窗口
+const isModelLoading = computed(() => Boolean(loadingModelPath.value))
+const shouldShowMainWindow = computed(() => hasModel.value || isModelLoading.value)
+
+// 主窗口可见性由主进程统一协调：模型加载中先显示占位，加载成功后显示模型
 watch(
-  hasModel,
+  shouldShowMainWindow,
   async value => {
     try {
       await window.electron.desktopBehavior.setModelReady(value)
@@ -725,6 +745,7 @@ performQueue.onIdle(() => {
 })
 
 function applyModelPositionState(savedPosition: { x: number; y: number } | null) {
+  modelOverlayAnchor = null
   if (savedPosition) {
     console.log('[主窗口] 使用保存的模型位置:', savedPosition)
     modelPositionX = savedPosition.x
@@ -739,13 +760,15 @@ function applyModelPositionState(savedPosition: { x: number; y: number } | null)
 }
 
 async function loadModelWithState(modelPath: string, options: { showWarnings?: boolean } = {}) {
+  const savedPosition = modelStore.getModelPosition(modelPath)
+  const savedScale = modelStore.getModelScale(modelPath)
+  loadingModelPath.value = modelPath
+  applyModelPositionState(savedPosition)
+
   // 确保 Cubism Core 已加载（防止手动加载/IPC 加载与 onMounted 预加载竞态）
   await ensureCubismCoreLoaded()
 
   const shouldShowWarnings = options.showWarnings !== false
-  const savedPosition = modelStore.getModelPosition(modelPath)
-  const savedScale = modelStore.getModelScale(modelPath)
-  loadingModelPath.value = modelPath
   const prepareResult = await window.electron.model.prepareLoad(modelPath)
   if (!prepareResult.success || !prepareResult.descriptor) {
     throw new Error(prepareResult.error || t('main.status.modelInfoParseFailed'))
@@ -1016,9 +1039,19 @@ async function syncCurrentModelInfoToBridge(reason: string) {
 function handleModelPositionChanged(position: { x: number; y: number }) {
   modelPositionX = position.x
   modelPositionY = position.y
+  modelOverlayAnchor = null
   updateUIPositions()
   // 保存模型位置
   modelStore.setModelPosition(position.x, position.y)
+}
+
+function handleModelOverlayChanged(bounds: {
+  anchorX: number
+  topCenterY: number
+  bottomCenterY: number
+}) {
+  modelOverlayAnchor = bounds
+  updateUIPositions()
 }
 
 // 更新 UI 元素位置（跟随模型）
@@ -1035,6 +1068,20 @@ function updateUIPositions() {
     modelStatusStyle.value = {
       left: `${overlayAnchor.anchorX}px`,
       top: `${overlayAnchor.statusTop}px`
+    }
+  }
+
+  // 更新模型加载占位位置（加载前没有模型边界时使用保存的模型中心点）
+  if (isModelLoading.value && !hasModel.value) {
+    const loadingAnchor = modelOverlayAnchor
+      ? {
+          x: modelOverlayAnchor.anchorX,
+          y: (modelOverlayAnchor.topCenterY + modelOverlayAnchor.bottomCenterY) / 2
+        }
+      : { x: modelPositionX, y: modelPositionY }
+    modelLoadingStyle.value = {
+      left: `${loadingAnchor.x}px`,
+      top: `${loadingAnchor.y}px`
     }
   }
 

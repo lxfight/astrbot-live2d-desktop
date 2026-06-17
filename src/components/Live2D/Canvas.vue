@@ -93,6 +93,7 @@ const emit = defineEmits<{
   modelRightClick: [{ x: number; y: number }]
   modelInfoChanged: [CubismModelInfo]
   modelPositionChanged: [{ x: number; y: number }]
+  modelOverlayChanged: [{ anchorX: number; topCenterY: number; bottomCenterY: number }]
 }>()
 
 /**
@@ -132,7 +133,9 @@ async function loadModel(
 
     // 初始化 WebGL 并启动渲染循环，传入初始位置
     model.initWebGL(canvasRef.value, initialPosition, initialScale)
+    emitModelOverlayChanged()
     await model.loadTextures()
+    emitModelOverlayChanged()
     startRenderLoop()
 
     console.log('[Live2D] 模型加载成功')
@@ -280,6 +283,16 @@ function getModelOverlayBounds(): {
 } | null {
   if (!model) return null
   return model.getModelOverlayBounds()
+}
+
+function emitModelOverlayChanged() {
+  const bounds = getModelOverlayBounds()
+  if (!bounds) return
+  emit('modelOverlayChanged', {
+    anchorX: bounds.anchorX,
+    topCenterY: bounds.topCenterY,
+    bottomCenterY: bounds.bottomCenterY
+  })
 }
 
 // 拖动相关状态
@@ -482,6 +495,7 @@ function handleResize() {
 
     // 调整模型大小（不重新创建 Application）
     model.resize(window.innerWidth, window.innerHeight)
+    emitModelOverlayChanged()
   }
 }
 

@@ -13,7 +13,8 @@
 .bubble,
 .recording-toast,
 .input-panel-container,
-.empty-state {
+.empty-state,
+.model-loading-anchor {
   pointer-events: auto; /* 这些元素不穿透 */
 }
 
@@ -71,6 +72,48 @@
       margin-bottom: 32px;
     }
   }
+}
+
+.model-loading-anchor {
+  position: absolute;
+  z-index: 20;
+  min-width: 132px;
+  min-height: 104px;
+  padding: 18px 22px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
+    rgba(20, 20, 24, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+
+  :deep(.n-spin-description) {
+    color: var(--color-text-primary);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
+.model-loading-enter-active,
+.model-loading-leave-active {
+  transition:
+    opacity var(--duration-norm) var(--ease-out),
+    transform var(--duration-norm) var(--ease-out);
+}
+
+.model-loading-enter-from,
+.model-loading-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
 }
 
 .fade-enter-active,
