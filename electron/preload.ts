@@ -357,7 +357,10 @@ contextBridge.exposeInMainWorld('electron', {
     save: (config: any) => ipcRenderer.invoke('modelConfig:save', config),
     delete: (modelPath: string) => ipcRenderer.invoke('modelConfig:delete', modelPath),
     ensure: (payload: { modelPath: string; motionDurations?: Record<string, number> }) =>
-      ipcRenderer.invoke('modelConfig:ensure', payload)
+      ipcRenderer.invoke('modelConfig:ensure', payload),
+    onChanged: (
+      callback: (payload: { modelPath: string; configPath?: string; deleted?: boolean }) => void
+    ) => subscribeIpc('modelConfig:changed', callback)
   },
 
   // 全局快捷键

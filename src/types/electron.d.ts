@@ -357,8 +357,13 @@ declare global {
           success: boolean
           config?: any
           created?: boolean
+          changed?: boolean
+          configPath?: string
           error?: string
         }>
+        onChanged: (
+          callback: (payload: { modelPath: string; configPath?: string; deleted?: boolean }) => void
+        ) => Unsubscribe
       }
       shortcut: {
         register: (accelerator: string) => Promise<{ success: boolean; error?: string }>
