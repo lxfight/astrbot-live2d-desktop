@@ -36,6 +36,12 @@ Response:
         "id": "window:123:0",
         "title": "main.py - Visual Studio Code",
         "processName": "Code",
+        "app": {
+          "displayName": "VS Code",
+          "canonicalKey": "vscode",
+          "confidence": "high",
+          "isSystem": false
+        },
         "isActive": true,
         "bounds": {
           "x": 0,
@@ -54,6 +60,10 @@ Response:
 | `windows[].id` | string | Desktop window ID, usable as `desktop.capture.screenshot.windowId`. |
 | `windows[].title` | string | Window title. |
 | `windows[].processName` | string | Process name; may be empty on some platforms. |
+| `windows[].app.displayName` | string | Normalized app display name. |
+| `windows[].app.canonicalKey` | string | Stable app identity key; prefer this field for cross-platform app matching. |
+| `windows[].app.confidence` | string | Recognition confidence: `high`, `medium`, or `low`. |
+| `windows[].app.isSystem` | boolean | Whether the app is recognized as a system/shell app. |
 | `windows[].isActive` | boolean | Whether this is the active window. |
 | `windows[].bounds` | object | Window bounds; availability depends on platform. |
 

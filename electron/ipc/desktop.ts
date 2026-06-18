@@ -8,6 +8,7 @@ import { loadScreenshotSettings } from '../utils/screenshotSettings'
 import { safeGetActiveWindow as safeLoadActiveWindow } from '../utils/activeWinLoader'
 import { createScopedLogger } from '../utils/logger'
 import { loadDesktopAwarenessSettings } from '../desktopAwareness/settings'
+import { resolveAppIdentity } from '../desktopAwareness/appIdentity'
 import { t } from '../../src/i18n/mainProcess'
 import type {
   DesktopWindowInfo,
@@ -143,11 +144,29 @@ export interface ToolCallContext {
 
 // ──────── 内部工具 ────────
 
+function resolveActiveWinApp(win: any): DesktopWindowInfo['app'] {
+  const identity = resolveAppIdentity({
+    processName: win?.owner?.name ?? '',
+    processPath: win?.owner?.path ?? '',
+    title: win?.title ?? '',
+    bundleId: win?.owner?.bundleId,
+    appId: win?.owner?.appId
+  })
+
+  return {
+    displayName: identity.displayName,
+    canonicalKey: identity.canonicalKey,
+    confidence: identity.confidence,
+    isSystem: identity.isSystem
+  }
+}
+
 function toWindowInfo(win: any): DesktopWindowInfo {
   return {
     id: String(win.id ?? ''),
     title: win.title ?? '',
     processName: win.owner?.name ?? '',
+    app: resolveActiveWinApp(win),
     isActive: true
   }
 }
@@ -187,7 +206,8 @@ export async function getActiveWindow(): Promise<DesktopWindowActivePayload> {
   timer.done({
     hasWindow: true,
     title: windowInfo.title,
-    processName: windowInfo.processName
+    processName: windowInfo.processName,
+    appKey: windowInfo.app?.canonicalKey
   })
   return { window: windowInfo }
 }
@@ -326,7 +346,8 @@ export async function captureScreenshot(
     window: {
       id: src.id,
       title: src.name,
-      processName: activeWin?.owner?.name
+      processName: activeWin?.owner?.name,
+      app: activeWin ? resolveActiveWinApp(activeWin) : undefined
     }
   }
   timer.done({
@@ -353,7 +374,7 @@ export function getDesktopTools(): DesktopToolDeclaration[] {
     {
       name: 'get_active_window',
       description:
-        '获取用户当前正在使用的活跃窗口信息（标题、进程名）。当需要了解用户正在做什么时调用。',
+        '获取用户当前正在使用的活跃窗口信息（标题、进程名、稳定应用标识）。当需要了解用户正在做什么时调用。',
       parameters: []
     },
     {

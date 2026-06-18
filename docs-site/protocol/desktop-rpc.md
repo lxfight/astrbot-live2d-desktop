@@ -36,6 +36,12 @@
         "id": "window:123:0",
         "title": "main.py - Visual Studio Code",
         "processName": "Code",
+        "app": {
+          "displayName": "VS Code",
+          "canonicalKey": "vscode",
+          "confidence": "high",
+          "isSystem": false
+        },
         "isActive": true,
         "bounds": {
           "x": 0,
@@ -54,6 +60,10 @@
 | `windows[].id` | string | 桌面端窗口 ID，可用于 `desktop.capture.screenshot.windowId`。 |
 | `windows[].title` | string | 窗口标题。 |
 | `windows[].processName` | string | 进程名；部分平台可能为空。 |
+| `windows[].app.displayName` | string | 归一化后的应用显示名。 |
+| `windows[].app.canonicalKey` | string | 稳定应用识别键，跨平台优先使用该字段匹配应用。 |
+| `windows[].app.confidence` | string | 识别置信度：`high`、`medium`、`low`。 |
+| `windows[].app.isSystem` | boolean | 是否被识别为系统/外壳类应用。 |
 | `windows[].isActive` | boolean | 是否为活跃窗口。 |
 | `windows[].bounds` | object | 窗口边界；是否可用取决于平台。 |
 

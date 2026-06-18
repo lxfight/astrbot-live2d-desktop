@@ -284,6 +284,12 @@ export interface DesktopWindowInfo {
   id: string
   title: string
   processName: string
+  app?: {
+    displayName: string
+    canonicalKey: string
+    confidence: 'high' | 'medium' | 'low'
+    isSystem: boolean
+  }
   isActive?: boolean
   bounds?: { x: number; y: number; width: number; height: number }
 }
@@ -310,7 +316,12 @@ export interface DesktopCaptureRequestPayload {
 // 桌面感知 - 截图响应
 export interface DesktopCaptureResponsePayload {
   image: string // data:image/png;base64,...
-  window?: { id?: string; title: string; processName?: string }
+  window?: {
+    id?: string
+    title: string
+    processName?: string
+    app?: DesktopWindowInfo['app']
+  }
   width: number
   height: number
 }

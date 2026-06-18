@@ -23,6 +23,17 @@ describe('desktopAwareness app identity', () => {
     expect(appMatchesTokens(macChrome, ['chrome.exe'])).toBe(true)
   })
 
+  it('uses bundle and app ids as app match keys', () => {
+    const edge = resolveAppIdentity({
+      processName: 'Microsoft Edge',
+      bundleId: 'com.microsoft.edgemac'
+    })
+
+    expect(edge.canonicalKey).toBe('edge')
+    expect(appMatchesTokens(edge, ['msedge.exe'])).toBe(true)
+    expect(appMatchesTokens(edge, ['com.microsoft.edgemac'])).toBe(true)
+  })
+
   it('marks common shell windows as system apps', () => {
     expect(resolveAppIdentity({ processName: 'explorer.exe' }).isSystem).toBe(true)
     expect(resolveAppIdentity({ processName: 'TextInputHost.exe' }).isSystem).toBe(true)
