@@ -8,10 +8,10 @@
   --surface-bg-hover: #203048;
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-border-hover: rgba(255, 255, 255, 0.18);
-  --color-text-primary: rgba(247, 249, 252, 0.96);
-  --color-text-secondary: rgba(185, 192, 207, 0.82);
-  --color-text-tertiary: rgba(132, 141, 160, 0.68);
-  --color-text-disabled: rgba(98, 110, 129, 0.42);
+  --color-text-primary: rgba(248, 250, 252, 0.98);
+  --color-text-secondary: rgba(226, 232, 240, 0.82);
+  --color-text-tertiary: rgba(148, 163, 184, 0.72);
+  --color-text-disabled: rgba(100, 116, 139, 0.5);
   --color-accent: #74a5ff;
   --color-accent-hover: #8db5ff;
   --color-accent-pressed: #5182dc;
@@ -97,26 +97,26 @@
   --settings-mesh-1: rgba(116, 165, 255, 0.18);
   --settings-mesh-2: rgba(180, 160, 255, 0.14);
   --settings-mesh-3: rgba(125, 225, 245, 0.1);
-  /* 设置页结构 tokens - 更精致的层级与表面 */
-  --settings-bg-base: #13100d;
-  --settings-bg-sidebar: rgba(28, 22, 18, 0.72);
-  --settings-bg-main: #1a1411;
-  --settings-bg-content: rgba(20, 16, 13, 0.55);
-  --settings-bg-surface: rgba(58, 46, 39, 0.7);
-  --settings-bg-surface-strong: rgba(74, 60, 51, 0.88);
-  --settings-bg-surface-hover: rgba(255, 255, 255, 0.05);
-  --settings-bg-active: rgba(116, 165, 255, 0.14);
-  --settings-bg-elevated: rgba(48, 38, 32, 0.96);
-  --settings-border: rgba(255, 255, 255, 0.07);
-  --settings-border-strong: rgba(255, 255, 255, 0.12);
-  --settings-border-subtle: rgba(255, 255, 255, 0.05);
-  --settings-control-bg: rgba(38, 30, 25, 0.85);
-  --settings-control-border: rgba(255, 255, 255, 0.08);
-  --settings-text-muted: rgba(178, 168, 156, 0.7);
+  /* 设置页结构 tokens - 与冷灰蓝「编辑台」风格对齐，避免与运行时覆盖冲突 */
+  --settings-bg-base: #121820;
+  --settings-bg-sidebar: rgba(21, 28, 40, 0.86);
+  --settings-bg-main: #141a26;
+  --settings-bg-content: #141a26;
+  --settings-bg-surface: #1e2634;
+  --settings-bg-surface-strong: #283244;
+  --settings-bg-surface-hover: #283244;
+  --settings-bg-active: rgba(116, 165, 255, 0.16);
+  --settings-bg-elevated: #1a2230;
+  --settings-border: rgba(226, 232, 240, 0.1);
+  --settings-border-strong: rgba(226, 232, 240, 0.16);
+  --settings-border-subtle: rgba(226, 232, 240, 0.06);
+  --settings-control-bg: #222a38;
+  --settings-control-border: rgba(226, 232, 240, 0.14);
+  --settings-text-muted: rgba(203, 213, 225, 0.62);
   --settings-titlebar-bg: linear-gradient(
     180deg,
-    rgba(36, 28, 23, 0.86) 0%,
-    rgba(28, 22, 18, 0.72) 100%
+    rgba(26, 34, 48, 0.92) 0%,
+    rgba(21, 28, 40, 0.82) 100%
   );
   --settings-shadow: 0 14px 40px rgba(0, 0, 0, 0.36), 0 2px 8px rgba(0, 0, 0, 0.22);
   --settings-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.22);
