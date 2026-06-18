@@ -45,37 +45,55 @@ const titleChars = computed(() => [...props.title])
 
 <style scoped>
 .settings-page-header {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  position: relative;
 }
 
 .settings-page-header--immersive {
   text-align: center;
-  margin-bottom: 36px;
-  padding-top: 12px;
+  margin-bottom: 38px;
+  padding-top: 14px;
+}
+
+.settings-page-header__inner {
+  position: relative;
 }
 
 .settings-page-header__title {
   margin: 0 0 8px;
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.2;
+  letter-spacing: -0.035em;
+  line-height: 1.18;
 }
 
 .settings-page-header--immersive .settings-page-header__title {
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(30px, 4.2vw, 42px);
+  letter-spacing: -0.045em;
 }
 
 .settings-page-header__title-text {
   background: linear-gradient(
-    135deg,
+    120deg,
     var(--color-text-primary) 0%,
-    rgba(var(--color-accent-rgb), 0.92) 55%,
-    #8b7fd4 100%
+    rgba(var(--color-accent-rgb), 0.94) 55%,
+    #b4a0ff 100%
   );
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: settings-title-shimmer 6s var(--ease-in-out) infinite;
+}
+
+@keyframes settings-title-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .settings-page-header__title-art {
@@ -93,16 +111,20 @@ const titleChars = computed(() => [...props.title])
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: settings-char-in 0.55s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) backwards;
+  animation: settings-char-in 0.62s var(--ease-spring, cubic-bezier(0.2, 0.8, 0.2, 1)) backwards;
   animation-delay: var(--char-delay, 0ms);
 }
 
 @keyframes settings-char-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px) rotate(-2deg);
   }
-  to {
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) rotate(0.5deg);
+  }
+  100% {
     opacity: 1;
     transform: none;
   }
@@ -112,8 +134,9 @@ const titleChars = computed(() => [...props.title])
   margin: 0;
   font-size: 14px;
   color: var(--color-text-secondary);
-  line-height: 1.6;
+  line-height: 1.65;
   max-width: 520px;
+  letter-spacing: 0.005em;
 }
 
 .settings-page-header--immersive .settings-page-header__desc {
@@ -121,25 +144,34 @@ const titleChars = computed(() => [...props.title])
 }
 
 .settings-page-header__extra {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .settings-page-head-enter-active {
   transition:
-    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-page-head-leave-active {
-  transition: opacity 0.18s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .settings-page-head-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(10px);
 }
 
 .settings-page-head-leave-to {
   opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page-header__title-text {
+    animation: none !important;
+  }
 }
 </style>
