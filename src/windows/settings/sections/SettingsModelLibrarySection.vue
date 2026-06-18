@@ -78,34 +78,41 @@ const {
 .model-library__count {
   font-size: 12px;
   color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .model-grid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
 .model-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 16px;
-  border-radius: var(--desktop-radius-panel);
-  background: var(--desktop-panel-bg);
-  border: 1px solid var(--desktop-panel-border);
-  box-shadow: var(--settings-shadow);
-  transition: transform var(--duration-fast) var(--ease-out);
+  border-radius: var(--radius-lg);
+  background: var(--settings-bg-content);
+  border: 1px solid var(--settings-border);
+  box-shadow: var(--settings-shadow-soft);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .model-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(var(--color-accent-rgb), 0.28);
+  border-color: rgba(var(--color-accent-rgb), 0.32);
+  box-shadow: var(--settings-shadow);
 }
 
 .model-card--current {
-  border-color: rgba(var(--color-accent-rgb), 0.4);
-  box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.2);
+  border-color: rgba(var(--color-accent-rgb), 0.42);
+  box-shadow:
+    0 0 0 1px rgba(var(--color-accent-rgb), 0.22),
+    var(--settings-shadow);
 }
 
 .model-card__top {
@@ -121,7 +128,7 @@ const {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 11px;
   color: var(--theme-accent-contrast);
   font-size: 18px;
   font-weight: 700;
@@ -129,17 +136,22 @@ const {
 
 .model-card__badge {
   font-size: 10px;
-  padding: 2px 8px;
+  font-weight: 700;
+  padding: 3px 8px;
   border-radius: 999px;
   background: var(--settings-bg-active);
   color: var(--color-accent);
-  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .model-card__body strong {
   display: block;
   font-size: 14px;
-  margin-bottom: 6px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--color-text-primary);
+  line-height: 1.35;
 }
 
 .model-card__path {
@@ -148,13 +160,14 @@ const {
   font-size: 10px;
   color: var(--color-text-tertiary);
   word-break: break-all;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .model-card__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 2px;
 }
 </style>

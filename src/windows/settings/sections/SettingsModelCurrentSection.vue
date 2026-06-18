@@ -1,12 +1,28 @@
 <template>
   <SettingsPageScaffold>
-    <SettingsSubsection>
-      <template #actions>
-        <span class="status-pill" :class="currentModelStatusClass">
-          {{ currentModelStatusLabel }}
-        </span>
-      </template>
+    <template #headerExtra>
+      <SettingsPageActions>
+        <template #status>
+          <span class="status-pill" :class="currentModelStatusClass">
+            {{ currentModelStatusLabel }}
+          </span>
+        </template>
+        <NButton v-if="currentModelPath" :disabled="saving" @click="loadConfig">
+          <template #icon>
+            <RefreshCw :size="15" />
+          </template>
+          {{ $t('settings.modelConfig.reload') }}
+        </NButton>
+        <NButton v-if="currentModelPath" type="primary" :loading="saving" @click="saveConfig">
+          <template #icon>
+            <Save :size="15" />
+          </template>
+          {{ $t('settings.modelConfig.save') }}
+        </NButton>
+      </SettingsPageActions>
+    </template>
 
+    <SettingsSubsection>
       <template v-if="currentModelPath">
         <div class="current-model-info">
           <div class="current-model-info__preview" :style="themeSwatchStyle">
@@ -29,20 +45,20 @@
       <template v-if="currentModelPath">
         <n-form label-placement="top">
           <n-form-item :label="$t('settings.model.current.idleActivity')">
-            <n-space align="center" style="width: 100%">
+            <div class="slider-row">
               <n-slider
                 :value="currentModelBehavior.idleActivity"
                 :min="0"
                 :max="1"
                 :step="0.05"
                 :format-tooltip="formatIdleActivity"
-                style="width: 200px"
+                class="slider-row__slider"
                 @update:value="handleIdleActivityChange"
               />
-              <span class="idle-activity-value">{{
+              <span class="slider-row__value">{{
                 formatIdleActivity(currentModelBehavior.idleActivity)
               }}</span>
-            </n-space>
+            </div>
             <template #feedback>
               {{ $t('settings.model.current.idleActivityFeedback') }}
             </template>
@@ -73,13 +89,13 @@
     >
       <n-form label-placement="top">
         <n-form-item :label="$t('settings.model.current.scale')">
-          <n-space align="center" style="width: 100%">
+          <div class="slider-row">
             <n-slider
               :value="currentModelScaleValue"
               :min="0.1"
               :max="5.0"
               :step="0.05"
-              style="width: 200px"
+              class="slider-row__slider"
               @update:value="handleModelScaleChange"
             />
             <n-input-number
@@ -88,7 +104,7 @@
               :max="5.0"
               :step="0.05"
               size="small"
-              style="width: 110px"
+              class="slider-row__number"
               @update:value="(value: number | null) => handleModelScaleChange(value || 1.0)"
             >
               <template #suffix>x</template>
@@ -96,7 +112,7 @@
             <NButton size="small" @click="handleResetModelScale">{{
               $t('settings.model.current.resetScale')
             }}</NButton>
-          </n-space>
+          </div>
         </n-form-item>
         <n-form-item :label="$t('settings.model.current.themeFollowModel')">
           <NSwitch
@@ -184,17 +200,14 @@
     </SettingsSubsection>
 
     <SettingsSubsection v-if="currentModelPath">
-      <n-space>
-        <NButton type="primary" :loading="saving" @click="saveConfig">
-          {{ $t('settings.modelConfig.save') }}
-        </NButton>
-        <NButton @click="loadConfig">
-          {{ $t('settings.modelConfig.reload') }}
-        </NButton>
+      <div class="settings-section__actions">
         <NButton @click="captureModelThumbnail">
+          <template #icon>
+            <Camera :size="15" />
+          </template>
           {{ $t('settings.modelConfig.captureThumbnail') }}
         </NButton>
-      </n-space>
+      </div>
     </SettingsSubsection>
   </SettingsPageScaffold>
 </template>
@@ -203,6 +216,8 @@
 import { computed, onMounted, watch, h } from 'vue'
 import { NButton, NInput, NSelect, NSwitch, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
+import { Camera, RefreshCw, Save } from 'lucide-vue-next'
+import SettingsPageActions from '../shared/SettingsPageActions.vue'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import SettingsSubsection from '../shared/SettingsSubsection.vue'
 import { useI18n } from 'vue-i18n'
@@ -461,20 +476,24 @@ watch(currentModelPath, newPath => {
 
 .current-model-info__meta strong {
   font-size: 16px;
-  line-height: 1.2;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary);
 }
 
 .current-model-info__color {
   color: var(--color-text-secondary);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .settings-inline-path {
   display: block;
   padding: 8px 10px;
   border-radius: var(--desktop-radius-control);
-  background: var(--settings-bg-surface);
-  border: 1px solid var(--desktop-panel-border);
+  background: var(--settings-bg-content);
+  border: 1px solid var(--settings-border);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -486,10 +505,30 @@ watch(currentModelPath, newPath => {
   margin-bottom: 12px;
 }
 
-.idle-activity-value {
-  min-width: 40px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.slider-row__slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.slider-row__value {
+  min-width: 48px;
+  text-align: right;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.slider-row__number {
+  width: 110px;
+  flex-shrink: 0;
 }
 
 .model-alias-table-hint {
@@ -565,27 +604,39 @@ watch(currentModelPath, newPath => {
 }
 
 .theme-color-control {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .theme-color-swatch {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
 }
 
 .theme-color-picker {
-  width: 28px;
-  height: 28px;
-  padding: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
   cursor: pointer;
-  background: transparent;
+  background: var(--settings-control-bg);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.theme-color-picker:hover {
+  border-color: rgba(var(--color-accent-rgb), 0.42);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.16);
 }
 
 .theme-color-picker::-webkit-color-swatch-wrapper {
@@ -594,6 +645,6 @@ watch(currentModelPath, newPath => {
 
 .theme-color-picker::-webkit-color-swatch {
   border: none;
-  border-radius: 2px;
+  border-radius: 5px;
 }
 </style>

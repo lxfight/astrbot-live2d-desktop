@@ -1,19 +1,39 @@
 <template>
-  <SettingsPageScaffold :show-header="false">
-    <header class="settings-dashboard-hero">
-      <div class="settings-dashboard-hero__main">
-        <span
-          class="status-pill"
-          :class="isConnected ? 'status-pill--success' : 'status-pill--warning'"
+  <SettingsPageScaffold>
+    <template #headerExtra>
+      <SettingsPageActions>
+        <template #status>
+          <span
+            class="status-pill"
+            :class="isConnected ? 'status-pill--success' : 'status-pill--warning'"
+          >
+            {{ connectionStatusText }}
+          </span>
+        </template>
+        <n-button
+          secondary
+          :loading="savingConnectionSettings"
+          :disabled="!hasUnsavedConnectionSettings"
+          @click="handleSaveConnectionSettings"
         >
-          {{ connectionStatusText }}
-        </span>
-        <div>
-          <h2 class="settings-dashboard-hero__title">{{ title }}</h2>
-          <p class="settings-dashboard-hero__url">{{ serverUrl || '—' }}</p>
-        </div>
-      </div>
-    </header>
+          <template #icon>
+            <Save :size="15" />
+          </template>
+          {{ $t('settings.connection.bridge.saveConfig') }}
+        </n-button>
+        <n-button
+          type="primary"
+          :loading="savingConnectionSettings"
+          :disabled="!canConnect || !token.trim()"
+          @click="handleSaveAndConnect"
+        >
+          <template #icon>
+            <Cable :size="15" />
+          </template>
+          {{ $t('settings.connection.bridge.saveAndConnect') }}
+        </n-button>
+      </SettingsPageActions>
+    </template>
 
     <div class="settings-dashboard-columns">
       <SettingsSubsection :title="$t('settings.connection.bridge.serverUrl')">
@@ -31,22 +51,6 @@
           </n-form-item>
         </n-form>
         <div class="settings-section__actions">
-          <n-button
-            type="primary"
-            :loading="savingConnectionSettings"
-            :disabled="!canConnect || !token.trim()"
-            @click="handleSaveAndConnect"
-          >
-            {{ $t('settings.connection.bridge.saveAndConnect') }}
-          </n-button>
-          <n-button
-            secondary
-            :loading="savingConnectionSettings"
-            :disabled="!hasUnsavedConnectionSettings"
-            @click="handleSaveConnectionSettings"
-          >
-            {{ $t('settings.connection.bridge.saveConfig') }}
-          </n-button>
           <n-button :disabled="!canConnect || !token.trim()" @click="handleConnect">
             {{
               isConnected
@@ -99,21 +103,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
+import { Cable, Save } from 'lucide-vue-next'
+import SettingsPageActions from '../shared/SettingsPageActions.vue'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import SettingsSubsection from '../shared/SettingsSubsection.vue'
-import { useSettingsPageMeta } from '../composables/useSettingsPageMeta'
-import { settingsPageContextKey } from '../settingsPageContext'
 import { useConnectionSettingsDomain } from '../domains/createConnectionSettingsDomain'
 
-const context = inject(settingsPageContextKey)
-if (!context) {
-  throw new Error('缺少 settings page context')
-}
-
-const { title } = useSettingsPageMeta(context.activeGroup, context.activeChild)
 const message = useMessage()
 const { t } = useI18n()
 
@@ -150,75 +147,35 @@ async function copyServerUrl() {
 </script>
 
 <style scoped>
-.settings-dashboard-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px;
-  margin-bottom: 16px;
-  border-radius: var(--desktop-radius-panel);
-  border: 1px solid rgba(var(--color-accent-rgb), 0.22);
-  background: linear-gradient(
-    135deg,
-    rgba(var(--color-accent-rgb), 0.1),
-    var(--settings-bg-surface)
-  );
-  animation: settings-fade-up 0.5s var(--ease-out) backwards;
-}
-
-.settings-dashboard-hero__main {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.settings-dashboard-hero__title {
-  margin: 0 0 4px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  background: linear-gradient(
-    135deg,
-    var(--color-text-primary),
-    rgba(var(--color-accent-rgb), 0.95)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.settings-dashboard-hero__url {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  word-break: break-all;
-}
-
 .settings-dashboard-columns {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
   gap: 16px;
-  margin-bottom: 16px;
+}
+
+.settings-dashboard-aside {
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-dashboard-aside h3 {
   margin: 0 0 10px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
 }
 
 .settings-dashboard-aside p {
   margin: 0;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--color-text-secondary);
 }
 
 .settings-dashboard-aside__actions {
-  margin-top: 14px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 
 @media (max-width: 800px) {

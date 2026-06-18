@@ -1,5 +1,22 @@
 <template>
   <SettingsPageScaffold>
+    <template #headerExtra>
+      <SettingsPageActions>
+        <n-button :disabled="!hasChanges" @click="handleReset">
+          <template #icon>
+            <Undo2 :size="15" />
+          </template>
+          {{ $t('settings.connection.behavior.cancel') }}
+        </n-button>
+        <n-button type="primary" :loading="saving" :disabled="!hasChanges" @click="handleSave">
+          <template #icon>
+            <Save :size="15" />
+          </template>
+          {{ $t('settings.connection.behavior.save') }}
+        </n-button>
+      </SettingsPageActions>
+    </template>
+
     <SettingsSubsection>
       <n-form label-placement="top">
         <n-form-item>
@@ -100,29 +117,31 @@
         </n-form-item>
 
         <n-form-item :label="$t('settings.connection.behavior.retryMaxAttempts')">
-          <div class="slider-container">
-            <n-switch
-              :value="behaviorSettings.retryMaxAttempts !== null"
-              :disabled="!behaviorSettings.retryEnabled"
-              @update:value="handleToggleMaxAttempts"
-            />
-            <span class="slider-label">
-              {{
-                behaviorSettings.retryMaxAttempts === null
-                  ? $t('settings.connection.behavior.unlimited')
-                  : $t('settings.connection.behavior.limited')
-              }}
-            </span>
-          </div>
-          <div v-if="behaviorSettings.retryMaxAttempts !== null" class="slider-container">
-            <n-slider
-              v-model:value="behaviorSettings.retryMaxAttempts"
-              :min="1"
-              :max="100"
-              :step="1"
-              :disabled="!behaviorSettings.retryEnabled"
-            />
-            <span class="slider-value">{{ behaviorSettings.retryMaxAttempts }}</span>
+          <div class="retry-attempts">
+            <div class="slider-container">
+              <n-switch
+                :value="behaviorSettings.retryMaxAttempts !== null"
+                :disabled="!behaviorSettings.retryEnabled"
+                @update:value="handleToggleMaxAttempts"
+              />
+              <span class="slider-label">
+                {{
+                  behaviorSettings.retryMaxAttempts === null
+                    ? $t('settings.connection.behavior.unlimited')
+                    : $t('settings.connection.behavior.limited')
+                }}
+              </span>
+            </div>
+            <div v-if="behaviorSettings.retryMaxAttempts !== null" class="slider-container">
+              <n-slider
+                v-model:value="behaviorSettings.retryMaxAttempts"
+                :min="1"
+                :max="100"
+                :step="1"
+                :disabled="!behaviorSettings.retryEnabled"
+              />
+              <span class="slider-value">{{ behaviorSettings.retryMaxAttempts }}</span>
+            </div>
           </div>
           <template #feedback>
             {{ $t('settings.connection.behavior.retryMaxAttemptsDesc') }}
@@ -152,21 +171,14 @@
           </template>
         </n-form-item>
       </n-form>
-
-      <div class="settings-section__actions">
-        <n-button type="primary" :loading="saving" :disabled="!hasChanges" @click="handleSave">
-          {{ $t('settings.connection.behavior.save') }}
-        </n-button>
-        <n-button :disabled="!hasChanges" @click="handleReset">
-          {{ $t('settings.connection.behavior.cancel') }}
-        </n-button>
-      </div>
     </SettingsSubsection>
   </SettingsPageScaffold>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Save, Undo2 } from 'lucide-vue-next'
+import SettingsPageActions from '../shared/SettingsPageActions.vue'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import SettingsSubsection from '../shared/SettingsSubsection.vue'
 import { useI18n } from 'vue-i18n'
@@ -259,18 +271,28 @@ onMounted(async () => {
 
 .slider-container > :first-child {
   flex: 1;
+  min-width: 0;
 }
 
 .slider-value {
-  min-width: 50px;
+  min-width: 56px;
   text-align: right;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .slider-label {
   font-size: 13px;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.retry-attempts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 </style>

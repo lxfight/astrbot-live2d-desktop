@@ -1,25 +1,39 @@
 <template>
   <SettingsPageScaffold>
-    <SettingsSubsection>
-      <template #actions>
-        <span class="status-pill" :class="dirty ? 'status-pill--warning' : 'status-pill--success'">
-          {{
-            dirty ? $t('settings.advanced.watcher.unsaved') : $t('settings.advanced.watcher.synced')
-          }}
-        </span>
-      </template>
-      <div class="settings-section__actions">
-        <n-button :disabled="!dirty || saving" @click="resetDraft">{{
-          $t('settings.advanced.watcher.discardChanges')
-        }}</n-button>
-        <n-button type="primary" :loading="saving" :disabled="!canSave" @click="saveDraft">{{
-          $t('settings.advanced.watcher.saveChanges')
-        }}</n-button>
-        <n-button tertiary type="error" :loading="saving" @click="resetPersisted">{{
-          $t('settings.advanced.watcher.resetDefault')
-        }}</n-button>
-      </div>
-    </SettingsSubsection>
+    <template #headerExtra>
+      <SettingsPageActions>
+        <template #status>
+          <span
+            class="status-pill"
+            :class="dirty ? 'status-pill--warning' : 'status-pill--success'"
+          >
+            {{
+              dirty
+                ? $t('settings.advanced.watcher.unsaved')
+                : $t('settings.advanced.watcher.synced')
+            }}
+          </span>
+        </template>
+        <n-button :disabled="!dirty || saving" @click="resetDraft">
+          <template #icon>
+            <Undo2 :size="15" />
+          </template>
+          {{ $t('settings.advanced.watcher.discardChanges') }}
+        </n-button>
+        <n-button type="primary" :loading="saving" :disabled="!canSave" @click="saveDraft">
+          <template #icon>
+            <Save :size="15" />
+          </template>
+          {{ $t('settings.advanced.watcher.saveChanges') }}
+        </n-button>
+        <n-button tertiary type="error" :loading="saving" @click="resetPersisted">
+          <template #icon>
+            <RotateCcw :size="15" />
+          </template>
+          {{ $t('settings.advanced.watcher.resetDefault') }}
+        </n-button>
+      </SettingsPageActions>
+    </template>
 
     <SettingsSubsection
       :title="$t('settings.advanced.watcher.awarenessTitle')"
@@ -55,8 +69,8 @@
     >
       <n-form label-placement="top">
         <n-form-item :label="$t('settings.advanced.watcher.appScopeMode')">
-          <n-radio-group v-model:value="draftConfig.appScope.mode">
-            <n-space>
+          <n-radio-group v-model:value="draftConfig.appScope.mode" class="scope-mode-group">
+            <n-space align="center" :wrap="false" :wrap-item="false">
               <n-radio value="all">{{ $t('settings.advanced.watcher.scopeAll') }}</n-radio>
               <n-radio value="include">{{ $t('settings.advanced.watcher.scopeInclude') }}</n-radio>
               <n-radio value="exclude">{{ $t('settings.advanced.watcher.scopeExclude') }}</n-radio>
@@ -131,6 +145,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RotateCcw, Save, Undo2 } from 'lucide-vue-next'
+import SettingsPageActions from '../shared/SettingsPageActions.vue'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import SettingsSubsection from '../shared/SettingsSubsection.vue'
 import { useWatcherSettingsDomain } from '../domains/createWatcherSettingsDomain'
@@ -168,18 +184,31 @@ const modeDescription = computed(() => {
 
 <style scoped>
 .mode-group {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
+  width: max-content;
+}
+
+.scope-mode-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.scope-mode-group :deep(.n-space) {
+  gap: 18px 18px !important;
+  row-gap: 8px !important;
 }
 
 .recent-apps {
-  margin-top: 8px;
+  margin-top: 14px;
 }
 
 .recent-apps__title {
   margin-bottom: 10px;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .recent-apps__list {
@@ -192,20 +221,36 @@ const modeDescription = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--settings-bg-muted);
+  padding: 11px 13px;
+  border: 1px solid var(--settings-border);
+  border-radius: var(--radius);
+  background: var(--settings-bg-content);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.recent-app:hover {
+  border-color: var(--settings-border-strong);
+  background: var(--settings-bg-surface);
 }
 
 .recent-app__main {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
+.recent-app__main strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 .recent-app__main span {
-  color: var(--color-text-secondary);
-  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  word-break: break-all;
 }
 </style>
