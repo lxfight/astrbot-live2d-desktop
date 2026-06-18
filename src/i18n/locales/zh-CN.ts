@@ -738,17 +738,6 @@ export default {
   'settings.advanced.watcher.privacyDesc': '控制桌面上下文中哪些信息可以交给 AI。',
   'settings.advanced.watcher.shareWindowTitle': '向 AI 共享窗口标题',
   'settings.advanced.watcher.allowScreenshotOnRequest': '允许 AI 按需请求截图',
-  'settings.advanced.watcher.diagnostics': '诊断',
-  'settings.advanced.watcher.diagnosticsDesc': '查看当前识别结果和最近一次策略决策。',
-  'settings.advanced.watcher.currentApp': '当前应用',
-  'settings.advanced.watcher.currentAppKey': '识别键',
-  'settings.advanced.watcher.rawProcessName': '原始进程名',
-  'settings.advanced.watcher.processPath': '进程路径',
-  'settings.advanced.watcher.identityConfidence': '识别置信度',
-  'settings.advanced.watcher.systemApp': '系统应用',
-  'settings.advanced.watcher.matchKeys': '匹配键',
-  'settings.advanced.watcher.lastDecision': '最近决策',
-  'settings.advanced.watcher.decisionHistory': '最近策略决策',
 
   // Settings — History messages
   'settings.history.messages.searchPlaceholder': '搜索消息...',

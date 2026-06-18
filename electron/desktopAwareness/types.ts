@@ -75,13 +75,6 @@ export interface DesktopAwarenessSnapshot {
     reason: string
     timestamp: number
   } | null
-  decisionHistory: Array<{
-    app: AppIdentity | null
-    transitionType: DesktopAwarenessTransitionType
-    shouldNotify: boolean
-    reason: string
-    timestamp: number
-  }>
 }
 
 export type DesktopContextChangedCallback = (event: DesktopContextChangedEvent) => void

@@ -126,64 +126,6 @@
         </n-form-item>
       </n-form>
     </SettingsSubsection>
-
-    <SettingsSubsection
-      :title="$t('settings.advanced.watcher.diagnostics')"
-      :description="$t('settings.advanced.watcher.diagnosticsDesc')"
-    >
-      <div class="diagnostics">
-        <div>
-          <span>{{ $t('settings.advanced.watcher.currentApp') }}</span>
-          <strong>{{ snapshot?.current.app?.displayName || '-' }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.currentAppKey') }}</span>
-          <strong>{{ snapshot?.current.app?.canonicalKey || '-' }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.rawProcessName') }}</span>
-          <strong>{{ snapshot?.current.app?.processName || '-' }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.processPath') }}</span>
-          <strong class="diagnostics__value">{{
-            snapshot?.current.app?.processPath || '-'
-          }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.identityConfidence') }}</span>
-          <strong>{{ snapshot?.current.app?.confidence || '-' }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.systemApp') }}</span>
-          <strong>{{
-            snapshot?.current.app?.isSystem ? $t('common.yes') : $t('common.no')
-          }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.matchKeys') }}</span>
-          <strong class="diagnostics__value">{{ currentMatchKeys }}</strong>
-        </div>
-        <div>
-          <span>{{ $t('settings.advanced.watcher.lastDecision') }}</span>
-          <strong>{{ snapshot?.lastDecision?.reason || '-' }}</strong>
-        </div>
-      </div>
-
-      <div v-if="snapshot?.decisionHistory.length" class="decision-history">
-        <div class="recent-apps__title">{{ $t('settings.advanced.watcher.decisionHistory') }}</div>
-        <div class="decision-history__list">
-          <div
-            v-for="decision in snapshot.decisionHistory"
-            :key="`${decision.timestamp}-${decision.reason}`"
-            class="decision-history__item"
-          >
-            <span>{{ decision.app?.displayName || '-' }}</span>
-            <strong>{{ decision.reason }}</strong>
-          </div>
-        </div>
-      </div>
-    </SettingsSubsection>
   </SettingsPageScaffold>
 </template>
 
@@ -206,7 +148,6 @@ const {
   resetPersisted,
   saveDraft,
   saving,
-  snapshot,
   addAppToScope,
   removeAppFromScope,
   updateAppScopeInput
@@ -222,11 +163,6 @@ const modeDescription = computed(() => {
     default:
       return t('settings.advanced.watcher.modeSmartDesc')
   }
-})
-
-const currentMatchKeys = computed(() => {
-  const keys = snapshot.value?.current.app?.matchKeys || []
-  return keys.length ? keys.join(', ') : '-'
 })
 </script>
 
@@ -269,50 +205,6 @@ const currentMatchKeys = computed(() => {
 }
 
 .recent-app__main span {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
-.diagnostics {
-  display: grid;
-  gap: 10px;
-}
-
-.diagnostics > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.diagnostics span {
-  color: var(--color-text-secondary);
-}
-
-.diagnostics__value {
-  overflow: hidden;
-  max-width: 70%;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.decision-history {
-  margin-top: 18px;
-}
-
-.decision-history__list {
-  display: grid;
-  gap: 8px;
-}
-
-.decision-history__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   color: var(--color-text-secondary);
   font-size: 12px;
 }

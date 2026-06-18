@@ -776,18 +776,6 @@ const en: I18nMessageSchema = {
     'Control which desktop context details may be shared with AI.',
   'settings.advanced.watcher.shareWindowTitle': 'Share window title with AI',
   'settings.advanced.watcher.allowScreenshotOnRequest': 'Allow AI to request screenshots',
-  'settings.advanced.watcher.diagnostics': 'Diagnostics',
-  'settings.advanced.watcher.diagnosticsDesc':
-    'Inspect the current recognition result and latest policy decision.',
-  'settings.advanced.watcher.currentApp': 'Current app',
-  'settings.advanced.watcher.currentAppKey': 'Identity key',
-  'settings.advanced.watcher.rawProcessName': 'Raw process name',
-  'settings.advanced.watcher.processPath': 'Process path',
-  'settings.advanced.watcher.identityConfidence': 'Confidence',
-  'settings.advanced.watcher.systemApp': 'System app',
-  'settings.advanced.watcher.matchKeys': 'Match keys',
-  'settings.advanced.watcher.lastDecision': 'Latest decision',
-  'settings.advanced.watcher.decisionHistory': 'Recent policy decisions',
 
   // Settings — History messages
   'settings.history.messages.searchPlaceholder': 'Search messages...',
