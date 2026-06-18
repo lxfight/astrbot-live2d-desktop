@@ -768,6 +768,8 @@ const en: I18nMessageSchema = {
     'One app name or identity key per line. You can add items from recently detected apps.',
   'settings.advanced.watcher.recentApps': 'Recently detected apps',
   'settings.advanced.watcher.addToScope': 'Add',
+  'settings.advanced.watcher.addToInclude': 'Only',
+  'settings.advanced.watcher.addToExclude': 'Exclude',
   'settings.advanced.watcher.removeFromScope': 'Remove',
   'settings.advanced.watcher.privacy': 'Privacy',
   'settings.advanced.watcher.privacyDesc':
@@ -779,7 +781,13 @@ const en: I18nMessageSchema = {
     'Inspect the current recognition result and latest policy decision.',
   'settings.advanced.watcher.currentApp': 'Current app',
   'settings.advanced.watcher.currentAppKey': 'Identity key',
+  'settings.advanced.watcher.rawProcessName': 'Raw process name',
+  'settings.advanced.watcher.processPath': 'Process path',
+  'settings.advanced.watcher.identityConfidence': 'Confidence',
+  'settings.advanced.watcher.systemApp': 'System app',
+  'settings.advanced.watcher.matchKeys': 'Match keys',
   'settings.advanced.watcher.lastDecision': 'Latest decision',
+  'settings.advanced.watcher.decisionHistory': 'Recent policy decisions',
 
   // Settings — History messages
   'settings.history.messages.searchPlaceholder': 'Search messages...',

@@ -150,7 +150,13 @@
     "window": {
       "id": "window:123:0",
       "title": "main.py - Visual Studio Code",
-      "processName": "Code"
+      "processName": "Code",
+      "app": {
+        "displayName": "VS Code",
+        "canonicalKey": "vscode",
+        "confidence": "high",
+        "isSystem": false
+      }
     }
   }
 }
@@ -161,6 +167,7 @@
 | `image` | string | 截图数据。小图可为 data URL；大图可由桌面端先上传资源后返回资源 URL。 |
 | `width` / `height` | number | 实际返回图片尺寸。 |
 | `window` | object | 截图来源窗口摘要。 |
+| `window.app` | object | 截图来源窗口的归一化应用身份；字段同 `desktop.window.list`。 |
 
 ## `desktop.tool.call`
 

@@ -25,6 +25,7 @@ import type {
 
 const logger = createScopedLogger('desktop.awareness')
 const MAX_RECENT_APPS = 12
+const MAX_DECISION_HISTORY = 8
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -78,6 +79,7 @@ export class DesktopAwarenessService {
   private recentApps: RecentDesktopApp[] = []
   private lastEvent: DesktopContextChangedEvent | null = null
   private lastDecision: DesktopAwarenessSnapshot['lastDecision'] = null
+  private decisionHistory: DesktopAwarenessSnapshot['decisionHistory'] = []
   private policy = new AwarenessPolicyEngine()
   private listeners: Set<DesktopContextChangedCallback> = new Set()
   private isRunning = false
@@ -193,7 +195,8 @@ export class DesktopAwarenessService {
       current: cloneJson(this.current),
       recentApps: cloneJson(this.recentApps),
       lastEvent: cloneJson(this.lastEvent),
-      lastDecision: cloneJson(this.lastDecision)
+      lastDecision: cloneJson(this.lastDecision),
+      decisionHistory: cloneJson(this.decisionHistory)
     }
   }
 
@@ -278,6 +281,14 @@ export class DesktopAwarenessService {
       ...decision,
       timestamp: now
     }
+    this.decisionHistory.unshift({
+      app: this.current.app,
+      transitionType,
+      shouldNotify: decision.shouldNotify,
+      reason: decision.reason,
+      timestamp: now
+    })
+    this.decisionHistory = this.decisionHistory.slice(0, MAX_DECISION_HISTORY)
 
     if (!decision.shouldNotify) {
       logger.debug('policy.suppressed', this.lastDecision)

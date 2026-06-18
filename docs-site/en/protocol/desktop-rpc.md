@@ -150,7 +150,13 @@ Response:
     "window": {
       "id": "window:123:0",
       "title": "main.py - Visual Studio Code",
-      "processName": "Code"
+      "processName": "Code",
+      "app": {
+        "displayName": "VS Code",
+        "canonicalKey": "vscode",
+        "confidence": "high",
+        "isSystem": false
+      }
     }
   }
 }
@@ -161,6 +167,7 @@ Response:
 | `image` | string | Screenshot data. Small screenshots may be data URLs; large screenshots may be uploaded first and returned as resource URLs. |
 | `width` / `height` | number | Actual returned image size. |
 | `window` | object | Source window summary. |
+| `window.app` | object | Normalized app identity for the captured source window; fields match `desktop.window.list`. |
 
 ## `desktop.tool.call`
 

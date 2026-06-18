@@ -90,8 +90,19 @@
               <span>{{ item.app.canonicalKey }}</span>
             </div>
             <n-space size="small">
-              <n-button size="small" secondary @click="addAppToScope(item.app.canonicalKey)">
-                {{ $t('settings.advanced.watcher.addToScope') }}
+              <n-button
+                size="small"
+                secondary
+                @click="addAppToScope(item.app.canonicalKey, 'include')"
+              >
+                {{ $t('settings.advanced.watcher.addToInclude') }}
+              </n-button>
+              <n-button
+                size="small"
+                secondary
+                @click="addAppToScope(item.app.canonicalKey, 'exclude')"
+              >
+                {{ $t('settings.advanced.watcher.addToExclude') }}
               </n-button>
               <n-button size="small" text @click="removeAppFromScope(item.app.canonicalKey)">
                 {{ $t('settings.advanced.watcher.removeFromScope') }}
@@ -130,8 +141,46 @@
           <strong>{{ snapshot?.current.app?.canonicalKey || '-' }}</strong>
         </div>
         <div>
+          <span>{{ $t('settings.advanced.watcher.rawProcessName') }}</span>
+          <strong>{{ snapshot?.current.app?.processName || '-' }}</strong>
+        </div>
+        <div>
+          <span>{{ $t('settings.advanced.watcher.processPath') }}</span>
+          <strong class="diagnostics__value">{{
+            snapshot?.current.app?.processPath || '-'
+          }}</strong>
+        </div>
+        <div>
+          <span>{{ $t('settings.advanced.watcher.identityConfidence') }}</span>
+          <strong>{{ snapshot?.current.app?.confidence || '-' }}</strong>
+        </div>
+        <div>
+          <span>{{ $t('settings.advanced.watcher.systemApp') }}</span>
+          <strong>{{
+            snapshot?.current.app?.isSystem ? $t('common.yes') : $t('common.no')
+          }}</strong>
+        </div>
+        <div>
+          <span>{{ $t('settings.advanced.watcher.matchKeys') }}</span>
+          <strong class="diagnostics__value">{{ currentMatchKeys }}</strong>
+        </div>
+        <div>
           <span>{{ $t('settings.advanced.watcher.lastDecision') }}</span>
           <strong>{{ snapshot?.lastDecision?.reason || '-' }}</strong>
+        </div>
+      </div>
+
+      <div v-if="snapshot?.decisionHistory.length" class="decision-history">
+        <div class="recent-apps__title">{{ $t('settings.advanced.watcher.decisionHistory') }}</div>
+        <div class="decision-history__list">
+          <div
+            v-for="decision in snapshot.decisionHistory"
+            :key="`${decision.timestamp}-${decision.reason}`"
+            class="decision-history__item"
+          >
+            <span>{{ decision.app?.displayName || '-' }}</span>
+            <strong>{{ decision.reason }}</strong>
+          </div>
         </div>
       </div>
     </SettingsSubsection>
@@ -173,6 +222,11 @@ const modeDescription = computed(() => {
     default:
       return t('settings.advanced.watcher.modeSmartDesc')
   }
+})
+
+const currentMatchKeys = computed(() => {
+  const keys = snapshot.value?.current.app?.matchKeys || []
+  return keys.length ? keys.join(', ') : '-'
 })
 </script>
 
@@ -235,5 +289,31 @@ const modeDescription = computed(() => {
 
 .diagnostics span {
   color: var(--color-text-secondary);
+}
+
+.diagnostics__value {
+  overflow: hidden;
+  max-width: 70%;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decision-history {
+  margin-top: 18px;
+}
+
+.decision-history__list {
+  display: grid;
+  gap: 8px;
+}
+
+.decision-history__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 </style>

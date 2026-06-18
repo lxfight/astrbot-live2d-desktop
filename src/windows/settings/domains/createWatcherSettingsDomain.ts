@@ -57,7 +57,7 @@ export interface WatcherSettingsDomain {
   saving: Ref<boolean>
   snapshot: Ref<DesktopAwarenessSnapshot | null>
   status: Ref<'idle' | 'loading' | 'ready' | 'error'>
-  addAppToScope: (appKey: string) => void
+  addAppToScope: (appKey: string, scopeMode?: 'include' | 'exclude') => void
   removeAppFromScope: (appKey: string) => void
   updateAppScopeInput: (value: string) => void
 }
@@ -126,9 +126,12 @@ export function createWatcherSettingsDomain(message: MessageApi): WatcherSetting
     draftConfig.value.appScope.apps = parseAppList(value)
   }
 
-  function addAppToScope(appKey: string) {
+  function addAppToScope(appKey: string, scopeMode?: 'include' | 'exclude') {
     const key = appKey.trim()
     if (!key) return
+    if (scopeMode) {
+      draftConfig.value.appScope.mode = scopeMode
+    }
     if (!draftConfig.value.appScope.apps.includes(key)) {
       draftConfig.value.appScope.apps = [...draftConfig.value.appScope.apps, key]
       appScopeInput.value = draftConfig.value.appScope.apps.join('\n')
