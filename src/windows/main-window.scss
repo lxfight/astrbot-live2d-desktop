@@ -35,12 +35,17 @@
     position: relative;
     text-align: center;
     padding: 48px 52px;
-    background: var(--surface-bg);
-    border: 1px solid var(--surface-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+      rgba(15, 18, 26, 0.88);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: var(--radius-lg);
     box-shadow:
-      var(--shadow-xl),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      0 18px 56px rgba(0, 0, 0, 0.5),
+      0 4px 14px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
     max-width: 520px;
 
     &::before {
@@ -50,7 +55,7 @@
       left: 10%;
       right: 10%;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
     }
 
     .empty-icon {
@@ -70,6 +75,7 @@
       font-size: 14px;
       color: var(--color-text-secondary);
       margin-bottom: 32px;
+      line-height: 1.6;
     }
   }
 }
@@ -86,14 +92,14 @@
   justify-content: center;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
-    rgba(20, 20, 24, 0.56);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+    rgba(15, 18, 26, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 10px 24px rgba(0, 0, 0, 0.18);
+    0 12px 28px rgba(0, 0, 0, 0.32);
   pointer-events: none;
 
   :deep(.n-spin-description) {
@@ -153,12 +159,16 @@
     height: 48px;
     border-radius: 50%;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
-      linear-gradient(135deg, var(--theme-color, transparent), transparent 72%), var(--surface-bg);
-    border: 1px solid rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.22);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
+      linear-gradient(135deg, var(--theme-color, transparent), transparent 75%),
+      rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(22px) saturate(170%);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      var(--shadow-sm);
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.18);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -173,20 +183,22 @@
       border-color var(--duration-fast);
 
     .menu-icon {
-      color: var(--color-text-primary);
+      color: #fff;
       display: flex;
       transition: transform var(--duration-norm) var(--ease-out);
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
     }
 
     .menu-label {
       position: absolute;
       top: 100%;
       margin-top: 8px;
-      background: var(--surface-bg);
-      border: 1px solid var(--surface-border);
-      color: var(--color-text-primary);
-      padding: 4px 10px;
+      background: rgba(15, 18, 26, 0.72);
+      backdrop-filter: blur(18px) saturate(150%);
+      -webkit-backdrop-filter: blur(18px) saturate(150%);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #fff;
+      padding: 5px 10px;
       border-radius: var(--radius-sm);
       font-size: 11px;
       font-weight: 500;
@@ -196,18 +208,21 @@
       transition: all var(--duration-norm) var(--ease-out);
       white-space: nowrap;
       pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
 
     &:hover {
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)),
-        linear-gradient(135deg, var(--theme-color-hover, transparent), transparent 72%),
-        var(--surface-bg-hover);
-      border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.34);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+        linear-gradient(135deg, var(--theme-color-hover, transparent), transparent 70%),
+        rgba(255, 255, 255, 0.12);
+      border-color: rgba(var(--model-r, 116), var(--model-g, 165), var(--model-b, 255), 0.55);
       box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.16),
-        var(--shadow-md),
-        0 0 16px var(--model-color-glow, var(--color-accent-glow));
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+        0 6px 20px rgba(0, 0, 0, 0.22),
+        0 0 22px var(--model-color-glow, var(--color-accent-glow));
       z-index: 10;
 
       .menu-icon {
@@ -262,20 +277,23 @@
 .bubble {
   --bubble-max-height: min(18vh, calc(100vh - 32px));
   position: absolute;
-  background: rgba(20, 20, 24, 0.55);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    rgba(15, 18, 26, 0.86);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
   color: var(--color-text-primary);
-  padding: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-xl);
   font-size: 14px;
   width: max-content;
   max-width: min(560px, calc(100vw - 32px));
   max-height: var(--bubble-max-height);
   box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 14px 44px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   z-index: 100;
   overflow: hidden;
   display: flex;
@@ -306,12 +324,13 @@
   overflow-y: auto;
   overflow-x: hidden;
   max-height: calc(var(--bubble-max-height) - 24px);
-  line-height: 1.6;
+  line-height: 1.65;
   overflow-wrap: break-word;
   word-break: normal;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 
   /* Markdown 样式 */
   :deep(h1),
@@ -523,24 +542,29 @@
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  background: rgba(20, 20, 24, 0.55);
-  backdrop-filter: blur(36px);
-  -webkit-backdrop-filter: blur(36px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+    rgba(15, 18, 26, 0.82);
+  backdrop-filter: blur(36px) saturate(150%);
+  -webkit-backdrop-filter: blur(36px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-full);
   box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 14px 44px rgba(0, 0, 0, 0.32),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all var(--duration-norm) var(--ease-out);
 }
 
 .glass-input-bar:focus-within {
-  background: rgba(26, 26, 30, 0.75);
-  border-color: rgba(var(--color-accent-rgb), 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+    rgba(20, 24, 34, 0.9);
+  border-color: rgba(var(--color-accent-rgb), 0.5);
   box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(var(--color-accent-rgb), 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    0 18px 52px rgba(0, 0, 0, 0.4),
+    0 0 0 2px rgba(var(--color-accent-rgb), 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transform: translateY(-2px);
 }
 
@@ -555,7 +579,7 @@
 }
 
 .transparent-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .icon-btn {
@@ -564,7 +588,7 @@
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -573,7 +597,7 @@
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
 }
 
@@ -602,16 +626,20 @@
 }
 
 .recording-indicator-floating {
-  background: rgba(255, 77, 79, 0.9);
+  background: rgba(200, 60, 60, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 6px 12px;
   border-radius: 20px;
   color: white;
   font-size: 12px;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 
   .recording-dot {
     width: 8px;
@@ -624,11 +652,14 @@
 
 .image-preview-floating {
   position: relative;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 18, 26, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 4px;
-  border-radius: 8px;
+  border-radius: 10px;
   margin-bottom: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
 .image-preview-floating img {
@@ -680,16 +711,19 @@
     align-items: center;
     gap: 8px;
     padding: 10px 18px;
-    background: rgba(248, 113, 113, 0.75);
+    background: rgba(180, 50, 50, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-full);
-    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.25);
+    box-shadow:
+      0 8px 24px rgba(180, 50, 50, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
     pointer-events: auto;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 
     .recording-dot {
       width: 8px;
@@ -705,10 +739,10 @@
 
     .recording-hint {
       font-size: 12px;
-      opacity: 0.85;
+      opacity: 0.92;
       margin-left: 4px;
       padding-left: 8px;
-      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      border-left: 1px solid rgba(255, 255, 255, 0.4);
     }
   }
 }
@@ -777,39 +811,46 @@
 
 .model-status-toast {
   position: absolute;
-  padding: 8px 18px;
+  padding: 9px 18px;
   border-radius: var(--radius-full);
-  background: rgba(20, 20, 24, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 18, 26, 0.86);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   display: flex;
   align-items: center;
   gap: 8px;
   z-index: 1000;
   pointer-events: none;
   transform: translateX(-50%);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.2px;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 
   &.success {
-    background: rgba(52, 211, 153, 0.75);
+    background: rgba(16, 110, 80, 0.92);
+    border-color: rgba(52, 211, 153, 0.5);
   }
   &.error {
-    background: rgba(248, 113, 113, 0.75);
+    background: rgba(140, 35, 35, 0.92);
+    border-color: rgba(248, 113, 113, 0.5);
   }
   &.warning {
-    background: rgba(251, 191, 36, 0.75);
+    background: rgba(150, 100, 16, 0.92);
+    border-color: rgba(251, 191, 36, 0.5);
   }
   &.loading {
-    background: rgba(96, 165, 250, 0.75);
+    background: rgba(30, 64, 135, 0.92);
+    border-color: rgba(96, 165, 250, 0.5);
   }
   &.info {
-    background: rgba(20, 20, 24, 0.7);
+    background: rgba(15, 18, 26, 0.86);
     color: var(--color-text-primary);
   }
 
