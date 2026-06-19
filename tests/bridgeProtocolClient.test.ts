@@ -54,7 +54,7 @@ describe('L2DBridgeClient', () => {
   })
 
   test('握手完成后的服务端断开会发出 disconnected 事件', async () => {
-    const server = new WebSocketServer({ port: 0 })
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 })
     servers.push(server)
     await waitForServer(server)
 

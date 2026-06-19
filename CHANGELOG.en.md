@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.6.0] - 2026-06-19
+
+### Added
+- Added desktop awareness foundations for normalized app/window identity and desktop RPC observation sync.
+- Added model config change events so saves, deletes, and automatic config creation broadcast updates for main-window hot reload.
+- Added expression request helpers and a model alias config editor composable to improve alias configuration maintenance.
+
+### Changed
+- Reworked settings design tokens, page actions, subsection styling, and Naive UI form-control theme overrides.
+- Refined main-window overlays, radial-menu glass treatment, and settings visuals for better contrast and readability.
+- Moved main-process window creation earlier to improve startup performance.
+
+### Fixed
+- Fixed reconnect getting stuck after the AstrBot side goes offline and comes back online.
+- Fixed multiple race conditions around missing Cubism Core, model migration, background migration markers, and automatic model loading.
+- Fixed `model:load` reliability, pending model state handling, startup model loading placeholder, and model config save behavior.
+- Fixed settings migration blocking ready state, transparent card surfaces, and settings control alignment.
+
+### Docs
+- Updated desktop RPC protocol documentation.
+
 ## [1.5.0] - 2026-06-12
 
 ### Added
