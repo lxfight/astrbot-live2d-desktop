@@ -107,6 +107,28 @@
           </button>
         </div>
       </section>
+
+      <section class="settings-section">
+        <div class="settings-section__header">
+          <h2>{{ $t('settings.about.legalNotices') }}</h2>
+        </div>
+
+        <div class="legal-notice">
+          <strong>{{ $t('settings.about.live2dNoticeTitle') }}</strong>
+          <p>{{ $t('settings.about.live2dCopyright') }}</p>
+          <p>{{ $t('settings.about.live2dSdkNotice') }}</p>
+        </div>
+
+        <div class="link-stack legal-link-stack">
+          <button
+            class="ghost-button"
+            type="button"
+            @click="handleOpenLink('https://www.live2d.com/en/sdk/license/')"
+          >
+            {{ $t('settings.about.live2dLicensePage') }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -199,6 +221,28 @@ const {
   font-size: 12px;
   color: var(--color-text-tertiary);
   line-height: 1.4;
+}
+
+.legal-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legal-link-stack {
+  margin-top: 12px;
+}
+
+.legal-notice strong {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.legal-notice p {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .ghost-button {

@@ -295,6 +295,13 @@ const en: I18nMessageSchema = {
   'settings.about.checkUpdate': 'Check for Updates',
   'settings.about.restartAndInstall': 'Restart and Install',
   'settings.about.poweredBy': 'Powered by Live2D',
+  'settings.about.legalNotices': 'Legal Notices',
+  'settings.about.live2dNoticeTitle': 'Live2D Cubism SDK',
+  'settings.about.live2dCopyright':
+    'This application contains Live2D Cubism SDK developed by Live2D Inc. of which the copyrights are held by Live2D Inc.',
+  'settings.about.live2dSdkNotice':
+    'When publishing or commercially using content that contains Live2D Cubism SDK, please comply with the SDK Release License requirements of Live2D Inc.',
+  'settings.about.live2dLicensePage': 'Live2D SDK Release License',
 
   // Settings — About (extra)
   'settings.about.updateStatusUnknown': 'Update status unknown',

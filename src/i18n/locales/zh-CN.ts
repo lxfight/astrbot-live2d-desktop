@@ -282,6 +282,13 @@ export default {
   'settings.about.checkUpdate': '检查更新',
   'settings.about.restartAndInstall': '重启并安装',
   'settings.about.poweredBy': 'Powered by Live2D',
+  'settings.about.legalNotices': '版权声明',
+  'settings.about.live2dNoticeTitle': 'Live2D Cubism SDK',
+  'settings.about.live2dCopyright':
+    '本应用包含由 Live2D Inc. 开发的 Live2D Cubism SDK，其版权归 Live2D Inc. 所有。',
+  'settings.about.live2dSdkNotice':
+    '发布或以商业方式使用包含 Live2D Cubism SDK 的内容时，请遵守 Live2D Inc. 的 SDK 发布许可要求。',
+  'settings.about.live2dLicensePage': 'Live2D SDK 发布许可',
 
   // Settings — About (extra)
   'settings.about.updateStatusUnknown': '更新状态未知',
