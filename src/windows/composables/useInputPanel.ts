@@ -1,4 +1,4 @@
-import { ref, nextTick, type Ref } from 'vue'
+import { ref, nextTick, onBeforeUnmount, watch, type Ref } from 'vue'
 import type { MessageContent } from '@/types/protocol'
 import { useConnectionStore } from '@/stores/connection'
 import type { AdvancedSettings } from '@/utils/advancedSettings'
@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 export type { FloatingOverlayStyle }
 
 type ModelStatusType = 'success' | 'error' | 'info' | 'loading' | 'warning'
+const INPUT_IDLE_CLOSE_DELAY_MS = 5000
 
 interface UseInputPanelOptions {
   connectionStore: ReturnType<typeof useConnectionStore>
@@ -37,6 +38,43 @@ export function useInputPanel(options: UseInputPanelOptions) {
   const inputStyle = ref<FloatingOverlayStyle>({ left: '0px', top: '0px' })
   const inputText = ref('')
   const selectedImage = ref<{ file: File; preview: string } | null>(null)
+  const isPointerInsideInput = ref(false)
+  let idleCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+  function hasDraftContent(): boolean {
+    return inputText.value.trim().length > 0 || selectedImage.value !== null
+  }
+
+  function clearIdleCloseTimer() {
+    if (idleCloseTimer) {
+      clearTimeout(idleCloseTimer)
+      idleCloseTimer = null
+    }
+  }
+
+  function scheduleIdleClose() {
+    clearIdleCloseTimer()
+
+    if (!showInput.value || isPointerInsideInput.value || hasDraftContent()) {
+      return
+    }
+
+    idleCloseTimer = setTimeout(() => {
+      if (showInput.value && !isPointerInsideInput.value && !hasDraftContent()) {
+        closeInputPanel()
+      }
+    }, INPUT_IDLE_CLOSE_DELAY_MS)
+  }
+
+  function handleInputPanelPointerEnter() {
+    isPointerInsideInput.value = true
+    clearIdleCloseTimer()
+  }
+
+  function handleInputPanelPointerLeave() {
+    isPointerInsideInput.value = false
+    scheduleIdleClose()
+  }
 
   function getImageInlineThresholdBytes(): number {
     return Math.max(64, advancedSettings.value.imageInlineThresholdKb || 256) * 1024
@@ -57,6 +95,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
 
   function applySelectedImage(file: File, preview: string) {
     selectedImage.value = { file, preview }
+    clearIdleCloseTimer()
 
     if (!showInput.value) {
       openInput()
@@ -69,13 +108,18 @@ export function useInputPanel(options: UseInputPanelOptions) {
   }
 
   function handleSelectImage() {
+    clearIdleCloseTimer()
+
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
 
     input.onchange = (e: Event) => {
       const files = (e.target as HTMLInputElement).files
-      if (!files || files.length === 0) return
+      if (!files || files.length === 0) {
+        scheduleIdleClose()
+        return
+      }
 
       const file = files[0]
       if (file.size > getImageMaxSizeBytes()) {
@@ -83,6 +127,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
           t('main.input.imageTooLarge', { max: advancedSettings.value.imageMaxSizeMb }),
           'warning'
         )
+        scheduleIdleClose()
         return
       }
 
@@ -91,6 +136,10 @@ export function useInputPanel(options: UseInputPanelOptions) {
         applySelectedImage(file, e.target?.result as string)
       }
       reader.readAsDataURL(file)
+    }
+
+    input.oncancel = () => {
+      scheduleIdleClose()
     }
 
     input.click()
@@ -119,6 +168,7 @@ export function useInputPanel(options: UseInputPanelOptions) {
 
   function clearImage() {
     selectedImage.value = null
+    scheduleIdleClose()
   }
 
   function openInput() {
@@ -126,13 +176,16 @@ export function useInputPanel(options: UseInputPanelOptions) {
     updateUIPositions()
     nextTick(() => {
       inputRef.value?.focus()
+      scheduleIdleClose()
     })
   }
 
   function closeInputPanel() {
+    clearIdleCloseTimer()
     showInput.value = false
     inputText.value = ''
     selectedImage.value = null
+    isPointerInsideInput.value = false
   }
 
   async function handleSendMessage() {
@@ -208,6 +261,18 @@ export function useInputPanel(options: UseInputPanelOptions) {
     }
   }
 
+  watch(
+    () => [showInput.value, inputText.value.trim(), Boolean(selectedImage.value)] as const,
+    () => {
+      scheduleIdleClose()
+    },
+    { flush: 'post' }
+  )
+
+  onBeforeUnmount(() => {
+    clearIdleCloseTimer()
+  })
+
   return {
     showInput,
     inputRef,
@@ -218,6 +283,8 @@ export function useInputPanel(options: UseInputPanelOptions) {
     handlePasteEvent,
     clearImage,
     applySelectedImage,
+    handleInputPanelPointerEnter,
+    handleInputPanelPointerLeave,
     closeInputPanel,
     openInput,
     handleSendMessage,

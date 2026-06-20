@@ -155,7 +155,14 @@
 
     <!-- 快速输入框 -->
     <Transition name="input">
-      <div v-if="showInput" class="input-panel-container" :style="inputStyle" @click.stop>
+      <div
+        v-if="showInput"
+        class="input-panel-container"
+        :style="inputStyle"
+        @click.stop
+        @pointerenter="handleInputPanelPointerEnter"
+        @pointerleave="handleInputPanelPointerLeave"
+      >
         <!-- 录音提示 (悬浮) -->
         <Transition name="fade">
           <div v-if="isRecording" class="recording-indicator-floating">
@@ -548,6 +555,8 @@ const {
   handleSelectImage,
   handlePasteEvent,
   clearImage,
+  handleInputPanelPointerEnter,
+  handleInputPanelPointerLeave,
   closeInputPanel,
   openInput: _openInput,
   handleSendMessage

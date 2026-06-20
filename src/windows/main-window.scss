@@ -543,28 +543,28 @@
   gap: 8px;
   padding: 0 12px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
-    rgba(15, 18, 26, 0.82);
-  backdrop-filter: blur(36px) saturate(150%);
-  -webkit-backdrop-filter: blur(36px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0)),
+    rgba(15, 18, 26, 0.46);
+  backdrop-filter: blur(28px) saturate(145%);
+  -webkit-backdrop-filter: blur(28px) saturate(145%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-full);
   box-shadow:
-    0 14px 44px rgba(0, 0, 0, 0.32),
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 12px 34px rgba(0, 0, 0, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: all var(--duration-norm) var(--ease-out);
 }
 
 .glass-input-bar:focus-within {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
-    rgba(20, 24, 34, 0.9);
-  border-color: rgba(var(--color-accent-rgb), 0.5);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.01)),
+    rgba(20, 24, 34, 0.62);
+  border-color: rgba(var(--color-accent-rgb), 0.42);
   box-shadow:
-    0 18px 52px rgba(0, 0, 0, 0.4),
-    0 0 0 2px rgba(var(--color-accent-rgb), 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    0 16px 42px rgba(0, 0, 0, 0.28),
+    0 0 0 2px rgba(var(--color-accent-rgb), 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
 }
 
@@ -579,7 +579,7 @@
 }
 
 .transparent-input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .icon-btn {
@@ -597,7 +597,7 @@
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
@@ -621,12 +621,12 @@
 }
 
 .send-btn:hover {
-  background: rgba(64, 150, 255, 0.1);
+  background: rgba(64, 150, 255, 0.12);
   color: #69b1ff;
 }
 
 .recording-indicator-floating {
-  background: rgba(200, 60, 60, 0.95);
+  background: rgba(200, 60, 60, 0.68);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 6px 12px;
@@ -652,7 +652,7 @@
 
 .image-preview-floating {
   position: relative;
-  background: rgba(15, 18, 26, 0.85);
+  background: rgba(15, 18, 26, 0.5);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 4px;
