@@ -522,18 +522,6 @@ const {
     showMenu.value = false
     clearMenuAutoCloseTimer()
     await window.electron.window.openSettings()
-  },
-  resetPosition: () => {
-    showMenu.value = false
-    clearMenuAutoCloseTimer()
-    modelPositionX = window.innerWidth / 2
-    modelPositionY = window.innerHeight / 2
-    live2dCanvasRef.value?.setModelPosition(modelPositionX, modelPositionY)
-    const currentModelPath = modelStore.currentModel
-    if (currentModelPath) {
-      modelStore.setModelPosition(modelPositionX, modelPositionY)
-    }
-    updateUIPositions()
   }
 })
 
