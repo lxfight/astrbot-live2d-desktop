@@ -193,6 +193,15 @@ export function createSettingsSectionRegistry(
       skeletonKind: 'form',
       loader: () => import('./sections/SettingsAdvancedSceneProSection.vue')
     },
+    'advanced/pipelineTest': {
+      key: 'advanced/pipelineTest',
+      group: 'advanced',
+      child: 'pipelineTest',
+      layoutProfile: 'document',
+      cachePolicy: 'discard',
+      skeletonKind: 'dense',
+      loader: () => import('./sections/SettingsPipelineTestSection.vue')
+    },
     'advanced/data': {
       key: 'advanced/data',
       group: 'advanced',

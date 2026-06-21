@@ -92,6 +92,7 @@ const en: I18nMessageSchema = {
   'settings.menu.advanced.windowWatcher': 'Desktop Awareness',
   'settings.menu.advanced.personality': 'Personality Pro',
   'settings.menu.advanced.scenePro': 'Scene Awareness Pro',
+  'settings.menu.advanced.pipelineTest': 'Pipeline Test',
   'settings.menu.advanced.data': 'Data Management',
   'settings.menu.about': 'About',
   'settings.menu.about.info': 'About',
@@ -923,6 +924,13 @@ const en: I18nMessageSchema = {
   'settings.modelConfig.captureThumbnail': 'Capture thumbnail',
   'settings.modelConfig.thumbnailCaptured': 'Main window captured',
   'settings.modelConfig.thumbnailFailed': 'Failed to capture thumbnail'
+  'settings.advanced.pipelineTest.description': 'Run lightweight bridge, expression, and mouse-tracking probes without bundling any model assets.',
+  'settings.advanced.pipelineTest.bridge.title': 'Runtime pipeline probes',
+  'settings.advanced.pipelineTest.bridge.desc': 'These probes use the existing bridge IPC path and current runtime. They do not require a bundled Live2D test model.',
+  'settings.advanced.pipelineTest.action.touch': 'Mouse tracking probe',
+  'settings.advanced.pipelineTest.action.expression': 'Expression state probe',
+  'settings.advanced.pipelineTest.action.perform': 'Perform message probe',
+  'settings.advanced.pipelineTest.results': 'Probe results',
 }
 
 export default en

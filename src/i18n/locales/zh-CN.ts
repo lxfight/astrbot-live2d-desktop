@@ -87,6 +87,7 @@ export default {
   'settings.menu.advanced.windowWatcher': '桌面感知',
   'settings.menu.advanced.personality': '人格 Pro',
   'settings.menu.advanced.scenePro': '场景感知 Pro',
+  'settings.menu.advanced.pipelineTest': '管线测试',
   'settings.menu.advanced.data': '数据管理',
   'settings.menu.about': '关于',
   'settings.menu.about.info': '关于',
@@ -877,4 +878,11 @@ export default {
   'settings.modelConfig.captureThumbnail': '捕获缩略图',
   'settings.modelConfig.thumbnailCaptured': '已捕获主窗口画面',
   'settings.modelConfig.thumbnailFailed': '捕获缩略图失败'
+  'settings.advanced.pipelineTest.description': '运行轻量级桥接、表情和鼠标追踪探针，不再打包任何模型资源。',
+  'settings.advanced.pipelineTest.bridge.title': '运行时管线探针',
+  'settings.advanced.pipelineTest.bridge.desc': '这些探针只走现有 bridge IPC 和当前运行时，不依赖内置 Live2D 测试模型。',
+  'settings.advanced.pipelineTest.action.touch': '鼠标追踪探针',
+  'settings.advanced.pipelineTest.action.expression': '表情状态探针',
+  'settings.advanced.pipelineTest.action.perform': '表演消息探针',
+  'settings.advanced.pipelineTest.results': '探针结果',
 }
