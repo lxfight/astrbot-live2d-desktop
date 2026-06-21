@@ -269,6 +269,20 @@ contextBridge.exposeInMainWorld('electron', {
       subscribeIpc('desktopAwareness:snapshotChanged', callback)
   },
 
+  desktopScene: {
+    getSettings: () => ipcRenderer.invoke('desktopScene:getSettings'),
+    updateSettings: (patch: any) => ipcRenderer.invoke('desktopScene:updateSettings', patch),
+    resetSettings: () => ipcRenderer.invoke('desktopScene:resetSettings'),
+    getSnapshot: () => ipcRenderer.invoke('desktopScene:getSnapshot')
+  },
+
+  personality: {
+    getSettings: () => ipcRenderer.invoke('personality:getSettings'),
+    updateSettings: (patch: any) => ipcRenderer.invoke('personality:updateSettings', patch),
+    resetSettings: () => ipcRenderer.invoke('personality:resetSettings'),
+    getPrompt: () => ipcRenderer.invoke('personality:getPrompt')
+  },
+
   // 设置窗口专用
   settings: {
     getPendingPage: () => ipcRenderer.invoke('settings:getPendingPage'),
