@@ -17,12 +17,6 @@
   "payload": {
     "interrupt": true,
     "interruptible": true,
-    "emotion": {
-      "emotion": "happy",
-      "intensity": 0.82,
-      "contextTags": ["greeting"],
-      "sourceMessage": "你好！"
-    },
     "sequence": [
       { "type": "text", "content": "你好！", "position": "center" },
       { "type": "motion", "name": "开心动作" },
@@ -38,38 +32,7 @@
 | --- | --- | --- | --- |
 | `interrupt` | boolean | 是 | 是否先中断当前表演。桌面端在 follow-up 场景可能保留当前气泡。 |
 | `interruptible` | boolean | 否 | 当前序列是否允许后续表演中断。默认 `true`。 |
-| `emotion` | object | 否 | Soullink 情绪意图。仅在客户端声明 `state.model.capabilities.soullinkEmotion=true` 时发送。 |
 | `sequence` | PerformElement[] | 是 | 表演元素数组。`wait` / `delay` 会阻塞后续元素派发，其它类型进入各自队列。 |
-
-## `emotion`
-
-```json
-{
-  "emotion": "happy",
-  "variant": "delighted",
-  "naturalEmotion": "relieved",
-  "naturalVAD": {
-    "valence": 0.8,
-    "arousal": 0.55,
-    "dominance": 0.4
-  },
-  "intensity": 0.82,
-  "contextTags": ["greeting"],
-  "sourceMessage": "你好！"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `emotion` | string | 是 | 规范情绪名，如 `happy`、`sad`、`angry`、`thinking`。 |
-| `variant` | string | 否 | 情绪变体。 |
-| `naturalEmotion` / `naturalVariant` | string | 否 | 更自然或细粒度的情绪描述。 |
-| `naturalVAD` | object | 否 | 可选的 valence / arousal / dominance，单项范围 `-1` 到 `1`。 |
-| `intensity` | number | 是 | 情绪强度，范围 `0` 到 `1`。 |
-| `contextTags` | string[] | 否 | 规划上下文标签。 |
-| `sourceMessage` | string | 否 | 产生该意图的回复文本。 |
-
-显式 `emotion` 优先于桌面端的文本情绪推断。旧版适配器不发送该字段时，桌面端仍会从 `text` / `tts` 内容本地推断，不影响基础兼容。
 
 ## 元素类型
 
