@@ -83,6 +83,21 @@
               </div>
             </div>
           </button>
+          <button
+            class="sponsor-button"
+            type="button"
+            @click="handleOpenLink(APP_LINKS.soullinkEmotion)"
+          >
+            <div class="sponsor-button__content">
+              <div class="sponsor-button__icon" aria-hidden="true">S</div>
+              <div class="sponsor-button__text">
+                <div class="sponsor-button__name">Soullink Emotion SDK</div>
+                <div class="sponsor-button__desc">
+                  {{ $t('settings.about.soullinkEmotionThanks') }}
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
       </section>
 
