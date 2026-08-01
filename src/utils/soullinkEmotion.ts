@@ -104,7 +104,8 @@ export class SoullinkEmotionController {
   private startedAtMs = 0
   private previousFrameMs = 0
 
-  configure(profile: ModelProfile): void {
+  configure(modelPath: string, displayName: string): void {
+    const profile = createStandardSoullinkProfile(modelPath, displayName)
     this.runtime = new SoullinkRuntime({
       profile,
       motionStyle: motionStylePresets.natural
