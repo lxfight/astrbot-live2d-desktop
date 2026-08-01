@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@soullink-emotion/engine':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
       '@vueuse/core':
         specifier: ^14.2.1
         version: 14.2.1(vue@3.5.31(typescript@5.9.3))
@@ -1217,10 +1214,6 @@ packages:
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
-
-  '@soullink-emotion/engine@0.1.0-beta.1':
-    resolution: {integrity: sha512-eXVMTldsFqEEsKadvkpb6DDEJ0qewnMqc8jdxCBrPTET/w4D6oIyJRxF7QtNT0swOT3er/gZgUO9qFPIlCrtzQ==}
-    engines: {node: '>=18'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -5108,8 +5101,6 @@ snapshots:
   '@sideway/pinpoint@2.0.0': {}
 
   '@sindresorhus/is@4.6.0': {}
-
-  '@soullink-emotion/engine@0.1.0-beta.1': {}
 
   '@standard-schema/spec@1.1.0': {}
 

@@ -34,8 +34,7 @@
     "links": {
       "astrbot": "https://github.com/AstrBotDevs/AstrBot",
       "repository": "https://github.com/lxfight/astrbot-live2d-desktop",
-      "adapterPlugin": "https://github.com/lxfight/astrbot_plugin_live2d_adapter",
-      "soullinkEmotion": "https://github.com/nanlingyin/soullink-emotion-sdk"
+      "adapterPlugin": "https://github.com/lxfight/astrbot_plugin_live2d_adapter"
     },
     "storage": {
       "local": {
@@ -180,7 +179,6 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
-    "@soullink-emotion/engine": "0.1.0-beta.1",
     "@vueuse/core": "^14.2.1",
     "active-win": "^9.0.0",
     "axios": "^1.14.0",

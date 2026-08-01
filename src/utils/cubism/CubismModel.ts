@@ -267,7 +267,6 @@ export class CubismModel {
     blend: ExpressionBlendType
     value: number
   }> = []
-  private emotionParameters: Record<string, number> = {}
 
   private static readonly GAZE_FOCUS_EPS = 0.08
   /** 鼠标在模型附近注视时，待机噪声不叠加到头部/眼球（避免与 drag 视线相加偏移） */
@@ -1748,23 +1747,6 @@ export class CubismModel {
   }
 
   /**
-   * 设置 Soullink 当前帧生成的 Cubism 参数。
-   * 显式动作或表情播放期间会自动让位，避免覆盖导演级表演。
-   */
-  setEmotionParameters(parameters: Record<string, number> | null): void {
-    if (!parameters) {
-      this.emotionParameters = {}
-      return
-    }
-
-    this.emotionParameters = Object.fromEntries(
-      Object.entries(parameters).filter(
-        ([parameterId, value]) => parameterId.trim().length > 0 && Number.isFinite(value)
-      )
-    )
-  }
-
-  /**
    * 设置待机活跃度（0~1）：越高待机微动越频繁
    */
   setIdleActivity(value: number): void {
@@ -1890,15 +1872,6 @@ export class CubismModel {
           continue
         }
         model.addParameterValueById(this.getParameterIdHandle(entry.parameterId), entry.value)
-      }
-    }
-
-    const expressionActive =
-      this.activeExpressionRuntime !== null ||
-      Boolean(this.expressionManager && !this.expressionManager.isFinished())
-    if (!expressionActive && !this.shouldSuppressIdleNoiseAndBlink()) {
-      for (const [parameterId, value] of Object.entries(this.emotionParameters)) {
-        model.setParameterValueById(this.getParameterIdHandle(parameterId), value)
       }
     }
 
@@ -2563,7 +2536,6 @@ export class CubismModel {
     this.discoveryInfo = null
     this.activeExpressionRuntime = null
     this.activeLegacyExpressionName = null
-    this.emotionParameters = {}
     this.parameterIdHandles.clear()
     this.hitAreaNames = []
     this.gl = null
