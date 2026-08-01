@@ -285,6 +285,8 @@ const en: I18nMessageSchema = {
   'settings.about.specialThanks': 'Special Thanks',
   'settings.about.sponsorDesc':
     'Provided substantial AI Token support for this project, accelerating development',
+  'settings.about.soullinkEmotionThanks':
+    'This app uses the project for real-time emotion, VAD, and FACS performance. Thanks to nanlingyin for the open-source contribution.',
   'settings.about.relatedProjects': 'Related Projects',
   'settings.about.projectRepo': 'Project Repository',
   'settings.about.adapterPlugin': 'Platform Adapter Plugin',
@@ -585,6 +587,9 @@ const en: I18nMessageSchema = {
   'settings.advanced.behavior.recordingModeFeedback':
     'Hold to talk: press and hold to record, release to stop. Click to toggle: click once to start, click again to stop.',
   'settings.advanced.behavior.autoLoadLastModel': 'Auto-load last model on launch',
+  'settings.advanced.behavior.soullinkEmotion': 'Soullink real-time emotion performance',
+  'settings.advanced.behavior.soullinkEmotionFeedback':
+    'Uses Soullink Emotion SDK to generate continuous VAD, FACS, and model micro-motion from performance text or a server-provided emotion intent.',
   'settings.advanced.behavior.silenceDetection': 'Enable silence detection during recording',
   'settings.advanced.behavior.silenceDetectionFeedback':
     'Automatically stop recording when no sound is detected for a period, reducing silent audio segments.',

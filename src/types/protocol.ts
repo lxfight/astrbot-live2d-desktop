@@ -114,8 +114,25 @@ export interface PerformElement {
   autoplay?: boolean
 }
 
+export interface PerformEmotionIntent {
+  emotion: string
+  variant?: string
+  naturalEmotion?: string
+  naturalVariant?: string
+  naturalVAD?: {
+    valence?: number
+    arousal?: number
+    dominance?: number
+  }
+  intensity: number
+  contextTags?: string[]
+  sourceMessage?: string
+}
+
 export interface PerformSequence {
   interrupt: boolean
   sequence: PerformElement[]
   interruptible?: boolean
+  /** 可选的 Soullink 情绪意图；旧版服务端未提供时由桌面端从表演文本推断。 */
+  emotion?: PerformEmotionIntent
 }

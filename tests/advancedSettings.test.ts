@@ -45,6 +45,7 @@ describe('advancedSettings', () => {
       autoConnect: false,
       autoLoadLastModel: false,
       themeFollowModel: false,
+      soullinkEmotionEnabled: false,
       silenceDetectionEnabled: true,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
@@ -62,6 +63,7 @@ describe('advancedSettings', () => {
       recordingShortcut: 'Ctrl+Shift+R',
       autoLoadLastModel: false,
       themeFollowModel: false,
+      soullinkEmotionEnabled: false,
       silenceDetectionEnabled: true,
       bubbleStackMax: 6,
       bubbleFollowUpWindowMs: 6000,
@@ -92,6 +94,7 @@ describe('advancedSettings', () => {
 
     expect(normalized.autoLoadLastModel).toBe(true)
     expect(normalized.themeFollowModel).toBe(true)
+    expect(normalized.soullinkEmotionEnabled).toBe(true)
     expect(normalized.silenceDetectionEnabled).toBe(false)
     expect(normalized.bubbleStackMax).toBe(3)
     expect(normalized.bubbleFollowUpWindowMs).toBe(4000)

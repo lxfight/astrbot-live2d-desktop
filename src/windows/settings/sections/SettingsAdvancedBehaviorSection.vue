@@ -117,6 +117,15 @@
             @update:value="applyAdvancedSettingChange"
           />
         </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.soullinkEmotion')">
+          <n-switch
+            v-model:value="advancedSettings.soullinkEmotionEnabled"
+            @update:value="applyAdvancedSettingChange"
+          />
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.soullinkEmotionFeedback') }}
+          </template>
+        </n-form-item>
         <n-form-item :label="$t('settings.advanced.behavior.silenceDetection')">
           <n-switch
             v-model:value="advancedSettings.silenceDetectionEnabled"

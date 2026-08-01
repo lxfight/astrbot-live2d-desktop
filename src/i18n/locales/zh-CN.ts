@@ -272,6 +272,8 @@ export default {
   'settings.about.language': '语言',
   'settings.about.specialThanks': '特别鸣谢',
   'settings.about.sponsorDesc': '为本项目提供了大量的 AI Token 支持，助力开发进程',
+  'settings.about.soullinkEmotionThanks':
+    '本应用使用该项目提供实时情绪、VAD 与 FACS 表演能力，感谢 nanlingyin 的开源贡献。',
   'settings.about.relatedProjects': '相关项目',
   'settings.about.projectRepo': '本项目仓库',
   'settings.about.adapterPlugin': '平台适配器插件',
@@ -559,6 +561,9 @@ export default {
   'settings.advanced.behavior.recordingModeFeedback':
     '按住说话：按下按钮开始录音，松开结束。点击切换：点击一次开始录音，再次点击结束。',
   'settings.advanced.behavior.autoLoadLastModel': '启动时自动加载上次模型',
+  'settings.advanced.behavior.soullinkEmotion': 'Soullink 实时情绪表演',
+  'settings.advanced.behavior.soullinkEmotionFeedback':
+    '使用 Soullink Emotion SDK 根据表演文本或服务端情绪意图生成连续 VAD、FACS 与模型微动作。',
   'settings.advanced.behavior.silenceDetection': '录音时启用静音检测',
   'settings.advanced.behavior.silenceDetectionFeedback':
     '长时间未检测到声音时自动结束录音，减少空白语音片段。',
