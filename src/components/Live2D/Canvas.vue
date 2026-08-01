@@ -4,12 +4,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
+import { CubismModel as Live2DModel, MotionPriority } from '@/utils/cubism/CubismModel'
 import { AudioLipSyncAnalyzer } from '@/utils/AudioLipSyncAnalyzer'
 import {
   SoullinkEmotionController,
+  addDiscoveredSoullinkExpressions,
   createStandardSoullinkProfile,
-  type SoullinkEmotionIntent
+  type SoullinkEmotionIntent,
+  type SoullinkEmotionFrame
 } from '@/utils/soullinkEmotion'
 import type {
   CubismCompatibilityManifest,
@@ -27,6 +29,7 @@ const emotionController = new SoullinkEmotionController()
 let pendingIdleActivity: number | null = null
 let pendingPersistentExpressions: string[] = []
 let pendingEmotionEnabled = true
+let lastNativeAnimationToken: number | null = null
 
 function applyLipSyncValue(value: number) {
   model?.setLipSyncValue(value)
@@ -68,6 +71,33 @@ function stopRenderLoop() {
     renderFrameId = null
   }
 }
+
+function applySoullinkNativeAnimation(frame: SoullinkEmotionFrame | null) {
+  const directive = frame?.nativeAnimation
+  if (!model || !directive || directive.token === lastNativeAnimationToken) {
+    return
+  }
+
+  lastNativeAnimationToken = directive.token
+  if (directive.motion) {
+    const priority =
+      directive.motion.priority === 'force'
+        ? MotionPriority.Force
+        : directive.motion.priority === 'idle'
+          ? MotionPriority.Idle
+          : MotionPriority.Normal
+    model.motion(directive.motion.group, directive.motion.index ?? 0, priority)
+  }
+  if (directive.expression) {
+    model.expression({
+      id: directive.expression,
+      fade: 260,
+      holdMs: 2200,
+      resetPolicy: 'neutral'
+    })
+  }
+}
+
 function startRenderLoop() {
   stopRenderLoop()
 
@@ -85,6 +115,7 @@ function startRenderLoop() {
     if (elapsed >= frameInterval) {
       lastTime = timestamp - (elapsed % frameInterval)
       const emotionFrame = emotionController.update(timestamp)
+      applySoullinkNativeAnimation(emotionFrame)
       model.setEmotionParameters(emotionFrame?.live2dParams ?? null)
       model.update()
       model.render()
@@ -130,6 +161,7 @@ async function loadModel(
       model.destroy()
       model = null
       emotionController.reset()
+      lastNativeAnimationToken = null
     }
 
     // 加载新模型
@@ -163,6 +195,7 @@ async function loadModel(
       console.warn('[Live2D] Soullink Profile 不可用，使用标准 Profile:', error)
     }
 
+    soullinkProfile = addDiscoveredSoullinkExpressions(soullinkProfile, modelInfo.expressionCatalog)
     emotionController.configure(soullinkProfile)
     emotionController.setEnabled(pendingEmotionEnabled)
 
@@ -250,12 +283,12 @@ function setEmotionEnabled(enabled: boolean) {
   }
 }
 
-function triggerEmotionFromText(text: string) {
-  emotionController.triggerMessage(text)
+function triggerEmotionFromText(text: string, allowNativeAnimation: boolean = true) {
+  emotionController.triggerMessage(text, { allowNativeAnimation })
 }
 
-function triggerEmotionIntent(intent: SoullinkEmotionIntent) {
-  emotionController.triggerIntent(intent)
+function triggerEmotionIntent(intent: SoullinkEmotionIntent, allowNativeAnimation: boolean = true) {
+  emotionController.triggerIntent(intent, { allowNativeAnimation })
 }
 
 /**

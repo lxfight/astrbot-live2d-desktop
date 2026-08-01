@@ -2,6 +2,7 @@ import {
   SoullinkRuntime,
   motionStylePresets,
   type EmotionIntent,
+  type ExpressionBinding,
   type ModelProfile,
   type RuntimeSnapshot,
   type VADVector
@@ -19,6 +20,73 @@ export type SoullinkEmotionIntent = {
 }
 
 export type SoullinkEmotionFrame = Pick<RuntimeSnapshot, 'live2dParams' | 'nativeAnimation'>
+
+export type SoullinkExpressionCatalogEntry = {
+  id: string
+  aliases?: string[]
+  tags?: string[]
+}
+
+export type SoullinkTriggerOptions = {
+  allowNativeAnimation?: boolean
+}
+
+const NATIVE_EXPRESSION_MATCHERS: Array<{
+  emotion: string
+  tags: string[]
+  keywords: string[]
+}> = [
+  {
+    emotion: 'happy',
+    tags: ['happy'],
+    keywords: ['happy', 'smile', 'joy', 'laugh', '开心', '高兴', '笑', '星星眼']
+  },
+  {
+    emotion: 'sad',
+    tags: ['sad'],
+    keywords: ['sad', 'cry', 'tear', '难过', '伤心', '哭', '流泪']
+  },
+  {
+    emotion: 'angry',
+    tags: ['angry'],
+    keywords: ['angry', 'mad', 'rage', '生气', '愤怒', '黑脸']
+  },
+  {
+    emotion: 'surprised',
+    tags: ['surprised'],
+    keywords: ['surprise', 'shock', 'wow', '惊讶', '震惊', '星星眼']
+  },
+  {
+    emotion: 'thinking',
+    tags: ['thinking'],
+    keywords: ['thinking', 'ponder', 'think', '思考', '记笔记']
+  },
+  {
+    emotion: 'anxious',
+    tags: ['anxious'],
+    keywords: ['anxious', 'nervous', '焦虑', '紧张', '晕晕眼']
+  },
+  {
+    emotion: 'tired',
+    tags: ['tired'],
+    keywords: ['tired', 'sleepy', '疲惫', '困', '晕晕眼']
+  },
+  {
+    emotion: 'disgusted',
+    tags: ['disgusted'],
+    keywords: ['disgust', '厌恶', '嫌弃', '黑脸']
+  },
+  {
+    emotion: 'blush',
+    tags: ['blush'],
+    keywords: ['blush', 'shy', '脸红', '害羞']
+  },
+  {
+    emotion: 'playful',
+    tags: ['playful'],
+    keywords: ['playful', 'mischief', '调皮', '俏皮', '星星眼']
+  }
+]
 
 const STANDARD_PARAMETER_MAP: ModelProfile['parameterMap'] = {
   browInnerUp: {
@@ -90,6 +158,70 @@ export function createStandardSoullinkProfile(
   }
 }
 
+function normalizeCatalogText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
+}
+
+function findNativeExpression(
+  catalog: SoullinkExpressionCatalogEntry[],
+  tags: string[],
+  keywords: string[]
+): string | null {
+  const normalizedTags = new Set(tags.map(normalizeCatalogText))
+  const tagged = catalog.find(entry =>
+    (entry.tags ?? []).some(tag => normalizedTags.has(normalizeCatalogText(tag)))
+  )
+  if (tagged) {
+    return tagged.id
+  }
+
+  for (const keyword of keywords) {
+    const normalizedKeyword = normalizeCatalogText(keyword)
+    const matched = catalog.find(entry =>
+      [entry.id, ...(entry.aliases ?? [])].some(value =>
+        normalizeCatalogText(value).includes(normalizedKeyword)
+      )
+    )
+    if (matched) {
+      return matched.id
+    }
+  }
+
+  return null
+}
+
+export function addDiscoveredSoullinkExpressions(
+  profile: ModelProfile,
+  catalog: SoullinkExpressionCatalogEntry[] | null | undefined
+): ModelProfile {
+  if (!Array.isArray(catalog) || catalog.length === 0) {
+    return profile
+  }
+
+  const inferred: Record<string, ExpressionBinding> = {}
+  for (const matcher of NATIVE_EXPRESSION_MATCHERS) {
+    const expression = findNativeExpression(catalog, matcher.tags, matcher.keywords)
+    if (expression) {
+      inferred[matcher.emotion] = { expression, minIntensity: 0.5 }
+    }
+  }
+
+  if (Object.keys(inferred).length === 0) {
+    return profile
+  }
+
+  return {
+    ...profile,
+    expressionMap: {
+      ...inferred,
+      ...(profile.expressionMap ?? {})
+    }
+  }
+}
+
 function normalizeIntent(intent: SoullinkEmotionIntent): EmotionIntent | null {
   const emotion = intent.emotion.trim()
   if (!emotion) {
@@ -117,6 +249,7 @@ function normalizeIntent(intent: SoullinkEmotionIntent): EmotionIntent | null {
 export class SoullinkEmotionController {
   private runtime: SoullinkRuntime | null = null
   private enabled = true
+  private nativeAnimationAllowed = true
   private startedAtMs = 0
   private previousFrameMs = 0
 
@@ -129,6 +262,7 @@ export class SoullinkEmotionController {
     this.runtime.setBodyMotionGain(1.1)
     // The host already provides model-native blinking and real audio lip sync.
     this.runtime.setLipSyncEnabled(false)
+    this.nativeAnimationAllowed = true
     this.startedAtMs = performance.now()
     this.previousFrameMs = this.startedAtMs
   }
@@ -137,19 +271,21 @@ export class SoullinkEmotionController {
     this.enabled = enabled
   }
 
-  triggerMessage(message: string): EmotionIntent | null {
+  triggerMessage(message: string, options: SoullinkTriggerOptions = {}): EmotionIntent | null {
     const normalized = message.trim()
     if (!this.enabled || !this.runtime || !normalized) {
       return null
     }
+    this.nativeAnimationAllowed = options.allowNativeAnimation !== false
     return this.runtime.sendMessage(normalized, this.currentTimeSeconds())
   }
 
-  triggerIntent(intent: SoullinkEmotionIntent): boolean {
+  triggerIntent(intent: SoullinkEmotionIntent, options: SoullinkTriggerOptions = {}): boolean {
     const normalized = normalizeIntent(intent)
     if (!this.enabled || !this.runtime || !normalized) {
       return false
     }
+    this.nativeAnimationAllowed = options.allowNativeAnimation !== false
     this.runtime.triggerIntent(normalized, this.currentTimeSeconds())
     return true
   }
@@ -166,12 +302,13 @@ export class SoullinkEmotionController {
     const snapshot = this.runtime.update(timeSeconds, deltaSeconds)
     return {
       live2dParams: snapshot.live2dParams,
-      nativeAnimation: snapshot.nativeAnimation
+      nativeAnimation: this.nativeAnimationAllowed ? snapshot.nativeAnimation : null
     }
   }
 
   reset(): void {
     this.runtime = null
+    this.nativeAnimationAllowed = true
     this.startedAtMs = 0
     this.previousFrameMs = 0
   }
