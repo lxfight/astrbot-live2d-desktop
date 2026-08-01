@@ -18,7 +18,9 @@ describe('Soullink emotion integration', () => {
 
   it('updates locally and can be disabled without a runtime failure', () => {
     const controller = new SoullinkEmotionController()
-    controller.configure('/models/avatar/model.model3.json', 'Avatar')
+    controller.configure(
+      createStandardSoullinkProfile('/models/avatar/model.model3.json', 'Avatar')
+    )
 
     expect(controller.triggerMessage('今天终于成功了')).not.toBeNull()
     expect(controller.update(performance.now() + 16)?.live2dParams).toBeTruthy()
@@ -30,9 +32,27 @@ describe('Soullink emotion integration', () => {
 
   it('rejects an empty explicit intent and clamps a valid one', () => {
     const controller = new SoullinkEmotionController()
-    controller.configure('/models/avatar/model.model3.json', 'Avatar')
+    controller.configure(
+      createStandardSoullinkProfile('/models/avatar/model.model3.json', 'Avatar')
+    )
 
     expect(controller.triggerIntent({ emotion: ' ', intensity: 1 })).toBe(false)
     expect(controller.triggerIntent({ emotion: 'happy', intensity: 4 })).toBe(true)
+  })
+
+  it('uses parameter mappings from a model-specific profile', () => {
+    const controller = new SoullinkEmotionController()
+    const profile = createStandardSoullinkProfile('/models/avatar/model.model3.json', 'Avatar')
+    profile.parameterMap.headX = {
+      ...profile.parameterMap.headX,
+      target: 'ParamAvatarHeadX'
+    }
+    controller.configure(profile)
+
+    controller.triggerIntent({ emotion: 'happy', intensity: 1 })
+    const frame = controller.update(performance.now() + 250)
+
+    expect(frame?.live2dParams.ParamAvatarHeadX).toBeTypeOf('number')
+    expect(frame?.live2dParams.ParamAngleX).toBeUndefined()
   })
 })

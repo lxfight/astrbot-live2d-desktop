@@ -6,7 +6,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 import { AudioLipSyncAnalyzer } from '@/utils/AudioLipSyncAnalyzer'
-import { SoullinkEmotionController, type SoullinkEmotionIntent } from '@/utils/soullinkEmotion'
+import {
+  SoullinkEmotionController,
+  createStandardSoullinkProfile,
+  type SoullinkEmotionIntent
+} from '@/utils/soullinkEmotion'
 import type {
   CubismCompatibilityManifest,
   CubismExpressionRequest,
@@ -136,7 +140,30 @@ async function loadModel(
       model.setIdleActivity(pendingIdleActivity)
     }
     model.setPersistentExpressions(pendingPersistentExpressions)
-    emotionController.configure(modelPath, model.getModelInfo().name)
+
+    const modelInfo = model.getModelInfo()
+    let soullinkProfile = createStandardSoullinkProfile(modelPath, modelInfo.name)
+    try {
+      const profileResult = await window.electron.model.getSoullinkProfile(modelPath)
+      if (profileResult.success && profileResult.profile) {
+        soullinkProfile = profileResult.profile
+      } else if (!profileResult.success) {
+        console.warn('[Live2D] Soullink Profile 读取失败，使用标准 Profile:', profileResult.error)
+      } else if (profileResult.errors?.length) {
+        console.warn(
+          '[Live2D] Soullink Profile 无效，使用标准 Profile:',
+          profileResult.errors.join('; ')
+        )
+      }
+
+      if (profileResult.warnings?.length) {
+        console.warn('[Live2D] Soullink Profile 警告:', profileResult.warnings.join('; '))
+      }
+    } catch (error) {
+      console.warn('[Live2D] Soullink Profile 不可用，使用标准 Profile:', error)
+    }
+
+    emotionController.configure(soullinkProfile)
     emotionController.setEnabled(pendingEmotionEnabled)
 
     // 初始化 WebGL 并启动渲染循环，传入初始位置
@@ -150,7 +177,6 @@ async function loadModel(
     emit('modelLoaded')
 
     // 获取并发送模型信息
-    const modelInfo = model.getModelInfo()
     emit('modelInfoChanged', modelInfo)
     console.log('[Live2D] 模型信息已发送:', modelInfo)
   } catch (error) {
