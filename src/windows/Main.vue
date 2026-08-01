@@ -1005,17 +1005,28 @@ async function syncModelInfoToBridge(
   }
 
   try {
+    const modelInfoWithRuntimeCapabilities: StateModelPayload = {
+      ...modelInfo,
+      capabilities: {
+        ...modelInfo.capabilities,
+        soullinkEmotion: advancedSettings.value.soullinkEmotionEnabled
+      }
+    }
+
     // 根据配置决定使用 v1.0 或 v2.0 协议
-    let payload = modelInfo
+    let payload = modelInfoWithRuntimeCapabilities
 
     if (shouldUseV2Protocol()) {
       // 如果有配置文件，使用 aliasMapper 导出
       if (aliasMapper.hasConfig()) {
-        payload = aliasMapper.exportForAdapter(modelInfo.name || '未命名模型', modelInfo)
+        payload = aliasMapper.exportForAdapter(
+          modelInfo.name || '未命名模型',
+          modelInfoWithRuntimeCapabilities
+        )
         console.log('[主窗口] 使用 AliasMapper 导出 v2.0 格式')
       } else {
         // 否则使用自动转换
-        payload = convertModelInfoToV2(modelInfo)
+        payload = convertModelInfoToV2(modelInfoWithRuntimeCapabilities)
         console.log('[主窗口] 使用自动转换 v2.0 格式')
       }
     }
@@ -1165,7 +1176,12 @@ function handleStorageChange(event: StorageEvent) {
   }
 
   const wasThemeFollowModel = advancedSettings.value.themeFollowModel
+  const wasSoullinkEmotionEnabled = advancedSettings.value.soullinkEmotionEnabled
   refreshAdvancedSettings()
+
+  if (wasSoullinkEmotionEnabled !== advancedSettings.value.soullinkEmotionEnabled) {
+    void syncCurrentModelInfoToBridge('Soullink 情绪能力设置变更')
+  }
 
   // themeFollowModel 从 false 变为 true 时，立即重新提取主题色
   if (!wasThemeFollowModel && advancedSettings.value.themeFollowModel) {
