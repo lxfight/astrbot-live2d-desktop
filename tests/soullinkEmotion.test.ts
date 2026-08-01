@@ -15,7 +15,7 @@ describe('Soullink emotion integration', () => {
     expect(profile.parameterMap.mouthFrown?.target).toBe('ParamMouthForm')
     expect(profile.parameterMap.eyeSmile?.targets).toEqual(['ParamEyeLSmile', 'ParamEyeRSmile'])
     expect(profile.parameterMap.gazeX?.target).toBe('ParamEyeBallX')
-    expect(profile.parameterMap.mouthOpen).toBeUndefined()
+    expect(profile.parameterMap.mouthOpen?.target).toBe('ParamMouthOpenY')
     expect(profile.parameterMap.eyeOpen).toBeUndefined()
   })
 
@@ -41,6 +41,26 @@ describe('Soullink emotion integration', () => {
 
     expect(controller.triggerIntent({ emotion: ' ', intensity: 1 })).toBe(false)
     expect(controller.triggerIntent({ emotion: 'happy', intensity: 4 })).toBe(true)
+  })
+
+  it('translates adapter emotion names to Soullink dynamic archetypes', () => {
+    const controller = new SoullinkEmotionController()
+    controller.configure(
+      createStandardSoullinkProfile('/models/avatar/model.model3.json', 'Avatar')
+    )
+
+    controller.triggerIntent({ emotion: 'anxious', intensity: 1 })
+    const anxiousFrame = controller.update(performance.now() + 250)
+
+    const blushController = new SoullinkEmotionController()
+    blushController.configure(
+      createStandardSoullinkProfile('/models/avatar/model.model3.json', 'Avatar')
+    )
+    blushController.triggerIntent({ emotion: 'blush', intensity: 1 })
+    const blushFrame = blushController.update(performance.now() + 500)
+
+    expect(anxiousFrame?.live2dParams.ParamBrowLY).toBeGreaterThan(0)
+    expect(blushFrame?.live2dParams.ParamEyeLSmile).toBeGreaterThan(0)
   })
 
   it('uses parameter mappings from a model-specific profile', () => {

@@ -63,6 +63,7 @@ const STANDARD_PARAMETER_MAP: ModelProfile['parameterMap'] = {
     min: -1,
     max: 1
   },
+  mouthOpen: { target: 'ParamMouthOpenY', mode: 'set', scale: 0.8, min: 0, max: 1 },
   gazeX: { target: 'ParamEyeBallX', mode: 'set', scale: 0.75, min: -1, max: 1 },
   gazeY: { target: 'ParamEyeBallY', mode: 'set', scale: 0.75, min: -1, max: 1 },
   headX: { target: 'ParamAngleX', mode: 'set', scale: 30, min: -30, max: 30 },
@@ -73,6 +74,16 @@ const STANDARD_PARAMETER_MAP: ModelProfile['parameterMap'] = {
   bodyZ: { target: 'ParamBodyAngleZ', mode: 'set', scale: 12, min: -12, max: 12 },
   blush: { target: 'ParamCheek', mode: 'set', scale: 1, min: 0, max: 1 },
   breath: { target: 'ParamBreath', mode: 'set', scale: 1, min: 0, max: 1 }
+}
+
+const SOULLINK_EMOTION_ALIASES: Record<string, string> = {
+  anxious: 'anxiety',
+  thinking: 'curious',
+  blush: 'shy',
+  playful: 'excited',
+  disgusted: 'anger',
+  sweat: 'anxiety',
+  special: 'confused'
 }
 
 export function createStandardSoullinkProfile(
@@ -91,13 +102,13 @@ export function createStandardSoullinkProfile(
 }
 
 function normalizeIntent(intent: SoullinkEmotionIntent): EmotionIntent | null {
-  const emotion = intent.emotion.trim()
-  if (!emotion) {
+  const rawEmotion = intent.emotion.trim().toLowerCase()
+  if (!rawEmotion) {
     return null
   }
 
   return {
-    emotion,
+    emotion: SOULLINK_EMOTION_ALIASES[rawEmotion] ?? rawEmotion,
     variant: intent.variant?.trim() || undefined,
     naturalEmotion: intent.naturalEmotion?.trim() || undefined,
     naturalVariant: intent.naturalVariant?.trim() || undefined,
