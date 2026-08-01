@@ -12,8 +12,7 @@ const baseModelInfo = {
   capabilities: {
     expressionCombo: true,
     semanticExpression: true,
-    expressionProfile: true,
-    soullinkEmotion: true
+    expressionProfile: true
   },
   expressionCatalog: [
     {
@@ -58,8 +57,7 @@ describe('model info v2 export', () => {
       llmControlled: true,
       expressionCombo: true,
       semanticExpression: true,
-      expressionProfile: true,
-      soullinkEmotion: true
+      expressionProfile: true
     })
     expect(payload.expressionCatalog).toEqual(baseModelInfo.expressionCatalog)
     expect(payload.semanticPresets).toEqual(baseModelInfo.semanticPresets)
@@ -105,8 +103,7 @@ describe('model info v2 export', () => {
       llmControlled: true,
       expressionCombo: true,
       semanticExpression: true,
-      expressionProfile: true,
-      soullinkEmotion: true
+      expressionProfile: true
     })
     expect(payload.expressionCatalog).toEqual(baseModelInfo.expressionCatalog)
     expect(payload.semanticPresets).toEqual(baseModelInfo.semanticPresets)

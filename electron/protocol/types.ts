@@ -141,12 +141,6 @@ export interface ModelExpressionCapabilities {
   expressionCombo: boolean
   semanticExpression: boolean
   expressionProfile: boolean
-  soullinkEmotion?: boolean
-}
-
-export type StateModelCapabilities = Partial<ModelExpressionCapabilities> & {
-  idleMode?: string
-  llmControlled?: boolean
 }
 
 export interface ModelExpressionCatalogItem {
@@ -177,7 +171,9 @@ export interface StateModelPayload {
   motionGroups?: Record<string, Array<{ index: number; file: string }>>
   motions?: Array<{ id: string; name: string; category: string; duration: number }>
   expressions?: string[] | Array<{ id: string; name: string }>
-  capabilities?: StateModelCapabilities
+  capabilities?:
+    | ModelExpressionCapabilities
+    | { idleMode: string; llmControlled: boolean; expressionCombo?: boolean }
   expressionCatalog?: ModelExpressionCatalogItem[]
   semanticPresets?: Record<string, string[]>
   discovery?: ModelDiscoveryInfo
