@@ -20,8 +20,7 @@ export const APP_METADATA = {
 export const APP_LINKS = {
   astrbot: packageJson.desktopMetadata.links.astrbot,
   repository: APP_METADATA.repositoryUrl,
-  adapterPlugin: packageJson.desktopMetadata.links.adapterPlugin,
-  soullinkEmotion: packageJson.desktopMetadata.links.soullinkEmotion
+  adapterPlugin: packageJson.desktopMetadata.links.adapterPlugin
 } as const
 
 export const PROTOCOL_VERSION = packageJson.desktopMetadata.protocol.version

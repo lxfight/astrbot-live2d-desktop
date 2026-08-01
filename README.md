@@ -23,9 +23,6 @@
 > 
 > **[Futureppo](https://blog.futureppo.top)** 为本项目提供了大量的 AI Token 支持，助力开发进程。  
 > 感谢他的慷慨赞助！
->
-> 本项目使用 **[Soullink Emotion SDK](https://github.com/nanlingyin/soullink-emotion-sdk)**
-> 提供实时情绪、VAD、FACS 与 Live2D 微动作能力。衷心感谢 **nanlingyin** 的开源贡献！
 > 
 > [![访问 Futureppo 的博客](https://img.shields.io/badge/🌐_访问博客-blog.futureppo.top-4CAF50?style=for-the-badge)](https://blog.futureppo.top)
 
@@ -34,7 +31,7 @@
 一个基于 Electron + Vue 3 的 Live2D 桌面客户端。
 可与 AstrBot 实时通信，让模型展示文本、动作、表情、语音与多媒体内容。
 
-> 💡 我最初开发这个项目的目的是为了展示 **AstrBot 插件生态的完善性与兼容性**，因此通过适配器插件的形式实现与桌面应用的连接。这也想说明一点：**AstrBot 的能力远不止现有的默认平台**，它可以拓展到更多场景。在智能处理方面，**本项目本身不提供对话 Agent**——输入、输出与对话决策由 AstrBot 端定义和驱动；桌面端专注于 Live2D 渲染，并使用 Soullink Emotion SDK 在本地完成情绪表演推断。当然，目前项目可能还存在许多不足，**非常欢迎社区的朋友们提交 PR**，一起让它变得更好。
+> 💡 我最初开发这个项目的目的是为了展示 **AstrBot 插件生态的完善性与兼容性**，因此通过适配器插件的形式实现与桌面应用的连接。这也想说明一点：**AstrBot 的能力远不止现有的默认平台**，它可以拓展到更多场景。在智能处理方面，**本项目本身并不带有任何 Agent 功能**——所有输入、输出、交互及智能决策逻辑，全部交由 AstrBot 端定义和驱动，桌面端只专注于 Live2D 模型的渲染与表现。当然，目前项目可能还存在许多不足，**非常欢迎社区的朋友们提交 PR**，一起让它变得更好。
 
 > 使用前请先安装 AstrBot 适配器插件：
 > [astrbot_plugin_live2d_adapter](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
@@ -54,7 +51,6 @@
 - 不支持 Cubism 2 `.model.json` 模型导入与运行
 - 与 AstrBot WebSocket 实时交互，低延迟消息与表演推送
 - 文本/图片/语音输入，自动触发表演序列播放
-- 使用 Soullink Emotion SDK，根据表演文本或服务端情绪意图生成连续情绪与自然微动作
 - 历史消息、表演记录与统计分析
 - 录音链路与全局快捷键，支持按住 / 点击两种录音模式
 - 托盘、置顶、鼠标穿透（无穿透 / 智能穿透 / 完全穿透）等桌面助手能力
@@ -203,7 +199,6 @@ pnpm run rebuild
 - 不支持 Cubism 2 `.model.json` 模型
 - `.vtube.json` 仅作为 companion 补充来源使用，不代表完整兼容 VTube Studio 的全部配置语义
 - `semantic` 表情选择依赖已发现的表情目录与 profile 标注，不能保证所有第三方模型都能自动得到理想语义映射
-- Soullink 首版使用标准 Cubism 参数 Profile；使用大量私有参数的模型可能需要后续逐模型校准
 - 受 Cubism Core 版本影响，部分较新 moc3 版本可能不兼容
 - 某些环境下透明窗口与 GPU 驱动组合存在兼容差异
 
@@ -216,7 +211,6 @@ pnpm run rebuild
 - [AstrBot](https://github.com/Soulter/AstrBot)
 - [astrbot_plugin_live2d_adapter](https://github.com/lxfight/astrbot_plugin_live2d_adapter)
 - [Live2D Cubism SDK](https://www.live2d.com/download/cubism-sdk/)
-- [Soullink Emotion SDK](https://github.com/nanlingyin/soullink-emotion-sdk)
 
 ## License
 
