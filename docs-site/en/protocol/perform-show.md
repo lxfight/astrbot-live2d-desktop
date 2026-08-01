@@ -17,6 +17,12 @@
   "payload": {
     "interrupt": true,
     "interruptible": true,
+    "emotion": {
+      "emotion": "happy",
+      "intensity": 0.82,
+      "contextTags": ["greeting"],
+      "sourceMessage": "Hello!"
+    },
     "sequence": [
       { "type": "text", "content": "Hello!", "position": "center" },
       { "type": "motion", "name": "Happy Motion" },
@@ -32,7 +38,38 @@
 | --- | --- | --- | --- |
 | `interrupt` | boolean | yes | Whether to interrupt the current performance first. The desktop may preserve current bubbles in follow-up scenarios. |
 | `interruptible` | boolean | no | Whether this sequence can be interrupted by a later performance. Default is `true`. |
+| `emotion` | object | no | Soullink emotion intent. Send only when the client declares `state.model.capabilities.soullinkEmotion=true`. |
 | `sequence` | PerformElement[] | yes | Performance elements. `wait` / `delay` blocks later dispatch; other types enter their own queues. |
+
+## `emotion`
+
+```json
+{
+  "emotion": "happy",
+  "variant": "delighted",
+  "naturalEmotion": "relieved",
+  "naturalVAD": {
+    "valence": 0.8,
+    "arousal": 0.55,
+    "dominance": 0.4
+  },
+  "intensity": 0.82,
+  "contextTags": ["greeting"],
+  "sourceMessage": "Hello!"
+}
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `emotion` | string | yes | Canonical emotion name such as `happy`, `sad`, `angry`, or `thinking`. |
+| `variant` | string | no | Emotion variant. |
+| `naturalEmotion` / `naturalVariant` | string | no | More natural or fine-grained emotion description. |
+| `naturalVAD` | object | no | Optional valence / arousal / dominance values, each from `-1` to `1`. |
+| `intensity` | number | yes | Emotion intensity from `0` to `1`. |
+| `contextTags` | string[] | no | Planning context tags. |
+| `sourceMessage` | string | no | Reply text that produced the intent. |
+
+An explicit `emotion` takes precedence over desktop-side text classification. When an older adapter omits it, the desktop still infers emotion locally from `text` / `tts` content.
 
 ## Element Types
 
