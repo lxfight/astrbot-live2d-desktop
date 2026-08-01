@@ -278,7 +278,6 @@ import { useAudioWaiters } from './composables/useAudioWaiters'
 import { summarizePerformPayloadForLog } from './composables/performElementSummary'
 import { recordPerformanceHistory } from './composables/performanceHistoryRecorder'
 import { createPerformExpressionRequest } from './composables/performExpressionRequest'
-import { resolvePerformEmotionTrigger } from './composables/performEmotionTrigger'
 
 import { convertModelInfoToV2, shouldUseV2Protocol } from '@/utils/modelInfoConverter'
 import { parseMotionIdParts } from '@/shared/modelAliasMerge'
@@ -1147,7 +1146,6 @@ function initializeAdvancedSettingsForSession() {
     advancedSettings.value.maxRecordingSeconds
   )
   void applyLogLevelFromAdvancedSettings()
-  live2dCanvasRef.value?.setEmotionEnabled(advancedSettings.value.soullinkEmotionEnabled)
 }
 
 function refreshAdvancedSettings() {
@@ -1156,7 +1154,6 @@ function refreshAdvancedSettings() {
     advancedSettings.value.maxRecordingSeconds
   )
   void applyLogLevelFromAdvancedSettings()
-  live2dCanvasRef.value?.setEmotionEnabled(advancedSettings.value.soullinkEmotionEnabled)
 }
 
 function handleStorageChange(event: StorageEvent) {
@@ -1421,15 +1418,6 @@ onMounted(async () => {
   mainWindowDisposers.push(
     window.electron.bridge.onPerformShow((payload: PerformSequence) => {
       console.log('收到表演指令:', summarizePerformPayloadForLog(payload))
-
-      if (advancedSettings.value.soullinkEmotionEnabled) {
-        const emotionTrigger = resolvePerformEmotionTrigger(payload)
-        if (emotionTrigger?.type === 'intent') {
-          live2dCanvasRef.value?.triggerEmotionIntent(emotionTrigger.intent)
-        } else if (emotionTrigger?.type === 'message') {
-          live2dCanvasRef.value?.triggerEmotionFromText(emotionTrigger.message)
-        }
-      }
 
       // 停止待机
       stopIdleForPerformance()

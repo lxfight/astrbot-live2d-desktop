@@ -22,7 +22,6 @@ export interface AdvancedSettings {
   recordingShortcut: string
   autoLoadLastModel: boolean
   themeFollowModel: boolean
-  soullinkEmotionEnabled: boolean
   silenceDetectionEnabled: boolean
   showBaseEventNotifications: boolean
   maxRecordingSeconds: number
@@ -38,7 +37,6 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   recordingShortcut: 'Alt+R',
   autoLoadLastModel: true,
   themeFollowModel: true,
-  soullinkEmotionEnabled: true,
   silenceDetectionEnabled: false,
   showBaseEventNotifications: true,
   maxRecordingSeconds: 30,
@@ -86,10 +84,6 @@ export function normalizeAdvancedSettings(value: unknown): AdvancedSettings {
       typeof raw.themeFollowModel === 'boolean'
         ? raw.themeFollowModel
         : DEFAULT_ADVANCED_SETTINGS.themeFollowModel,
-    soullinkEmotionEnabled:
-      typeof raw.soullinkEmotionEnabled === 'boolean'
-        ? raw.soullinkEmotionEnabled
-        : DEFAULT_ADVANCED_SETTINGS.soullinkEmotionEnabled,
     silenceDetectionEnabled:
       typeof raw.silenceDetectionEnabled === 'boolean'
         ? raw.silenceDetectionEnabled
