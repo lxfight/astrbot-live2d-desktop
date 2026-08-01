@@ -6,6 +6,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CubismModel as Live2DModel } from '@/utils/cubism/CubismModel'
 import { AudioLipSyncAnalyzer } from '@/utils/AudioLipSyncAnalyzer'
+import { SoullinkEmotionController, type SoullinkEmotionIntent } from '@/utils/soullinkEmotion'
 import type {
   CubismCompatibilityManifest,
   CubismExpressionRequest,
@@ -16,10 +17,12 @@ const canvasRef = ref<HTMLCanvasElement>()
 let model: Live2DModel | null = null
 let renderFrameId: number | null = null
 const lipSyncAnalyzer = new AudioLipSyncAnalyzer()
+const emotionController = new SoullinkEmotionController()
 
 // 模型重载后需要重新应用的行为配置
 let pendingIdleActivity: number | null = null
 let pendingPersistentExpressions: string[] = []
+let pendingEmotionEnabled = true
 
 function applyLipSyncValue(value: number) {
   model?.setLipSyncValue(value)
@@ -77,6 +80,8 @@ function startRenderLoop() {
     const elapsed = timestamp - lastTime
     if (elapsed >= frameInterval) {
       lastTime = timestamp - (elapsed % frameInterval)
+      const emotionFrame = emotionController.update(timestamp)
+      model.setEmotionParameters(emotionFrame?.live2dParams ?? null)
       model.update()
       model.render()
     }
@@ -120,6 +125,7 @@ async function loadModel(
       stopLipSync()
       model.destroy()
       model = null
+      emotionController.reset()
     }
 
     // 加载新模型
@@ -130,6 +136,8 @@ async function loadModel(
       model.setIdleActivity(pendingIdleActivity)
     }
     model.setPersistentExpressions(pendingPersistentExpressions)
+    emotionController.configure(modelPath, model.getModelInfo().name)
+    emotionController.setEnabled(pendingEmotionEnabled)
 
     // 初始化 WebGL 并启动渲染循环，传入初始位置
     model.initWebGL(canvasRef.value, initialPosition, initialScale)
@@ -206,6 +214,22 @@ function getMotionDurationMap(): Record<string, number> {
 function setExpression(expression: string | number | CubismExpressionRequest) {
   if (!model) return
   model.expression(expression)
+}
+
+function setEmotionEnabled(enabled: boolean) {
+  pendingEmotionEnabled = enabled
+  emotionController.setEnabled(enabled)
+  if (!enabled) {
+    model?.setEmotionParameters(null)
+  }
+}
+
+function triggerEmotionFromText(text: string) {
+  emotionController.triggerMessage(text)
+}
+
+function triggerEmotionIntent(intent: SoullinkEmotionIntent) {
+  emotionController.triggerIntent(intent)
 }
 
 /**
@@ -635,6 +659,7 @@ onUnmounted(() => {
     model.destroy()
     model = null
   }
+  emotionController.reset()
 
   // 销毁全局资源（WASM 内存）
   Live2DModel.destroyGlobal()
@@ -669,6 +694,9 @@ defineExpose({
   getModelOverlayBounds,
   startLipSync,
   stopLipSync,
+  setEmotionEnabled,
+  triggerEmotionFromText,
+  triggerEmotionIntent,
   setIdleActivity,
   setPersistentExpressions,
   getTextureSource: () => model?.getTextureSource(),
