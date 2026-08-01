@@ -1440,16 +1440,10 @@ onMounted(async () => {
 
       if (advancedSettings.value.soullinkEmotionEnabled) {
         const emotionTrigger = resolvePerformEmotionTrigger(payload)
-        const allowNativeAnimation = !payload.sequence?.some(
-          element => element.type === 'expression' || element.type === 'motion'
-        )
         if (emotionTrigger?.type === 'intent') {
-          live2dCanvasRef.value?.triggerEmotionIntent(emotionTrigger.intent, allowNativeAnimation)
+          live2dCanvasRef.value?.triggerEmotionIntent(emotionTrigger.intent)
         } else if (emotionTrigger?.type === 'message') {
-          live2dCanvasRef.value?.triggerEmotionFromText(
-            emotionTrigger.message,
-            allowNativeAnimation
-          )
+          live2dCanvasRef.value?.triggerEmotionFromText(emotionTrigger.message)
         }
       }
 
