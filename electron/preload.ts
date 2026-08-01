@@ -328,10 +328,6 @@ contextBridge.exposeInMainWorld('electron', {
     getList: () => ipcRenderer.invoke('model:getList'),
     delete: (modelName: string) => ipcRenderer.invoke('model:delete', modelName),
     prepareLoad: (modelPath: string) => ipcRenderer.invoke('model:prepareLoad', modelPath),
-    getSoullinkProfile: (modelPath: string) =>
-      ipcRenderer.invoke('model:getSoullinkProfile', modelPath),
-    saveSoullinkProfile: (modelPath: string, profile: any) =>
-      ipcRenderer.invoke('model:saveSoullinkProfile', modelPath, profile),
     getCatalog: (modelPath: string) => ipcRenderer.invoke('model:getCatalog', modelPath),
     previewMotion: (payload: { group: string; index: number; priority?: number; loop?: boolean }) =>
       ipcRenderer.invoke('model:previewMotion', payload),

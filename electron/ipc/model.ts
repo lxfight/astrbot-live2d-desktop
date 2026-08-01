@@ -9,7 +9,6 @@ import { buildCatalogForAbsoluteModel, ensureModelAliasConfig } from '../utils/m
 import { notifyModelConfigChanged } from '../utils/modelConfigEvents'
 import { getAppDataPath } from '../utils/appPaths'
 import { createScopedLogger } from '../utils/logger'
-import { readSoullinkProfileFile, writeSoullinkProfileFile } from '../utils/soullinkProfileStore'
 import { t } from '../../src/i18n/mainProcess'
 import {
   LIVE2D_EXPRESSION_TYPES,
@@ -543,47 +542,6 @@ ipcMain.handle('model:prepareLoad', async (_event, modelPath: string) => {
       success: true,
       descriptor
     }
-  } catch (error: any) {
-    timer.fail(error)
-    return { success: false, error: error.message }
-  }
-})
-
-/**
- * 读取模型专属的 Soullink Profile。缺失或无效时由渲染进程使用标准 Profile。
- */
-ipcMain.handle('model:getSoullinkProfile', async (_event, modelPath: string) => {
-  const timer = logger.timer('get_soullink_profile', { modelPath })
-  try {
-    resolveModelAbsolutePath(modelPath)
-    const result = await readSoullinkProfileFile(modelPath)
-    timer.done({
-      modelPath,
-      found: Boolean(result.profile),
-      errorCount: result.errors.length,
-      warningCount: result.warnings.length
-    })
-    return { success: true, ...result }
-  } catch (error: any) {
-    timer.fail(error)
-    return { success: false, error: error.message }
-  }
-})
-
-/**
- * 保存模型专属的 Soullink Profile，供后续自动生成和手工适配流程复用。
- */
-ipcMain.handle('model:saveSoullinkProfile', async (_event, modelPath: string, profile: unknown) => {
-  const timer = logger.timer('save_soullink_profile', { modelPath })
-  try {
-    resolveModelAbsolutePath(modelPath)
-    const result = await writeSoullinkProfileFile(modelPath, profile)
-    timer.done({
-      modelPath,
-      warningCount: result.warnings.length,
-      profilePath: result.profilePath
-    })
-    return { success: true, ...result }
   } catch (error: any) {
     timer.fail(error)
     return { success: false, error: error.message }

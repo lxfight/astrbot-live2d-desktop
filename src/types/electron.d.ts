@@ -55,7 +55,6 @@ import type {
   Live2DExpressionTypesLoadResult as _Live2DExpressionTypesLoadResult,
   Live2DExpressionTypesSaveResult as _Live2DExpressionTypesSaveResult
 } from '../shared/live2dExpressionTypes'
-import type { ModelProfile as _SoullinkModelProfile } from '@soullink-emotion/engine'
 
 declare global {
   type Unsubscribe = () => void
@@ -98,7 +97,6 @@ declare global {
   type Live2DExpressionTypePresetMap = _Live2DExpressionTypePresetMap
   type Live2DExpressionTypesLoadResult = _Live2DExpressionTypesLoadResult
   type Live2DExpressionTypesSaveResult = _Live2DExpressionTypesSaveResult
-  type SoullinkModelProfile = _SoullinkModelProfile
 
   interface UpdateState {
     status:
@@ -316,24 +314,6 @@ declare global {
         prepareLoad: (
           modelPath: string
         ) => Promise<{ success: boolean; descriptor?: CubismModelLoadDescriptor; error?: string }>
-        getSoullinkProfile: (modelPath: string) => Promise<{
-          success: boolean
-          profile?: SoullinkModelProfile | null
-          profilePath?: string
-          errors?: string[]
-          warnings?: string[]
-          error?: string
-        }>
-        saveSoullinkProfile: (
-          modelPath: string,
-          profile: SoullinkModelProfile
-        ) => Promise<{
-          success: boolean
-          profile?: SoullinkModelProfile
-          profilePath?: string
-          warnings?: string[]
-          error?: string
-        }>
         getCatalog: (modelPath: string) => Promise<{
           success: boolean
           catalog?: import('../shared/modelConfigFactory').ModelCatalogPayload
