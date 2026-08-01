@@ -62,26 +62,9 @@ function summarizePerformShowForLog(payload: any): Record<string, unknown> {
     return { payload }
   }
 
-  const emotion = payload.emotion
   return {
     interrupt: payload.interrupt,
     interruptible: payload.interruptible ?? true,
-    emotion:
-      emotion && typeof emotion === 'object'
-        ? {
-            emotion: emotion.emotion,
-            variant: emotion.variant,
-            naturalEmotion: emotion.naturalEmotion,
-            naturalVariant: emotion.naturalVariant,
-            naturalVAD: emotion.naturalVAD,
-            intensity: emotion.intensity,
-            contextTags: emotion.contextTags,
-            sourceMessage:
-              typeof emotion.sourceMessage === 'string'
-                ? emotion.sourceMessage.slice(0, 200)
-                : undefined
-          }
-        : undefined,
     sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
     sequencePreview: Array.isArray(payload.sequence)
       ? payload.sequence.map((element: any) => summarizePerformElementForLog(element))

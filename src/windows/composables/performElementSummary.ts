@@ -95,24 +95,9 @@ export function summarizePerformElementForLog(element: PerformElement): Record<s
 }
 
 export function summarizePerformPayloadForLog(payload: PerformSequence): Record<string, unknown> {
-  const emotion = payload.emotion
   return {
     interrupt: payload.interrupt,
     interruptible: payload.interruptible ?? true,
-    emotion: emotion
-      ? {
-          emotion: emotion.emotion,
-          variant: emotion.variant,
-          naturalEmotion: emotion.naturalEmotion,
-          naturalVariant: emotion.naturalVariant,
-          naturalVAD: emotion.naturalVAD,
-          intensity: emotion.intensity,
-          contextTags: emotion.contextTags,
-          sourceMessage: emotion.sourceMessage
-            ? summarizeLogString(emotion.sourceMessage, 120)
-            : undefined
-        }
-      : undefined,
     sequenceLength: Array.isArray(payload.sequence) ? payload.sequence.length : 0,
     sequencePreview: Array.isArray(payload.sequence)
       ? payload.sequence.map(element => summarizePerformElementForLog(element))
