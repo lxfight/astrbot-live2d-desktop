@@ -12,9 +12,6 @@ describe('Soullink emotion integration', () => {
     expect(profile.displayName).toBe('Avatar')
     expect(profile.parameterMap.headX?.target).toBe('ParamAngleX')
     expect(profile.parameterMap.mouthSmile?.target).toBe('ParamMouthForm')
-    expect(profile.parameterMap.mouthFrown?.target).toBe('ParamMouthForm')
-    expect(profile.parameterMap.eyeSmile?.targets).toEqual(['ParamEyeLSmile', 'ParamEyeRSmile'])
-    expect(profile.parameterMap.gazeX?.target).toBe('ParamEyeBallX')
     expect(profile.parameterMap.mouthOpen).toBeUndefined()
     expect(profile.parameterMap.eyeOpen).toBeUndefined()
   })
@@ -57,7 +54,5 @@ describe('Soullink emotion integration', () => {
 
     expect(frame?.live2dParams.ParamAvatarHeadX).toBeTypeOf('number')
     expect(frame?.live2dParams.ParamAngleX).toBeUndefined()
-    expect(frame?.live2dParams.ParamEyeLSmile).toBeTypeOf('number')
-    expect(frame?.live2dParams.ParamEyeBallX).toBeTypeOf('number')
   })
 })

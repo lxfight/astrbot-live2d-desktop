@@ -42,13 +42,6 @@ const STANDARD_PARAMETER_MAP: ModelProfile['parameterMap'] = {
     min: -1,
     max: 1
   },
-  eyeSmile: {
-    targets: ['ParamEyeLSmile', 'ParamEyeRSmile'],
-    mode: 'set',
-    scale: 0.9,
-    min: 0,
-    max: 1
-  },
   mouthSmile: {
     target: 'ParamMouthForm',
     mode: 'set',
@@ -56,15 +49,6 @@ const STANDARD_PARAMETER_MAP: ModelProfile['parameterMap'] = {
     min: -1,
     max: 1
   },
-  mouthFrown: {
-    target: 'ParamMouthForm',
-    mode: 'add',
-    scale: -0.9,
-    min: -1,
-    max: 1
-  },
-  gazeX: { target: 'ParamEyeBallX', mode: 'set', scale: 0.75, min: -1, max: 1 },
-  gazeY: { target: 'ParamEyeBallY', mode: 'set', scale: 0.75, min: -1, max: 1 },
   headX: { target: 'ParamAngleX', mode: 'set', scale: 30, min: -30, max: 30 },
   headY: { target: 'ParamAngleY', mode: 'set', scale: 30, min: -30, max: 30 },
   headZ: { target: 'ParamAngleZ', mode: 'set', scale: 30, min: -30, max: 30 },
@@ -123,10 +107,8 @@ export class SoullinkEmotionController {
   configure(profile: ModelProfile): void {
     this.runtime = new SoullinkRuntime({
       profile,
-      motionStyle: motionStylePresets.lively
+      motionStyle: motionStylePresets.natural
     })
-    this.runtime.setParameterGain(1.15)
-    this.runtime.setBodyMotionGain(1.1)
     // The host already provides model-native blinking and real audio lip sync.
     this.runtime.setLipSyncEnabled(false)
     this.startedAtMs = performance.now()
