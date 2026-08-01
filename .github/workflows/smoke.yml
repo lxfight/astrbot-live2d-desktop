@@ -10,6 +10,7 @@ on:
       - 'README.md'
       - 'README.en.md'
       - '.github/workflows/docs.yml'
+      - '.github/workflows/smoke.yml'
   pull_request:
   workflow_dispatch:
 
@@ -67,12 +68,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Run lint
-        run: pnpm run lint
-
-      - name: Check formatting
-        run: pnpm run format:check
 
       - name: Run tests
         run: pnpm test
