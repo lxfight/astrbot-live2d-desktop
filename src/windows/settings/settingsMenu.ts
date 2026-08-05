@@ -15,7 +15,8 @@ import {
   BarChart3,
   Database,
   Eye,
-  Keyboard
+  Keyboard,
+  TestTube2
 } from 'lucide-vue-next'
 
 export type SettingsGroupKey = 'connection' | 'model' | 'history' | 'advanced' | 'about'
@@ -30,6 +31,9 @@ export type SettingsChildKey =
   | 'behavior'
   | 'shortcut'
   | 'windowWatcher'
+  | 'personality'
+  | 'scenePro'
+  | 'pipelineTest'
   | 'data'
   | 'info'
 
@@ -77,6 +81,9 @@ export const settingsMenuGroups: SettingsMenuGroup[] = [
       { key: 'behavior', icon: Settings2 },
       { key: 'shortcut', icon: Keyboard },
       { key: 'windowWatcher', icon: Eye },
+      { key: 'personality', icon: Sparkles },
+      { key: 'scenePro', icon: Eye },
+      { key: 'pipelineTest', icon: TestTube2 },
       { key: 'data', icon: Database }
     ]
   },

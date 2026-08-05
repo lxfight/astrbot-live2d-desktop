@@ -20,6 +20,11 @@ import type {
   DesktopAwarenessSnapshot as _DesktopAwarenessSnapshot
 } from '../../electron/desktopAwareness/types'
 import type {
+  DesktopSceneResult as _DesktopSceneResult,
+  DesktopSceneSettings as _DesktopSceneSettings
+} from '../shared/desktopSceneSettings'
+import type { PersonalitySettings as _PersonalitySettings } from '../shared/personalitySettings'
+import type {
   BridgeLifecycleCommandResult as _BridgeLifecycleCommandResult,
   BridgeLifecycleSnapshot as _BridgeLifecycleSnapshot,
   BridgeSessionState as _BridgeSessionState
@@ -72,6 +77,9 @@ declare global {
   type DesktopRevealReason = _DesktopRevealReason
   type DesktopAwarenessSettings = _DesktopAwarenessSettings
   type DesktopAwarenessSnapshot = _DesktopAwarenessSnapshot
+  type DesktopSceneSettings = _DesktopSceneSettings
+  type DesktopSceneResult = _DesktopSceneResult
+  type PersonalitySettings = _PersonalitySettings
   type BridgeLifecycleCommandResult = _BridgeLifecycleCommandResult
   type BridgeLifecycleSnapshot = _BridgeLifecycleSnapshot
   type BridgeSessionState = _BridgeSessionState
@@ -227,6 +235,24 @@ declare global {
         resetSettings: () => Promise<{ success: boolean; settings: DesktopAwarenessSettings }>
         getSnapshot: () => Promise<DesktopAwarenessSnapshot>
         onSnapshotChanged: (callback: (snapshot: DesktopAwarenessSnapshot) => void) => Unsubscribe
+      }
+      desktopScene: {
+        getSettings: () => Promise<DesktopSceneSettings>
+        updateSettings: (
+          patch: Partial<DesktopSceneSettings>
+        ) => Promise<DesktopSceneSettings>
+        resetSettings: () => Promise<DesktopSceneSettings>
+        getSnapshot: () => Promise<{
+          settings: DesktopSceneSettings
+          scene: DesktopSceneResult
+          current: unknown | null
+        }>
+      }
+      personality: {
+        getSettings: () => Promise<PersonalitySettings>
+        updateSettings: (patch: Partial<PersonalitySettings>) => Promise<PersonalitySettings>
+        resetSettings: () => Promise<PersonalitySettings>
+        getPrompt: () => Promise<string>
       }
       settings: {
         getPendingPage: () => Promise<string | null>

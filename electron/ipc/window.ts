@@ -16,6 +16,18 @@ import {
 } from '../database/messageResources'
 import { createScopedLogger } from '../utils/logger'
 import { t } from '../../src/i18n/mainProcess'
+import {
+  getCurrentDesktopSceneSnapshot,
+  loadDesktopSceneSettings,
+  resetDesktopSceneSettings,
+  saveDesktopSceneSettings
+} from '../desktopScene/service'
+import {
+  buildPersonalitySystemPrompt,
+  loadPersonalitySettings,
+  resetPersonalitySettings,
+  savePersonalitySettings
+} from '../personality/service'
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const ALLOWED_RESOURCE_PROTOCOLS = new Set([
@@ -552,6 +564,28 @@ ipcMain.handle('desktopAwareness:getSnapshot', async () => {
   await awareness.getSettings()
   return awareness.getSnapshot()
 })
+
+ipcMain.handle('desktopScene:getSettings', async () => loadDesktopSceneSettings())
+
+ipcMain.handle('desktopScene:updateSettings', async (_event, patch) =>
+  saveDesktopSceneSettings({ ...(await loadDesktopSceneSettings()), ...(patch || {}) })
+)
+
+ipcMain.handle('desktopScene:resetSettings', async () => resetDesktopSceneSettings())
+
+ipcMain.handle('desktopScene:getSnapshot', async () => getCurrentDesktopSceneSnapshot())
+
+ipcMain.handle('personality:getSettings', async () => loadPersonalitySettings())
+
+ipcMain.handle('personality:updateSettings', async (_event, patch) =>
+  savePersonalitySettings({ ...(await loadPersonalitySettings()), ...(patch || {}) })
+)
+
+ipcMain.handle('personality:resetSettings', async () => resetPersonalitySettings())
+
+ipcMain.handle('personality:getPrompt', async () =>
+  buildPersonalitySystemPrompt(await loadPersonalitySettings())
+)
 
 // 手动下载 Cubism SDK
 ipcMain.handle('window:downloadCubismCore', async () => {

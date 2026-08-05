@@ -22,6 +22,8 @@ import {
 import { calculateRetryDelayMs } from './bridgeRetryPolicy'
 import { createScopedLogger, type LogMeta } from '../utils/logger'
 import { t } from '../../src/i18n/mainProcess'
+import { loadPersonalitySettings, buildPersonalitySystemPrompt } from '../personality/service'
+import { buildRuntimeScenePrompt } from '../desktopScene/service'
 
 type LifecycleEventMap = {
   stateChanged: (snapshot: BridgeLifecycleSnapshot) => void
@@ -388,7 +390,31 @@ export class BridgeConnectionController extends EventEmitter {
       contentCount: Array.isArray(payload.content) ? payload.content.length : 0,
       sessionId: this.snapshot.session?.sessionId
     })
-    return await this.activeClient.sendMessage(payload)
+
+    const runtimePayload = await this.buildRuntimeContextPayload(payload)
+    return await this.activeClient.sendMessage(runtimePayload)
+  }
+
+  private async buildRuntimeContextPayload(payload: InputMessagePayload): Promise<InputMessagePayload> {
+    const content = Array.isArray(payload.content) ? [...payload.content] : []
+    const personality = await loadPersonalitySettings()
+
+    if (personality.enabled && personality.injectIntoMessages) {
+      const prompt = buildPersonalitySystemPrompt(personality)
+      if (prompt && !content.some(item => item.type === 'text' && item.text?.includes('[SYSTEM_PERSONALITY_PROFILE]'))) {
+        content.unshift({ type: 'text', text: prompt })
+      }
+    }
+
+    const scenePrompt = await buildRuntimeScenePrompt(
+      personality.proactiveLevel,
+      personality.allowDesktopInterruption
+    )
+    if (scenePrompt && !content.some(item => item.type === 'text' && item.text?.includes('[SYSTEM_SCENE_CONTEXT]'))) {
+      content.unshift({ type: 'text', text: scenePrompt })
+    }
+
+    return { ...payload, content }
   }
 
   sendTouch(x: number, y: number, action: string): void {
