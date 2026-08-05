@@ -86,6 +86,8 @@ export default [
       'public/lib',
       'coverage',
       'scripts',
+      'docs-site/.vitepress/dist',
+      'docs-site/.vitepress/cache',
       '*.min.js',
       '*.config.ts',
       '*.config.mjs'
