@@ -94,14 +94,6 @@ jobs:
             public/lib/live2dcubismcore.min.js
           key: cubism-assets-${{ hashFiles('package.json') }}
 
-      - name: Setup Python (for node-gyp)
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
-      - name: Install Python setuptools
-        run: pip install setuptools
-
       - name: Install Linux packaging dependencies
         run: |
           sudo apt-get update
@@ -112,12 +104,6 @@ jobs:
 
       - name: Build Frontend and Electron Bundles
         run: pnpm run build:vite
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      - name: Rebuild Native Dependencies (linux-x64)
-        run: pnpm run rebuild -- --platform=linux --arch=x64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -176,14 +162,6 @@ jobs:
             public/lib/live2dcubismcore.min.js
           key: cubism-assets-${{ hashFiles('package.json') }}
 
-      - name: Setup Python (for node-gyp)
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
-      - name: Install Python setuptools
-        run: pip install setuptools
-
       - name: Install Linux packaging dependencies
         run: |
           sudo apt-get update
@@ -200,12 +178,6 @@ jobs:
 
       - name: Build Frontend and Electron Bundles
         run: pnpm run build:vite
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      - name: Rebuild Native Dependencies (linux-x64)
-        run: pnpm run rebuild -- --platform=linux --arch=x64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -264,14 +236,6 @@ jobs:
             public/lib/live2dcubismcore.min.js
           key: cubism-assets-${{ hashFiles('package.json') }}
 
-      - name: Setup Python (for node-gyp)
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
-      - name: Install Python setuptools
-        run: pip install setuptools
-
       - name: Install Linux packaging dependencies
         run: |
           sudo apt-get update
@@ -282,12 +246,6 @@ jobs:
 
       - name: Build Frontend and Electron Bundles
         run: pnpm run build:vite
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      - name: Rebuild Native Dependencies (linux-arm64)
-        run: pnpm run rebuild -- --platform=linux --arch=arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
