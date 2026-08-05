@@ -224,9 +224,11 @@ function runRebuildAttempt() {
     return runSelectiveRebuild(onlyPackages)
   }
 
-  // GitHub windows runners ship a VS toolchain that node-gyp 11.x cannot detect,
-  // breaking source builds of active-win/node-window-manager. Both modules ship
-  // Electron-compatible prebuilts, so we only rebuild better-sqlite3 from source.
+  // better-sqlite3 is the only native module that may need an Electron-targeted
+  // rebuild; active-win and koffi ship prebuilt binaries and require no compilation.
+  // Re-run better-sqlite3's install script so it fetches the official Electron
+  // prebuild first (source build remains the last-resort fallback). This also
+  // avoids GitHub windows runners, whose VS toolchain node-gyp 11.x cannot detect.
   if (targetPlatform === 'win32') {
     return runSelectiveRebuild(['better-sqlite3'])
   }
