@@ -141,9 +141,6 @@ pnpm install
 # 开发
 pnpm run dev
 
-# 重建 Electron 原生依赖（仅 better-sqlite3，其余原生依赖均为预编译）
-pnpm run rebuild
-
 # 构建（不包含 SDK，用户首次启动时自动下载）
 pnpm run build
 pnpm run build:win
@@ -166,15 +163,9 @@ pnpm run typecheck
 
 ### 原生依赖说明
 
-- 唯一可能需要为 Electron 目标编译的原生模块是 `better-sqlite3`（通常会自动下载官方 Electron 预编译产物，无需本地编译）
-- `active-win`、`koffi` 均为纯预编译二进制，无需编译环境
-- Windows 开发**不再需要** Visual Studio Build Tools
-
-仅当 `better-sqlite3` 预编译下载失败、需要回退到源码编译时，才需安装 **Visual Studio 2022 Build Tools**（勾选 `Desktop development with C++`），然后执行：
-
-```bash
-pnpm run rebuild
-```
+- 消息历史存储使用 Node 内置的 `node:sqlite`（随 Electron 运行时提供），无原生模块
+- 其余原生依赖（`active-win`、`koffi` 等）均为纯预编译二进制
+- 所有平台都无需 C++ 编译工具链，Windows 开发**无需**安装 Visual Studio Build Tools
 
 ## 安全建议
 

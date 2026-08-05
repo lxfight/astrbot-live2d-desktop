@@ -140,9 +140,6 @@ The install phase automatically:
 # Development
 pnpm run dev
 
-# Rebuild Electron native dependencies (only better-sqlite3; other native deps are prebuilt)
-pnpm run rebuild
-
 # Build (SDK not included — users download on first launch)
 pnpm run build
 pnpm run build:win
@@ -165,15 +162,9 @@ pnpm run typecheck
 
 ### Native Dependency Notes
 
-- The only native module that may need an Electron-targeted build is `better-sqlite3` (official Electron prebuilds are usually downloaded automatically, no local compilation needed)
-- `active-win` and `koffi` are pure prebuilt binaries and require no build toolchain
-- Visual Studio Build Tools are **no longer required** for Windows development
-
-Only if the `better-sqlite3` prebuild download fails and a source build fallback is needed, install **Visual Studio 2022 Build Tools** (select `Desktop development with C++`), then run:
-
-```bash
-pnpm run rebuild
-```
+- Message history storage uses Node's built-in `node:sqlite` (shipped with the Electron runtime) — no native module involved
+- All remaining native dependencies (`active-win`, `koffi`, etc.) are pure prebuilt binaries
+- No C++ build toolchain is required on any platform; Visual Studio Build Tools are **not needed** for Windows development
 
 ## Security Recommendations
 

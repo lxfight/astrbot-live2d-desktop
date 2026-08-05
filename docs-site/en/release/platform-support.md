@@ -60,4 +60,4 @@ Recommended proactive notifications:
 - If the model cannot automatically avoid full-screen windows, first verify the platform and session type.
 - If users report click-through or window z-order issues, first distinguish between `Windows/macOS` and `Linux`.
 - On Linux, validate under an X11 session first. On Wayland, expect partial capability degradation.
-- If native modules fail after packaging, first check whether the target platform completed the matching Electron native dependency rebuild.
+- If native features fail after packaging, first verify the target platform artifacts are complete (`.node` prebuilt files under `app.asar.unpacked` exist); all native dependencies are prebuilt binaries and require no rebuild.
