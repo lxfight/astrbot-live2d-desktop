@@ -134,7 +134,7 @@ export function createAdvancedSettingsDomain(message: MessageApi): AdvancedSetti
         reason: capabilities.gameMode.reason || t('error.platformNotSupported')
       })
     }
-    return capabilities.gameMode.mode === 'native-window-manager'
+    return capabilities.gameMode.mode === 'win32-native'
       ? t('settings.advanced.platform.gameModeNative')
       : t('settings.advanced.platform.gameModeHeuristic')
   })

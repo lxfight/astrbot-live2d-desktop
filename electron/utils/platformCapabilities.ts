@@ -7,7 +7,7 @@ export interface PlatformCapabilities {
   alwaysOnTopLevel: 'default' | 'screen-saver'
   gameMode: {
     supported: boolean
-    mode: 'native-window-manager' | 'active-window-heuristic' | 'disabled'
+    mode: 'win32-native' | 'active-window-heuristic' | 'disabled'
     reason?: string
   }
 }
@@ -42,7 +42,7 @@ function resolveGameModeCapability(
 
     return {
       supported: true,
-      mode: 'native-window-manager'
+      mode: 'win32-native'
     }
   }
 

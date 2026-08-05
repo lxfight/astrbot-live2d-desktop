@@ -1,16 +1,15 @@
 import { screen } from 'electron'
 import { getMainWindow } from '../windows/mainWindow'
-import { createRequire } from 'module'
 import { getPlatformCapabilities } from './platformCapabilities'
 import { safeGetActiveWindow as safeGetActiveWin } from './activeWinLoader'
+import type { WindowsWatcher } from './windowsWatcher'
 
-const require = createRequire(import.meta.url)
 const platformCapabilities = getPlatformCapabilities()
 
 let isGameModeEnabled = false
 let checkInterval: NodeJS.Timeout | null = null
 let isHiddenByGameMode = false
-let windowManager: any = null
+let windowsWatcher: WindowsWatcher | null = null
 let hasLoggedUnsupportedReason = false
 let visibilityHandler: ((hidden: boolean) => void) | null = null
 
@@ -79,30 +78,30 @@ function shouldIgnoreTransientFullscreen(title: string): boolean {
 }
 
 /**
- * 初始化窗口管理器
+ * 初始化窗口监听器（基于 koffi FFI 调用 Win32 API，纯预编译，无需 node-gyp）
  */
-function initWindowManager() {
+async function initWindowsWatcher(): Promise<WindowsWatcher | null> {
   if (platformCapabilities.platform !== 'win32') return null
-  if (windowManager) return windowManager
+  if (windowsWatcher) return windowsWatcher
 
   try {
-    // 动态导入 node-window-manager（仅 Windows 使用）
-    const { windowManager: wm } = require('node-window-manager')
-    windowManager = wm
-    return windowManager
+    // 动态导入 WindowsWatcher（仅 Windows 使用）
+    const { WindowsWatcher: WatcherCtor } = await import('./windowsWatcher')
+    windowsWatcher = new WatcherCtor()
+    return windowsWatcher
   } catch (error) {
-    console.error('[自动检测全屏] 初始化窗口管理器失败:', error)
+    console.error('[自动检测全屏] 初始化窗口监听器失败:', error)
     return null
   }
 }
 
-function hasFullscreenAppByWindowManager(): boolean {
+async function hasFullscreenAppByWindowManager(): Promise<boolean> {
   try {
     const mainWindow = getMainWindow()
     if (!mainWindow) return false
 
-    const wm = initWindowManager()
-    if (!wm) return false
+    const watcher = await initWindowsWatcher()
+    if (!watcher) return false
 
     // 获取屏幕尺寸
     const primaryDisplay = screen.getPrimaryDisplay()
@@ -110,15 +109,15 @@ function hasFullscreenAppByWindowManager(): boolean {
     const screenHeight = primaryDisplay.bounds.height
 
     // 获取活动窗口
-    const activeWindow = wm.getActiveWindow()
+    const activeWindow = watcher.getActiveWindow()
     if (!activeWindow) {
       // 没有活动窗口，可能是显示桌面
       return false
     }
 
     // 获取窗口标题
-    const title = activeWindow.getTitle()
-    const processPath = String(activeWindow.path || '')
+    const title = activeWindow.title
+    const processPath = String(activeWindow.processPath || '')
 
     // 排除桌面窗口（Program Manager 是 Windows 桌面）
     if (title === 'Program Manager' || title === '' || title === 'Windows Shell Experience Host') {
@@ -137,7 +136,7 @@ function hasFullscreenAppByWindowManager(): boolean {
     }
 
     // 获取窗口边界
-    const bounds = activeWindow.getBounds()
+    const bounds = activeWindow.bounds
 
     // 检查窗口是否全屏
     const isFullscreen =
@@ -221,7 +220,7 @@ async function hasFullscreenApp(): Promise<boolean> {
     return false
   }
 
-  if (platformCapabilities.gameMode.mode === 'native-window-manager') {
+  if (platformCapabilities.gameMode.mode === 'win32-native') {
     return hasFullscreenAppByWindowManager()
   }
 
@@ -262,8 +261,8 @@ export function enableGameMode(): void {
   console.log('[自动检测全屏] 已启用')
   isGameModeEnabled = true
 
-  if (platformCapabilities.gameMode.mode === 'native-window-manager') {
-    initWindowManager()
+  if (platformCapabilities.gameMode.mode === 'win32-native') {
+    void initWindowsWatcher()
   }
 
   // 先执行一次，避免等待下一个轮询周期

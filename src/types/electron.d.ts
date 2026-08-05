@@ -128,7 +128,7 @@ declare global {
     alwaysOnTopLevel: 'default' | 'screen-saver'
     gameMode: {
       supported: boolean
-      mode: 'native-window-manager' | 'active-window-heuristic' | 'disabled'
+      mode: 'win32-native' | 'active-window-heuristic' | 'disabled'
       reason?: string
     }
   }
