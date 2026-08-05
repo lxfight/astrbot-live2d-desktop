@@ -140,7 +140,7 @@ The install phase automatically:
 # Development
 pnpm run dev
 
-# Rebuild Electron native dependencies (better-sqlite3 / active-win etc.)
+# Rebuild Electron native dependencies (only better-sqlite3; other native deps are prebuilt)
 pnpm run rebuild
 
 # Build (SDK not included — users download on first launch)
@@ -163,9 +163,13 @@ pnpm run typecheck
 
 > Note: The repository does not directly include official framework source code in `src/`. See [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/en/guide/cubism-runtime) for current integration details.
 
-### Native Dependency Build Instructions (Windows)
+### Native Dependency Notes
 
-If `better-sqlite3` rebuild fails, install **Visual Studio 2022 Build Tools** (select `Desktop development with C++`), then run:
+- The only native module that may need an Electron-targeted build is `better-sqlite3` (official Electron prebuilds are usually downloaded automatically, no local compilation needed)
+- `active-win` and `koffi` are pure prebuilt binaries and require no build toolchain
+- Visual Studio Build Tools are **no longer required** for Windows development
+
+Only if the `better-sqlite3` prebuild download fails and a source build fallback is needed, install **Visual Studio 2022 Build Tools** (select `Desktop development with C++`), then run:
 
 ```bash
 pnpm run rebuild

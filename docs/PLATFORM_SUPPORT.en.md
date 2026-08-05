@@ -11,7 +11,7 @@ This document describes the current support status of `astrbot-live2d-desktop` a
 | Transparent overlay main window | Supported | Supported | Depends on DE / window manager | Depends on DE / compositor |
 | Always-on-top | Supported | Supported (screen-saver level) | Supported (effect varies by DE) | Supported (effect varies by compositor) |
 | Smart mouse passthrough | Supported | Supported | Not supported | Not supported |
-| Full-screen app detection | Supported (native window manager) | Heuristic support (active-win) | Heuristic support (active-win) | Not supported |
+| Full-screen app detection | Supported (`koffi` + Win32 API) | Heuristic support (`active-win`) | Heuristic support (`active-win`) | Not supported |
 | Live2D model rendering | Supported | Supported | Supported | Supported |
 | Desktop screenshot tool | Supported | Supported | Supported | Supported |
 | Global recording shortcuts | Supported | Supported | Supported | Supported |

@@ -11,7 +11,7 @@ This page describes the current support status of `astrbot-live2d-desktop` acros
 | Transparent overlay window | Supported | Supported | Depends on desktop environment / window manager | Depends on desktop environment / compositor |
 | Always-on-top | Supported | Supported (`screen-saver` level) | Supported, varies by desktop environment | Supported, varies by compositor |
 | Smart mouse passthrough | Supported | Supported | Not supported | Not supported |
-| Full-screen app detection | Supported (`node-window-manager`) | Heuristic support (`active-win`) | Heuristic support (`active-win`) | Not supported |
+| Full-screen app detection | Supported (`koffi` + Win32 API) | Heuristic support (`active-win`) | Heuristic support (`active-win`) | Not supported |
 | Live2D model rendering | Supported | Supported | Supported | Supported |
 | Desktop screenshot tool | Supported | Supported | Supported | Supported |
 | Global recording shortcuts | Supported | Supported | Supported | Supported |

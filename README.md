@@ -141,7 +141,7 @@ pnpm install
 # 开发
 pnpm run dev
 
-# 重建 Electron 原生依赖（better-sqlite3 / active-win 等）
+# 重建 Electron 原生依赖（仅 better-sqlite3，其余原生依赖均为预编译）
 pnpm run rebuild
 
 # 构建（不包含 SDK，用户首次启动时自动下载）
@@ -164,9 +164,13 @@ pnpm run typecheck
 
 > 补充：仓库不会把官方 framework 源码直接放进 `src/`；当前接入细节见 [Cubism Runtime](https://lxfight.github.io/astrbot-live2d-desktop/guide/cubism-runtime)。
 
-### 原生依赖构建说明（Windows）
+### 原生依赖说明
 
-若 `better-sqlite3` 重建失败，请先安装 **Visual Studio 2022 Build Tools**（勾选 `Desktop development with C++`），然后执行：
+- 唯一可能需要为 Electron 目标编译的原生模块是 `better-sqlite3`（通常会自动下载官方 Electron 预编译产物，无需本地编译）
+- `active-win`、`koffi` 均为纯预编译二进制，无需编译环境
+- Windows 开发**不再需要** Visual Studio Build Tools
+
+仅当 `better-sqlite3` 预编译下载失败、需要回退到源码编译时，才需安装 **Visual Studio 2022 Build Tools**（勾选 `Desktop development with C++`），然后执行：
 
 ```bash
 pnpm run rebuild
