@@ -1,33 +1,29 @@
-import Database from 'better-sqlite3'
 import path from 'path'
 import crypto from 'crypto'
-import fs from 'fs'
-import { createRequire } from 'module'
 import { normalizeMessageDirection, type MessageDirection } from './messageDirection'
 import { buildMessageKeywordSearchCondition } from './messageSearch'
-import { resolveBetterSqliteNativeBindingPath } from './nativeBinding'
+import { openSqliteDatabase, type AppSqliteDatabase } from './sqlite'
 import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 import { getAppDataPath } from '../utils/appPaths'
 import { t } from '../../src/i18n/mainProcess'
 
-let db: Database.Database | null = null
-const require = createRequire(import.meta.url)
+let db: AppSqliteDatabase | null = null
 const CURRENT_DB_VERSION = 2
 const USER_PROFILE_CONFIG_KEYS = {
   userId: USER_CONFIG_KEYS.userId,
   userName: USER_CONFIG_KEYS.userName
 } as const
 
-function setDatabaseVersion(database: Database.Database, version: number): void {
+function setDatabaseVersion(database: AppSqliteDatabase, version: number): void {
   database.pragma(`user_version = ${Math.max(0, Math.floor(version))}`)
 }
 
-function getDatabaseVersion(database: Database.Database): number {
+function getDatabaseVersion(database: AppSqliteDatabase): number {
   const version = database.pragma('user_version', { simple: true })
   return Number.isFinite(version) ? Math.max(0, Math.floor(Number(version))) : 0
 }
 
-function migrateToV1(database: Database.Database): void {
+function migrateToV1(database: AppSqliteDatabase): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS user_config (
       key TEXT PRIMARY KEY,
@@ -86,7 +82,7 @@ function migrateToV1(database: Database.Database): void {
   setDatabaseVersion(database, 1)
 }
 
-function migrateToV2(database: Database.Database): void {
+function migrateToV2(database: AppSqliteDatabase): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS message_resources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,7 +109,7 @@ function migrateToV2(database: Database.Database): void {
   setDatabaseVersion(database, 2)
 }
 
-function runSchemaMigrations(database: Database.Database): void {
+function runSchemaMigrations(database: AppSqliteDatabase): void {
   let version = getDatabaseVersion(database)
 
   if (version < 1) {
@@ -131,7 +127,7 @@ function runSchemaMigrations(database: Database.Database): void {
   }
 }
 
-function ensureMessageSearchIndex(database: Database.Database): void {
+function ensureMessageSearchIndex(database: AppSqliteDatabase): void {
   database.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
       raw_text,
@@ -182,17 +178,13 @@ function ensureMessageSearchIndex(database: Database.Database): void {
 /**
  * 初始化数据库
  */
-export function initDatabase(): Database.Database {
+export function initDatabase(): AppSqliteDatabase {
   if (db) return db
 
   const dbPath = path.join(getAppDataPath(), 'history.db')
   console.log('[数据库] 使用路径:', dbPath)
 
-  const betterSqlitePackageJsonPath = require.resolve('better-sqlite3/package.json')
-  const nativeBindingPath = resolveBetterSqliteNativeBindingPath(betterSqlitePackageJsonPath)
-  db = fs.existsSync(nativeBindingPath)
-    ? new Database(dbPath, { nativeBinding: nativeBindingPath })
-    : new Database(dbPath)
+  db = openSqliteDatabase(dbPath)
 
   // 启用 WAL 模式以提升性能
   db.pragma('journal_mode = WAL')
@@ -209,7 +201,7 @@ export function initDatabase(): Database.Database {
 /**
  * 获取数据库实例
  */
-export function getDatabase(): Database.Database {
+export function getDatabase(): AppSqliteDatabase {
   if (!db) {
     throw new Error(t('error.databaseNotInitialized'))
   }
