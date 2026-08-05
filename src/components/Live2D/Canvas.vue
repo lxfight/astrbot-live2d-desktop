@@ -305,7 +305,6 @@ let cursorOffsetY = 0
 const DRAG_THRESHOLD = 10 // 拖动阈值（像素）
 const DRAG_VISIBLE_MIN_RATIO = 0.2 // 拖拽时模型至少保留 20% 可见
 let isFullPassThroughMode = false
-let dynamicPassThroughEnabled = true
 let supportsDynamicPassThrough = false
 let currentIgnoreMouseEvents = false
 let passThroughFrameId: number | null = null
@@ -518,7 +517,10 @@ function shouldIgnoreMouseEvents(event: MouseEvent): boolean {
     return true
   }
 
-  if (!dynamicPassThroughEnabled || !supportsDynamicPassThrough) {
+  // 不支持鼠标事件转发的平台（Linux）无法做命中检测，保持整窗响应。
+  // 支持平台上「不穿透」与「智能穿透」都采用命中检测：仅模型/交互控件区域捕获，
+  // 避免全屏透明窗口挡住桌面其他区域的鼠标操作。
+  if (!supportsDynamicPassThrough) {
     return false
   }
 
@@ -542,7 +544,7 @@ async function syncMousePassthrough() {
     return
   }
 
-  if (!dynamicPassThroughEnabled || !supportsDynamicPassThrough) {
+  if (!supportsDynamicPassThrough) {
     await setMousePassthrough(false)
     return
   }
@@ -562,7 +564,6 @@ async function syncMousePassthrough() {
 
 async function applyDesktopBehaviorSnapshot(snapshot: DesktopBehaviorSnapshot) {
   isFullPassThroughMode = snapshot.preferences.fullPassThrough
-  dynamicPassThroughEnabled = snapshot.preferences.dynamicPassThrough
   await syncMousePassthrough()
 }
 

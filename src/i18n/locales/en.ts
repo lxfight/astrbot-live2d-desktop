@@ -610,7 +610,7 @@ const en: I18nMessageSchema = {
   'settings.advanced.behavior.passThroughDynamic': 'Smart pass-through',
   'settings.advanced.behavior.passThroughFull': 'Full pass-through',
   'settings.advanced.behavior.passThroughNoneFeedback':
-    'Mouse events respond normally in the model area without passing through to underlying apps.',
+    'Only the model and interactive controls capture mouse events; other areas pass through (same as smart pass-through; on platforms without mouse event forwarding, such as Linux, the whole window captures).',
   'settings.advanced.behavior.passThroughDynamicFeedback':
     'Clickable only when hovering over the model or interactive controls; other areas pass through.',
   'settings.advanced.behavior.passThroughFullFeedback':

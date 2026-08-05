@@ -584,7 +584,7 @@ export default {
   'settings.advanced.behavior.passThroughDynamic': '智能穿透',
   'settings.advanced.behavior.passThroughFull': '完全穿透',
   'settings.advanced.behavior.passThroughNoneFeedback':
-    '鼠标事件在模型区域正常响应，不穿透到底层应用。',
+    '仅模型与交互控件区域响应鼠标，其余区域穿透到底层应用（效果与智能穿透一致；Linux 等不支持鼠标事件转发的平台为整窗响应）。',
   'settings.advanced.behavior.passThroughDynamicFeedback':
     '鼠标悬停模型或交互控件时可点击，其他区域穿透到底层应用。',
   'settings.advanced.behavior.passThroughFullFeedback':
