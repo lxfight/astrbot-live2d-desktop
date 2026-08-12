@@ -55,6 +55,15 @@ function setPersistentExpressions(names: string[]) {
   model?.setPersistentExpressions(names)
 }
 
+let targetFps = 60
+
+/**
+ * 设置目标渲染帧率（降低后减少后台资源占用）
+ */
+function setTargetFps(fps: number) {
+  targetFps = Math.max(1, Math.min(120, Math.round(fps)))
+}
+
 function stopRenderLoop() {
   if (renderFrameId !== null) {
     cancelAnimationFrame(renderFrameId)
@@ -65,8 +74,7 @@ function startRenderLoop() {
   stopRenderLoop()
 
   let lastTime = performance.now()
-  const TARGET_FPS = 60
-  const frameInterval = 1000 / TARGET_FPS
+  const frameInterval = 1000 / targetFps
 
   const renderFrame = (timestamp: number) => {
     if (!model) {
@@ -672,6 +680,7 @@ defineExpose({
   stopLipSync,
   setIdleActivity,
   setPersistentExpressions,
+  setTargetFps,
   getTextureSource: () => model?.getTextureSource(),
   getTextureSources: () => model?.getTextureSources() || []
 })

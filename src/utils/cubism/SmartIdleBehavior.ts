@@ -25,7 +25,8 @@ export interface SmartIdleEvent {
   data?: {
     motionGroup?: string
     motionIndex?: number
-    greeting?: string
+    /** 当前时段，由调用方决定问候文案 */
+    period?: TimePeriod
   }
 }
 
@@ -128,16 +129,10 @@ export class SmartIdleBehavior {
     }
 
     this.lastTimePeriod = period
-    const greetings = {
-      morning: '早上好！新的一天开始了~',
-      afternoon: '下午好！要不要休息一下？',
-      evening: '晚上好！辛苦了一天~',
-      night: '夜深了，早点休息吧~'
-    }
 
     return {
       type: 'timeGreeting',
-      data: { greeting: greetings[period] }
+      data: { period }
     }
   }
 

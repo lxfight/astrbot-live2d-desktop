@@ -245,6 +245,173 @@
     </SettingsSubsection>
 
     <SettingsSubsection
+      :title="$t('settings.advanced.behavior.smartSection')"
+      :description="$t('settings.advanced.behavior.smartSectionDesc')"
+    >
+      <n-form label-placement="top">
+        <n-form-item :label="$t('settings.advanced.behavior.idleRandomMotionEnabled')">
+          <n-switch
+            :value="advancedSettings.smartBehavior.idleRandomMotionEnabled"
+            @update:value="updateSmartBehavior('idleRandomMotionEnabled', $event)"
+          />
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.idleRandomMotionEnabledFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.idleRandomMotionInterval')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.idleRandomMotionIntervalMin"
+              :min="10"
+              :max="300"
+              :step="5"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.idleRandomMotionEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('idleRandomMotionIntervalMin', value ?? 30)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.minutes') }}</span>
+            <span style="color: var(--text-color-3)">—</span>
+            <n-input-number
+              :value="advancedSettings.smartBehavior.idleRandomMotionIntervalMax"
+              :min="20"
+              :max="600"
+              :step="5"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.idleRandomMotionEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('idleRandomMotionIntervalMax', value ?? 90)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.minutes') }}</span>
+          </n-space>
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.idleRandomMotionIntervalFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.idleTimeAwareness')">
+          <n-switch
+            :value="advancedSettings.smartBehavior.idleTimeAwarenessEnabled"
+            @update:value="updateSmartBehavior('idleTimeAwarenessEnabled', $event)"
+          />
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.idleTimeAwarenessFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.remindersEnabled')">
+          <n-switch
+            :value="advancedSettings.smartBehavior.remindersEnabled"
+            @update:value="updateSmartBehavior('remindersEnabled', $event)"
+          />
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.remindersEnabledFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.reminderSittingInterval')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.reminderSittingIntervalMinutes"
+              :min="15"
+              :max="240"
+              :step="5"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.remindersEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('reminderSittingIntervalMinutes', value ?? 60)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.minutes') }}</span>
+          </n-space>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.reminderWaterInterval')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.reminderWaterIntervalMinutes"
+              :min="15"
+              :max="240"
+              :step="5"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.remindersEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('reminderWaterIntervalMinutes', value ?? 90)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.minutes') }}</span>
+          </n-space>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.reminderEyeInterval')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.reminderEyeIntervalMinutes"
+              :min="10"
+              :max="240"
+              :step="5"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.remindersEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('reminderEyeIntervalMinutes', value ?? 45)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.minutes') }}</span>
+          </n-space>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.focusPowerSave')">
+          <n-switch
+            :value="advancedSettings.smartBehavior.focusPowerSaveEnabled"
+            @update:value="updateSmartBehavior('focusPowerSaveEnabled', $event)"
+          />
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.focusPowerSaveFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.focusPowerSaveDelay')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.focusPowerSaveDelaySeconds"
+              :min="10"
+              :max="600"
+              :step="10"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.focusPowerSaveEnabled"
+              @update:value="
+                (value: number | null) =>
+                  updateSmartBehavior('focusPowerSaveDelaySeconds', value ?? 60)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.seconds') }}</span>
+          </n-space>
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.focusPowerSaveDelayFeedback') }}
+          </template>
+        </n-form-item>
+        <n-form-item :label="$t('settings.advanced.behavior.focusPowerSaveFps')">
+          <n-space align="center">
+            <n-input-number
+              :value="advancedSettings.smartBehavior.focusPowerSaveFps"
+              :min="2"
+              :max="30"
+              :precision="0"
+              :disabled="!advancedSettings.smartBehavior.focusPowerSaveEnabled"
+              @update:value="
+                (value: number | null) => updateSmartBehavior('focusPowerSaveFps', value ?? 5)
+              "
+            />
+            <span>{{ $t('settings.advanced.behavior.fps') }}</span>
+          </n-space>
+          <template #feedback>
+            {{ $t('settings.advanced.behavior.focusPowerSaveFpsFeedback') }}
+          </template>
+        </n-form-item>
+      </n-form>
+    </SettingsSubsection>
+
+    <SettingsSubsection
       :title="$t('settings.advanced.behavior.desktopInteraction')"
       :description="$t('settings.advanced.behavior.desktopInteractionDesc')"
     >
@@ -356,6 +523,16 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 type PassThroughMode = 'none' | 'dynamic' | 'full'
+
+type SmartBehaviorKey = keyof typeof advancedSettings.value.smartBehavior
+
+function updateSmartBehavior(key: SmartBehaviorKey, value: boolean | number): void {
+  advancedSettings.value.smartBehavior = {
+    ...advancedSettings.value.smartBehavior,
+    [key]: value
+  }
+  void applyAdvancedSettingChange()
+}
 
 const passThroughMode = computed<PassThroughMode>(() => {
   if (desktopFeatureSettings.value.fullPassThrough) return 'full'

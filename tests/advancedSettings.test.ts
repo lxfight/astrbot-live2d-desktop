@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   ADVANCED_SETTINGS_KEY,
   DEFAULT_ADVANCED_SETTINGS,
+  DEFAULT_SMART_BEHAVIOR_SETTINGS,
   clampBubbleFollowUpWindowMs,
   clampBubbleStackMax,
   clampImageInlineThresholdKb,
@@ -69,7 +70,8 @@ describe('advancedSettings', () => {
       imageMaxSizeMb: 15,
       showBaseEventNotifications: false,
       maxRecordingSeconds: 60,
-      logLevel: 'debug'
+      logLevel: 'debug',
+      smartBehavior: { ...DEFAULT_SMART_BEHAVIOR_SETTINGS }
     })
     expect(normalized).not.toHaveProperty('autoConnect')
     expect(normalized).not.toHaveProperty('wakeWordEnabled')

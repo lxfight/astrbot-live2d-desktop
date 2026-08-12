@@ -6,4 +6,5 @@ export interface Live2DCanvasApi {
   } | null
   startLipSync?: (audioElement: HTMLAudioElement) => void
   stopLipSync?: () => void
+  setTargetFps?: (fps: number) => void
 }

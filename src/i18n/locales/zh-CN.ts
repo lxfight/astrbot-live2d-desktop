@@ -63,6 +63,15 @@ export default {
   'main.performSequence': '[表演序列]',
   'main.serverUser': '服务器',
 
+  // Main window — smart behavior
+  'main.smartBehavior.reminderSitting': '已经坐了一个小时了，站起来活动一下吧~',
+  'main.smartBehavior.reminderWater': '该喝水啦！保持水分很重要哦~',
+  'main.smartBehavior.reminderEye': '眼睛休息一下吧，看看远处放松一下~',
+  'main.smartBehavior.greetingMorning': '早上好！新的一天开始了~',
+  'main.smartBehavior.greetingAfternoon': '下午好！要不要休息一下？',
+  'main.smartBehavior.greetingEvening': '晚上好！辛苦了一天~',
+  'main.smartBehavior.greetingNight': '夜深了，早点休息吧~',
+
   // Radial menu
   'menu.history': '历史',
   'menu.settings': '设置',
@@ -606,6 +615,34 @@ export default {
   // Settings — Advanced behavior
   'settings.advanced.behavior.description':
     '配置应用启动行为、通知策略和日志级别。切换后立即生效。',
+  'settings.advanced.behavior.smartSection': '智能行为',
+  'settings.advanced.behavior.smartSectionDesc':
+    '让模型更具生命力：空闲时随机动作、按时段问候、健康提醒，失焦时自动降低资源消耗。',
+  'settings.advanced.behavior.idleRandomMotionEnabled': '空闲随机动作',
+  'settings.advanced.behavior.idleRandomMotionEnabledFeedback':
+    '模型空闲时偶尔播放随机动作（如看向侧边、伸懒腰），让角色更自然。',
+  'settings.advanced.behavior.idleRandomMotionInterval': '随机动作间隔',
+  'settings.advanced.behavior.idleRandomMotionIntervalFeedback':
+    '两次随机动作之间的等待时间，将在最小与最大间隔之间随机选取。',
+  'settings.advanced.behavior.idleTimeAwareness': '时间感知问候',
+  'settings.advanced.behavior.idleTimeAwarenessFeedback':
+    '根据当前时段自动打招呼：早上好、下午好、晚上好、夜深提醒。',
+  'settings.advanced.behavior.remindersEnabled': '健康提醒',
+  'settings.advanced.behavior.remindersEnabledFeedback':
+    '定时提醒久坐、喝水、护眼，仅在白天工作时间（9:00-18:00）触发。',
+  'settings.advanced.behavior.reminderSittingInterval': '久坐提醒间隔',
+  'settings.advanced.behavior.reminderWaterInterval': '喝水提醒间隔',
+  'settings.advanced.behavior.reminderEyeInterval': '护眼提醒间隔',
+  'settings.advanced.behavior.focusPowerSave': '失焦省电',
+  'settings.advanced.behavior.focusPowerSaveFeedback':
+    '窗口失去焦点一段时间后降低渲染帧率，减少后台资源占用；点击角色恢复焦点后自动恢复。',
+  'settings.advanced.behavior.focusPowerSaveDelay': '省电延迟',
+  'settings.advanced.behavior.focusPowerSaveDelayFeedback': '失焦后等待多久进入省电模式。',
+  'settings.advanced.behavior.focusPowerSaveFps': '省电帧率',
+  'settings.advanced.behavior.focusPowerSaveFpsFeedback': '省电模式下的目标渲染帧率。',
+  'settings.advanced.behavior.minutes': '分钟',
+  'settings.advanced.behavior.seconds': '秒',
+  'settings.advanced.behavior.fps': 'FPS',
   'settings.advanced.behavior.autoConnect': '启动时自动连接',
   'settings.advanced.behavior.resumeOnWake': '系统恢复后自动恢复连接',
   'settings.advanced.behavior.retryEnabled': '启用自动重试',

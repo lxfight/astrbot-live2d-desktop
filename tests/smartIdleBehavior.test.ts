@@ -22,7 +22,8 @@ describe('SmartIdleBehavior', () => {
     let events = behavior.advance(0.5)
     expect(events).toHaveLength(0)
 
-    events = behavior.advance(1.0)
+    // 眨眼间隔随机在 [1, 2] 秒，推进到 5 秒必然至少触发一次
+    events = behavior.advance(4.5)
     expect(events.some(e => e.type === 'blink')).toBe(true)
   })
 

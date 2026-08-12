@@ -283,6 +283,9 @@ import { convertModelInfoToV2, shouldUseV2Protocol } from '@/utils/modelInfoConv
 import { parseMotionIdParts } from '@/shared/modelAliasMerge'
 import { AliasMapper } from '@electron/utils/aliasMapper'
 import { IdleManager } from '@electron/services/idleManager'
+import { SmartIdleBehavior } from '@/utils/cubism/SmartIdleBehavior'
+import { ReminderScheduler, type ReminderConfig } from '@/utils/ReminderScheduler'
+import { FocusAwareOptimizer, type FocusStateChangeEvent } from '@/utils/FocusAwareOptimizer'
 import { ensureCubismCoreLoaded } from '@/bootstrap/windowApp'
 
 const connectionStore = useConnectionStore()
@@ -335,6 +338,148 @@ const aliasMapper = new AliasMapper()
 
 // ─── 待机管理器 ─────────────────────────────────────────────────
 let idleManager: IdleManager | null = null
+
+// ─── 智能行为系统 ────────────────────────────────────────────────
+let smartIdleBehavior: SmartIdleBehavior | null = null
+let reminderScheduler: ReminderScheduler | null = null
+let focusAwareOptimizer: FocusAwareOptimizer | null = null
+let smartBehaviorTimer: number | null = null
+let focusStateListener: (() => void) | null = null
+let smartBehaviorLastTick = 0
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function buildReminderConfigs(): ReminderConfig[] {
+  const sb = advancedSettings.value.smartBehavior
+  return [
+    {
+      id: 'sitting',
+      type: 'sitting',
+      intervalMinutes: sb.reminderSittingIntervalMinutes,
+      message: t('main.smartBehavior.reminderSitting'),
+      enabled: sb.remindersEnabled,
+      workingHoursOnly: true
+    },
+    {
+      id: 'water',
+      type: 'water',
+      intervalMinutes: sb.reminderWaterIntervalMinutes,
+      message: t('main.smartBehavior.reminderWater'),
+      enabled: sb.remindersEnabled,
+      workingHoursOnly: true
+    },
+    {
+      id: 'eye',
+      type: 'eye',
+      intervalMinutes: sb.reminderEyeIntervalMinutes,
+      message: t('main.smartBehavior.reminderEye'),
+      enabled: sb.remindersEnabled,
+      workingHoursOnly: true
+    }
+  ]
+}
+
+function applySmartBehaviorFocusState(state: FocusStateChangeEvent): void {
+  if (!state) return
+  if (!advancedSettings.value.smartBehavior.focusPowerSaveEnabled) {
+    live2dCanvasRef.value?.setTargetFps(60)
+    return
+  }
+
+  const targetFps =
+    state.to === 'powerSave' ? advancedSettings.value.smartBehavior.focusPowerSaveFps : 60
+  live2dCanvasRef.value?.setTargetFps(targetFps)
+}
+
+function startSmartBehavior(): void {
+  stopSmartBehavior()
+
+  const sb = advancedSettings.value.smartBehavior
+  smartIdleBehavior = new SmartIdleBehavior({
+    randomMotionIntervalMin: sb.idleRandomMotionIntervalMin,
+    randomMotionIntervalMax: sb.idleRandomMotionIntervalMax,
+    enableTimeAwareness: sb.idleTimeAwarenessEnabled
+  })
+
+  reminderScheduler = new ReminderScheduler(buildReminderConfigs())
+
+  focusAwareOptimizer = new FocusAwareOptimizer({
+    powerSaveDelay: sb.focusPowerSaveDelaySeconds,
+    powerSaveFps: sb.focusPowerSaveFps
+  })
+  focusAwareOptimizer.setEnabled(sb.focusPowerSaveEnabled)
+  focusStateListener = focusAwareOptimizer.onStateChange(applySmartBehaviorFocusState)
+
+  const tick = () => {
+    const now = performance.now()
+    const deltaSeconds = Math.min((now - smartBehaviorLastTick) / 1000, 5)
+    smartBehaviorLastTick = now
+
+    if (smartIdleBehavior) {
+      for (const event of smartIdleBehavior.advance(deltaSeconds)) {
+        if (event.type === 'randomMotion' && event.data?.motionGroup && hasModel.value) {
+          live2dCanvasRef.value?.playMotion(
+            event.data.motionGroup,
+            event.data.motionIndex ?? 0,
+            2,
+            false
+          )
+        } else if (event.type === 'timeGreeting' && event.data?.period) {
+          const greetingKey = `main.smartBehavior.greeting${capitalize(event.data.period)}`
+          const text = t(greetingKey)
+          pushBubble([{ type: 'text', text }], 'model', false)
+        }
+      }
+    }
+
+    if (reminderScheduler) {
+      for (const event of reminderScheduler.advance(deltaSeconds)) {
+        pushBubble([{ type: 'text', text: event.message }], 'model', false)
+      }
+    }
+
+    if (focusAwareOptimizer) {
+      focusAwareOptimizer.advance(deltaSeconds)
+    }
+
+    smartBehaviorTimer = window.setTimeout(tick, 1000)
+  }
+
+  smartBehaviorLastTick = performance.now()
+  smartBehaviorTimer = window.setTimeout(tick, 1000)
+
+  // 窗口焦点事件驱动省电模式
+  const handleFocus = () => focusAwareOptimizer?.setFocus(true)
+  const handleBlur = () => focusAwareOptimizer?.setFocus(false)
+  window.addEventListener('focus', handleFocus)
+  window.addEventListener('blur', handleBlur)
+  smartBehaviorFocusDisposers = [
+    () => window.removeEventListener('focus', handleFocus),
+    () => window.removeEventListener('blur', handleBlur)
+  ]
+
+  console.log('[主窗口] 智能行为系统已启动')
+}
+
+let smartBehaviorFocusDisposers: Array<() => void> = []
+
+function stopSmartBehavior(): void {
+  if (smartBehaviorTimer !== null) {
+    clearTimeout(smartBehaviorTimer)
+    smartBehaviorTimer = null
+  }
+  smartIdleBehavior = null
+  reminderScheduler = null
+  if (focusStateListener) {
+    focusStateListener()
+    focusStateListener = null
+  }
+  focusAwareOptimizer = null
+  smartBehaviorFocusDisposers.forEach(dispose => dispose())
+  smartBehaviorFocusDisposers = []
+}
 
 function startIdleManagerFromConfig(motionIds: string[]) {
   if (motionIds.length === 0) {
@@ -1164,6 +1309,11 @@ function handleStorageChange(event: StorageEvent) {
   const wasThemeFollowModel = advancedSettings.value.themeFollowModel
   refreshAdvancedSettings()
 
+  // 智能行为配置变更后重启，使新配置立即生效
+  if (smartBehaviorTimer !== null) {
+    startSmartBehavior()
+  }
+
   // themeFollowModel 从 false 变为 true 时，立即重新提取主题色
   if (!wasThemeFollowModel && advancedSettings.value.themeFollowModel) {
     const activeModelPath =
@@ -1542,9 +1692,14 @@ onMounted(async () => {
       console.warn('[Main] Shortcut register failed:', result.error)
     }
   }
+
+  // 启动智能行为系统（空闲动作/健康提醒/失焦省电）
+  startSmartBehavior()
 })
 
 onBeforeUnmount(() => {
+  // 停止智能行为系统
+  stopSmartBehavior()
   // 停止性能监控
   if (import.meta.env.DEV) {
     const perfMonitor = getGlobalPerformanceMonitor()

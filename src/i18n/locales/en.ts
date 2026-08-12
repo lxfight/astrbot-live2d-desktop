@@ -68,6 +68,15 @@ const en: I18nMessageSchema = {
   'main.performSequence': '[Performance Sequence]',
   'main.serverUser': 'Server',
 
+  // Main window — smart behavior
+  'main.smartBehavior.reminderSitting': 'You have been sitting for an hour — stand up and stretch!',
+  'main.smartBehavior.reminderWater': 'Time to drink some water! Stay hydrated~',
+  'main.smartBehavior.reminderEye': 'Give your eyes a break and look into the distance~',
+  'main.smartBehavior.greetingMorning': 'Good morning! A new day begins~',
+  'main.smartBehavior.greetingAfternoon': 'Good afternoon! How about a short break?',
+  'main.smartBehavior.greetingEvening': 'Good evening! You worked hard today~',
+  'main.smartBehavior.greetingNight': 'It is late — get some rest soon~',
+
   // Radial menu
   'menu.history': 'History',
   'menu.settings': 'Settings',
@@ -633,6 +642,36 @@ const en: I18nMessageSchema = {
   // Settings — Advanced behavior
   'settings.advanced.behavior.description':
     'Configure app startup behavior, notification strategy, and log level. Changes take effect immediately.',
+  'settings.advanced.behavior.smartSection': 'Smart Behavior',
+  'settings.advanced.behavior.smartSectionDesc':
+    'Make the model feel more alive: random idle motions, time-aware greetings, health reminders, and automatic resource savings when the window loses focus.',
+  'settings.advanced.behavior.idleRandomMotionEnabled': 'Random idle motions',
+  'settings.advanced.behavior.idleRandomMotionEnabledFeedback':
+    'Occasionally plays random motions (e.g., looking to the side, stretching) while the model is idle.',
+  'settings.advanced.behavior.idleRandomMotionInterval': 'Motion interval',
+  'settings.advanced.behavior.idleRandomMotionIntervalFeedback':
+    'Waiting time between two random motions, randomly picked between the minimum and maximum interval.',
+  'settings.advanced.behavior.idleTimeAwareness': 'Time-aware greetings',
+  'settings.advanced.behavior.idleTimeAwarenessFeedback':
+    'Automatically greets based on the time of day: good morning, good afternoon, good evening, late-night reminder.',
+  'settings.advanced.behavior.remindersEnabled': 'Health reminders',
+  'settings.advanced.behavior.remindersEnabledFeedback':
+    'Periodically reminds you to stand, drink water, and rest your eyes; only triggers during work hours (9:00-18:00).',
+  'settings.advanced.behavior.reminderSittingInterval': 'Sitting reminder interval',
+  'settings.advanced.behavior.reminderWaterInterval': 'Water reminder interval',
+  'settings.advanced.behavior.reminderEyeInterval': 'Eye rest reminder interval',
+  'settings.advanced.behavior.focusPowerSave': 'Power save on blur',
+  'settings.advanced.behavior.focusPowerSaveFeedback':
+    'Lowers the render frame rate after the window loses focus for a while, reducing background resource usage; restored when the model is clicked to regain focus.',
+  'settings.advanced.behavior.focusPowerSaveDelay': 'Power save delay',
+  'settings.advanced.behavior.focusPowerSaveDelayFeedback':
+    'How long to wait after losing focus before entering power save mode.',
+  'settings.advanced.behavior.focusPowerSaveFps': 'Power save frame rate',
+  'settings.advanced.behavior.focusPowerSaveFpsFeedback':
+    'Target render frame rate in power save mode.',
+  'settings.advanced.behavior.minutes': 'min',
+  'settings.advanced.behavior.seconds': 'sec',
+  'settings.advanced.behavior.fps': 'FPS',
   'settings.advanced.behavior.autoConnect': 'Auto-connect on launch',
   'settings.advanced.behavior.resumeOnWake': 'Auto-resume connection after system wake',
   'settings.advanced.behavior.retryEnabled': 'Enable auto-retry',
