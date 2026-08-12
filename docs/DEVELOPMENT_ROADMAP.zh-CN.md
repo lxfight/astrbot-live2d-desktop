@@ -106,7 +106,7 @@ monitor.subscribe((snapshot) => {
 - 空的 catch 块                        # 添加错误处理或注释说明
 ```
 
-**建议**：逐步修复，可以分批进行，不影响功能开发
+**状态**：已全部修复。`src/`、`electron/`、`tests/` 均通过 `--max-warnings=-1` 检查，零警告。
 
 ---
 
