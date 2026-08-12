@@ -532,7 +532,7 @@ interface CloudSyncSystem {
 
 ### 1. 测试覆盖率提升
 
-当前有 47 个测试文件（305 个测试 + 14 个跳过），建议：
+当前有 48 个测试文件（320 个测试 + 14 个跳过），建议：
 
 ```bash
 # 目标
@@ -543,7 +543,7 @@ interface CloudSyncSystem {
 # 新增测试
 - [x] Performance 系统测试（PerformanceMonitor/PerformanceMark/MessageBatcher）
 - [x] WebSocket 断线重连测试（重连计数重置、挂起/唤醒、dispose 清理）
-- [ ] 模型加载压力测试
+- [x] 模型加载压力测试（ModelResourceCache 命中/过期/驱逐/preload 单测）
 - [x] 内存泄漏测试（dispose/卸载后监听器清理、定时器取消）
 ```
 
