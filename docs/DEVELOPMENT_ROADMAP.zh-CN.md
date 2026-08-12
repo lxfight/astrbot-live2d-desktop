@@ -32,22 +32,22 @@
 根据 `docs/PRD-zh-CN.md`，以下功能可能未完全实现：
 
 **高优先级**：
-- [ ] **连接行为设置面板**：后端已实现但前端缺失 UI
+- [x] **连接行为设置面板**：后端已实现但前端缺失 UI
   - 位置：设置 → 连接 → 连接策略
   - 涉及文件：新增设置组件，调用已有 IPC `connectionBehaviorSettings.ts`
-  
-- [ ] **配置导入导出**：备份和迁移用户配置
+
+- [x] **配置导入导出**：备份和迁移用户配置
   - 导出所有 user_config 和 LocalStorage 为 JSON
   - 导入前预览和确认
   - 重置所有设置功能
-  
-- [ ] **日志级别持久化**：当前仅会话有效
+
+- [x] **日志级别持久化**：当前仅会话有效
   - 存入 user_config，启动时读取
   - 设置面板增加日志级别选择
 
 #### 2. 集成已有的性能优化工具
 
-优化工具已开发但未集成到主代码：
+优化工具已开发但未集成到主代码（**已完成**：资源缓存已接入 `CubismModel` 纹理加载、MessageBatcher 已接入 WebSocket 触摸事件流、性能监控已在开发模式启用）：
 
 ```typescript
 // 1. 在 Live2D 模型加载中集成资源缓存
@@ -57,13 +57,13 @@ import { getGlobalModelResourceCache } from './ModelResourceCache'
 async loadTexture(url: string) {
   const cache = getGlobalModelResourceCache()
   let data = cache.get(url)
-  
+
   if (!data) {
     const response = await fetch(url)
     data = await response.arrayBuffer()
     cache.set(url, data)
   }
-  
+
   return createTextureFromArrayBuffer(data)
 }
 
@@ -114,7 +114,7 @@ monitor.subscribe((snapshot) => {
 
 #### 4. 模型管理系统增强
 
-当前模型管理较为基础，可以增强：
+当前模型管理较为基础，可以增强（**部分完成**：收藏与标签系统、预设配置已实现，批量导入与最近使用历史待做）：
 
 ```typescript
 // 模型库管理系统
@@ -146,11 +146,11 @@ interface ModelPreset {
 ```
 
 **功能点**：
-- 模型收藏夹
-- 自定义标签分类
-- 快速切换预设配置
-- 批量导入模型
-- 最近使用历史
+- [x] 模型收藏夹
+- [x] 自定义标签分类
+- [x] 快速切换预设配置
+- [ ] 批量导入模型
+- [ ] 最近使用历史
 
 #### 5. 表演编排系统
 
@@ -189,7 +189,7 @@ interface PerformanceTrigger {
 
 #### 6. 智能行为系统
 
-让模型更有"生命力"：
+让模型更有"生命力"（**已完成**：`SmartIdleBehavior`/`ReminderScheduler`/`FocusAwareOptimizer` 已实现并接入主窗口运行时，配置位于设置 → 高级 → 行为 → 智能行为；天气感知未做）：
 
 ```typescript
 interface SmartBehaviorSystem {
@@ -229,10 +229,11 @@ interface Reminder {
 ```
 
 **功能点**：
-- 空闲时自动播放动作（眨眼、伸懒腰等）
-- 健康提醒（久坐提醒、喝水提醒）
-- 焦点感知（后台时降低性能消耗）
-- 时间感知（早上打招呼、晚上说晚安）
+- [x] 空闲时自动播放动作（随机动作池，眨眼由 Cubism SDK 内置）
+- [x] 健康提醒（久坐提醒、喝水提醒、护眼提醒）
+- [x] 焦点感知（失焦降帧率、省电模式）
+- [x] 时间感知（早上打招呼、晚上说晚安，i18n 双语）
+- [ ] 天气感知（需要外部 API，未做）
 
 #### 7. 多模态输入增强
 
@@ -523,7 +524,7 @@ interface CloudSyncSystem {
 
 ### 1. 测试覆盖率提升
 
-当前有 38 个测试文件，建议：
+当前有 46 个测试文件（295 个测试），建议：
 
 ```bash
 # 目标
@@ -532,15 +533,15 @@ interface CloudSyncSystem {
 - E2E 测试: 主要用户场景
 
 # 新增测试
-- Performance 系统测试
-- 模型加载压力测试
-- WebSocket 断线重连测试
-- 内存泄漏测试
+- [x] Performance 系统测试（PerformanceMonitor/PerformanceMark/MessageBatcher）
+- [ ] 模型加载压力测试
+- [ ] WebSocket 断线重连测试
+- [ ] 内存泄漏测试
 ```
 
 ### 2. 性能基准与监控
 
-建立性能基准：
+建立性能基准（**部分完成**：`pnpm bench` 已覆盖核心纯函数吞吐，运行时指标用 PerformanceMonitor 观测）：
 
 ```typescript
 // 性能基准测试
@@ -593,9 +594,9 @@ interface ErrorTracking {
 - [ ] API 文档（TypeDoc 生成）
 - [ ] 贡献指南（CONTRIBUTING.md）
 - [ ] 插件开发指南
-- [ ] 性能优化最佳实践
+- [x] 性能优化最佳实践（`PERFORMANCE_TOOLS_INTEGRATION.md`）
 - [ ] 故障排查手册
-- [ ] 更新日志（CHANGELOG.md）
+- [x] 更新日志（`docs/CHANGELOG.zh-CN.md`，遵循 keep-a-changelog）
 
 ---
 
