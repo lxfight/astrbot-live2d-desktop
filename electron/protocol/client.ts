@@ -31,6 +31,7 @@ import {
   getDesktopTools,
   handleToolCall
 } from '../ipc/desktop'
+import { MessageBatcher, type BatchableMessage } from '../utils/MessageBatcher'
 
 const logger = createScopedLogger('bridge.protocol')
 
@@ -103,6 +104,7 @@ export class L2DBridgeClient extends EventEmitter {
       timer: NodeJS.Timeout
     }
   > = new Map()
+  private touchBatcher: MessageBatcher<BatchableMessage> | null = null
 
   /**
    * 建立单次连接并等待握手完成
@@ -124,6 +126,7 @@ export class L2DBridgeClient extends EventEmitter {
     this.ready = false
     this.pendingDisconnectError = null
     this.resetSessionState()
+    this.initializeTouchBatcher()
     logger.info('open.start', {
       url: normalizedUrl,
       hasToken: Boolean(normalizedToken),
@@ -206,6 +209,7 @@ export class L2DBridgeClient extends EventEmitter {
     })
     this.stopHandshakeTimeout()
     this.stopHeartbeat()
+    this.destroyTouchBatcher()
 
     if (this.ws) {
       const ws = this.ws
@@ -579,12 +583,21 @@ export class L2DBridgeClient extends EventEmitter {
    */
   sendTouch(x: number, y: number, action: string): void {
     logger.debug('send_touch', { x, y, action, sessionId: this.sessionId })
-    this.send({
-      op: OPS.INPUT_TOUCH,
-      id: uuidv4(),
-      ts: Date.now(),
-      payload: { x, y, action }
-    })
+
+    if (this.touchBatcher) {
+      this.touchBatcher.push({
+        type: 'touch',
+        data: { x, y, action },
+        timestamp: Date.now()
+      })
+    } else {
+      this.send({
+        op: OPS.INPUT_TOUCH,
+        id: uuidv4(),
+        ts: Date.now(),
+        payload: { x, y, action }
+      })
+    }
   }
 
   /**
@@ -926,5 +939,33 @@ export class L2DBridgeClient extends EventEmitter {
       req.write(body)
       req.end()
     })
+  }
+
+  private initializeTouchBatcher(): void {
+    this.destroyTouchBatcher()
+    this.touchBatcher = new MessageBatcher(batch => this.sendBatchedTouches(batch), {
+      maxBatchSize: 10,
+      flushIntervalMs: 16
+    })
+  }
+
+  private destroyTouchBatcher(): void {
+    if (this.touchBatcher) {
+      this.touchBatcher.destroy()
+      this.touchBatcher = null
+    }
+  }
+
+  private sendBatchedTouches(batch: Array<{ type: string; data: any; timestamp: number }>): void {
+    if (batch.length === 0) return
+
+    for (const item of batch) {
+      this.send({
+        op: OPS.INPUT_TOUCH,
+        id: uuidv4(),
+        ts: item.timestamp,
+        payload: item.data
+      })
+    }
   }
 }
