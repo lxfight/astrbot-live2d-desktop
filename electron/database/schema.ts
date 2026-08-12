@@ -598,3 +598,17 @@ export function clearUserConfig(): void {
   db.exec('DELETE FROM user_config')
   console.log('[数据库] 用户配置已清空')
 }
+
+/**
+ * 获取日志级别
+ */
+export function getLogLevel(): string | null {
+  return getUserConfig(USER_CONFIG_KEYS.logLevel)
+}
+
+/**
+ * 设置日志级别
+ */
+export function setLogLevel(level: string): void {
+  setUserConfig(USER_CONFIG_KEYS.logLevel, level)
+}

@@ -78,7 +78,8 @@
         "alwaysOnTop": "tray_always_on_top",
         "fullPassThrough": "tray_pass_through_mode",
         "dynamicPassThrough": "desktop_dynamic_pass_through",
-        "autoDetectFullscreen": "tray_game_mode"
+        "autoDetectFullscreen": "tray_game_mode",
+        "logLevel": "app_log_level"
       }
     }
   },

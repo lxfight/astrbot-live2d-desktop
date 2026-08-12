@@ -14,8 +14,7 @@ import {
   type LogMeta
 } from '../utils/logger'
 import { getUserConfig, setUserConfig } from '../database/schema'
-
-const LOG_LEVEL_CONFIG_KEY = 'active_log_level'
+import { USER_CONFIG_KEYS } from '../../src/shared/metadata'
 
 /**
  * 从 user_config 读取持久化的日志级别并应用。
@@ -23,7 +22,7 @@ const LOG_LEVEL_CONFIG_KEY = 'active_log_level'
  */
 export function applyPersistedLogLevel(): void {
   try {
-    const persisted = getUserConfig(LOG_LEVEL_CONFIG_KEY)
+    const persisted = getUserConfig(USER_CONFIG_KEYS.logLevel)
     if (persisted === 'debug' || persisted === 'info') {
       setActiveLogLevel(persisted)
     }
@@ -139,7 +138,7 @@ ipcMain.handle('log:openDirectory', async () => {
 ipcMain.handle('log:setLevel', async (_event, level: string | undefined) => {
   const normalizedLevel = setActiveLogLevel(level)
   try {
-    setUserConfig(LOG_LEVEL_CONFIG_KEY, normalizedLevel)
+    setUserConfig(USER_CONFIG_KEYS.logLevel, normalizedLevel)
   } catch {
     // user_config may not be available during early startup; ignore persistence failure
   }
