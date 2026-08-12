@@ -66,7 +66,17 @@ export class MessageBatcher<T = unknown> {
     const batch = this.queue.splice(0)
     this.processing = true
 
-    Promise.resolve(this.processor(batch))
+    // processor 可能同步抛错，必须捕获后再进入 Promise 链
+    let processorResult: void | Promise<void>
+    try {
+      processorResult = this.processor(batch)
+    } catch (error) {
+      console.error('[消息批处理] 处理失败:', error)
+      this.processing = false
+      return
+    }
+
+    Promise.resolve(processorResult)
       .catch(error => {
         console.error('[消息批处理] 处理失败:', error)
       })
