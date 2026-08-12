@@ -24,9 +24,43 @@ import {
 // CubismModel 测试
 // ============================================================================
 
-// CubismModel 实例依赖 Live2DCubismCore WASM 运行时（cubism:// 协议加载），
-// node 测试环境无法实例化，待引入浏览器测试环境后启用
-describe.skip('CubismModel', () => {
+// CubismModel 实例化依赖 CubismFramework.startUp/initialize，
+// 两者只用到 Live2DCubismCore 的 Logging/Version/Memory 三个入口。
+// node 测试环境下用最小 stub 满足框架生命周期，模型加载/渲染路径不在此处测试。
+function stubCubismCore(): void {
+  const logFunctions: unknown[] = []
+  const stub = {
+    Logging: {
+      csmSetLogFunction: (fn: unknown) => {
+        logFunctions.push(fn)
+      },
+      csmGetLogFunction: () => logFunctions[logFunctions.length - 1] ?? null
+    },
+    Version: {
+      csmGetVersion: () => 0x05000004 // 5.0.4
+    },
+    Memory: {
+      initializeAmountOfMemory: vi.fn()
+    }
+  }
+  // 框架源码以裸标识符 Live2DCubismCore 访问全局（node 环境解析到 globalThis），
+  // 动态属性赋值避免与 d.ts 的完整 Core 类型声明冲突。
+  ;(globalThis as unknown as Record<string, unknown>).Live2DCubismCore = stub
+}
+
+beforeEach(() => {
+  stubCubismCore()
+})
+
+afterEach(() => {
+  // 测试间保持框架状态干净：destroyGlobal 释放框架（其日志路径仍会引用 Core stub），
+  // 供下一个用例重新 startUp；随后移除 stub。
+  CubismModel.destroyGlobal()
+  Reflect.deleteProperty(globalThis, 'Live2DCubismCore')
+  vi.restoreAllMocks()
+})
+
+describe('CubismModel', () => {
   let model: CubismModel
 
   beforeEach(() => {
