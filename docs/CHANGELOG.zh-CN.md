@@ -13,6 +13,7 @@
 - 模型最近使用历史：最近 10 个，点击快速加载，可移除
 - 图片拖拽输入：图片拖到桌面窗口直接进入发送流程，非图片文件提示
 - 动作/表情使用排行图表：历史统计页新增 Top 10 横向柱状图
+- 故障排查手册（`docs/TROUBLESHOOTING.zh-CN.md`）
 - 核心纯函数性能基准（`pnpm bench`），用于及早发现性能退化
 - MessageBatcher 批处理器接入 WebSocket 触摸事件流，减少高频消息处理压力
 - node:sqlite 数据库门面，移除 better-sqlite3 原生依赖，全平台无需编译工具链
@@ -22,7 +23,7 @@
 - 日志级别持久化：写入 `user_config`，重启后保持（`electron/ipc/log.ts`）
 - 消息历史存储由 better-sqlite3 迁移至 Node 内置 `node:sqlite`
 - Windows 全屏检测改用 koffi WindowsWatcher，移除 node-window-manager 依赖
-- 测试覆盖：新增 MessageBatcher、PerformanceMonitor、themePalette 等测试，`src/utils` 覆盖率 44.7% → 64.5%
+- 测试覆盖：新增 MessageBatcher、PerformanceMonitor、themePalette 等测试，`src/utils` 覆盖率 44.7% → 72%，`src/windows/composables` 覆盖率 2.5% → 32%
 
 ### 修复
 
