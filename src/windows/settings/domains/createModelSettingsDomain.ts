@@ -21,12 +21,16 @@ export interface ModelSettingsDomain {
   currentModelStatusLabel: ComputedRef<string>
   currentModelBehavior: ComputedRef<ModelBehaviorConfig>
   ensureLibraryReady: (force?: boolean) => Promise<void>
+  ensureFavoritesReady: (force?: boolean) => Promise<void>
   ensureExpressionTypesReady: (force?: boolean) => Promise<void>
   expressionTypeStatus: Ref<'idle' | 'loading' | 'ready' | 'error'>
   expressionTypeSaving: Ref<boolean>
   expressionTypeProfilePath: Ref<string>
   expressionTypeExpressions: Ref<Live2DExpressionTypeEntry[]>
   expressionTypePresets: Ref<Live2DExpressionTypePresetMap>
+  favoritesList: Ref<Array<ModelFavorite>>
+  favoritesStatus: Ref<'idle' | 'loading' | 'ready' | 'error'>
+  allTags: Ref<string[]>
   getModelPreviewStyle: (modelPath: string) => Record<string, string>
   handleDeleteModel: (modelName: string) => Promise<void>
   handleExpressionTypeChange: (type: keyof Live2DExpressionTypePresetMap, value: string[]) => void
@@ -37,12 +41,26 @@ export interface ModelSettingsDomain {
   handleModelScaleChange: (value: number) => void
   handleResetModelScale: () => void
   handleSaveExpressionTypes: () => Promise<void>
+  handleAddFavorite: (modelPath: string, displayName?: string, notes?: string) => Promise<void>
+  handleRemoveFavorite: (modelPath: string) => Promise<void>
+  handleUpdateFavorite: (modelPath: string, displayName?: string, notes?: string) => Promise<void>
+  handleAddTag: (modelPath: string, tag: string) => Promise<void>
+  handleRemoveTag: (modelPath: string, tag: string) => Promise<void>
   inactiveModelSwatchStyle: ComputedRef<Record<string, string>>
   libraryStatus: Ref<'idle' | 'loading' | 'ready' | 'error'>
   modelList: Ref<Array<{ name: string; path: string }>>
   resolvedModelName: Ref<string>
   sourceColor: Ref<string>
   themeSwatchStyle: ComputedRef<Record<string, string>>
+}
+
+interface ModelFavorite {
+  id: number
+  modelPath: string
+  displayName: string | null
+  notes: string | null
+  addedAt: string
+  tags: string[]
 }
 
 export const modelSettingsDomainKey: InjectionKey<ModelSettingsDomain> =
@@ -72,6 +90,9 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
 
   const modelList = ref<Array<{ name: string; path: string }>>([])
   const libraryStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const favoritesList = ref<Array<ModelFavorite>>([])
+  const favoritesStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const allTags = ref<string[]>([])
   const expressionTypeStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const expressionTypeSaving = ref(false)
   const expressionTypeProfilePath = ref('')
@@ -137,6 +158,33 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
       libraryStatus.value = 'ready'
     } catch (error) {
       libraryStatus.value = 'error'
+      throw error
+    }
+  }
+
+  async function ensureFavoritesReady(force = false) {
+    if (favoritesStatus.value === 'ready' && !force) {
+      return
+    }
+
+    favoritesStatus.value = 'loading'
+
+    try {
+      const result = await window.electron.modelFavorites.getAll()
+      if (!result.success || !result.favorites) {
+        throw new Error(result.error || t('toast.favoriteLoadFailed'))
+      }
+
+      favoritesList.value = result.favorites
+
+      const tagsResult = await window.electron.modelFavorites.getAllTags()
+      if (tagsResult.success && tagsResult.tags) {
+        allTags.value = tagsResult.tags
+      }
+
+      favoritesStatus.value = 'ready'
+    } catch (error) {
+      favoritesStatus.value = 'error'
       throw error
     }
   }
@@ -312,6 +360,59 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     await ensureLibraryReady(true)
   }
 
+  async function handleAddFavorite(modelPath: string, displayName?: string, notes?: string) {
+    const result = await window.electron.modelFavorites.add(modelPath, displayName, notes)
+    if (!result.success) {
+      message.error(t('toast.favoriteAddFailed', { error: result.error }))
+      return
+    }
+
+    message.success(t('toast.favoriteAdded'))
+    await ensureFavoritesReady(true)
+  }
+
+  async function handleRemoveFavorite(modelPath: string) {
+    const result = await window.electron.modelFavorites.remove(modelPath)
+    if (!result.success) {
+      message.error(t('toast.favoriteRemoveFailed', { error: result.error }))
+      return
+    }
+
+    message.success(t('toast.favoriteRemoved'))
+    await ensureFavoritesReady(true)
+  }
+
+  async function handleUpdateFavorite(modelPath: string, displayName?: string, notes?: string) {
+    const result = await window.electron.modelFavorites.update(modelPath, displayName, notes)
+    if (!result.success) {
+      message.error(t('toast.favoriteUpdateFailed', { error: result.error }))
+      return
+    }
+
+    message.success(t('toast.favoriteUpdated'))
+    await ensureFavoritesReady(true)
+  }
+
+  async function handleAddTag(modelPath: string, tag: string) {
+    const result = await window.electron.modelFavorites.addTag(modelPath, tag)
+    if (!result.success) {
+      message.error(t('toast.tagAddFailed', { error: result.error }))
+      return
+    }
+
+    await ensureFavoritesReady(true)
+  }
+
+  async function handleRemoveTag(modelPath: string, tag: string) {
+    const result = await window.electron.modelFavorites.removeTag(modelPath, tag)
+    if (!result.success) {
+      message.error(t('toast.tagRemoveFailed', { error: result.error }))
+      return
+    }
+
+    await ensureFavoritesReady(true)
+  }
+
   return {
     currentModelDisplay,
     currentModelInitial,
@@ -321,12 +422,16 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     currentModelStatusLabel,
     currentModelBehavior,
     ensureLibraryReady,
+    ensureFavoritesReady,
     ensureExpressionTypesReady,
     expressionTypeSaving,
     expressionTypeStatus,
     expressionTypeProfilePath,
     expressionTypeExpressions,
     expressionTypePresets,
+    favoritesList,
+    favoritesStatus,
+    allTags,
     getModelPreviewStyle,
     handleDeleteModel,
     handleExpressionTypeChange,
@@ -337,6 +442,11 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     handleModelScaleChange,
     handleResetModelScale,
     handleSaveExpressionTypes,
+    handleAddFavorite,
+    handleRemoveFavorite,
+    handleUpdateFavorite,
+    handleAddTag,
+    handleRemoveTag,
     inactiveModelSwatchStyle,
     libraryStatus,
     modelList,

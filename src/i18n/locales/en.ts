@@ -82,6 +82,7 @@ const en: I18nMessageSchema = {
   'settings.menu.model': 'Model',
   'settings.menu.model.current': 'Current Model',
   'settings.menu.model.library': 'Model Library',
+  'settings.menu.model.favorites': 'Favorites',
   'settings.menu.model.config': 'Alias Config',
   'settings.menu.history': 'History',
   'settings.menu.history.messages': 'Messages',
@@ -120,6 +121,7 @@ const en: I18nMessageSchema = {
   'settings.page.connection.workspace.desc': 'Session, user, and workspace runtime status.',
   'settings.page.model.current.desc': 'Loaded model, behavior, and theme color.',
   'settings.page.model.library.desc': 'Import and manage your local model library.',
+  'settings.page.model.favorites.desc': 'Manage favorite models for quick access.',
   'settings.page.model.config.desc': 'Configure motion and expression aliases for LLM control.',
   'settings.page.model.library.selectHint': 'Select a model on the left to inspect and act.',
   'settings.model.library.previewLoading': 'Loading preview…',
@@ -228,6 +230,17 @@ const en: I18nMessageSchema = {
   // Toasts — Expression
   'toast.expressionSaved': 'Expression types saved, reloading current model',
   'toast.expressionSaveFailed': 'Failed to save expression types: {error}',
+
+  // Toasts — Favorites
+  'toast.favoriteAdded': 'Added to favorites',
+  'toast.favoriteAddFailed': 'Failed to add favorite: {error}',
+  'toast.favoriteRemoved': 'Removed from favorites',
+  'toast.favoriteRemoveFailed': 'Failed to remove favorite: {error}',
+  'toast.favoriteUpdated': 'Favorite updated',
+  'toast.favoriteUpdateFailed': 'Failed to update favorite: {error}',
+  'toast.favoriteLoadFailed': 'Failed to load favorites',
+  'toast.tagAddFailed': 'Failed to add tag: {error}',
+  'toast.tagRemoveFailed': 'Failed to remove tag: {error}',
 
   // Toasts — Shortcut
   'toast.shortcutRegistered': 'Shortcut registered successfully',
@@ -567,6 +580,23 @@ const en: I18nMessageSchema = {
   'settings.model.library.load': 'Load',
   'settings.model.library.delete': 'Delete',
   'settings.model.library.empty': 'No models yet, please import one first',
+
+  // Settings — Model favorites
+  'settings.model.favorites.description': 'Manage your favorite models for quick access.',
+  'settings.model.favorites.search': 'Search models...',
+  'settings.model.favorites.filterByTag': 'Filter by tag',
+  'settings.model.favorites.count': '{count} favorite(s)',
+  'settings.model.favorites.current': 'Current',
+  'settings.model.favorites.reload': 'Reload',
+  'settings.model.favorites.load': 'Load',
+  'settings.model.favorites.edit': 'Edit',
+  'settings.model.favorites.remove': 'Remove',
+  'settings.model.favorites.empty': 'No favorites yet, add some from the model library',
+  'settings.model.favorites.displayName': 'Display Name',
+  'settings.model.favorites.displayNamePlaceholder': 'Set a friendly name for this model',
+  'settings.model.favorites.notes': 'Notes',
+  'settings.model.favorites.notesPlaceholder': 'Add some notes',
+  'settings.model.favorites.tags': 'Tags',
 
   // Settings — Advanced behavior
   'settings.advanced.behavior.description':

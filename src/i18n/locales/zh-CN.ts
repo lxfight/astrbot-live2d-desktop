@@ -77,6 +77,7 @@ export default {
   'settings.menu.model': '模型',
   'settings.menu.model.current': '当前模型',
   'settings.menu.model.library': '模型库',
+  'settings.menu.model.favorites': '我的收藏',
   'settings.menu.model.config': '别名配置',
   'settings.menu.history': '历史',
   'settings.menu.history.messages': '消息列表',
@@ -113,6 +114,7 @@ export default {
   'settings.page.connection.workspace.desc': '当前会话、用户与工作区运行状态一览。',
   'settings.page.model.current.desc': '当前加载模型、行为参数与主题色。',
   'settings.page.model.library.desc': '导入与管理本地模型库。',
+  'settings.page.model.favorites.desc': '管理收藏的模型，快速访问常用模型。',
   'settings.page.model.config.desc': '配置模型动作和表情的别名，用于 LLM 控制。',
   'settings.page.model.library.selectHint': '在左侧选择一个模型查看详情与操作。',
   'settings.model.library.previewLoading': '正在加载预览…',
@@ -216,6 +218,17 @@ export default {
   // Toasts — Expression
   'toast.expressionSaved': '表情类型已保存，正在重新加载当前模型',
   'toast.expressionSaveFailed': '保存表情类型失败: {error}',
+
+  // Toasts — Favorites
+  'toast.favoriteAdded': '已添加到收藏',
+  'toast.favoriteAddFailed': '添加收藏失败: {error}',
+  'toast.favoriteRemoved': '已从收藏中移除',
+  'toast.favoriteRemoveFailed': '移除收藏失败: {error}',
+  'toast.favoriteUpdated': '收藏信息已更新',
+  'toast.favoriteUpdateFailed': '更新收藏失败: {error}',
+  'toast.favoriteLoadFailed': '加载收藏列表失败',
+  'toast.tagAddFailed': '添加标签失败: {error}',
+  'toast.tagRemoveFailed': '移除标签失败: {error}',
 
   // Toasts — Shortcut
   'toast.shortcutRegistered': '快捷键注册成功',
@@ -541,6 +554,23 @@ export default {
   'settings.model.library.load': '加载',
   'settings.model.library.delete': '删除',
   'settings.model.library.empty': '暂无模型，请先导入',
+
+  // Settings — Model favorites
+  'settings.model.favorites.description': '管理你收藏的模型，快速访问常用模型。',
+  'settings.model.favorites.search': '搜索模型...',
+  'settings.model.favorites.filterByTag': '按标签筛选',
+  'settings.model.favorites.count': '共 {count} 个收藏',
+  'settings.model.favorites.current': '当前',
+  'settings.model.favorites.reload': '重新加载',
+  'settings.model.favorites.load': '加载',
+  'settings.model.favorites.edit': '编辑',
+  'settings.model.favorites.remove': '取消收藏',
+  'settings.model.favorites.empty': '暂无收藏，在模型库中添加收藏吧',
+  'settings.model.favorites.displayName': '显示名称',
+  'settings.model.favorites.displayNamePlaceholder': '为模型设置一个友好的名称',
+  'settings.model.favorites.notes': '备注',
+  'settings.model.favorites.notesPlaceholder': '添加一些备注信息',
+  'settings.model.favorites.tags': '标签',
 
   // Settings — Advanced behavior
   'settings.advanced.behavior.description':

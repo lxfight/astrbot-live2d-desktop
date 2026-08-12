@@ -125,6 +125,16 @@ export function createSettingsSectionRegistry(
       loader: () => import('./sections/SettingsModelLibrarySection.vue'),
       prepare: force => modelDomain.ensureLibraryReady(force)
     },
+    'model/favorites': {
+      key: 'model/favorites',
+      group: 'model',
+      child: 'favorites',
+      layoutProfile: 'document',
+      cachePolicy: 'keep-alive',
+      skeletonKind: 'list',
+      loader: () => import('./sections/SettingsModelFavoritesSection.vue'),
+      prepare: force => modelDomain.ensureFavoritesReady(force)
+    },
     'history/messages': {
       key: 'history/messages',
       group: 'history',

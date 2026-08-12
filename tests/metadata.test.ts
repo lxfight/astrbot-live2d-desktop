@@ -42,6 +42,7 @@ describe('metadata', () => {
       userId: 'user_id',
       userName: 'user_name',
       autoUpdateEnabled: 'app_auto_update_enabled',
+      logLevel: 'app_log_level',
       screenshotDefaultTarget: 'desktop_capture_default_target',
       screenshotQuality: 'desktop_capture_quality',
       screenshotMaxWidth: 'desktop_capture_max_width',
