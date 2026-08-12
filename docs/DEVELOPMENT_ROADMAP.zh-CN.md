@@ -603,7 +603,7 @@ interface ErrorTracking {
 - [ ] 贡献指南（CONTRIBUTING.md）
 - [ ] 插件开发指南
 - [x] 性能优化最佳实践（`PERFORMANCE_TOOLS_INTEGRATION.md`）
-- [ ] 故障排查手册
+- [x] 故障排查手册（`docs/TROUBLESHOOTING.zh-CN.md`，连接/模型/桌面行为/性能/数据问题定位）
 - [x] 更新日志（`docs/CHANGELOG.zh-CN.md`，遵循 keep-a-changelog）
 
 ---

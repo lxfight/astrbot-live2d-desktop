@@ -3,9 +3,12 @@
 本目录集中存放 `astrbot-live2d-desktop` 的使用文档。
 
 - `USAGE_TUTORIAL.zh-CN.md`：连接、模型导入、日常使用、常见问题
+- `TROUBLESHOOTING.zh-CN.md`：故障排查手册（日志/数据位置、连接错误码、模型/桌面行为/性能问题定位）
 - `PLATFORM_SUPPORT.zh-CN.md`：Windows / macOS / Linux (X11 / Wayland) 平台能力矩阵
 - `CUBISM_RUNTIME.zh-CN.md`：Cubism 运行时接入方式、模型发现优先级、表情兼容边界
 - `DESKTOP_BEHAVIOR_ARCHITECTURE.zh-CN.md`：置顶/穿透/显示的主进程统一协调架构
+- `CHANGELOG.zh-CN.md`：版本更新日志
+- `DEVELOPMENT_ROADMAP.zh-CN.md`：开发路线图与改进建议
 
 服务端部署请参考适配器文档：
 
