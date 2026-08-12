@@ -24,12 +24,20 @@
         <h3>{{ $t('settings.history.statistics.activeHours') }}</h3>
         <div ref="activeHoursRef" class="chart-container"></div>
       </div>
+      <div class="chart-card settings-section">
+        <h3>{{ $t('settings.history.statistics.motionUsage') }}</h3>
+        <div ref="motionUsageRef" class="chart-container"></div>
+      </div>
+      <div class="chart-card settings-section">
+        <h3>{{ $t('settings.history.statistics.expressionUsage') }}</h3>
+        <div ref="expressionUsageRef" class="chart-container"></div>
+      </div>
     </div>
   </SettingsPageScaffold>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import * as echarts from 'echarts'
@@ -47,6 +55,8 @@ const { palette } = storeToRefs(themeStore)
 const messageTrendRef = ref<HTMLElement>()
 const performElementRef = ref<HTMLElement>()
 const activeHoursRef = ref<HTMLElement>()
+const motionUsageRef = ref<HTMLElement>()
+const expressionUsageRef = ref<HTMLElement>()
 
 let charts: echarts.ECharts[] = []
 
@@ -219,6 +229,79 @@ function renderCharts(data: any[]) {
     })
     charts.push(chart)
   }
+
+  renderUsageChart(motionUsageRef, 'motion_usage', chartColors[0])
+  renderUsageChart(expressionUsageRef, 'expression_usage', chartColors[2])
+}
+
+type UsageEntry = { name: string; count: number }
+
+function renderUsageChart(
+  containerRef: Ref<HTMLElement | undefined>,
+  field: 'motion_usage' | 'expression_usage',
+  accentColor: string
+) {
+  if (!containerRef.value) {
+    return
+  }
+
+  const merged: Record<string, number> = {}
+  for (const item of statisticsData.value) {
+    const raw = item[field]
+    if (!raw || typeof raw !== 'object') {
+      continue
+    }
+    for (const [name, count] of Object.entries(raw as Record<string, number>)) {
+      merged[name] = (merged[name] ?? 0) + (Number.isFinite(count) ? count : 0)
+    }
+  }
+
+  const entries: UsageEntry[] = Object.entries(merged)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+
+  if (entries.length === 0) {
+    return
+  }
+
+  const chart = echarts.init(containerRef.value)
+  chart.setOption({
+    backgroundColor: 'transparent',
+    textStyle: { color: 'rgba(185, 192, 207, 0.82)' },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(8, 12, 20, 0.92)',
+      borderColor: 'rgba(255, 255, 255, 0.18)',
+      textStyle: { color: 'rgba(247, 249, 252, 0.96)' }
+    },
+    xAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.08)' } },
+      axisLabel: { color: 'rgba(185, 192, 207, 0.82)' }
+    },
+    yAxis: {
+      type: 'category',
+      data: entries.map(entry => entry.name),
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.18)' } },
+      axisLabel: { color: 'rgba(185, 192, 207, 0.82)', width: 90, overflow: 'truncate' }
+    },
+    grid: { top: 20, right: 24, bottom: 20, left: 100, containLabel: true },
+    series: [
+      {
+        name: t('settings.history.statistics.usageCount'),
+        type: 'bar',
+        barWidth: '55%',
+        data: entries.map(entry => entry.count),
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: accentColor
+        }
+      }
+    ]
+  })
+  charts.push(chart)
 }
 
 watch(

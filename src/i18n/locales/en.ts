@@ -905,6 +905,8 @@ const en: I18nMessageSchema = {
   'settings.history.statistics.messageTrend': 'Message Trends',
   'settings.history.statistics.contentDistribution': 'Content Distribution',
   'settings.history.statistics.activeHours': 'Active Hours',
+  'settings.history.statistics.motionUsage': 'Top Motions',
+  'settings.history.statistics.expressionUsage': 'Top Expressions',
   'settings.history.statistics.messageCount': 'Messages',
   'settings.history.statistics.usageCount': 'Usage',
   'settings.history.statistics.text': 'Text',

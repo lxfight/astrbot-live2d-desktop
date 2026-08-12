@@ -864,6 +864,8 @@ export default {
   'settings.history.statistics.messageTrend': '消息趋势',
   'settings.history.statistics.contentDistribution': '内容分布',
   'settings.history.statistics.activeHours': '活跃时段',
+  'settings.history.statistics.motionUsage': '动作使用排行',
+  'settings.history.statistics.expressionUsage': '表情使用排行',
   'settings.history.statistics.messageCount': '消息数',
   'settings.history.statistics.usageCount': '使用量',
   'settings.history.statistics.text': '文字',
