@@ -470,4 +470,72 @@ describe('BridgeConnectionController', () => {
 
     expect(performPayloads).toEqual([])
   })
+
+  test('重连成功后再次异常断开，重试计数从 1 重新开始且会话清空', async () => {
+    await controller.initialize()
+    await controller.connect()
+
+    harness.clients[0].setReady(false)
+    harness.clients[0].emit('disconnected', { code: 1006, reason: 'first drop' })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(controller.getSnapshot().status).toBe('connected')
+    expect(controller.getSnapshot().reconnectAttempt).toBe(0)
+
+    harness.clients[1].setReady(false)
+    harness.clients[1].emit('disconnected', { code: 1006, reason: 'second drop' })
+
+    const snapshot = controller.getSnapshot()
+    expect(snapshot.status).toBe('waiting_retry')
+    expect(snapshot.reconnectAttempt).toBe(1)
+    expect(snapshot.session).toBeNull()
+    expect(snapshot.lastError?.code).toBe('WS_UNEXPECTED_CLOSE')
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(harness.clients.length).toBe(3)
+    expect(controller.getSnapshot().status).toBe('connected')
+  })
+
+  test('waiting_retry 期间系统挂起会取消重试定时器，唤醒后恢复连接', async () => {
+    harness.openResults.push(new Error('fail-1'))
+    await controller.initialize()
+    await controller.connect()
+    expect(controller.getSnapshot().status).toBe('waiting_retry')
+
+    await controller.handleSystemSuspend('suspend')
+    expect(controller.getSnapshot().status).toBe('suspended')
+
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(harness.clients.length).toBe(1)
+
+    await controller.handleSystemResume()
+    expect(controller.getSnapshot().status).toBe('connected')
+    expect(harness.clients.length).toBe(2)
+  })
+
+  test('dispose 关闭活动客户端并移除监听器，旧客户端事件不再生效', async () => {
+    await controller.initialize()
+    await controller.connect()
+    const client = harness.clients[0]
+
+    controller.dispose()
+
+    expect(client.closed).toBe(true)
+    expect(client.listenerCount('disconnected')).toBe(0)
+
+    client.emit('disconnected', { code: 1006, reason: 'stale after dispose' })
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(harness.clients.length).toBe(1)
+  })
+
+  test('waiting_retry 期间 dispose 取消定时器且不产生新客户端', async () => {
+    harness.openResults.push(new Error('fail-1'))
+    await controller.initialize()
+    await controller.connect()
+    expect(controller.getSnapshot().status).toBe('waiting_retry')
+
+    controller.dispose()
+
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(harness.clients.length).toBe(1)
+  })
 })
