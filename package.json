@@ -87,6 +87,7 @@
     "dev": "vite",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench run tests/bench",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
     "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
