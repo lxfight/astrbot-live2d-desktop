@@ -8,7 +8,7 @@ import { getAppDataPath } from '../utils/appPaths'
 import { t } from '../../src/i18n/mainProcess'
 
 let db: AppSqliteDatabase | null = null
-const CURRENT_DB_VERSION = 3
+const CURRENT_DB_VERSION = 4
 const USER_PROFILE_CONFIG_KEYS = {
   userId: USER_CONFIG_KEYS.userId,
   userName: USER_CONFIG_KEYS.userName
@@ -136,6 +136,29 @@ function migrateToV3(database: AppSqliteDatabase): void {
   setDatabaseVersion(database, 3)
 }
 
+function migrateToV4(database: AppSqliteDatabase): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS model_presets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      preset_name TEXT UNIQUE NOT NULL,
+      model_path TEXT NOT NULL,
+      idle_activity REAL NOT NULL,
+      persistent_expressions TEXT,
+      scale REAL,
+      position_x REAL,
+      position_y REAL,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_model_presets_model_path ON model_presets(model_path);
+    CREATE INDEX IF NOT EXISTS idx_model_presets_created_at ON model_presets(created_at DESC);
+  `)
+
+  setDatabaseVersion(database, 4)
+}
+
 function runSchemaMigrations(database: AppSqliteDatabase): void {
   let version = getDatabaseVersion(database)
 
@@ -152,6 +175,11 @@ function runSchemaMigrations(database: AppSqliteDatabase): void {
   if (version < 3) {
     migrateToV3(database)
     version = 3
+  }
+
+  if (version < 4) {
+    migrateToV4(database)
+    version = 4
   }
 
   if (version !== CURRENT_DB_VERSION) {
@@ -752,4 +780,219 @@ export function getLogLevel(): string | null {
  */
 export function setLogLevel(level: string): void {
   setUserConfig(USER_CONFIG_KEYS.logLevel, level)
+}
+
+/**
+ * 模型预设配置
+ */
+export interface ModelPreset {
+  id: number
+  presetName: string
+  modelPath: string
+  idleActivity: number
+  persistentExpressions: string[]
+  scale?: number
+  positionX?: number
+  positionY?: number
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * 保存模型预设
+ */
+export function saveModelPreset(
+  presetName: string,
+  modelPath: string,
+  idleActivity: number,
+  persistentExpressions: string[],
+  scale?: number,
+  positionX?: number,
+  positionY?: number,
+  notes?: string
+): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+
+  const expressionsJson = JSON.stringify(persistentExpressions)
+
+  const stmt = db.prepare(`
+    INSERT INTO model_presets (
+      preset_name, model_path, idle_activity, persistent_expressions,
+      scale, position_x, position_y, notes, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(preset_name) DO UPDATE SET
+      model_path = excluded.model_path,
+      idle_activity = excluded.idle_activity,
+      persistent_expressions = excluded.persistent_expressions,
+      scale = excluded.scale,
+      position_x = excluded.position_x,
+      position_y = excluded.position_y,
+      notes = excluded.notes,
+      updated_at = CURRENT_TIMESTAMP
+  `)
+
+  stmt.run(
+    presetName,
+    modelPath,
+    idleActivity,
+    expressionsJson,
+    scale ?? null,
+    positionX ?? null,
+    positionY ?? null,
+    notes ?? null
+  )
+}
+
+/**
+ * 获取所有模型预设
+ */
+export function getAllModelPresets(): ModelPreset[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+
+  const stmt = db.prepare(`
+    SELECT id, preset_name, model_path, idle_activity, persistent_expressions,
+           scale, position_x, position_y, notes, created_at, updated_at
+    FROM model_presets
+    ORDER BY updated_at DESC
+  `)
+
+  const results = stmt.all() as Array<{
+    id: number
+    preset_name: string
+    model_path: string
+    idle_activity: number
+    persistent_expressions: string
+    scale: number | null
+    position_x: number | null
+    position_y: number | null
+    notes: string | null
+    created_at: string
+    updated_at: string
+  }>
+
+  return results.map(row => ({
+    id: row.id,
+    presetName: row.preset_name,
+    modelPath: row.model_path,
+    idleActivity: row.idle_activity,
+    persistentExpressions: JSON.parse(row.persistent_expressions || '[]'),
+    scale: row.scale ?? undefined,
+    positionX: row.position_x ?? undefined,
+    positionY: row.position_y ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }))
+}
+
+/**
+ * 获取指定模型的预设
+ */
+export function getModelPresets(modelPath: string): ModelPreset[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+
+  const stmt = db.prepare(`
+    SELECT id, preset_name, model_path, idle_activity, persistent_expressions,
+           scale, position_x, position_y, notes, created_at, updated_at
+    FROM model_presets
+    WHERE model_path = ?
+    ORDER BY updated_at DESC
+  `)
+
+  const results = stmt.all(modelPath) as Array<{
+    id: number
+    preset_name: string
+    model_path: string
+    idle_activity: number
+    persistent_expressions: string
+    scale: number | null
+    position_x: number | null
+    position_y: number | null
+    notes: string | null
+    created_at: string
+    updated_at: string
+  }>
+
+  return results.map(row => ({
+    id: row.id,
+    presetName: row.preset_name,
+    modelPath: row.model_path,
+    idleActivity: row.idle_activity,
+    persistentExpressions: JSON.parse(row.persistent_expressions || '[]'),
+    scale: row.scale ?? undefined,
+    positionX: row.position_x ?? undefined,
+    positionY: row.position_y ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }))
+}
+
+/**
+ * 获取单个预设
+ */
+export function getModelPreset(presetName: string): ModelPreset | null {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+
+  const stmt = db.prepare(`
+    SELECT id, preset_name, model_path, idle_activity, persistent_expressions,
+           scale, position_x, position_y, notes, created_at, updated_at
+    FROM model_presets
+    WHERE preset_name = ?
+  `)
+
+  const row = stmt.get(presetName) as
+    | {
+        id: number
+        preset_name: string
+        model_path: string
+        idle_activity: number
+        persistent_expressions: string
+        scale: number | null
+        position_x: number | null
+        position_y: number | null
+        notes: string | null
+        created_at: string
+        updated_at: string
+      }
+    | undefined
+
+  if (!row) return null
+
+  return {
+    id: row.id,
+    presetName: row.preset_name,
+    modelPath: row.model_path,
+    idleActivity: row.idle_activity,
+    persistentExpressions: JSON.parse(row.persistent_expressions || '[]'),
+    scale: row.scale ?? undefined,
+    positionX: row.position_x ?? undefined,
+    positionY: row.position_y ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }
+}
+
+/**
+ * 删除模型预设
+ */
+export function deleteModelPreset(presetName: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('DELETE FROM model_presets WHERE preset_name = ?')
+  stmt.run(presetName)
+}
+
+/**
+ * 更新预设备注
+ */
+export function updateModelPresetNotes(presetName: string, notes: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare(`
+    UPDATE model_presets
+    SET notes = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE preset_name = ?
+  `)
+  stmt.run(notes, presetName)
 }

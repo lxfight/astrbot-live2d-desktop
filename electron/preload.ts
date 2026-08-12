@@ -320,23 +320,6 @@ contextBridge.exposeInMainWorld('electron', {
     getOverview: () => ipcRenderer.invoke('storage:getOverview')
   },
 
-  modelFavorites: {
-    add: (modelPath: string, displayName?: string, notes?: string) =>
-      ipcRenderer.invoke('modelFavorites:add', modelPath, displayName, notes),
-    remove: (modelPath: string) => ipcRenderer.invoke('modelFavorites:remove', modelPath),
-    isFavorited: (modelPath: string) => ipcRenderer.invoke('modelFavorites:isFavorited', modelPath),
-    getAll: () => ipcRenderer.invoke('modelFavorites:getAll'),
-    update: (modelPath: string, displayName?: string, notes?: string) =>
-      ipcRenderer.invoke('modelFavorites:update', modelPath, displayName, notes),
-    addTag: (modelPath: string, tag: string) =>
-      ipcRenderer.invoke('modelFavorites:addTag', modelPath, tag),
-    removeTag: (modelPath: string, tag: string) =>
-      ipcRenderer.invoke('modelFavorites:removeTag', modelPath, tag),
-    getTags: (modelPath: string) => ipcRenderer.invoke('modelFavorites:getTags', modelPath),
-    getAllTags: () => ipcRenderer.invoke('modelFavorites:getAllTags'),
-    searchByTag: (tag: string) => ipcRenderer.invoke('modelFavorites:searchByTag', tag)
-  },
-
   // 模型管理
   model: {
     selectFolder: () => ipcRenderer.invoke('model:selectFolder'),
@@ -427,6 +410,55 @@ contextBridge.exposeInMainWorld('electron', {
   // 语言设置
   locale: {
     set: (locale: string) => ipcRenderer.invoke('locale:set', locale)
+  },
+
+  // 模型收藏
+  modelFavorites: {
+    add: (modelPath: string, displayName?: string, notes?: string) =>
+      ipcRenderer.invoke('modelFavorites:add', modelPath, displayName, notes),
+    remove: (modelPath: string) => ipcRenderer.invoke('modelFavorites:remove', modelPath),
+    isFavorite: (modelPath: string) => ipcRenderer.invoke('modelFavorites:isFavorite', modelPath),
+    getAll: () => ipcRenderer.invoke('modelFavorites:getAll'),
+    update: (modelPath: string, displayName?: string, notes?: string) =>
+      ipcRenderer.invoke('modelFavorites:update', modelPath, displayName, notes),
+    addTag: (modelPath: string, tag: string) =>
+      ipcRenderer.invoke('modelFavorites:addTag', modelPath, tag),
+    removeTag: (modelPath: string, tag: string) =>
+      ipcRenderer.invoke('modelFavorites:removeTag', modelPath, tag),
+    getTags: (modelPath: string) => ipcRenderer.invoke('modelFavorites:getTags', modelPath),
+    getAllTags: () => ipcRenderer.invoke('modelFavorites:getAllTags'),
+    searchByTag: (tag: string) => ipcRenderer.invoke('modelFavorites:searchByTag', tag)
+  },
+
+  // 模型预设
+  modelPresets: {
+    save: (
+      presetName: string,
+      modelPath: string,
+      idleActivity: number,
+      persistentExpressions: string[],
+      scale?: number,
+      positionX?: number,
+      positionY?: number,
+      notes?: string
+    ) =>
+      ipcRenderer.invoke(
+        'modelPresets:save',
+        presetName,
+        modelPath,
+        idleActivity,
+        persistentExpressions,
+        scale,
+        positionX,
+        positionY,
+        notes
+      ),
+    getAll: () => ipcRenderer.invoke('modelPresets:getAll'),
+    getByModel: (modelPath: string) => ipcRenderer.invoke('modelPresets:getByModel', modelPath),
+    get: (presetName: string) => ipcRenderer.invoke('modelPresets:get', presetName),
+    delete: (presetName: string) => ipcRenderer.invoke('modelPresets:delete', presetName),
+    updateNotes: (presetName: string, notes: string) =>
+      ipcRenderer.invoke('modelPresets:updateNotes', presetName, notes)
   },
 
   // 数据迁移事件

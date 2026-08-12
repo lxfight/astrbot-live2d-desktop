@@ -480,6 +480,110 @@ declare global {
         applyImport: (data: any) => Promise<{ success: boolean; error?: string }>
       }
 
+      modelFavorites: {
+        add: (
+          modelPath: string,
+          displayName?: string,
+          notes?: string
+        ) => Promise<{ success: boolean; error?: string }>
+        remove: (modelPath: string) => Promise<{ success: boolean; error?: string }>
+        isFavorite: (modelPath: string) => Promise<{ success: boolean; isFavorite: boolean }>
+        getAll: () => Promise<{
+          success: boolean
+          favorites: Array<{
+            id: number
+            modelPath: string
+            displayName?: string
+            notes?: string
+            addedAt: string
+          }>
+          error?: string
+        }>
+        update: (
+          modelPath: string,
+          displayName?: string,
+          notes?: string
+        ) => Promise<{ success: boolean; error?: string }>
+        addTag: (modelPath: string, tag: string) => Promise<{ success: boolean; error?: string }>
+        removeTag: (modelPath: string, tag: string) => Promise<{ success: boolean; error?: string }>
+        getTags: (
+          modelPath: string
+        ) => Promise<{ success: boolean; tags: string[]; error?: string }>
+        getAllTags: () => Promise<{ success: boolean; tags: string[]; error?: string }>
+        searchByTag: (
+          tag: string
+        ) => Promise<{ success: boolean; modelPaths: string[]; error?: string }>
+      }
+
+      modelPresets: {
+        save: (
+          presetName: string,
+          modelPath: string,
+          idleActivity: number,
+          persistentExpressions: string[],
+          scale?: number,
+          positionX?: number,
+          positionY?: number,
+          notes?: string
+        ) => Promise<{ success: boolean; error?: string }>
+        getAll: () => Promise<{
+          success: boolean
+          presets: Array<{
+            id: number
+            presetName: string
+            modelPath: string
+            idleActivity: number
+            persistentExpressions: string[]
+            scale?: number
+            positionX?: number
+            positionY?: number
+            notes?: string
+            createdAt: string
+            updatedAt: string
+          }>
+          error?: string
+        }>
+        getByModel: (modelPath: string) => Promise<{
+          success: boolean
+          presets: Array<{
+            id: number
+            presetName: string
+            modelPath: string
+            idleActivity: number
+            persistentExpressions: string[]
+            scale?: number
+            positionX?: number
+            positionY?: number
+            notes?: string
+            createdAt: string
+            updatedAt: string
+          }>
+          error?: string
+        }>
+        get: (presetName: string) => Promise<{
+          success: boolean
+          preset: {
+            id: number
+            presetName: string
+            modelPath: string
+            idleActivity: number
+            persistentExpressions: string[]
+            scale?: number
+            positionX?: number
+            positionY?: number
+            notes?: string
+            createdAt: string
+            updatedAt: string
+          } | null
+          error?: string
+        }>
+        delete: (presetName: string) => Promise<{ success: boolean; error?: string }>
+        updateNotes: (
+          presetName: string,
+          notes: string
+        ) => Promise<{ success: boolean; error?: string }>
+      }
+
       migration: {
         onBackgroundCompleted: (
           callback: (payload: { copiedEntries: string[] }) => void

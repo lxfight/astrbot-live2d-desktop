@@ -38,6 +38,13 @@
               }}
             </n-button>
             <n-button
+              v-if="currentModelPath === model.path"
+              size="small"
+              @click.stop="handleSavePreset(model.path)"
+            >
+              {{ $t('settings.model.presets.savePreset') }}
+            </n-button>
+            <n-button
               size="small"
               tertiary
               type="error"
@@ -49,12 +56,49 @@
       </div>
       <n-empty v-else :description="$t('settings.model.library.empty')" />
     </div>
+
+    <n-modal
+      v-model:show="showSavePresetModal"
+      preset="dialog"
+      :title="$t('settings.model.presets.savePreset')"
+    >
+      <n-form :model="savePresetForm" label-placement="left" label-width="100">
+        <n-form-item :label="$t('settings.model.presets.presetName')">
+          <n-input
+            v-model:value="savePresetForm.presetName"
+            :placeholder="$t('settings.model.presets.presetNamePlaceholder')"
+          />
+        </n-form-item>
+        <n-form-item :label="$t('settings.model.presets.notes')">
+          <n-input
+            v-model:value="savePresetForm.notes"
+            type="textarea"
+            :placeholder="$t('settings.model.presets.notesPlaceholder')"
+            :autosize="{ minRows: 3, maxRows: 6 }"
+          />
+        </n-form-item>
+      </n-form>
+      <template #action>
+        <n-button @click="showSavePresetModal = false">{{ $t('dialog.cancel') }}</n-button>
+        <n-button type="primary" @click="handleConfirmSavePreset">{{
+          $t('dialog.confirm')
+        }}</n-button>
+      </template>
+    </n-modal>
   </SettingsPageScaffold>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
 import { useModelSettingsDomain } from '../domains/createModelSettingsDomain'
+import { useModelStore } from '../../../stores/model'
+
+const { t } = useI18n()
+const message = useMessage()
+const modelStore = useModelStore()
 
 const {
   currentModelPath,
@@ -64,6 +108,51 @@ const {
   handleLoadModel,
   modelList
 } = useModelSettingsDomain()
+
+const showSavePresetModal = ref(false)
+const savePresetForm = ref({
+  modelPath: '',
+  presetName: '',
+  notes: ''
+})
+
+async function handleSavePreset(modelPath: string) {
+  savePresetForm.value = {
+    modelPath,
+    presetName: modelPath.split('/').pop() || 'preset',
+    notes: ''
+  }
+  showSavePresetModal.value = true
+}
+
+async function handleConfirmSavePreset() {
+  try {
+    const modelPath = savePresetForm.value.modelPath
+    const behavior = modelStore.getModelBehavior(modelPath)
+    const scale = modelStore.getModelScale(modelPath)
+    const position = modelStore.getModelPosition(modelPath)
+
+    const result = await window.electron.modelPresets.save(
+      savePresetForm.value.presetName,
+      modelPath,
+      behavior.idleActivity,
+      behavior.persistentExpressions,
+      scale,
+      position?.x,
+      position?.y,
+      savePresetForm.value.notes
+    )
+
+    if (result.success) {
+      message.success(t('settings.model.presets.saveSuccess'))
+      showSavePresetModal.value = false
+    } else {
+      message.error(t('settings.model.presets.saveFailed'))
+    }
+  } catch {
+    message.error(t('settings.model.presets.saveFailed'))
+  }
+}
 </script>
 
 <style scoped>

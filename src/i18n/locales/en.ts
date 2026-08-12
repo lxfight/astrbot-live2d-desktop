@@ -598,6 +598,38 @@ const en: I18nMessageSchema = {
   'settings.model.favorites.notesPlaceholder': 'Add some notes',
   'settings.model.favorites.tags': 'Tags',
 
+  // Settings — Model presets
+  'settings.model.presets.description':
+    'Save and restore model configuration presets (idle activity, expressions, position, etc.).',
+  'settings.model.presets.search': 'Search presets...',
+  'settings.model.presets.filterByModel': 'Filter by model',
+  'settings.model.presets.count': '{count} preset(s)',
+  'settings.model.presets.empty': 'No presets yet, save one from the model library',
+  'settings.model.presets.load': 'Apply Preset',
+  'settings.model.presets.delete': 'Delete',
+  'settings.model.presets.edit': 'Edit Notes',
+  'settings.model.presets.savePreset': 'Save Preset',
+  'settings.model.presets.presetName': 'Preset Name',
+  'settings.model.presets.presetNamePlaceholder': 'Set a name for this preset',
+  'settings.model.presets.notes': 'Notes',
+  'settings.model.presets.notesPlaceholder': 'Add some notes',
+  'settings.model.presets.idleActivity': 'Idle Activity',
+  'settings.model.presets.persistentExpressions': 'Persistent Expressions',
+  'settings.model.presets.scale': 'Scale',
+  'settings.model.presets.position': 'Position',
+  'settings.model.presets.createdAt': 'Created At',
+  'settings.model.presets.updatedAt': 'Updated At',
+  'settings.model.presets.modelPath': 'Model Path',
+  'settings.model.presets.saveSuccess': 'Preset saved',
+  'settings.model.presets.saveFailed': 'Failed to save preset',
+  'settings.model.presets.loadSuccess': 'Preset applied',
+  'settings.model.presets.loadFailed': 'Failed to apply preset',
+  'settings.model.presets.deleteSuccess': 'Preset deleted',
+  'settings.model.presets.deleteFailed': 'Failed to delete preset',
+  'settings.model.presets.updateSuccess': 'Preset updated',
+  'settings.model.presets.updateFailed': 'Failed to update preset',
+  'settings.model.presets.deleteConfirm': 'Delete preset "{name}"?',
+
   // Settings — Advanced behavior
   'settings.advanced.behavior.description':
     'Configure app startup behavior, notification strategy, and log level. Changes take effect immediately.',

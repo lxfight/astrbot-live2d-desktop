@@ -45,6 +45,7 @@ import './ipc/connectionBehaviorSettings'
 import './ipc/bridgeLifecycle'
 import './ipc/locale'
 import './ipc/modelFavorites'
+import './ipc/modelPresets'
 
 // 禁用 GPU 缓存以避免权限错误（可选）
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
