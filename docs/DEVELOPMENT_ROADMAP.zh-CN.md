@@ -542,9 +542,9 @@ interface CloudSyncSystem {
 
 # 新增测试
 - [x] Performance 系统测试（PerformanceMonitor/PerformanceMark/MessageBatcher）
+- [x] WebSocket 断线重连测试（重连计数重置、挂起/唤醒、dispose 清理）
 - [ ] 模型加载压力测试
-- [ ] WebSocket 断线重连测试
-- [ ] 内存泄漏测试
+- [x] 内存泄漏测试（dispose/卸载后监听器清理、定时器取消）
 ```
 
 ### 2. 性能基准与监控
