@@ -18,6 +18,9 @@ const MODEL_SCALE_WRITE_DELAY_MS = 200
 const MODEL_BEHAVIORS_KEY = LOCAL_STORAGE_METADATA.modelBehaviors.key
 const MODEL_BEHAVIORS_VERSION = LOCAL_STORAGE_METADATA.modelBehaviors.version
 const LAST_MODEL_PATH_KEY = LOCAL_STORAGE_METADATA.lastModelPath.key
+const RECENT_MODEL_PATHS_KEY = LOCAL_STORAGE_METADATA.recentModelPaths.key
+const RECENT_MODEL_PATHS_VERSION = LOCAL_STORAGE_METADATA.recentModelPaths.version
+const RECENT_MODEL_PATHS_LIMIT = 10
 
 function readModelBehaviors(): Record<string, ModelBehaviorConfig> {
   return readJsonStorage(MODEL_BEHAVIORS_KEY, {
@@ -25,6 +28,13 @@ function readModelBehaviors(): Record<string, ModelBehaviorConfig> {
     normalize: normalizeModelBehaviorMap,
     version: MODEL_BEHAVIORS_VERSION
   })
+}
+
+function normalizeRecentModelPaths(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter((item): item is string => typeof item === 'string')
 }
 
 export const useModelStore = defineStore('model', () => {
@@ -51,6 +61,13 @@ export const useModelStore = defineStore('model', () => {
   let positionPersistTimer: number | null = null
   let scalePersistTimer: number | null = null
   const modelBehaviors = ref<Record<string, ModelBehaviorConfig>>(readModelBehaviors())
+  const recentModelPaths = ref<string[]>(
+    readJsonStorage(RECENT_MODEL_PATHS_KEY, {
+      fallback: [],
+      normalize: normalizeRecentModelPaths,
+      version: RECENT_MODEL_PATHS_VERSION
+    })
+  )
 
   function persistModelBehaviors() {
     writeJsonStorage(MODEL_BEHAVIORS_KEY, modelBehaviors.value, {
@@ -129,7 +146,27 @@ export const useModelStore = defineStore('model', () => {
     currentModel.value = path
     if (path) {
       localStorage.setItem(LAST_MODEL_PATH_KEY, path)
+      recordRecentModel(path)
     }
+  }
+
+  function recordRecentModel(path: string) {
+    const next = [path, ...recentModelPaths.value.filter(entry => entry !== path)].slice(
+      0,
+      RECENT_MODEL_PATHS_LIMIT
+    )
+    recentModelPaths.value = next
+    writeJsonStorage(RECENT_MODEL_PATHS_KEY, next, { version: RECENT_MODEL_PATHS_VERSION })
+  }
+
+  function getRecentModelPaths(): string[] {
+    return [...recentModelPaths.value]
+  }
+
+  function removeRecentModel(path: string) {
+    const next = recentModelPaths.value.filter(entry => entry !== path)
+    recentModelPaths.value = next
+    writeJsonStorage(RECENT_MODEL_PATHS_KEY, next, { version: RECENT_MODEL_PATHS_VERSION })
   }
 
   function getLastModel(): string | null {
@@ -198,6 +235,12 @@ export const useModelStore = defineStore('model', () => {
       })
     } else if (event.key === MODEL_BEHAVIORS_KEY) {
       modelBehaviors.value = readModelBehaviors()
+    } else if (event.key === RECENT_MODEL_PATHS_KEY) {
+      recentModelPaths.value = readJsonStorage(RECENT_MODEL_PATHS_KEY, {
+        fallback: [],
+        normalize: normalizeRecentModelPaths,
+        version: RECENT_MODEL_PATHS_VERSION
+      })
     }
   }
 
@@ -223,8 +266,11 @@ export const useModelStore = defineStore('model', () => {
     modelPositions,
     modelScales,
     modelBehaviors,
+    recentModelPaths,
     setCurrentModel,
     getLastModel,
+    getRecentModelPaths,
+    removeRecentModel,
     setModelPosition,
     getModelPosition,
     getAllModelPositions,

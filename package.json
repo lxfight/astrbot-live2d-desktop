@@ -64,6 +64,10 @@
         },
         "lastModelPath": {
           "key": "lastModelPath"
+        },
+        "recentModelPaths": {
+          "key": "recentModelPaths",
+          "version": 1
         }
       },
       "userConfig": {

@@ -589,6 +589,8 @@ const en: I18nMessageSchema = {
   'settings.model.library.load': 'Load',
   'settings.model.library.delete': 'Delete',
   'settings.model.library.empty': 'No models yet, please import one first',
+  'settings.model.library.recentTitle': 'Recently Used',
+  'settings.model.library.recentEmpty': 'No usage history yet',
 
   // Settings — Model favorites
   'settings.model.favorites.description': 'Manage your favorite models for quick access.',

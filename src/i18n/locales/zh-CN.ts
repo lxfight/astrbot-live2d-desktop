@@ -563,6 +563,8 @@ export default {
   'settings.model.library.load': '加载',
   'settings.model.library.delete': '删除',
   'settings.model.library.empty': '暂无模型，请先导入',
+  'settings.model.library.recentTitle': '最近使用',
+  'settings.model.library.recentEmpty': '暂无使用记录',
 
   // Settings — Model favorites
   'settings.model.favorites.description': '管理你收藏的模型，快速访问常用模型。',

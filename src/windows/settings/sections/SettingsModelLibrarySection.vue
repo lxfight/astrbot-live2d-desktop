@@ -10,6 +10,27 @@
         }}</span>
       </div>
 
+      <div v-if="recentModels.length > 0" class="model-recent">
+        <span class="model-recent__title">{{ $t('settings.model.library.recentTitle') }}</span>
+        <div class="model-recent__list">
+          <n-tag
+            v-for="recent in recentModels"
+            :key="recent.path"
+            size="small"
+            closable
+            :type="currentModelPath === recent.path ? 'success' : 'default'"
+            class="model-recent__tag"
+            @click="handleLoadModel(recent.path)"
+            @close.stop="handleRemoveRecent(recent.path)"
+          >
+            {{ recent.name }}
+          </n-tag>
+        </div>
+      </div>
+      <p v-else-if="modelList.length === 0" class="model-library__hint">
+        {{ $t('settings.model.library.recentEmpty') }}
+      </p>
+
       <div v-if="modelList.length > 0" class="model-grid">
         <article
           v-for="model in modelList"
@@ -89,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import SettingsPageScaffold from '../shared/SettingsPageScaffold.vue'
@@ -108,6 +129,19 @@ const {
   handleLoadModel,
   modelList
 } = useModelSettingsDomain()
+
+const recentModels = computed(() =>
+  modelStore.recentModelPaths
+    .map(path => {
+      const matched = modelList.value.find(model => model.path === path)
+      return { path, name: matched?.name || path.split('/').pop() || path }
+    })
+    .filter(entry => entry.path !== currentModelPath.value)
+)
+
+function handleRemoveRecent(path: string) {
+  modelStore.removeRecentModel(path)
+}
 
 const showSavePresetModal = ref(false)
 const savePresetForm = ref({
@@ -168,6 +202,37 @@ async function handleConfirmSavePreset() {
   font-size: 12px;
   color: var(--color-text-tertiary);
   font-variant-numeric: tabular-nums;
+}
+
+.model-library__hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 14px;
+}
+
+.model-recent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.model-recent__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 22px;
+}
+
+.model-recent__list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.model-recent__tag {
+  cursor: pointer;
 }
 
 .model-grid {

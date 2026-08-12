@@ -32,7 +32,8 @@ export const LOCAL_STORAGE_METADATA = {
   modelScales: localStorageMetadata.modelScales,
   modelBehaviors: localStorageMetadata.modelBehaviors,
   themeState: localStorageMetadata.themeState,
-  lastModelPath: localStorageMetadata.lastModelPath
+  lastModelPath: localStorageMetadata.lastModelPath,
+  recentModelPaths: localStorageMetadata.recentModelPaths
 } as const
 
 export const USER_CONFIG_KEYS = packageJson.desktopMetadata.storage.userConfig
