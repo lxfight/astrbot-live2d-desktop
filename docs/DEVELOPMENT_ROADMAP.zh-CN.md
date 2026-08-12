@@ -532,7 +532,7 @@ interface CloudSyncSystem {
 
 ### 1. 测试覆盖率提升
 
-当前有 51 个测试文件（338 个测试 + 14 个跳过），`src/utils` 覆盖率 70.5%，建议：
+当前有 54 个测试文件（386 个测试 + 14 个跳过），`src/utils` 覆盖率 72%、`src/windows/composables` 覆盖率 32%，建议：
 
 ```bash
 # 目标
