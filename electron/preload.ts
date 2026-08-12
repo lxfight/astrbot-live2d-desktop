@@ -320,6 +320,23 @@ contextBridge.exposeInMainWorld('electron', {
     getOverview: () => ipcRenderer.invoke('storage:getOverview')
   },
 
+  modelFavorites: {
+    add: (modelPath: string, displayName?: string, notes?: string) =>
+      ipcRenderer.invoke('modelFavorites:add', modelPath, displayName, notes),
+    remove: (modelPath: string) => ipcRenderer.invoke('modelFavorites:remove', modelPath),
+    isFavorited: (modelPath: string) => ipcRenderer.invoke('modelFavorites:isFavorited', modelPath),
+    getAll: () => ipcRenderer.invoke('modelFavorites:getAll'),
+    update: (modelPath: string, displayName?: string, notes?: string) =>
+      ipcRenderer.invoke('modelFavorites:update', modelPath, displayName, notes),
+    addTag: (modelPath: string, tag: string) =>
+      ipcRenderer.invoke('modelFavorites:addTag', modelPath, tag),
+    removeTag: (modelPath: string, tag: string) =>
+      ipcRenderer.invoke('modelFavorites:removeTag', modelPath, tag),
+    getTags: (modelPath: string) => ipcRenderer.invoke('modelFavorites:getTags', modelPath),
+    getAllTags: () => ipcRenderer.invoke('modelFavorites:getAllTags'),
+    searchByTag: (tag: string) => ipcRenderer.invoke('modelFavorites:searchByTag', tag)
+  },
+
   // 模型管理
   model: {
     selectFolder: () => ipcRenderer.invoke('model:selectFolder'),

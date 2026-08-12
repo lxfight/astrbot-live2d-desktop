@@ -277,6 +277,43 @@ declare global {
           error?: string
         }>
       }
+      modelFavorites: {
+        add: (
+          modelPath: string,
+          displayName?: string,
+          notes?: string
+        ) => Promise<{ success: boolean; error?: string }>
+        remove: (modelPath: string) => Promise<{ success: boolean; error?: string }>
+        isFavorited: (
+          modelPath: string
+        ) => Promise<{ success: boolean; favorited: boolean; error?: string }>
+        getAll: () => Promise<{
+          success: boolean
+          favorites: Array<{
+            id: number
+            modelPath: string
+            displayName: string | null
+            notes: string | null
+            addedAt: string
+            tags: string[]
+          }>
+          error?: string
+        }>
+        update: (
+          modelPath: string,
+          displayName?: string,
+          notes?: string
+        ) => Promise<{ success: boolean; error?: string }>
+        addTag: (modelPath: string, tag: string) => Promise<{ success: boolean; error?: string }>
+        removeTag: (modelPath: string, tag: string) => Promise<{ success: boolean; error?: string }>
+        getTags: (
+          modelPath: string
+        ) => Promise<{ success: boolean; tags: string[]; error?: string }>
+        getAllTags: () => Promise<{ success: boolean; tags: string[]; error?: string }>
+        searchByTag: (
+          tag: string
+        ) => Promise<{ success: boolean; modelPaths: string[]; error?: string }>
+      }
       model: {
         selectFolder: () => Promise<{
           success: boolean

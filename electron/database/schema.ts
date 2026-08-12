@@ -8,7 +8,7 @@ import { getAppDataPath } from '../utils/appPaths'
 import { t } from '../../src/i18n/mainProcess'
 
 let db: AppSqliteDatabase | null = null
-const CURRENT_DB_VERSION = 2
+const CURRENT_DB_VERSION = 3
 const USER_PROFILE_CONFIG_KEYS = {
   userId: USER_CONFIG_KEYS.userId,
   userName: USER_CONFIG_KEYS.userName
@@ -109,6 +109,33 @@ function migrateToV2(database: AppSqliteDatabase): void {
   setDatabaseVersion(database, 2)
 }
 
+function migrateToV3(database: AppSqliteDatabase): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS model_favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model_path TEXT UNIQUE NOT NULL,
+      display_name TEXT,
+      notes TEXT,
+      added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_model_favorites_added_at ON model_favorites(added_at DESC);
+
+    CREATE TABLE IF NOT EXISTS model_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model_path TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(model_path, tag)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_model_tags_model_path ON model_tags(model_path);
+    CREATE INDEX IF NOT EXISTS idx_model_tags_tag ON model_tags(tag);
+  `)
+
+  setDatabaseVersion(database, 3)
+}
+
 function runSchemaMigrations(database: AppSqliteDatabase): void {
   let version = getDatabaseVersion(database)
 
@@ -120,6 +147,11 @@ function runSchemaMigrations(database: AppSqliteDatabase): void {
   if (version < 2) {
     migrateToV2(database)
     version = 2
+  }
+
+  if (version < 3) {
+    migrateToV3(database)
+    version = 3
   }
 
   if (version !== CURRENT_DB_VERSION) {
@@ -588,6 +620,115 @@ export function getUserName(): string | null {
  */
 export function setUserName(name: string): void {
   setUserConfig(USER_PROFILE_CONFIG_KEYS.userName, name)
+}
+
+/**
+ * 模型收藏与标签管理
+ */
+export interface ModelFavorite {
+  id: number
+  modelPath: string
+  displayName: string | null
+  notes: string | null
+  addedAt: string
+  tags: string[]
+}
+
+export function addModelFavorite(modelPath: string, displayName?: string, notes?: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare(`
+    INSERT INTO model_favorites (model_path, display_name, notes)
+    VALUES (?, ?, ?)
+    ON CONFLICT(model_path) DO UPDATE SET
+      display_name = excluded.display_name,
+      notes = excluded.notes
+  `)
+  stmt.run(modelPath, displayName || null, notes || null)
+}
+
+export function removeModelFavorite(modelPath: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('DELETE FROM model_favorites WHERE model_path = ?')
+  stmt.run(modelPath)
+
+  const tagStmt = db.prepare('DELETE FROM model_tags WHERE model_path = ?')
+  tagStmt.run(modelPath)
+}
+
+export function isModelFavorited(modelPath: string): boolean {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('SELECT COUNT(*) as count FROM model_favorites WHERE model_path = ?')
+  const result = stmt.get(modelPath) as { count: number }
+  return result.count > 0
+}
+
+export function getAllModelFavorites(): ModelFavorite[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare(`
+    SELECT
+      id,
+      model_path as modelPath,
+      display_name as displayName,
+      notes,
+      added_at as addedAt
+    FROM model_favorites
+    ORDER BY added_at DESC
+  `)
+  const favorites = stmt.all() as Omit<ModelFavorite, 'tags'>[]
+
+  return favorites.map(fav => ({
+    ...fav,
+    tags: getModelTags(fav.modelPath)
+  }))
+}
+
+export function updateModelFavorite(modelPath: string, displayName?: string, notes?: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare(`
+    UPDATE model_favorites
+    SET display_name = ?, notes = ?
+    WHERE model_path = ?
+  `)
+  stmt.run(displayName || null, notes || null, modelPath)
+}
+
+export function addModelTag(modelPath: string, tag: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const normalizedTag = tag.trim()
+  if (!normalizedTag) return
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO model_tags (model_path, tag)
+    VALUES (?, ?)
+  `)
+  stmt.run(modelPath, normalizedTag)
+}
+
+export function removeModelTag(modelPath: string, tag: string): void {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('DELETE FROM model_tags WHERE model_path = ? AND tag = ?')
+  stmt.run(modelPath, tag)
+}
+
+export function getModelTags(modelPath: string): string[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('SELECT tag FROM model_tags WHERE model_path = ? ORDER BY created_at')
+  const results = stmt.all(modelPath) as Array<{ tag: string }>
+  return results.map(r => r.tag)
+}
+
+export function getAllTags(): string[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('SELECT DISTINCT tag FROM model_tags ORDER BY tag')
+  const results = stmt.all() as Array<{ tag: string }>
+  return results.map(r => r.tag)
+}
+
+export function searchModelsByTag(tag: string): string[] {
+  if (!db) throw new Error(t('error.databaseNotInitialized'))
+  const stmt = db.prepare('SELECT DISTINCT model_path FROM model_tags WHERE tag = ?')
+  const results = stmt.all(tag) as Array<{ model_path: string }>
+  return results.map(r => r.model_path)
 }
 
 /**
