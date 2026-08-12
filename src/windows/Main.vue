@@ -1,5 +1,11 @@
 <template>
-  <div class="main-window" :style="mainWindowStyle" @click="handleWindowClick">
+  <div
+    class="main-window"
+    :style="mainWindowStyle"
+    @click="handleWindowClick"
+    @dragover="handleDragOver"
+    @drop="handleDrop"
+  >
     <!-- Live2D 画布 -->
     <Transition name="fade">
       <div v-if="!hasModel && !isModelLoading" class="empty-state">
@@ -687,6 +693,8 @@ const {
   selectedImage,
   handleSelectImage,
   handlePasteEvent,
+  handleDragOver,
+  handleDrop,
   clearImage,
   handleInputPanelPointerEnter,
   handleInputPanelPointerLeave,

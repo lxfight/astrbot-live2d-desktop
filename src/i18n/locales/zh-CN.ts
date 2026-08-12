@@ -47,6 +47,7 @@ export default {
   'main.input.imageTooLarge': '图片大小不能超过 {max}MB',
   'main.input.processingImage': '正在处理图片...',
   'main.input.notConnected': '未连接到服务器',
+  'main.input.dropImageOnly': '仅支持拖拽图片文件',
 
   // Main window — model
   'main.model.folderFailed': '选择文件夹失败: {message}',

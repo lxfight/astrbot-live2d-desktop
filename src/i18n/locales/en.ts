@@ -49,6 +49,7 @@ const en: I18nMessageSchema = {
   'main.input.imageTooLarge': 'Image size cannot exceed {max}MB',
   'main.input.processingImage': 'Processing image...',
   'main.input.notConnected': 'Not connected to server',
+  'main.input.dropImageOnly': 'Only image files can be dropped',
 
   // Main window — model
   'main.model.folderFailed': 'Failed to select folder: {message}',

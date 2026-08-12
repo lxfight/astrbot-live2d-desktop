@@ -166,6 +166,43 @@ export function useInputPanel(options: UseInputPanelOptions) {
     }
   }
 
+  function handleDragOver(e: DragEvent) {
+    if (!e.dataTransfer || !Array.from(e.dataTransfer.types).includes('Files')) {
+      return
+    }
+    e.preventDefault()
+  }
+
+  function handleDrop(e: DragEvent) {
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) {
+      return
+    }
+
+    e.preventDefault()
+
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+    if (imageFiles.length === 0) {
+      showModelStatus(t('main.input.dropImageOnly'), 'warning')
+      return
+    }
+
+    const file = imageFiles[0]
+    if (file.size > getImageMaxSizeBytes()) {
+      showModelStatus(
+        t('main.input.imageTooLarge', { max: advancedSettings.value.imageMaxSizeMb }),
+        'warning'
+      )
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = loadEvent => {
+      applySelectedImage(file, loadEvent.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   function clearImage() {
     selectedImage.value = null
     scheduleIdleClose()
@@ -281,6 +318,8 @@ export function useInputPanel(options: UseInputPanelOptions) {
     selectedImage,
     handleSelectImage,
     handlePasteEvent,
+    handleDragOver,
+    handleDrop,
     clearImage,
     applySelectedImage,
     handleInputPanelPointerEnter,
