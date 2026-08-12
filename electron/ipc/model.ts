@@ -334,6 +334,36 @@ ipcMain.handle('model:selectFolder', async () => {
 })
 
 /**
+ * 选择多个模型文件夹（批量导入）
+ */
+ipcMain.handle('model:selectFolders', async () => {
+  const timer = logger.timer('select_folders')
+  try {
+    const mainWindow = getMainWindow()
+    const dialogOptions = {
+      title: '选择多个 Live2D 模型文件夹',
+      properties: ['openDirectory', 'multiSelections'] as Array<'openDirectory' | 'multiSelections'>
+    }
+
+    const result = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions)
+
+    if (result.canceled || result.filePaths.length === 0) {
+      timer.done({ canceled: true })
+      return { success: false, canceled: true }
+    }
+
+    timer.done({ canceled: false, folderPaths: result.filePaths })
+    return { success: true, folderPaths: result.filePaths }
+  } catch (error: any) {
+    console.error('[IPC] 选择多个模型文件夹失败:', error)
+    timer.fail(error)
+    return { success: false, error: error.message }
+  }
+})
+
+/**
  * 导入模型
  */
 ipcMain.handle('model:import', async (_event, sourceDir: string, modelName: string) => {

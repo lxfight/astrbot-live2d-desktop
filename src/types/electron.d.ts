@@ -321,6 +321,12 @@ declare global {
           canceled?: boolean
           error?: string
         }>
+        selectFolders: () => Promise<{
+          success: boolean
+          folderPaths?: string[]
+          canceled?: boolean
+          error?: string
+        }>
         import: (
           sourceDir: string,
           modelName: string

@@ -2,9 +2,14 @@
   <SettingsPageScaffold>
     <div class="model-library">
       <div class="model-library__toolbar">
-        <n-button type="primary" size="small" @click="handleImportModel">{{
-          $t('settings.model.library.importModel')
-        }}</n-button>
+        <div class="model-library__toolbar-actions">
+          <n-button type="primary" size="small" @click="handleImportModel">{{
+            $t('settings.model.library.importModel')
+          }}</n-button>
+          <n-button size="small" @click="handleBatchImportModels">{{
+            $t('settings.model.library.batchImport')
+          }}</n-button>
+        </div>
         <span class="model-library__count">{{
           $t('settings.model.library.modelCount', { count: modelList.length })
         }}</span>
@@ -124,6 +129,7 @@ const modelStore = useModelStore()
 const {
   currentModelPath,
   getModelPreviewStyle,
+  handleBatchImportModels,
   handleDeleteModel,
   handleImportModel,
   handleLoadModel,
@@ -196,6 +202,11 @@ async function handleConfirmSavePreset() {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.model-library__toolbar-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .model-library__count {

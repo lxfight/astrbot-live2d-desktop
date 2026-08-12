@@ -323,6 +323,7 @@ contextBridge.exposeInMainWorld('electron', {
   // 模型管理
   model: {
     selectFolder: () => ipcRenderer.invoke('model:selectFolder'),
+    selectFolders: () => ipcRenderer.invoke('model:selectFolders'),
     import: (sourcePath: string, modelName: string) =>
       ipcRenderer.invoke('model:import', sourcePath, modelName),
     getList: () => ipcRenderer.invoke('model:getList'),

@@ -37,6 +37,7 @@ export interface ModelSettingsDomain {
   handleIdleActivityChange: (value: number) => void
   handlePersistentExpressionsChange: (names: string[]) => void
   handleImportModel: () => Promise<void>
+  handleBatchImportModels: () => Promise<void>
   handleLoadModel: (modelPath: string) => Promise<void>
   handleModelScaleChange: (value: number) => void
   handleResetModelScale: () => void
@@ -344,6 +345,54 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     await ensureLibraryReady(true)
   }
 
+  async function handleBatchImportModels() {
+    const result = await window.electron.model.selectFolders()
+    if (result.canceled) {
+      return
+    }
+
+    if (!result.success) {
+      message.error(t('main.model.folderFailed', { message: result.error }))
+      return
+    }
+
+    const folderPaths = result.folderPaths ?? []
+    if (folderPaths.length === 0) {
+      return
+    }
+
+    let importedCount = 0
+    const failures: string[] = []
+
+    for (const folderPath of folderPaths) {
+      const folderName = folderPath.split(/[/\\]/).pop() || 'model'
+      try {
+        const importResult = await window.electron.model.import(folderPath, folderName)
+        if (!importResult.success) {
+          failures.push(`${folderName}: ${importResult.error ?? 'unknown'}`)
+          continue
+        }
+        importedCount += 1
+      } catch (error: any) {
+        failures.push(`${folderName}: ${error?.message ?? String(error)}`)
+      }
+    }
+
+    await ensureLibraryReady(true)
+
+    if (importedCount > 0) {
+      message.success(t('settings.model.library.batchImportSummary', { count: importedCount }))
+    }
+    if (failures.length > 0) {
+      message.error(
+        t('settings.model.library.batchImportFailures', {
+          count: failures.length,
+          details: failures.join('；')
+        })
+      )
+    }
+  }
+
   async function handleLoadModel(modelPath: string) {
     await window.electron.model.load(modelPath)
     message.success(t('toast.modelLoadSent'))
@@ -438,6 +487,7 @@ export function createModelSettingsDomain(message: MessageApi): ModelSettingsDom
     handleIdleActivityChange,
     handlePersistentExpressionsChange,
     handleImportModel,
+    handleBatchImportModels,
     handleLoadModel,
     handleModelScaleChange,
     handleResetModelScale,

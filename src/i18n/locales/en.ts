@@ -581,6 +581,9 @@ const en: I18nMessageSchema = {
 
   // Settings — Model library
   'settings.model.library.importModel': 'Import Model',
+  'settings.model.library.batchImport': 'Batch Import',
+  'settings.model.library.batchImportSummary': 'Successfully imported {count} model(s)',
+  'settings.model.library.batchImportFailures': '{count} model(s) failed to import: {details}',
   'settings.model.library.description':
     'Manage local Live2D model files. {count} model(s) in total.',
   'settings.model.library.modelCount': '{count} model(s)',

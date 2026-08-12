@@ -556,6 +556,9 @@ export default {
 
   // Settings — Model library
   'settings.model.library.importModel': '导入模型',
+  'settings.model.library.batchImport': '批量导入',
+  'settings.model.library.batchImportSummary': '成功导入 {count} 个模型',
+  'settings.model.library.batchImportFailures': '{count} 个模型导入失败：{details}',
   'settings.model.library.description': '管理本地 Live2D 模型文件。共 {count} 个模型。',
   'settings.model.library.modelCount': '共 {count} 个模型',
   'settings.model.library.current': '当前',
