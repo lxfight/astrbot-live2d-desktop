@@ -163,6 +163,9 @@ export default {
   'settings.plugins.permissions': '权限',
   'settings.plugins.version': '版本',
   'settings.plugins.author': '作者',
+  'settings.plugins.crashCount': '崩溃次数：{count}',
+  'settings.plugins.lastError': '最近错误',
+  'settings.plugins.crashRecovered': '已从 {count} 次崩溃中恢复',
 
   'settings.connection.bridge.asideTitle': '说明',
   'settings.connection.bridge.copyUrl': '复制服务器地址',

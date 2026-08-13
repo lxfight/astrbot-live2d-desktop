@@ -478,6 +478,9 @@ contextBridge.exposeInMainWorld('electron', {
     disable: (pluginId: string) => ipcRenderer.invoke('plugin:disable', pluginId),
     getSettings: (pluginId: string) => ipcRenderer.invoke('plugin:getSettings', pluginId),
     setSettings: (pluginId: string, patch: any) =>
-      ipcRenderer.invoke('plugin:setSettings', pluginId, patch)
+      ipcRenderer.invoke('plugin:setSettings', pluginId, patch),
+    onStatusChanged: (
+      callback: (payload: { pluginId: string; status: string; reason?: string }) => void
+    ) => subscribeIpc('plugin:statusChanged', callback)
   }
 })

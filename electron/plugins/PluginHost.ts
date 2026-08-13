@@ -41,6 +41,8 @@ export interface PluginHostOptions {
   onQuarantine: (pluginId: string, reason: string) => void
   /** 进程运行态变化（start 成功/隔离）时回传，供 UI 列表状态展示 */
   onStatusChange?: (pluginId: string, status: 'running' | 'quarantined') => void
+  /** 崩溃发生（含隔离）时回传诊断信息，供 UI 看门狗面板展示 */
+  onCrashReport?: (pluginId: string, crashCount: number, lastError: string) => void
   /** 通知能力注入（默认 Electron Notification，测试注入假实现） */
   notifications?: {
     show(pluginId: string, title: string, body?: string): void
@@ -53,6 +55,8 @@ export class PluginHost {
   private readonly processes = new Map<string, PluginProcessHandle>()
   private readonly crashCounts = new Map<string, number>()
   private readonly restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** 最近一次崩溃原因（隔离后保留，供看门狗 UI 展示） */
+  private readonly lastErrors = new Map<string, string>()
   /** 用户主动停止的插件：kill 触发的 exit 不走崩溃重启流程 */
   private readonly intentionalStops = new Set<string>()
   /** pluginId → 最近一次 fork 时的 manifest（用于事件订阅过滤与崩溃重启） */
@@ -62,6 +66,14 @@ export class PluginHost {
 
   isRunning(pluginId: string): boolean {
     return this.processes.has(pluginId)
+  }
+
+  /** 看门狗诊断信息：崩溃次数与最近错误（UI 列表展示用） */
+  getDiagnostics(pluginId: string): { crashCount: number; lastError: string | null } {
+    return {
+      crashCount: this.crashCounts.get(pluginId) ?? 0,
+      lastError: this.lastErrors.get(pluginId) ?? null
+    }
   }
 
   /** fork 插件进程并建立 RPC 通道 */
@@ -146,6 +158,7 @@ export class PluginHost {
       }, PLUGIN_DISABLE_GRACE_MS)
     }
     this.crashCounts.delete(pluginId)
+    this.lastErrors.delete(pluginId)
   }
 
   /** 停用全部插件（应用退出清理） */
@@ -298,17 +311,20 @@ export class PluginHost {
   ): void {
     const crashCount = (this.crashCounts.get(pluginId) ?? 0) + 1
     this.crashCounts.set(pluginId, crashCount)
+    this.lastErrors.set(pluginId, reason)
 
     if (crashCount > PLUGIN_MAX_CRASH_RESTARTS) {
       logger.error('crash.quarantined', new Error(reason), { pluginId, crashCount })
       this.options.onStatusChange?.(pluginId, 'quarantined')
       this.options.onQuarantine(pluginId, reason)
-      this.crashCounts.delete(pluginId)
+      // 保留 crashCount/lastError：UI 需要展示隔离原因
+      this.options.onCrashReport?.(pluginId, crashCount, reason)
       return
     }
 
     const delay = PLUGIN_RESTART_BASE_DELAY_MS * Math.pow(2, crashCount - 1)
     logger.warn('crash.restart_scheduled', { pluginId, crashCount, delayMs: delay, reason })
+    this.options.onCrashReport?.(pluginId, crashCount, reason)
     const timer = setTimeout(() => {
       this.restartTimers.delete(pluginId)
       logger.info('crash.restarting', { pluginId, crashCount })

@@ -635,6 +635,9 @@ declare global {
           pluginId: string,
           patch: Record<string, unknown>
         ) => Promise<{ success: boolean; pluginId?: string; error?: string }>
+        onStatusChanged: (
+          callback: (payload: { pluginId: string; status: string; reason?: string }) => void
+        ) => Unsubscribe
       }
     }
   }

@@ -5,7 +5,7 @@
  */
 
 import path from 'node:path'
-import { Notification, utilityProcess, app } from 'electron'
+import { Notification, utilityProcess, app, BrowserWindow } from 'electron'
 import { PluginManager } from './PluginManager'
 import { PluginHost, type PluginProcessForker } from './PluginHost'
 import { PluginEventBus } from './PluginEventBus'
@@ -19,6 +19,19 @@ const logger = createScopedLogger('plugin.system')
 let pluginManager: PluginManager | null = null
 let pluginHost: PluginHost | null = null
 let pluginEventBus: PluginEventBus | null = null
+
+/** 插件状态变化广播（看门狗 UI 实时刷新） */
+function broadcastPluginStatus(payload: {
+  pluginId: string
+  status: string
+  reason?: string
+}): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('plugin:statusChanged', payload)
+    }
+  }
+}
 
 /** utilityProcess 封装为 PluginHost 期望的 forker 接口 */
 const utilityProcessForker: PluginProcessForker = {
@@ -57,7 +70,8 @@ export function initializePluginSystem(): void {
   const manager = new PluginManager({
     pluginsRootDirectory,
     appVersion: app.getVersion(),
-    storageStore
+    storageStore,
+    diagnostics: pluginId => host.getDiagnostics(pluginId)
   })
   manager.ensureRootDirectory()
 
@@ -71,6 +85,12 @@ export function initializePluginSystem(): void {
     },
     onStatusChange: (pluginId, status) => {
       manager.setRuntimeStatus(pluginId, status)
+      broadcastPluginStatus({ pluginId, status })
+    },
+    onCrashReport: (pluginId, crashCount, lastError) => {
+      // 崩溃（含重启中）也广播，UI 实时显示看门狗计数
+      logger.warn('watchdog.crash_report', { pluginId, crashCount, lastError })
+      broadcastPluginStatus({ pluginId, status: 'crashed', reason: lastError })
     },
     notifications: {
       show: (pluginId, title, body) => {

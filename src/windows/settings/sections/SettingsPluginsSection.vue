@@ -53,6 +53,22 @@
           </p>
           <p v-if="plugin.status === 'quarantined'" class="plugin-card__quarantined">
             {{ $t('settings.plugins.quarantinedHint') }}
+            <span v-if="plugin.crashCount > 0" class="plugin-card__watchdog">
+              {{ $t('settings.plugins.crashCount', { count: plugin.crashCount }) }}
+            </span>
+          </p>
+          <p
+            v-if="plugin.status === 'quarantined' && plugin.lastError"
+            class="plugin-card__watchdog"
+          >
+            {{ $t('settings.plugins.lastError') }}: {{ plugin.lastError }}
+          </p>
+          <p
+            v-else-if="plugin.status === 'running' && plugin.crashCount > 0"
+            class="plugin-card__watchdog"
+          >
+            {{ $t('settings.plugins.crashRecovered', { count: plugin.crashCount }) }}
+            <template v-if="plugin.lastError">（{{ plugin.lastError }}）</template>
           </p>
 
           <div class="plugin-card__meta">
@@ -273,6 +289,10 @@ async function saveSettings() {
 
 onMounted(() => {
   loadPlugins()
+  // 看门狗状态实时刷新：插件崩溃/隔离时主进程广播，重新拉取列表
+  window.electron.plugins.onStatusChanged(() => {
+    loadPlugins()
+  })
 })
 </script>
 
@@ -352,6 +372,14 @@ onMounted(() => {
   font-size: 13px;
   color: var(--error-color);
   margin: 0 0 8px;
+}
+
+.plugin-card__watchdog {
+  font-size: 12px;
+  color: var(--warning-color, var(--text-3));
+  margin: 0 0 8px;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .plugin-card__meta {

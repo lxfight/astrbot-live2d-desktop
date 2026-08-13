@@ -29,6 +29,8 @@ export interface PluginManagerOptions {
   pluginsRootDirectory: string
   appVersion: string
   storageStore: PluginStorageStore
+  /** 看门狗诊断信息提供者（PluginHost 注入，缺失时回退为 0/null） */
+  diagnostics?: (pluginId: string) => { crashCount: number; lastError: string | null }
 }
 
 export type PluginCommandResult = {
@@ -74,12 +76,16 @@ export class PluginManager {
 
       const manifest = validation.manifest
       const storedSettings = this.options.storageStore.getValue(manifest.id, RESERVED_SETTINGS_KEY)
+      const diagnostics = this.options.diagnostics?.(manifest.id) ?? {
+        crashCount: 0,
+        lastError: null
+      }
       infos.push({
         manifest,
         status: this.runtimeStatus.get(manifest.id) ?? this.resolvePersistedStatus(manifest.id),
         settings: this.mergeSettingsWithDefaults(manifest, storedSettings),
-        crashCount: 0,
-        lastError: null,
+        crashCount: diagnostics.crashCount,
+        lastError: diagnostics.lastError,
         installedAt: this.resolveInstalledAt(pluginDirectory)
       })
     }

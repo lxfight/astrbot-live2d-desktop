@@ -173,6 +173,9 @@ const en: I18nMessageSchema = {
   'settings.plugins.permissions': 'Permissions',
   'settings.plugins.version': 'Version',
   'settings.plugins.author': 'Author',
+  'settings.plugins.crashCount': 'Crashes: {count}',
+  'settings.plugins.lastError': 'Last error',
+  'settings.plugins.crashRecovered': 'Recovered from {count} crashes',
 
   'settings.connection.bridge.asideTitle': 'Notes',
   'settings.connection.bridge.copyUrl': 'Copy server URL',
