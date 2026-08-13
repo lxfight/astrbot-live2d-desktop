@@ -23,7 +23,7 @@ import {
   shutdownMainLogger
 } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
-import { initializePluginSystem, shutdownPluginSystem } from './plugins'
+import { initializePluginSystem, shutdownPluginSystem, emitPluginEvent } from './plugins'
 import { t } from '../src/i18n/mainProcess'
 import './ipc/connection'
 import './ipc/desktopBehavior'
@@ -160,6 +160,22 @@ export function initBridgeConnectionController() {
 
   bridgeConnectionController.on('perform:show', payload => {
     broadcastToAllWindows('perform:show', payload)
+    // 插件事件：收到消息回复（提取 text 元素文本）
+    const sequence = (payload as { sequence?: unknown }).sequence
+    const texts = Array.isArray(sequence)
+      ? sequence
+          .filter(
+            (element: unknown) =>
+              Boolean(element) &&
+              typeof element === 'object' &&
+              (element as { type?: unknown }).type === 'text'
+          )
+          .map((element: unknown) => String((element as { content?: unknown }).content ?? ''))
+          .filter((text: string) => text.length > 0)
+      : []
+    if (texts.length > 0) {
+      emitPluginEvent('message:received', { texts, sequence })
+    }
   })
 
   bridgeConnectionController.on('perform:interrupt', () => {

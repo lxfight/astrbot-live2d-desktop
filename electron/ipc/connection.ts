@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import type { InputMessagePayload } from '../protocol/types'
 import { getBridgeConnectionController } from '../main'
 import { createScopedLogger } from '../utils/logger'
+import { emitPluginEvent } from '../plugins'
 import { t } from '../../src/i18n/mainProcess'
 
 const logger = createScopedLogger('ipc.connection')
@@ -45,6 +46,10 @@ ipcMain.handle('bridge:sendMessage', async (_event, payload: InputMessagePayload
     }
 
     const preparedContent = await controller.sendMessage(payload)
+    emitPluginEvent('message:sent', {
+      content: preparedContent,
+      metadata: payload.metadata
+    })
     timer.done({ preparedContentCount: preparedContent.length })
     return { success: true, content: preparedContent }
   } catch (error) {

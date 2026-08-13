@@ -11,6 +11,7 @@ import {
 import type { PerformanceRecord, StatisticsData } from '../database/schema'
 import type { HistoryMessageQueryOptions, HistoryMessageRecord } from '../../src/shared/history'
 import { createScopedLogger } from '../utils/logger'
+import { emitPluginEvent } from '../plugins'
 
 const logger = createScopedLogger('ipc.history')
 
@@ -77,6 +78,13 @@ ipcMain.handle('history:savePerformance', (_event, record: PerformanceRecord) =>
   })
   try {
     saveHistoryPerformance(record)
+    // 插件事件：表演结束上报（时长、是否被打断）
+    emitPluginEvent('performance', {
+      messageId: record.messageId,
+      duration: record.duration,
+      interrupted: record.interrupted,
+      sequenceCount: Array.isArray(record.sequence) ? record.sequence.length : 0
+    })
     timer.done()
     return { success: true }
   } catch (error: any) {

@@ -8,6 +8,7 @@ import path from 'node:path'
 import { Notification, utilityProcess, app } from 'electron'
 import { PluginManager } from './PluginManager'
 import { PluginHost, type PluginProcessForker } from './PluginHost'
+import { PluginEventBus } from './PluginEventBus'
 import { PluginStorageStore } from '../database/PluginStorageStore'
 import { getDatabase } from '../database/schema'
 import { getAppDataPath } from '../utils/appPaths'
@@ -17,6 +18,7 @@ const logger = createScopedLogger('plugin.system')
 
 let pluginManager: PluginManager | null = null
 let pluginHost: PluginHost | null = null
+let pluginEventBus: PluginEventBus | null = null
 
 /** utilityProcess 封装为 PluginHost 期望的 forker 接口 */
 const utilityProcessForker: PluginProcessForker = {
@@ -85,6 +87,10 @@ export function initializePluginSystem(): void {
   pluginManager = manager
   pluginHost = host
 
+  const bus = new PluginEventBus()
+  bus.attach(host)
+  pluginEventBus = bus
+
   // 拉起上次启用的插件
   for (const pluginId of manager.getAutoEnableIds()) {
     const info = manager.getPlugin(pluginId)
@@ -119,12 +125,35 @@ export function getPluginHost(): PluginHost {
   return pluginHost
 }
 
+/** 事件总线：IP 层发消息、模型就绪、性能上报时广播给订阅插件 */
+export function getPluginEventBus(): PluginEventBus {
+  if (!pluginEventBus) {
+    throw new Error('插件系统未初始化')
+  }
+  return pluginEventBus
+}
+
+/**
+ * 安全事件广播入口：插件系统未初始化时静默丢弃。
+ * 供事件源（IPC 层）调用，避免初始化失败影响核心链路。
+ */
+export function emitPluginEvent(
+  kind: Parameters<PluginEventBus['emit']>[0],
+  payload: unknown
+): void {
+  pluginEventBus?.emit(kind, payload)
+}
+
 /** 应用退出时停止全部插件进程 */
 export function shutdownPluginSystem(): void {
   if (pluginHost) {
     pluginHost.stopAll()
   }
+  if (pluginEventBus) {
+    pluginEventBus.detach()
+  }
   pluginHost = null
   pluginManager = null
+  pluginEventBus = null
   logger.info('shutdown.success')
 }

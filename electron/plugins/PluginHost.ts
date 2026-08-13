@@ -55,6 +55,8 @@ export class PluginHost {
   private readonly restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
   /** 用户主动停止的插件：kill 触发的 exit 不走崩溃重启流程 */
   private readonly intentionalStops = new Set<string>()
+  /** pluginId → 最近一次 fork 时的 manifest（用于事件订阅过滤与崩溃重启） */
+  private readonly manifests = new Map<string, PluginManifest>()
 
   constructor(private readonly options: PluginHostOptions) {}
 
@@ -92,6 +94,7 @@ export class PluginHost {
     }
 
     this.processes.set(pluginId, handle)
+    this.manifests.set(pluginId, manifest)
     this.options.onStatusChange?.(pluginId, 'running')
     handle.on('message', (message: unknown) => {
       this.handleRpcMessage(pluginId, manifest, message)
@@ -105,6 +108,7 @@ export class PluginHost {
       this.processes.delete(pluginId)
       if (this.intentionalStops.has(pluginId)) {
         this.intentionalStops.delete(pluginId)
+        this.manifests.delete(pluginId)
         logger.info('process.exit.intentional', { pluginId, code })
         return
       }
@@ -137,6 +141,7 @@ export class PluginHost {
           handle.kill()
           this.processes.delete(pluginId)
           this.intentionalStops.delete(pluginId)
+          this.manifests.delete(pluginId)
         }
       }, PLUGIN_DISABLE_GRACE_MS)
     }
@@ -165,6 +170,22 @@ export class PluginHost {
       handle.postMessage(message)
     } catch {
       // 进程退出竞态：postMessage 失败忽略，exit 事件会走重启流程
+    }
+  }
+
+  /** 广播事件给所有订阅该事件的运行中插件（PluginEventBus 使用） */
+  pushEventToSubscribers(
+    kind: NonNullable<PluginManifest['subscriptions']>[number],
+    payload: unknown
+  ): void {
+    for (const [pluginId, manifest] of this.manifests) {
+      if (!this.processes.has(pluginId)) {
+        continue
+      }
+      if (!(manifest.subscriptions ?? []).includes(kind)) {
+        continue
+      }
+      this.pushEvent(pluginId, kind, payload)
     }
   }
 

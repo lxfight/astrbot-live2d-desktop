@@ -42,7 +42,51 @@ interface HostApi {
     warn(...args: unknown[]): void
     error(...args: unknown[]): void
   }
+  events: {
+    /** 订阅宿主推送的事件（需 manifest.subscriptions 声明对应事件，宿主侧过滤） */
+    on(kind: string, listener: (payload: unknown) => void): void
+  }
 }
+
+/**
+ * 宿主推送事件的分发器：parentPort 的 message 监听里同时处理 rpc-result
+ * 与 event 两种消息。插件通过 api.events.on(kind, listener) 注册。
+ */
+const eventListeners = new Map<string, Set<(payload: unknown) => void>>()
+
+function registerEventDispatch(kind: string, listener: (payload: unknown) => void): void {
+  let set = eventListeners.get(kind)
+  if (!set) {
+    set = new Set()
+    eventListeners.set(kind, set)
+  }
+  set.add(listener)
+}
+
+function dispatchEvent(kind: string, payload: unknown): void {
+  const set = eventListeners.get(kind)
+  if (!set) {
+    return
+  }
+  for (const listener of set) {
+    try {
+      listener(payload)
+    } catch (error) {
+      // 插件事件回调异常不应中断分发；宿主 log 通道上报
+      console.warn(`[pluginRuntime] 事件回调异常 (${kind}):`, error)
+    }
+  }
+}
+
+parentPort.on('message', event => {
+  const message = event.data as { type?: string; kind?: string; payload?: unknown } | null
+  if (!message) {
+    return
+  }
+  if (message.type === 'event') {
+    dispatchEvent(message.kind ?? '', message.payload)
+  }
+})
 
 /**
  * 把宿主方法包装成 RPC 调用；log 用 fire-and-forget，其余等待响应。
@@ -103,6 +147,13 @@ function createRpcProxy(): HostApi {
       info: (...args) => void call('log.info', ...args),
       warn: (...args) => void call('log.warn', ...args),
       error: (...args) => void call('log.error', ...args)
+    },
+    events: {
+      // 宿主推送的 event 消息由主循环分发（见 registerEventDispatch），
+      // 这里只需注册监听即可
+      on: (kind, listener) => {
+        registerEventDispatch(kind, listener)
+      }
     }
   }
 }

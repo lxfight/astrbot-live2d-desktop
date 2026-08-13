@@ -9,6 +9,7 @@ import { buildCatalogForAbsoluteModel, ensureModelAliasConfig } from '../utils/m
 import { notifyModelConfigChanged } from '../utils/modelConfigEvents'
 import { getAppDataPath } from '../utils/appPaths'
 import { createScopedLogger } from '../utils/logger'
+import { emitPluginEvent } from '../plugins'
 import { t } from '../../src/i18n/mainProcess'
 import {
   LIVE2D_EXPRESSION_TYPES,
@@ -743,6 +744,8 @@ ipcMain.handle('model:load', async (_event, modelPath: string) => {
     const mainWindow = getMainWindow()
     if (mainWindow) {
       mainWindow.webContents.send('model:load', modelPath)
+      // 插件事件：模型加载请求已分发（渲染进程完成加载后 setModelReady 另行通知）
+      emitPluginEvent('model:loaded', { modelPath })
       timer.done({ dispatched: true, windowId: mainWindow.id })
     } else {
       timer.done({ dispatched: false, reason: 'window_missing' })
