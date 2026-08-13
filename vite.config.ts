@@ -40,6 +40,23 @@ export default defineConfig({
             }
           }
         }
+      },
+      {
+        // 插件进程运行时（utilityProcess 入口），与主进程同格式打包
+        entry: 'electron/plugins/pluginRuntime.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            minify: process.env.NODE_ENV === 'production',
+            rollupOptions: {
+              external: ['electron'],
+              output: {
+                format: 'es',
+                entryFileNames: 'pluginRuntime.js'
+              }
+            }
+          }
+        }
       }
     ])
   ],

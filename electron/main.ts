@@ -23,6 +23,7 @@ import {
   shutdownMainLogger
 } from './utils/logger'
 import { initializeAutoUpdater } from './utils/updater'
+import { initializePluginSystem, shutdownPluginSystem } from './plugins'
 import { t } from '../src/i18n/mainProcess'
 import './ipc/connection'
 import './ipc/desktopBehavior'
@@ -244,6 +245,15 @@ async function initialize() {
   initializeAutoUpdater()
   logger.info('auto_updater.initialized')
 
+  // 插件系统依赖数据库（plugin_storage），初始化并拉起上次启用的插件
+  try {
+    initializePluginSystem()
+    logger.info('plugin_system.initialized')
+  } catch (error) {
+    console.warn('[主进程] 插件系统初始化失败:', error)
+    logger.warn('plugin_system.init.failed', { error })
+  }
+
   initBridgeConnectionController()
   const controller = bridgeConnectionController
   if (!controller) {
@@ -382,6 +392,12 @@ app.on('before-quit', () => {
   cleanupShortcuts()
   destroyTray()
   cleanupAllTempResources()
+  try {
+    shutdownPluginSystem()
+  } catch (err) {
+    console.error('[主进程] 关闭插件系统失败:', err)
+    logger.error('plugin_system.shutdown.failed', err)
+  }
   try {
     closeDatabase()
   } catch (err) {
