@@ -46,6 +46,10 @@ interface HostApi {
     /** 订阅宿主推送的事件（需 manifest.subscriptions 声明对应事件，宿主侧过滤） */
     on(kind: string, listener: (payload: unknown) => void): void
   }
+  tray: {
+    /** 托盘菜单项点击（需 manifest.trayMenu 声明对应项，宿主侧构建菜单） */
+    onClick(menuId: string, listener: () => void): void
+  }
 }
 
 /**
@@ -78,6 +82,32 @@ function dispatchEvent(kind: string, payload: unknown): void {
   }
 }
 
+/** 托盘点击分发：api.tray.onClick(menuId, listener) 注册 */
+const trayClickListeners = new Map<string, Set<() => void>>()
+
+function registerTrayClickDispatch(menuId: string, listener: () => void): void {
+  let set = trayClickListeners.get(menuId)
+  if (!set) {
+    set = new Set()
+    trayClickListeners.set(menuId, set)
+  }
+  set.add(listener)
+}
+
+function dispatchTrayClick(menuId: string): void {
+  const set = trayClickListeners.get(menuId)
+  if (!set) {
+    return
+  }
+  for (const listener of set) {
+    try {
+      listener()
+    } catch (error) {
+      console.warn(`[pluginRuntime] 托盘回调异常 (${menuId}):`, error)
+    }
+  }
+}
+
 parentPort.on('message', event => {
   const message = event.data as { type?: string; kind?: string; payload?: unknown } | null
   if (!message) {
@@ -85,6 +115,11 @@ parentPort.on('message', event => {
   }
   if (message.type === 'event') {
     dispatchEvent(message.kind ?? '', message.payload)
+  } else if (message.type === 'tray') {
+    const trayMessage = message as { action?: string; menuId?: string }
+    if (trayMessage.action === 'click') {
+      dispatchTrayClick(trayMessage.menuId ?? '')
+    }
   }
 })
 
@@ -153,6 +188,11 @@ function createRpcProxy(): HostApi {
       // 这里只需注册监听即可
       on: (kind, listener) => {
         registerEventDispatch(kind, listener)
+      }
+    },
+    tray: {
+      onClick: (menuId, listener) => {
+        registerTrayClickDispatch(menuId, listener)
       }
     }
   }

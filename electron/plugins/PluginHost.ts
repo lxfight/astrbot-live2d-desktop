@@ -173,6 +173,19 @@ export class PluginHost {
     }
   }
 
+  /** 托盘菜单点击：投递给插件进程（menuId 由 manifest.trayMenu 声明） */
+  sendTrayCommand(pluginId: string, menuId: string): void {
+    const handle = this.processes.get(pluginId)
+    if (!handle) {
+      return
+    }
+    try {
+      handle.postMessage({ type: 'tray', action: 'click', menuId })
+    } catch {
+      // 进程退出竞态忽略
+    }
+  }
+
   /** 广播事件给所有订阅该事件的运行中插件（PluginEventBus 使用） */
   pushEventToSubscribers(
     kind: NonNullable<PluginManifest['subscriptions']>[number],

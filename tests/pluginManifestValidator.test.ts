@@ -56,7 +56,7 @@ describe('validatePluginManifestObject', () => {
   test('合法清单通过并规范化字段', () => {
     const result = validatePluginManifestObject(
       buildManifest({
-        permissions: ['storage', 'events'],
+        permissions: ['storage', 'events', 'trayMenu'],
         settings: [
           { key: 'city', kind: 'text', label: '城市' },
           {
@@ -77,7 +77,7 @@ describe('validatePluginManifestObject', () => {
 
     expect(result.valid).toBe(true)
     if (result.valid) {
-      expect(result.manifest.permissions).toEqual(['storage', 'events'])
+      expect(result.manifest.permissions).toEqual(['storage', 'events', 'trayMenu'])
       expect(result.manifest.description).toBe('')
     }
   })
@@ -168,6 +168,16 @@ describe('validatePluginManifestObject', () => {
 
   test('托盘菜单项缺少 id 被拒绝', () => {
     const result = validatePluginManifestObject(buildManifest({ trayMenu: [{ label: '无 id' }] }))
+    expect(result.valid).toBe(false)
+    if (!result.valid) {
+      expect(result.errors.some(error => error.code === 'BAD_TRAY_MENU')).toBe(true)
+    }
+  })
+
+  test('声明 trayMenu 但无 trayMenu 权限被拒绝', () => {
+    const result = validatePluginManifestObject(
+      buildManifest({ trayMenu: [{ id: 'toggle', label: '切换' }] })
+    )
     expect(result.valid).toBe(false)
     if (!result.valid) {
       expect(result.errors.some(error => error.code === 'BAD_TRAY_MENU')).toBe(true)

@@ -125,7 +125,11 @@ function validateSettings(value: unknown, errors: ManifestValidationError[]): vo
   }
 }
 
-function validateTrayMenu(value: unknown, errors: ManifestValidationError[]): void {
+function validateTrayMenu(
+  value: unknown,
+  permissions: unknown,
+  errors: ManifestValidationError[]
+): void {
   if (value === undefined) {
     return
   }
@@ -137,6 +141,14 @@ function validateTrayMenu(value: unknown, errors: ManifestValidationError[]): vo
     if (!isRecord(item) || typeof item.id !== 'string' || !item.id.trim()) {
       errors.push({ code: 'BAD_TRAY_MENU', message: 'trayMenu 项缺少 id' })
     }
+  }
+  // trayMenu 需要 trayMenu 权限（宿主构建菜单时的双重检查）
+  const hasTrayPermission = Array.isArray(permissions) && permissions.includes('trayMenu' as never)
+  if (!hasTrayPermission) {
+    errors.push({
+      code: 'BAD_TRAY_MENU',
+      message: '声明 trayMenu 需要 trayMenu 权限'
+    })
   }
 }
 
@@ -206,7 +218,7 @@ export function validatePluginManifestObject(
   validatePermissions(raw.permissions, errors)
   validateSubscriptions(raw.subscriptions, errors)
   validateSettings(raw.settings, errors)
-  validateTrayMenu(raw.trayMenu, errors)
+  validateTrayMenu(raw.trayMenu, raw.permissions, errors)
 
   if (errors.length > 0) {
     return { valid: false, errors }

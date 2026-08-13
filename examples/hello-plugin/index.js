@@ -37,6 +37,16 @@ module.exports = function main(api) {
     api.log.info('hello-plugin 心跳（每分钟一次）')
   }, 60_000)
 
+  // 4. 托盘菜单演示（需要 trayMenu 权限 + manifest.trayMenu 声明）
+  api.tray.onClick('greet', () => {
+    void greet()
+  })
+  api.tray.onClick('toggle-notify', async () => {
+    const current = await api.storage.get('notifyOnMessage')
+    await api.storage.set('notifyOnMessage', !current)
+    api.notifications.show('hello-plugin', `消息通知已${current ? '关闭' : '开启'}`)
+  })
+
   return {
     onDisable() {
       disposed = true

@@ -4,6 +4,7 @@ import fs from 'fs'
 import { showSettingsWindow } from '../windows/settingsWindow'
 import { resolveAppIconPath } from './icon'
 import { getDesktopBehaviorCoordinator } from '../desktopBehavior/coordinator'
+import { getPluginManager, getPluginHost } from '../plugins'
 import { t } from '../../src/i18n/mainProcess'
 
 let tray: Tray | null = null
@@ -80,7 +81,7 @@ export function createTray(): Tray | null {
 function updateTrayMenu(): void {
   if (!tray) return
 
-  const contextMenu = Menu.buildFromTemplate([
+  const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: t('tray.showMain'),
       click: () => revealMainOrOpenModelLibrary('manual')
@@ -92,17 +93,52 @@ function updateTrayMenu(): void {
     {
       label: t('tray.history'),
       click: () => showSettingsWindow('history/messages')
-    },
-    { type: 'separator' },
-    {
-      label: t('tray.quit'),
-      click: () => {
-        app.quit()
+    }
+  ]
+
+  // 插件托盘菜单：运行中 + 声明 trayMenu 权限与菜单项的插件
+  let pluginItemsAdded = false
+  try {
+    const manager = getPluginManager()
+    const host = getPluginHost()
+    for (const info of manager.listPlugins()) {
+      if (info.status !== 'running' || !host.isRunning(info.manifest.id)) {
+        continue
+      }
+      const permissions = info.manifest.permissions ?? []
+      if (!permissions.includes('trayMenu')) {
+        continue
+      }
+      for (const item of info.manifest.trayMenu ?? []) {
+        pluginItemsAdded = true
+        template.push({
+          label: item.label || item.id,
+          click: () => {
+            host.sendTrayCommand(info.manifest.id, item.id)
+          }
+        })
       }
     }
-  ])
+  } catch {
+    // 插件系统未初始化或已关闭：跳过插件菜单
+  }
 
-  tray.setContextMenu(contextMenu)
+  if (pluginItemsAdded) {
+    template.push({ type: 'separator' })
+  }
+  template.push({
+    label: t('tray.quit'),
+    click: () => {
+      app.quit()
+    }
+  })
+
+  tray.setContextMenu(Menu.buildFromTemplate(template))
+}
+
+/** 重建托盘菜单（插件启用/停用/安装后由调用方触发） */
+export function refreshTrayMenu(): void {
+  updateTrayMenu()
 }
 
 /**

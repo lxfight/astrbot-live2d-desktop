@@ -8,6 +8,7 @@ import { ipcMain, dialog } from 'electron'
 import path from 'node:path'
 import { getPluginManager, getPluginHost } from '../plugins'
 import { getSettingsWindow } from '../windows/settingsWindow'
+import { refreshTrayMenu } from '../utils/tray'
 import { createScopedLogger } from '../utils/logger'
 
 const logger = createScopedLogger('ipc.plugin')
@@ -59,7 +60,9 @@ ipcMain.handle('plugin:install', async (_event, sourceDirectory: string) => {
 ipcMain.handle('plugin:uninstall', async (_event, pluginId: string) => {
   try {
     getPluginHost().stopPlugin(pluginId)
-    return getPluginManager().uninstallPlugin(pluginId)
+    const result = getPluginManager().uninstallPlugin(pluginId)
+    refreshTrayMenu()
+    return result
   } catch (error) {
     logger.error('uninstall.failed', error)
     return { success: false, error: errorMessage(error) }
@@ -81,6 +84,7 @@ ipcMain.handle('plugin:enable', async (_event, pluginId: string) => {
         path.join(manager.pluginsRootDirectory, pluginId),
         info.manifest
       )
+      refreshTrayMenu()
     }
     return result
   } catch (error) {
@@ -92,7 +96,9 @@ ipcMain.handle('plugin:enable', async (_event, pluginId: string) => {
 ipcMain.handle('plugin:disable', async (_event, pluginId: string) => {
   try {
     getPluginHost().stopPlugin(pluginId)
-    return getPluginManager().disablePlugin(pluginId)
+    const result = getPluginManager().disablePlugin(pluginId)
+    refreshTrayMenu()
+    return result
   } catch (error) {
     logger.error('disable.failed', error)
     return { success: false, error: errorMessage(error) }
