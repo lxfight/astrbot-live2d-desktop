@@ -42,7 +42,8 @@ export default defineConfig({
         }
       },
       {
-        // 插件进程运行时（utilityProcess 入口），与主进程同格式打包
+        // 插件进程运行时（utilityProcess 入口）
+        // CJS 格式：utilityProcess 对无 package.json type 声明的 .js 按 CJS 加载，最可靠
         entry: 'electron/plugins/pluginRuntime.ts',
         vite: {
           build: {
@@ -51,7 +52,7 @@ export default defineConfig({
             rollupOptions: {
               external: ['electron'],
               output: {
-                format: 'es',
+                format: 'cjs',
                 entryFileNames: 'pluginRuntime.js'
               }
             }

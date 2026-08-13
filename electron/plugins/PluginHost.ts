@@ -18,6 +18,8 @@ const logger = createScopedLogger('plugin.host')
 
 export const PLUGIN_MAX_CRASH_RESTARTS = 5
 export const PLUGIN_RESTART_BASE_DELAY_MS = 2000
+/** 停用时给插件的清理宽限期：先发 disable 命令让 onDisable 执行，超时后强制 kill */
+export const PLUGIN_DISABLE_GRACE_MS = 300
 
 export interface PluginProcessHandle {
   postMessage(message: unknown): void
@@ -62,9 +64,18 @@ export class PluginHost {
 
   /** fork 插件进程并建立 RPC 通道 */
   startPlugin(pluginId: string, pluginDirectory: string, manifest: PluginManifest): void {
-    if (this.processes.has(pluginId)) {
-      logger.warn('start.already_running', { pluginId })
-      return
+    const existing = this.processes.get(pluginId)
+    if (existing) {
+      if (this.intentionalStops.has(pluginId)) {
+        // 上一次停用尚在宽限期：立即结束旧句柄，继续拉起新进程。
+        // 先清标记：kill 触发的 exit 不再按主动停止处理。
+        this.intentionalStops.delete(pluginId)
+        existing.kill()
+        this.processes.delete(pluginId)
+      } else {
+        logger.warn('start.already_running', { pluginId })
+        return
+      }
     }
     // 清理上一次主动停止遗留的标记，避免延迟送达的 exit 吞掉本次崩溃
     this.intentionalStops.delete(pluginId)
@@ -101,7 +112,7 @@ export class PluginHost {
     })
   }
 
-  /** 停用插件：取消重启定时器并 kill 进程（kill 触发的 exit 不重启） */
+  /** 停用插件：发 disable 命令给 onDisable 清理，宽限期后 kill（kill 触发的 exit 不重启） */
   stopPlugin(pluginId: string): void {
     const restartTimer = this.restartTimers.get(pluginId)
     if (restartTimer) {
@@ -111,11 +122,23 @@ export class PluginHost {
 
     const handle = this.processes.get(pluginId)
     if (handle) {
-      logger.info('stop.kill', { pluginId })
-      // kill 返回 false 时 exit 可能延迟送达，标记保留以确保不触发崩溃重启
+      logger.info('stop.begin', { pluginId })
       this.intentionalStops.add(pluginId)
-      handle.kill()
-      this.processes.delete(pluginId)
+      try {
+        handle.postMessage({ type: 'command', action: 'disable' })
+      } catch {
+        // 进程已退出或通道关闭，直接进入 kill 路径
+      }
+      // 宽限期内句柄保留在 processes（isRunning 仍为 true），
+      // 插件自行退出时 exit 监听器负责删除并清理标记；超时后强制 kill。
+      setTimeout(() => {
+        if (this.processes.get(pluginId) === handle) {
+          logger.warn('stop.kill_after_grace', { pluginId })
+          handle.kill()
+          this.processes.delete(pluginId)
+          this.intentionalStops.delete(pluginId)
+        }
+      }, PLUGIN_DISABLE_GRACE_MS)
     }
     this.crashCounts.delete(pluginId)
   }

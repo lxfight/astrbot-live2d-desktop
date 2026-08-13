@@ -77,6 +77,23 @@ export default [
     }
   },
   {
+    // 示例插件运行在 utilityProcess（Node 环境），由宿主注入 module 之外的全局能力
+    files: ['examples/**/*.js'],
+    languageOptions: {
+      globals: {
+        module: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        console: 'readonly'
+      }
+    },
+    rules: {
+      'no-undef': 'off'
+    }
+  },
+  {
     ignores: [
       'dist',
       'dist-electron',
