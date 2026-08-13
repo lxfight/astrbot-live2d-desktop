@@ -12,12 +12,18 @@ import path from 'node:path'
 type RpcCall = { type: 'rpc'; id: number; method: string; params?: unknown[] }
 type RpcResult = { type: 'rpc-result'; id: number; ok: boolean; value?: unknown; error?: string }
 
-const parentPort = (process as unknown as { parentPort: ParentPort }).parentPort
+const rawPort = (process as unknown as { parentPort: ParentPort | null }).parentPort
 
 interface ParentPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): void
   postMessage(message: unknown): void
 }
+
+if (!rawPort) {
+  throw new Error('pluginRuntime 必须由 utilityProcess 启动')
+}
+// 收窄为不可空：后续所有 RPC 通路共用
+const parentPort: ParentPort = rawPort
 
 interface HostApi {
   storage: {
@@ -118,8 +124,8 @@ async function main(): Promise<void> {
   // 动态 import 支持 CJS 与 ESM 打包产物；file:// URL 保证绝对路径解析
   const entryModule = await import(`file://${entryPath}`)
   const entrypoint =
-    (entryModule.default as ((api: HostApi) => unknown) | undefined) ??
-    (entryModule as unknown as { default: (api: HostApi) => unknown }).default
+    (entryModule as { default?: unknown }).default ??
+    (entryModule as unknown as Record<string, unknown>).default
 
   if (typeof entrypoint !== 'function') {
     throw new Error(`插件入口未导出函数: ${manifest.entry}`)
