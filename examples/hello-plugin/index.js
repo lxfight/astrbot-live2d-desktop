@@ -3,6 +3,8 @@
  * 宿主注入的 api 对象提供 storage / notifications / fetch / log 能力，
  * 能力是否可用取决于 manifest.json 中声明的 permissions。
  *
+ * 可选的 JSDoc 类型提示（安装 @astrbot/plugin-sdk 后编辑器自动补全）：
+ * @param {import('@astrbot/plugin-sdk').HostApi} api
  * 返回可选对象 { onDisable } 供宿主在停用时调用做清理。
  */
 module.exports = function main(api) {
@@ -37,7 +39,13 @@ module.exports = function main(api) {
     api.log.info('hello-plugin 心跳（每分钟一次）')
   }, 60_000)
 
-  // 4. 托盘菜单演示（需要 trayMenu 权限 + manifest.trayMenu 声明）
+  // 4. 事件订阅演示（需 events 权限 + manifest.subscriptions 声明）
+  api.events.on('message:received', payload => {
+    if (disposed) return
+    api.log.info('收到消息事件:', payload)
+  })
+
+  // 5. 托盘菜单演示（需要 trayMenu 权限 + manifest.trayMenu 声明）
   api.tray.onClick('greet', () => {
     void greet()
   })

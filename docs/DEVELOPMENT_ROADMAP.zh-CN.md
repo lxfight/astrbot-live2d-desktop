@@ -601,7 +601,7 @@ interface ErrorTracking {
 
 - [ ] API 文档（TypeDoc 生成）
 - [ ] 贡献指南（CONTRIBUTING.md）
-- [ ] 插件开发指南
+- [x] 插件开发指南（`docs/PLUGIN_DEVELOPMENT.zh-CN.md`）
 - [x] 性能优化最佳实践（`PERFORMANCE_TOOLS_INTEGRATION.md`）
 - [x] 故障排查手册（`docs/TROUBLESHOOTING.zh-CN.md`，连接/模型/桌面行为/性能/数据问题定位）
 - [x] 更新日志（`docs/CHANGELOG.zh-CN.md`，遵循 keep-a-changelog）

@@ -6,11 +6,12 @@
   "author": "AstrBot Desktop Team",
   "entry": "index.js",
   "minAppVersion": "1.0.0",
-  "permissions": ["storage", "notifications", "trayMenu"],
+  "permissions": ["storage", "notifications", "events", "trayMenu"],
   "trayMenu": [
     { "id": "greet", "label": "问好" },
     { "id": "toggle-notify", "label": "开关消息通知" }
   ],
+  "subscriptions": ["message:received"],
   "settings": [
     {
       "key": "greeting",
