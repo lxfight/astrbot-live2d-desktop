@@ -67,6 +67,9 @@ export function initializePluginSystem(): void {
       manager.setRuntimeStatus(pluginId, 'quarantined')
       logger.error('quarantined', new Error(reason), { pluginId })
     },
+    onStatusChange: (pluginId, status) => {
+      manager.setRuntimeStatus(pluginId, status)
+    },
     notifications: {
       show: (pluginId, title, body) => {
         if (!Notification.isSupported()) {

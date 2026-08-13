@@ -37,6 +37,8 @@ export interface PluginHostOptions {
   storageStore: PluginStorageStore
   /** 崩溃达到上限时的回调（宿主据此标记 quarantined） */
   onQuarantine: (pluginId: string, reason: string) => void
+  /** 进程运行态变化（start 成功/隔离）时回传，供 UI 列表状态展示 */
+  onStatusChange?: (pluginId: string, status: 'running' | 'quarantined') => void
   /** 通知能力注入（默认 Electron Notification，测试注入假实现） */
   notifications?: {
     show(pluginId: string, title: string, body?: string): void
@@ -79,6 +81,7 @@ export class PluginHost {
     }
 
     this.processes.set(pluginId, handle)
+    this.options.onStatusChange?.(pluginId, 'running')
     handle.on('message', (message: unknown) => {
       this.handleRpcMessage(pluginId, manifest, message)
     })
@@ -241,6 +244,7 @@ export class PluginHost {
 
     if (crashCount > PLUGIN_MAX_CRASH_RESTARTS) {
       logger.error('crash.quarantined', new Error(reason), { pluginId, crashCount })
+      this.options.onStatusChange?.(pluginId, 'quarantined')
       this.options.onQuarantine(pluginId, reason)
       this.crashCounts.delete(pluginId)
       return
