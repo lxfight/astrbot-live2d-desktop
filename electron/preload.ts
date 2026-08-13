@@ -466,5 +466,18 @@ contextBridge.exposeInMainWorld('electron', {
   migration: {
     onBackgroundCompleted: (callback: (payload: { copiedEntries: string[] }) => void) =>
       subscribeIpc('migration:backgroundCompleted', callback)
+  },
+
+  // 插件中心
+  plugins: {
+    selectFolder: () => ipcRenderer.invoke('plugin:selectFolder'),
+    list: () => ipcRenderer.invoke('plugin:list'),
+    install: (sourceDirectory: string) => ipcRenderer.invoke('plugin:install', sourceDirectory),
+    uninstall: (pluginId: string) => ipcRenderer.invoke('plugin:uninstall', pluginId),
+    enable: (pluginId: string) => ipcRenderer.invoke('plugin:enable', pluginId),
+    disable: (pluginId: string) => ipcRenderer.invoke('plugin:disable', pluginId),
+    getSettings: (pluginId: string) => ipcRenderer.invoke('plugin:getSettings', pluginId),
+    setSettings: (pluginId: string, patch: any) =>
+      ipcRenderer.invoke('plugin:setSettings', pluginId, patch)
   }
 })

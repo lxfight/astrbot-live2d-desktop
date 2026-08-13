@@ -55,6 +55,7 @@ import type {
   Live2DExpressionTypesLoadResult as _Live2DExpressionTypesLoadResult,
   Live2DExpressionTypesSaveResult as _Live2DExpressionTypesSaveResult
 } from '../shared/live2dExpressionTypes'
+import type { PluginInfo as _PluginInfo } from '../shared/pluginManifest'
 
 declare global {
   type Unsubscribe = () => void
@@ -97,6 +98,7 @@ declare global {
   type Live2DExpressionTypePresetMap = _Live2DExpressionTypePresetMap
   type Live2DExpressionTypesLoadResult = _Live2DExpressionTypesLoadResult
   type Live2DExpressionTypesSaveResult = _Live2DExpressionTypesSaveResult
+  type PluginInfo = _PluginInfo
 
   interface UpdateState {
     status:
@@ -594,6 +596,45 @@ declare global {
         onBackgroundCompleted: (
           callback: (payload: { copiedEntries: string[] }) => void
         ) => Unsubscribe
+      }
+
+      plugins: {
+        selectFolder: () => Promise<{
+          success: boolean
+          folderPath?: string
+          canceled?: boolean
+          error?: string
+        }>
+        list: () => Promise<{ success: boolean; plugins: PluginInfo[]; error?: string }>
+        install: (sourceDirectory: string) => Promise<{
+          success: boolean
+          pluginId?: string
+          error?: string
+        }>
+        uninstall: (pluginId: string) => Promise<{
+          success: boolean
+          pluginId?: string
+          error?: string
+        }>
+        enable: (pluginId: string) => Promise<{
+          success: boolean
+          pluginId?: string
+          error?: string
+        }>
+        disable: (pluginId: string) => Promise<{
+          success: boolean
+          pluginId?: string
+          error?: string
+        }>
+        getSettings: (pluginId: string) => Promise<{
+          success: boolean
+          settings: Record<string, unknown> | null
+          error?: string
+        }>
+        setSettings: (
+          pluginId: string,
+          patch: Record<string, unknown>
+        ) => Promise<{ success: boolean; pluginId?: string; error?: string }>
       }
     }
   }
