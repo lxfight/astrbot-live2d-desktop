@@ -8,7 +8,7 @@ import { getAppDataPath } from '../utils/appPaths'
 import { t } from '../../src/i18n/mainProcess'
 
 let db: AppSqliteDatabase | null = null
-const CURRENT_DB_VERSION = 4
+const CURRENT_DB_VERSION = 5
 const USER_PROFILE_CONFIG_KEYS = {
   userId: USER_CONFIG_KEYS.userId,
   userName: USER_CONFIG_KEYS.userName
@@ -159,6 +159,20 @@ function migrateToV4(database: AppSqliteDatabase): void {
   setDatabaseVersion(database, 4)
 }
 
+function migrateToV5(database: AppSqliteDatabase): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS plugin_storage (
+      plugin_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (plugin_id, key)
+    );
+  `)
+
+  setDatabaseVersion(database, 5)
+}
+
 function runSchemaMigrations(database: AppSqliteDatabase): void {
   let version = getDatabaseVersion(database)
 
@@ -180,6 +194,11 @@ function runSchemaMigrations(database: AppSqliteDatabase): void {
   if (version < 4) {
     migrateToV4(database)
     version = 4
+  }
+
+  if (version < 5) {
+    migrateToV5(database)
+    version = 5
   }
 
   if (version !== CURRENT_DB_VERSION) {
