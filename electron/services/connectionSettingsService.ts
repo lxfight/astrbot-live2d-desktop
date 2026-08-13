@@ -124,7 +124,10 @@ function decodeSecretValue(value: unknown): string {
   try {
     return safeStorage.decryptString(Buffer.from(raw, 'base64')).trim()
   } catch {
-    return raw
+    // 解密失败（如 Electron 43 后 macOS Keychain 身份变更导致旧密文不可解）：
+    // 返回空串让用户重新输入，而不是把密文当明文继续使用
+    console.warn('[ConnectionSettingsService] 密钥解密失败，请重新输入令牌')
+    return ''
   }
 }
 
