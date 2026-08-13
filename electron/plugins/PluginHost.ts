@@ -49,6 +49,8 @@ export class PluginHost {
   private readonly processes = new Map<string, PluginProcessHandle>()
   private readonly crashCounts = new Map<string, number>()
   private readonly restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** 用户主动停止的插件：kill 触发的 exit 不走崩溃重启流程 */
+  private readonly intentionalStops = new Set<string>()
 
   constructor(private readonly options: PluginHostOptions) {}
 
@@ -62,6 +64,8 @@ export class PluginHost {
       logger.warn('start.already_running', { pluginId })
       return
     }
+    // 清理上一次主动停止遗留的标记，避免延迟送达的 exit 吞掉本次崩溃
+    this.intentionalStops.delete(pluginId)
 
     logger.info('start.begin', { pluginId, entry: manifest.entry })
     let handle: PluginProcessHandle
@@ -80,12 +84,21 @@ export class PluginHost {
     })
     handle.on('exit', code => {
       logger.warn('process.exit', { pluginId, code })
+      // 陈旧句柄的延迟 exit：当前活动句柄已不是它，忽略
+      if (this.processes.get(pluginId) !== handle) {
+        return
+      }
       this.processes.delete(pluginId)
+      if (this.intentionalStops.has(pluginId)) {
+        this.intentionalStops.delete(pluginId)
+        logger.info('process.exit.intentional', { pluginId, code })
+        return
+      }
       this.handleCrash(pluginId, pluginDirectory, manifest, `exit code ${code}`)
     })
   }
 
-  /** 停用插件：取消重启定时器并 kill 进程 */
+  /** 停用插件：取消重启定时器并 kill 进程（kill 触发的 exit 不重启） */
   stopPlugin(pluginId: string): void {
     const restartTimer = this.restartTimers.get(pluginId)
     if (restartTimer) {
@@ -96,6 +109,8 @@ export class PluginHost {
     const handle = this.processes.get(pluginId)
     if (handle) {
       logger.info('stop.kill', { pluginId })
+      // kill 返回 false 时 exit 可能延迟送达，标记保留以确保不触发崩溃重启
+      this.intentionalStops.add(pluginId)
       handle.kill()
       this.processes.delete(pluginId)
     }
