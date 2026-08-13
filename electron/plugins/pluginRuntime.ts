@@ -1,0 +1,149 @@
+/**
+ * 插件运行时（utilityProcess 入口）
+ * 在插件进程中运行：加载插件 entry，注入宿主 API 对象，
+ * 通过 process.parentPort 与主进程做 RPC 通信。
+ *
+ * 该文件由 vite-plugin-electron 单独打包（见 vite.config.ts），
+ * 产物路径通过 PluginManager 组装时传入 PluginHost。
+ */
+
+import path from 'node:path'
+
+type RpcCall = { type: 'rpc'; id: number; method: string; params?: unknown[] }
+type RpcResult = { type: 'rpc-result'; id: number; ok: boolean; value?: unknown; error?: string }
+
+const parentPort = (process as unknown as { parentPort: ParentPort }).parentPort
+
+interface ParentPort {
+  on(event: 'message', listener: (event: { data: unknown }) => void): void
+  postMessage(message: unknown): void
+}
+
+interface HostApi {
+  storage: {
+    get(key: string): Promise<unknown>
+    set(key: string, value: unknown): Promise<void>
+    remove(key: string): Promise<void>
+    keys(): Promise<string[]>
+  }
+  notifications: {
+    show(title: string, body?: string): Promise<void>
+  }
+  fetch(url: string, init?: { timeoutMs?: number }): Promise<unknown>
+  log: {
+    debug(...args: unknown[]): void
+    info(...args: unknown[]): void
+    warn(...args: unknown[]): void
+    error(...args: unknown[]): void
+  }
+}
+
+/**
+ * 把宿主方法包装成 RPC 调用；log 用 fire-and-forget，其余等待响应。
+ */
+function createRpcProxy(): HostApi {
+  let nextId = 1
+  const pending = new Map<
+    number,
+    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+  >()
+
+  parentPort.on('message', event => {
+    const message = event.data as { type?: string; id?: number } | null
+    if (!message || message.type !== 'rpc-result') {
+      return
+    }
+    const { id, ok, value, error } = message as RpcResult
+    const entry = pending.get(id)
+    if (!entry) {
+      return
+    }
+    pending.delete(id)
+    if (ok) {
+      entry.resolve(value)
+    } else {
+      entry.reject(new Error(error ?? 'RPC 失败'))
+    }
+  })
+
+  function call(method: string, ...params: unknown[]): Promise<unknown> {
+    const id = nextId++
+    const rpc: RpcCall = { type: 'rpc', id, method, params }
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject })
+      parentPort.postMessage(rpc)
+    })
+  }
+
+  return {
+    storage: {
+      get: key => call('storage.get', key),
+      set: async (key, value) => {
+        await call('storage.set', key, value)
+      },
+      remove: async key => {
+        await call('storage.remove', key)
+      },
+      keys: () => call('storage.keys') as Promise<string[]>
+    },
+    notifications: {
+      show: async (title, body) => {
+        await call('notification.show', title, body)
+      }
+    },
+    fetch: (url, init) => call('network.fetch', url, init),
+    log: {
+      debug: (...args) => void call('log.debug', ...args),
+      info: (...args) => void call('log.info', ...args),
+      warn: (...args) => void call('log.warn', ...args),
+      error: (...args) => void call('log.error', ...args)
+    }
+  }
+}
+
+async function main(): Promise<void> {
+  const pluginDirectory = process.argv[2]
+  if (!pluginDirectory) {
+    throw new Error('缺少插件目录参数')
+  }
+
+  const manifestPath = path.join(pluginDirectory, 'manifest.json')
+  // 清单已由主进程校验，这里仅读取 entry 字段
+  const { readFileSync } = await import('node:fs')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { entry: string }
+  const entryPath = path.join(pluginDirectory, manifest.entry)
+
+  const api = createRpcProxy()
+
+  // 动态 import 支持 CJS 与 ESM 打包产物；file:// URL 保证绝对路径解析
+  const entryModule = await import(`file://${entryPath}`)
+  const entrypoint =
+    (entryModule.default as ((api: HostApi) => unknown) | undefined) ??
+    (entryModule as unknown as { default: (api: HostApi) => unknown }).default
+
+  if (typeof entrypoint !== 'function') {
+    throw new Error(`插件入口未导出函数: ${manifest.entry}`)
+  }
+
+  const cleanup = entrypoint(api)
+  if (cleanup && typeof (cleanup as { onDisable?: () => void }).onDisable === 'function') {
+    const onDisable = (cleanup as { onDisable: () => void }).onDisable
+    parentPort.on('message', event => {
+      const message = event.data as { type?: string } | null
+      if (message?.type === 'command' && (message as { action?: string }).action === 'disable') {
+        onDisable()
+      }
+    })
+  }
+
+  parentPort.postMessage({ type: 'ready' })
+}
+
+main().catch(error => {
+  // 入口加载失败：把错误回给主进程后退出
+  parentPort.postMessage({
+    type: 'fatal',
+    error: error instanceof Error ? error.message : String(error)
+  })
+  process.exit(1)
+})
