@@ -8,6 +8,7 @@
  */
 
 import path from 'node:path'
+import type { HostApi } from '../../src/shared/pluginSdk'
 
 type RpcCall = { type: 'rpc'; id: number; method: string; params?: unknown[] }
 type RpcResult = { type: 'rpc-result'; id: number; ok: boolean; value?: unknown; error?: string }
@@ -24,33 +25,6 @@ if (!rawPort) {
 }
 // 收窄为不可空：后续所有 RPC 通路共用
 const parentPort: ParentPort = rawPort
-
-interface HostApi {
-  storage: {
-    get(key: string): Promise<unknown>
-    set(key: string, value: unknown): Promise<void>
-    remove(key: string): Promise<void>
-    keys(): Promise<string[]>
-  }
-  notifications: {
-    show(title: string, body?: string): Promise<void>
-  }
-  fetch(url: string, init?: { timeoutMs?: number }): Promise<unknown>
-  log: {
-    debug(...args: unknown[]): void
-    info(...args: unknown[]): void
-    warn(...args: unknown[]): void
-    error(...args: unknown[]): void
-  }
-  events: {
-    /** 订阅宿主推送的事件（需 manifest.subscriptions 声明对应事件，宿主侧过滤） */
-    on(kind: string, listener: (payload: unknown) => void): void
-  }
-  tray: {
-    /** 托盘菜单项点击（需 manifest.trayMenu 声明对应项，宿主侧构建菜单） */
-    onClick(menuId: string, listener: () => void): void
-  }
-}
 
 /**
  * 宿主推送事件的分发器：parentPort 的 message 监听里同时处理 rpc-result

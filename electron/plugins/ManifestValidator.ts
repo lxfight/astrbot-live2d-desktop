@@ -14,6 +14,7 @@ import {
   PLUGIN_EVENT_VALID_VALUES,
   PLUGIN_PERMISSION_VALID_VALUES
 } from '../../src/shared/pluginManifest'
+import { PLUGIN_ID_PATTERN } from '../../src/shared/pluginSdk'
 
 export type ManifestValidationErrorCode =
   | 'INVALID_JSON'
@@ -36,7 +37,6 @@ export type ManifestValidationResult =
   | { valid: true; manifest: PluginManifest }
   | { valid: false; errors: ManifestValidationError[] }
 
-const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-_]{1,63}$/
 const SEMVER_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/
 
 /** 解析 semver 核心三段（忽略预发布标识），返回 [major, minor, patch]，非法返回 null */
