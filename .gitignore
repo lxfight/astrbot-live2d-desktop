@@ -61,6 +61,9 @@ public/models/*
 public/lib/live2dcubismcore.min.js
 public/lib/live2dcubismcore.version.json
 
+# 插件 SDK 构建产物（由 scripts/build-plugin-sdk.mjs 生成）
+packages/plugin-sdk/dist
+
 # Cubism Framework 生成目录（不包含在仓库中，从官方仓库生成）
 .generated/cubism-framework/
 

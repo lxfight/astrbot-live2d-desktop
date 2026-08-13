@@ -103,6 +103,7 @@ export default [
       'public/lib',
       'coverage',
       'scripts',
+      'packages/plugin-sdk/dist',
       'docs-site/.vitepress/dist',
       'docs-site/.vitepress/cache',
       '*.min.js',

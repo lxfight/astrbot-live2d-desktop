@@ -107,6 +107,7 @@
     "setup:framework": "node scripts/download-framework.js",
     "setup:framework:force": "node scripts/download-framework.js --force",
     "icons:generate": "node scripts/generate-icons.mjs",
+    "build:sdk": "node scripts/build-plugin-sdk.mjs",
     "build:prepare": "pnpm run typecheck && pnpm exec vite build",
     "build:vite": "pnpm exec vite build",
     "pack": "pnpm exec electron-builder --publish never && node scripts/generate-portable-update-metadata.mjs",

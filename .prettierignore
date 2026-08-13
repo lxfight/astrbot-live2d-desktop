@@ -10,3 +10,5 @@ public/lib
 coverage
 *.md
 CHANGELOG*.md
+
+packages/plugin-sdk/dist

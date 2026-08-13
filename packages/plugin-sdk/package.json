@@ -1,0 +1,28 @@
+{
+  "name": "@astrbot/plugin-sdk",
+  "version": "1.0.0",
+  "description": "AstrBot Live2D 桌面端插件开发 SDK：类型契约与运行时辅助",
+  "main": "./dist/packages/plugin-sdk/src/index.js",
+  "types": "./dist/packages/plugin-sdk/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/packages/plugin-sdk/src/index.d.ts",
+      "require": "./dist/packages/plugin-sdk/src/index.js",
+      "default": "./dist/packages/plugin-sdk/src/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "astrbot",
+    "live2d",
+    "plugin",
+    "sdk"
+  ],
+  "license": "MIT",
+  "peerDependencies": {},
+  "engines": {
+    "node": ">=20"
+  }
+}
