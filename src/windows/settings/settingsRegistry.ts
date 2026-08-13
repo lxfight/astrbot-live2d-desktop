@@ -204,6 +204,15 @@ export function createSettingsSectionRegistry(
       loader: () => import('./sections/SettingsAdvancedDataSection.vue'),
       prepare: force => maintenanceDomain.ensureStorageOverviewReady(force)
     },
+    'advanced/plugins': {
+      key: 'advanced/plugins',
+      group: 'advanced',
+      child: 'plugins',
+      layoutProfile: 'document',
+      cachePolicy: 'keep-alive',
+      skeletonKind: 'list',
+      loader: () => import('./sections/SettingsPluginsSection.vue')
+    },
     'about/info': {
       key: 'about/info',
       group: 'about',

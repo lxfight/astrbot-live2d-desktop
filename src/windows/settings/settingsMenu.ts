@@ -17,7 +17,8 @@ import {
   Eye,
   Keyboard,
   Star,
-  Save
+  Save,
+  Puzzle
 } from 'lucide-vue-next'
 
 export type SettingsGroupKey = 'connection' | 'model' | 'history' | 'advanced' | 'about'
@@ -34,6 +35,7 @@ export type SettingsChildKey =
   | 'behavior'
   | 'shortcut'
   | 'windowWatcher'
+  | 'plugins'
   | 'data'
   | 'info'
 
@@ -83,6 +85,7 @@ export const settingsMenuGroups: SettingsMenuGroup[] = [
       { key: 'behavior', icon: Settings2 },
       { key: 'shortcut', icon: Keyboard },
       { key: 'windowWatcher', icon: Eye },
+      { key: 'plugins', icon: Puzzle },
       { key: 'data', icon: Database }
     ]
   },
